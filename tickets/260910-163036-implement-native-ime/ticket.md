@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "Galaxy Z Fold7 向け Android native IME の基礎入力を実装する"
 created_at: "2026-09-10T16:30:36Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-10T16:32:51Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
