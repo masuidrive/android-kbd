@@ -481,7 +481,9 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun dp(value: Float) = value * density
-    private fun sp(value: Float) = value * resources.displayMetrics.scaledDensity
+    // The keyboard rows have fixed dp heights. Letting Canvas text follow an
+    // unbounded system font scale makes primary and secondary labels overlap.
+    private fun sp(value: Float) = value * min(resources.displayMetrics.scaledDensity, density)
 
     private fun accentChoices(letter: String): List<String>? = when (letter) {
         "a" -> "àáâäæãåā".map(Char::toString)

@@ -2,6 +2,7 @@ package com.masuidrive.gestureime.keyboard
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.content.res.Configuration
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertEquals
@@ -78,6 +79,28 @@ class KeyboardViewTest {
         assertTrue(firstKey.contentDescription.toString().contains("タップ q"))
         assertTrue(provider.performAction(0, AccessibilityNodeInfo.ACTION_CLICK, null))
         assertEquals(listOf(KeyAction.CommitText("q")), actions)
+    }
+
+    @Test fun `fixed key labels keep their bounds at large system font scales`() {
+        val normal = renderAtFontScale(1f)
+        val enlarged = renderAtFontScale(1.3f)
+        val accessibility = renderAtFontScale(2f)
+
+        assertTrue("font scale 1.3 must not expand labels beyond their key bounds", normal.sameAs(enlarged))
+        assertTrue("font scale 2.0 must not expand labels beyond their key bounds", normal.sameAs(accessibility))
+    }
+
+    private fun renderAtFontScale(fontScale: Float): Bitmap {
+        val base = RuntimeEnvironment.getApplication()
+        val configuration = Configuration(base.resources.configuration).apply { this.fontScale = fontScale }
+        val context = base.createConfigurationContext(configuration)
+        return Bitmap.createBitmap(400, 180, Bitmap.Config.ARGB_8888).also { bitmap ->
+            KeyboardView(context).apply {
+                measure(exact(400), exact(180))
+                layout(0, 0, 400, 180)
+                draw(Canvas(bitmap))
+            }
+        }
     }
 
     private fun touch(action: Int, x: Float, y: Float, time: Long = 0) {
