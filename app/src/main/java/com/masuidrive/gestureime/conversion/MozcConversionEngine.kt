@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoConfig
 import java.io.File
@@ -113,8 +114,29 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                     .setType(ProtoCommands.Input.CommandType.SET_CONFIG)
                     .setConfig(
                         ProtoConfig.Config.newBuilder()
+                            .setPreeditMethod(ProtoConfig.Config.PreeditMethod.KANA)
                             .setIncognitoMode(true)
                             .setHistoryLearningLevel(ProtoConfig.Config.HistoryLearningLevel.NO_HISTORY),
+                    ),
+            ).build(),
+        )
+        evaluate(
+            ProtoCommands.Command.newBuilder().setInput(
+                ProtoCommands.Input.newBuilder()
+                    .setType(ProtoCommands.Input.CommandType.SET_REQUEST)
+                    .setRequest(
+                        ProtoCommands.Request.newBuilder()
+                            .setZeroQuerySuggestion(true)
+                            .setMixedConversion(true)
+                            .setUpdateInputModeFromSurroundingText(false)
+                            .setSpecialRomanjiTable(
+                                ProtoCommands.Request.SpecialRomanjiTable.TOGGLE_FLICK_TO_HIRAGANA,
+                            )
+                            .setKanaModifierInsensitiveConversion(true)
+                            .setAutoPartialSuggestion(true)
+                            .setLanguageAwareInput(
+                                ProtoCommands.Request.LanguageAwareInputBehavior.NO_LANGUAGE_AWARE_INPUT,
+                            ),
                     ),
             ).build(),
         )
@@ -130,6 +152,8 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         )
         check(lastOutput.hasOutput() && lastOutput.output.id != 0L) { "Mozc did not create a session" }
         sessionId = lastOutput.output.id
+        lastOutput = evaluate(commandForKey(ProtoCommands.KeyEvent.SpecialKey.ON))
+        check(lastOutput.output.consumed) { "Mozc did not enter input mode" }
     }
 
     private fun deleteSession() {
@@ -173,6 +197,20 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
 
     private fun stateFrom(command: ProtoCommands.Command): ConversionState {
         val output = command.output
+        if (output.hasAllCandidateWords()) {
+            val list = output.allCandidateWords
+            val candidates = list.candidatesList.map { ConversionCandidate(it.id, it.value) }
+            val selected = if (
+                list.category == ProtoCandidateWindow.Category.CONVERSION &&
+                list.hasFocusedIndex()
+            ) {
+                list.focusedIndex
+            } else {
+                -1
+            }
+            val reading = if (output.hasPreedit()) output.preedit.segmentList.joinToString("") { it.value } else ""
+            return ConversionState(reading, candidates, selected)
+        }
         val window = output.candidateWindow
         val candidates = if (output.hasCandidateWindow()) {
             window.candidateList.map { ConversionCandidate(it.id, it.value) }

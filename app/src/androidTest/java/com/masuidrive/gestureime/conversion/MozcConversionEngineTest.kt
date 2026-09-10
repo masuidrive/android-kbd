@@ -13,7 +13,8 @@ class MozcConversionEngineTest {
     @Test
     fun kanaProducesJapaneseCandidateAndCommitsIt() = runBlocking {
         val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
-        engine.update("にほんご")
+        val initial = engine.update("にほんご")
+        assertEquals("にほんご", initial.reading)
         val state = engine.nextCandidate()
 
         assertTrue("Mozc returned no candidates", state.candidates.isNotEmpty())
@@ -27,7 +28,8 @@ class MozcConversionEngineTest {
     fun committingLongReadingDoesNotDropLaterSegments() = runBlocking {
         val reading = "きょうはいいてんきです"
         val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
-        engine.update(reading)
+        val initial = engine.update(reading)
+        assertEquals(reading, initial.reading)
         val state = engine.nextCandidate()
 
         assertTrue("Mozc returned no candidates", state.candidates.isNotEmpty())
