@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.Rect
 import android.util.AttributeSet
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
@@ -67,7 +68,7 @@ class CandidateStripView @JvmOverloads constructor(
 
     private fun label(textValue: String, selected: Boolean) = TextView(context).apply {
         text = textValue
-        textSize = 18f
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, 18f * resources.displayMetrics.density)
         gravity = Gravity.CENTER
         val h = (18 * resources.displayMetrics.density).toInt()
         val v = (10 * resources.displayMetrics.density).toInt()
