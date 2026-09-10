@@ -23,4 +23,16 @@ class MozcConversionEngineTest {
         assertNotNull(engine.commit(state.selectedIndex))
         engine.reset()
     }
+
+    @Test
+    fun committingLongReadingDoesNotDropLaterSegments() = runBlocking {
+        val reading = "きょうはいいてんきです"
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
+        val state = engine.update(reading)
+
+        assertTrue("Mozc returned no candidates", state.candidates.isNotEmpty())
+        val committed = requireNotNull(engine.commit(state.selectedIndex)).value
+        assertTrue("Mozc dropped text while committing: $committed", committed.length >= reading.length)
+        engine.reset()
+    }
 }

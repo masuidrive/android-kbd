@@ -7,14 +7,15 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.provider.Settings
-import android.os.Bundle
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.DecelerateInterpolator
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import kotlin.math.min
 
 class KeyboardView @JvmOverloads constructor(
@@ -47,7 +48,7 @@ class KeyboardView @JvmOverloads constructor(
     private val timers = mutableMapOf<Int, Runnable>()
     private var animationProgress = 1f
     private var animator: ValueAnimator? = null
-    private var accessibilityTarget: HitTarget? = null
+    private val accessibilityHelper = KeyboardAccessibilityHelper(this)
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
@@ -57,6 +58,7 @@ class KeyboardView @JvmOverloads constructor(
     init {
         isFocusable = true
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        ViewCompat.setAccessibilityDelegate(this, accessibilityHelper)
         ViewCompatInsets.install(this)
     }
 
@@ -66,11 +68,13 @@ class KeyboardView @JvmOverloads constructor(
         state = state.copy(mode = mode)
         contentDescription = "${mode.displayName}キーボード"
         requestLayout()
+        accessibilityHelper.invalidateRoot()
         invalidate()
     }
 
     fun setModifier(modifier: Modifier?) {
         state = state.copy(pendingModifier = modifier)
+        accessibilityHelper.invalidateRoot()
         invalidate()
     }
 
@@ -104,6 +108,8 @@ class KeyboardView @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         if (oldw != 0 && (w != oldw || h != oldh)) cancelActiveGestures()
         super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && h > 0) buildHitTargets(paddingTop.toFloat())
+        accessibilityHelper.invalidateRoot()
     }
 
     override fun onDetachedFromWindow() {
@@ -285,45 +291,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_HOVER_ENTER || event.actionMasked == MotionEvent.ACTION_HOVER_MOVE) {
-            hitTargets.lastOrNull { it.bounds.contains(event.x, event.y) }?.let {
-                accessibilityTarget = it
-                contentDescription = describe(it.spec)
-                sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
-                return true
-            }
-        }
-        return super.dispatchHoverEvent(event)
-    }
-
-    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
-        super.onInitializeAccessibilityNodeInfo(info)
-        info.className = "android.inputmethodservice.Keyboard\$Key"
-        info.isClickable = true
-        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)
-        val spec = accessibilityTarget?.spec ?: return
-        listOf(
-            ACTION_FLICK_LEFT to Direction.LEFT,
-            ACTION_FLICK_UP to Direction.UP,
-            ACTION_FLICK_RIGHT to Direction.RIGHT,
-            ACTION_FLICK_DOWN to Direction.DOWN,
-        ).forEach { (id, direction) ->
-            spec.value(direction)?.let { info.addAction(AccessibilityNodeInfo.AccessibilityAction(id, "${directionLabel(direction)} ${it.label}")) }
-        }
-    }
-
-    override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
-        val target = accessibilityTarget ?: return super.performAccessibilityAction(action, arguments)
-        val direction = when (action) {
-            AccessibilityNodeInfo.ACTION_CLICK -> Direction.CENTER
-            ACTION_FLICK_LEFT -> Direction.LEFT
-            ACTION_FLICK_UP -> Direction.UP
-            ACTION_FLICK_RIGHT -> Direction.RIGHT
-            ACTION_FLICK_DOWN -> Direction.DOWN
-            else -> return super.performAccessibilityAction(action, arguments)
-        }
-        dispatch(target.spec, direction)
-        return true
+        return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
     }
 
     private fun directionLabel(direction: Direction) = when (direction) {
@@ -337,6 +305,55 @@ class KeyboardView @JvmOverloads constructor(
             }
         }
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
+
+    private inner class KeyboardAccessibilityHelper(host: View) : ExploreByTouchHelper(host) {
+        override fun getVirtualViewAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
+            it.spec.kind != KeyKind.EMPTY && it.bounds.contains(x, y)
+        }.takeIf { it >= 0 } ?: INVALID_ID
+
+        override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
+            hitTargets.indices.filterTo(virtualViewIds) { hitTargets[it].spec.kind != KeyKind.EMPTY }
+        }
+
+        override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
+            val target = hitTargets.getOrNull(virtualViewId) ?: return
+            node.className = "android.widget.Button"
+            node.contentDescription = describe(target.spec)
+            node.setBoundsInParent(android.graphics.Rect(
+                target.bounds.left.toInt(), target.bounds.top.toInt(), target.bounds.right.toInt(), target.bounds.bottom.toInt()))
+            target.spec.center?.let {
+                node.isClickable = true
+                node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+            }
+            listOf(
+                ACTION_FLICK_LEFT to Direction.LEFT,
+                ACTION_FLICK_UP to Direction.UP,
+                ACTION_FLICK_RIGHT to Direction.RIGHT,
+                ACTION_FLICK_DOWN to Direction.DOWN,
+            ).forEach { (id, direction) ->
+                target.spec.value(direction)?.let {
+                    node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, "${directionLabel(direction)} ${it.label}"))
+                }
+            }
+        }
+
+        override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: android.os.Bundle?): Boolean {
+            val target = hitTargets.getOrNull(virtualViewId) ?: return false
+            val direction = when (action) {
+                AccessibilityNodeInfoCompat.ACTION_CLICK -> Direction.CENTER
+                ACTION_FLICK_LEFT -> Direction.LEFT
+                ACTION_FLICK_UP -> Direction.UP
+                ACTION_FLICK_RIGHT -> Direction.RIGHT
+                ACTION_FLICK_DOWN -> Direction.DOWN
+                else -> return false
+            }
+            if (target.spec.value(direction) == null && !(target.spec.kind == KeyKind.MODIFIER && direction == Direction.CENTER)) return false
+            dispatch(target.spec, direction)
+            sendEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_CLICKED)
+            invalidateVirtualView(virtualViewId)
+            return true
+        }
+    }
 
     private fun pointerDown(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)

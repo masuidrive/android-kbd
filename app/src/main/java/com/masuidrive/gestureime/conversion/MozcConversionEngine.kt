@@ -40,22 +40,33 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
     override suspend fun commit(index: Int): ConversionCommit? = mutex.withLock { withContext(Dispatchers.Default) {
         ensureInitialized()
         val candidate = state.candidates.getOrNull(index) ?: return@withContext null
-        val command = ProtoCommands.Command.newBuilder().setInput(
+        val selectCommand = ProtoCommands.Command.newBuilder().setInput(
             ProtoCommands.Input.newBuilder()
                 .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
                 .setId(sessionId)
                 .setCommand(
                     ProtoCommands.SessionCommand.newBuilder()
-                        .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT_CANDIDATE)
+                        .setType(ProtoCommands.SessionCommand.CommandType.SELECT_CANDIDATE)
                         .setId(candidate.id),
                 ),
         ).build()
-        lastOutput = evaluate(command)
-        val committed = if (lastOutput.hasOutput() && lastOutput.output.hasResult()) {
-            lastOutput.output.result.value
-        } else {
-            candidate.value
-        }
+        val selectionOutput = evaluate(selectCommand)
+        // SUBMIT_CANDIDATE commits only the focused segment in multi-segment
+        // conversion. The IME contract replaces the whole reading, so select
+        // the candidate and submit the complete conversion instead.
+        lastOutput = evaluate(
+            ProtoCommands.Command.newBuilder().setInput(
+                ProtoCommands.Input.newBuilder()
+                    .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
+                    .setId(sessionId)
+                    .setCommand(
+                        ProtoCommands.SessionCommand.newBuilder()
+                            .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT),
+                    ),
+            ).build(),
+        )
+        val committed = commandResult(selectionOutput) + commandResult(lastOutput)
+        if (committed.isEmpty()) return@withContext null
         state = ConversionState("", emptyList(), 0)
         ConversionCommit(committed)
     } }
@@ -147,6 +158,9 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
 
     private fun evaluate(command: ProtoCommands.Command): ProtoCommands.Command =
         ProtoCommands.Command.parseFrom(MozcJNI.evalCommand(command.toByteArray()))
+
+    private fun commandResult(command: ProtoCommands.Command): String =
+        if (command.hasOutput() && command.output.hasResult()) command.output.result.value else ""
 
     private fun stateFrom(command: ProtoCommands.Command): ConversionState {
         val output = command.output

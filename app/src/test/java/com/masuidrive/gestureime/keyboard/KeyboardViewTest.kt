@@ -3,6 +3,7 @@ package com.masuidrive.gestureime.keyboard
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.MotionEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -67,6 +68,16 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_MOVE, 390f, 90f, 40)
         touch(MotionEvent.ACTION_UP, 390f, 90f, 45)
         assertEquals(listOf(KeyAction.Backspace()), actions)
+    }
+
+    @Test fun `accessibility exposes individual keys and activates focused key`() {
+        val provider = view.accessibilityNodeProvider
+        val host = requireNotNull(provider.createAccessibilityNodeInfo(-1))
+        assertTrue(host.childCount >= 30)
+        val firstKey = requireNotNull(provider.createAccessibilityNodeInfo(0))
+        assertTrue(firstKey.contentDescription.toString().contains("タップ q"))
+        assertTrue(provider.performAction(0, AccessibilityNodeInfo.ACTION_CLICK, null))
+        assertEquals(listOf(KeyAction.CommitText("q")), actions)
     }
 
     private fun touch(action: Int, x: Float, y: Float, time: Long = 0) {
