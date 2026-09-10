@@ -2,11 +2,11 @@
 
 ## Verified revision
 
-- Git commit: `e46ad39e020821bbec2f83c6de61f56f45e2d0c5`
+- Git commit: `bbe40aaf2e6583a0afc79367577a1b0a1d1024b9`
 - Verified on: 2026-09-11 (Asia/Tokyo)
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- APK size: 34,543,091 bytes
-- APK SHA-256: `2a10774ce05f43fb291ff73c56c741a4200c51ad128c52f1414b72fce654f5de`
+- APK size: 34,645,297 bytes
+- APK SHA-256: `87ccb6734b22b6bb940995c169fcc4c36457fd95f8c583420ae84ade0e554d0b`
 
 ## Local verification
 
@@ -21,7 +21,7 @@ scripts/test-all.sh
 Result: PASS.
 
 - PDH fast checks: 5 passed
-- Android unit tests: 31 passed, 0 failed, 0 errors, 0 skipped
+- Android unit tests: 32 passed, 0 failed, 0 errors, 0 skipped
 - Android lint: PASS
 - Debug APK assembly: PASS
 - Gradle: `BUILD SUCCESSFUL`
@@ -37,11 +37,10 @@ Raw reports:
 Command:
 
 ```sh
-./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.masuidrive.gestureime.conversion.MozcConversionEngineTest
+./gradlew connectedDebugAndroidTest
 ```
 
-Result on `Medium_Phone_API_36.1(AVD)` API 36: 3 passed, 0 failed, 0 errors, 0 skipped. This suite verifies empty input, kana-to-candidate conversion and commit, and a long reading whose conversion spans multiple Mozc segments.
+Result on `Medium_Phone_API_36.1(AVD)` API 36: 5 passed, 0 failed, 0 errors, 0 skipped. The suite verifies empty input, kana-to-candidate conversion and commit, full-reading commits before and after Space, and fixed-input conversion latency.
 
 Raw reports:
 
