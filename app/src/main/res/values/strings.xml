@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gesture IME</string>
+    <string name="setup_title">Gesture IME</string>
+    <string name="setup_body">Android の設定で Gesture IME を有効にし、入力方法として選択してください。</string>
+    <string name="enable_ime">入力方法を有効にする</string>
+    <string name="choose_ime">入力方法を選ぶ</string>
+    <string name="test_input">入力を試す</string>
+    <string name="test_hint">ここをタップして Gesture IME を試す</string>
+</resources>
