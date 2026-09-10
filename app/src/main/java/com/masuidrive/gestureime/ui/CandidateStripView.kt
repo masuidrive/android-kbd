@@ -3,6 +3,7 @@ package com.masuidrive.gestureime.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.ViewGroup
@@ -38,13 +39,20 @@ class CandidateStripView @JvmOverloads constructor(
             showMessage("かなを入力すると候補を表示します")
             return
         }
+        var selectedView: TextView? = null
         candidates.forEachIndexed { index, candidate ->
             row.addView(label(candidate, index == selectedIndex).apply {
                 isClickable = true
                 isFocusable = true
                 contentDescription = "候補 ${index + 1}: $candidate"
                 setOnClickListener { onCandidateSelected?.invoke(index) }
+                if (index == selectedIndex) selectedView = this
             })
+        }
+        selectedView?.let { view ->
+            post {
+                view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true)
+            }
         }
     }
 

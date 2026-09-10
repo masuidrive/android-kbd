@@ -100,10 +100,12 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         }
         if (action is KeyAction.SetModifier) return
         val queuedForEditor = editorSession.capture()
+        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) candidates.toList() else null
         serviceScope.launch {
             actionMutex.withLock {
                 if (!editorSession.isCurrent(queuedForEditor)) return@withLock
-                runCatching { processInputAction(action) }
+                if (queuedCandidateSnapshot != null && queuedCandidateSnapshot != candidates) return@withLock
+                runCatching { processInputAction(action, queuedForEditor) }
                     .onFailure {
                         clearCandidateState()
                         candidateStrip?.showStatus("変換を利用できません")
@@ -112,13 +114,13 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         }
     }
 
-    private suspend fun processInputAction(action: KeyAction) {
+    private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
         when (action) {
             is KeyAction.CommitText -> {
                 if (action.text == " " && reading.isNotEmpty()) cycleCandidate()
                 else {
                     resetConversion(clearComposing = false)
-                    textController.commitText(action.text)
+                    editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }
                 }
             }
             is KeyAction.KanaInput -> updateReading(textController.appendComposing(action.reading))
@@ -129,29 +131,36 @@ class ImeService : InputMethodService(), KeyboardActionSink {
             }
             KeyAction.Enter -> {
                 if (reading.isNotEmpty()) {
-                    if (candidates.isEmpty()) applyConversion(conversionEngine.nextCandidate())
+                    if (candidates.isEmpty()) {
+                        val generation = ++conversionGeneration
+                        val state = conversionEngine.nextCandidate()
+                        if (generation != conversionGeneration || !editorSession.isCurrent(editorToken)) return
+                        applyConversion(state)
+                    }
                     if (candidates.isNotEmpty()) commitCandidate(selectedCandidate.coerceAtLeast(0))
                     else {
-                        textController.commitCandidate(reading)
+                        if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) return
                         resetConversion(clearComposing = false)
                     }
                 } else textController.enter()
             }
             KeyAction.Paste -> {
                 resetConversion(clearComposing = false)
-                textController.paste()
+                editorSession.runIfCurrent(editorToken) { textController.paste() }
             }
             is KeyAction.MoveCursor -> {
                 resetConversion(clearComposing = false)
-                textController.moveCursor(action.direction, action.units)
+                editorSession.runIfCurrent(editorToken) { textController.moveCursor(action.direction, action.units) }
             }
             is KeyAction.MoveToBoundary -> {
                 resetConversion(clearComposing = false)
-                textController.moveToBoundary(action.boundary)
+                editorSession.runIfCurrent(editorToken) { textController.moveToBoundary(action.boundary) }
             }
             is KeyAction.ModifiedKey -> {
                 resetConversion(clearComposing = false)
-                textController.sendModifiedKey(action.label, action.modifier)
+                editorSession.runIfCurrent(editorToken) {
+                    textController.sendModifiedKey(action.label, action.modifier)
+                }
             }
             is KeyAction.SwitchLayer -> Unit
             is KeyAction.SelectCandidate -> commitCandidate(action.index)

@@ -42,6 +42,10 @@ class SetupActivity : AppCompatActivity() {
                 text = getString(R.string.test_input)
                 setOnClickListener { startActivity(Intent(context, ImeTestActivity::class.java)) }
             }, matchWidth())
+            addView(Button(context).apply {
+                text = getString(R.string.licenses)
+                setOnClickListener { startActivity(Intent(context, LicenseActivity::class.java)) }
+            }, matchWidth())
         })
     }
 

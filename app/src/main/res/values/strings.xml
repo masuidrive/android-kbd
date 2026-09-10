@@ -6,5 +6,6 @@
     <string name="enable_ime">入力方法を有効にする</string>
     <string name="choose_ime">入力方法を選ぶ</string>
     <string name="test_input">入力を試す</string>
+    <string name="licenses">オープンソースライセンス</string>
     <string name="test_hint">ここをタップして Gesture IME を試す</string>
 </resources>

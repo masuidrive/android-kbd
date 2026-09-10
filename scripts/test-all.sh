@@ -32,9 +32,14 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 PARALLEL=false
-if [[ "${1:-}" == "--parallel" ]]; then
-  PARALLEL=true
-fi
+CONNECTED=false
+for argument in "$@"; do
+  case "$argument" in
+    --parallel) PARALLEL=true ;;
+    --connected) CONNECTED=true ;;
+    *) echo "Unknown option: $argument" >&2; exit 2 ;;
+  esac
+done
 
 FAILED=()
 PASSED=()
@@ -98,6 +103,11 @@ fi
 # Deterministic fast-check registry. Cheap and language-agnostic, so it is enabled
 # by default as the first stage; everything below is a commented-out example.
 run "fast-checks" bash scripts/fast-checks.sh
+run "android unit, lint, apk" ./gradlew testDebugUnitTest lintDebug assembleDebug
+
+if $CONNECTED; then
+  run "android connected (real Mozc)" ./gradlew connectedDebugAndroidTest
+fi
 
 # Example: Backend (Python pytest)
 # run "backend (SQLite)" uv run pytest -x -q

@@ -17,6 +17,9 @@
         <activity
             android:name=".ImeTestActivity"
             android:exported="false" />
+        <activity
+            android:name=".LicenseActivity"
+            android:exported="false" />
 
         <service
             android:name=".ImeService"

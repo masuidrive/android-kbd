@@ -10,4 +10,10 @@ internal class EditorSessionGate {
     }
 
     fun isCurrent(token: Long): Boolean = token == generation
+
+    inline fun runIfCurrent(token: Long, block: () -> Unit): Boolean {
+        if (!isCurrent(token)) return false
+        block()
+        return true
+    }
 }

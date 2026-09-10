@@ -18,14 +18,26 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 
 ## Architecture overview
 
-PDH の運用ファイルのみ導入済み。Android アプリ本体は未実装。
+- `ImeService` がAndroidのIME lifecycleと `InputConnection` を所有する。
+- `keyboard/KeyboardView` は5レイヤーをCanvas描画し、入力意図を `KeyAction` として通知する。Editorの変更は行わない。
+- `TextInputController` がcomposing、確定、削除、カーソル、Editor action、clipboardを一元化する。
+- `conversion/ConversionEngine` はsuspend APIでMozc JNIを隠蔽する。JNI呼出しは単一dispatcher上で直列化する。
+- `CandidateStripView` はキーボードの兄弟Viewであり、候補選択をindexでServiceへ戻す。
+- Mozcの共有ライブラリ、辞書、protobuf jarをAPKへ同梱するため、変換時にネットワークを必要としない。
 
 ## Design decisions
 
-いまも将来の実装を拘束する設計判断だけを「決定＋理由 1 行＋日付 / ticket 名」で書く。
-brief の Architectural Invariants に昇格するほどではない中規模の判断の置き場。
+1. package/Application IDは `com.masuidrive.gestureime` とする。Mozc JNI登録対象だけは上流互換の `com.google.android.apps.inputmethod.libs.mozc.session.MozcJNI` に固定する。（2026-09-11 / 260910-163036）
+2. compileSdk/targetSdk 36、minSdk 28、Java 17、arm64-v8aをv1の基準とする。（2026-09-11 / 260910-163036）
+3. 候補待ちを含む入力actionは順序を保つ。Editor lifecycle generationと変換generationが一致しない非同期結果は破棄する。（2026-09-11 / 260910-163036）
+4. Mozcはincognito/learning無効で利用し、入力内容を永続化しない。secret欄では変換処理そのものを呼ばない。（2026-09-11 / 260910-163036）
+5. Fold7実機がない検証では412dpと840dp相当のエミュレータ幅を使い、実機未確認と区別して報告する。（2026-09-11 / 260910-163036）
 
 ## 実装の注意・地雷
 
-実装粒度の具体的な罠（例:「この API は retry すると二重処理になる」）。
-テストやガードで恒久対策したら該当行を消す。
+- `finishComposingText()` の直後に同じ候補を `commitText()` するとEditorによって二重入力になる。候補確定はcomposing領域へ直接 `commitText()` する。
+- `ExtractedText.selectionStart/End` は抽出範囲内の相対位置である。`setSelection()` には `startOffset` を加えた絶対位置を渡す。
+- `assets/mozc.data` はasset内パスのままMozcへ渡せない。アプリfiles directoryへcopyして `onPostLoad` する。
+- `onPostLoad` 成功だけで辞書利用可能とは判定しない。data copy成功と空でないdata versionを確認する。
+- `InputMethodService.currentInputConnection` はEditor切替で変わる。suspend処理の再開後にenqueue時のEditor generationを再確認する。
+- 候補Viewのtapは表示時候補のsnapshotと現在候補が一致する場合だけ受理する。

@@ -19,6 +19,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -106,6 +109,27 @@ class TextInputControllerTest {
 
         assertFalse(gate.isCurrent(queuedToken))
         assertTrue(gate.isCurrent(gate.capture()))
+    }
+
+    @Test
+    fun actionResumingAfterSlowResetCannotMutateNewEditor() = runBlocking {
+        val gate = EditorSessionGate()
+        val resetStarted = CompletableDeferred<Unit>()
+        val finishReset = CompletableDeferred<Unit>()
+        val oldToken = gate.capture()
+        var newEditorText = ""
+        val oldAction = async {
+            resetStarted.complete(Unit)
+            finishReset.await()
+            gate.runIfCurrent(oldToken) { newEditorText = "stale input" }
+        }
+
+        resetStarted.await()
+        gate.advance()
+        finishReset.complete(Unit)
+
+        assertFalse(oldAction.await())
+        assertEquals("", newEditorText)
     }
 
     @Test
