@@ -168,7 +168,9 @@ class KeyboardView @JvmOverloads constructor(
         val centerY = target.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2
         val animatedEnglish = selected && spec.kind == KeyKind.CHARACTER && (direction == Direction.UP || direction == Direction.DOWN)
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && !selected
-        if (idleModifier) {
+        if (spec.id == "mode-↔" && !selected) {
+            drawCursorCross(canvas, target.bounds)
+        } else if (idleModifier) {
             textPaint.textSize = sp(12f)
             canvas.drawText("C", target.bounds.centerX(), target.bounds.centerY() - dp(4f), textPaint)
             canvas.drawText("A", target.bounds.centerX(), target.bounds.centerY() + dp(12f), textPaint)
@@ -200,6 +202,16 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "C/A" else ""
+
+    private fun drawCursorCross(canvas: Canvas, bounds: RectF) {
+        textPaint.textSize = sp(13f)
+        val x = bounds.centerX()
+        val y = bounds.centerY()
+        canvas.drawText("↑", x, y - dp(8f), textPaint)
+        canvas.drawText("←", x - dp(11f), y + dp(5f), textPaint)
+        canvas.drawText("→", x + dp(11f), y + dp(5f), textPaint)
+        canvas.drawText("↓", x, y + dp(18f), textPaint)
+    }
 
     private fun drawMainLabel(canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean) {
         val x = bounds.centerX()
