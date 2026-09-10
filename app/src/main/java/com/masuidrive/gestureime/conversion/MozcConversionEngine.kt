@@ -14,7 +14,7 @@ import java.io.File
 class MozcConversionEngine(context: Context) : ConversionEngine {
     private val appContext = context.applicationContext
     private var sessionId: Long = 0
-    private var state = ConversionState("", emptyList(), 0)
+    private var state = ConversionState("", emptyList(), -1)
     private var initialized = false
     private val mutex = Mutex()
 
@@ -24,6 +24,8 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         require(reading.length <= MAX_READING_LENGTH) { "Reading has ${reading.length} characters; maximum is $MAX_READING_LENGTH" }
         ensureInitialized()
         recreateSession()
+        state = ConversionState("", emptyList(), -1)
+        if (reading.isEmpty()) return@withContext state
         reading.forEach { sendKey(it.toString()) }
         state = stateFrom(lastOutput)
         state
@@ -51,6 +53,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                 ),
         ).build()
         val selectionOutput = evaluate(selectCommand)
+        check(selectionOutput.output.consumed) { "Mozc did not select a candidate" }
         // SUBMIT_CANDIDATE commits only the focused segment in multi-segment
         // conversion. The IME contract replaces the whole reading, so select
         // the candidate and submit the complete conversion instead.
@@ -65,6 +68,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                     ),
             ).build(),
         )
+        check(lastOutput.output.consumed) { "Mozc did not submit the conversion" }
         val committed = commandResult(selectionOutput) + commandResult(lastOutput)
         if (committed.isEmpty()) return@withContext null
         state = ConversionState("", emptyList(), 0)
@@ -156,8 +160,13 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                 .setKey(ProtoCommands.KeyEvent.newBuilder().setSpecialKey(key)),
         ).build()
 
-    private fun evaluate(command: ProtoCommands.Command): ProtoCommands.Command =
-        ProtoCommands.Command.parseFrom(MozcJNI.evalCommand(command.toByteArray()))
+    private fun evaluate(command: ProtoCommands.Command): ProtoCommands.Command {
+        val response = ProtoCommands.Command.parseFrom(MozcJNI.evalCommand(command.toByteArray()))
+        check(response.hasOutput() && response.output.errorCode == ProtoCommands.Output.ErrorCode.SESSION_SUCCESS) {
+            "Mozc session command failed"
+        }
+        return response
+    }
 
     private fun commandResult(command: ProtoCommands.Command): String =
         if (command.hasOutput() && command.output.hasResult()) command.output.result.value else ""
@@ -170,13 +179,13 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         } else {
             emptyList()
         }
-        val reading = if (output.hasPreedit()) output.preedit.segmentList.joinToString("") { it.value } else state.reading
+        val reading = if (output.hasPreedit()) output.preedit.segmentList.joinToString("") { it.value } else ""
         val selected = if (output.hasCandidateWindow() && output.candidateWindow.hasFocusedIndex()) {
-            window.candidateList.indexOfFirst { it.index == window.focusedIndex }.coerceAtLeast(0)
+            window.candidateList.indexOfFirst { it.index == window.focusedIndex }
         } else {
-            0
+            -1
         }
-        return ConversionState(reading, candidates, selected.coerceIn(0, maxOf(0, candidates.lastIndex)))
+        return ConversionState(reading, candidates, selected)
     }
 
     private fun copyDataAsset(): File {
