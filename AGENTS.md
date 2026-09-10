@@ -29,7 +29,7 @@ tickets/                         # Managed by ticket.sh
 
 ### Starting Servers
 
-Use Java 17, Android SDK 36, and NDK 27. Use Bazelisk for the Mozc r29 build. Record the exact Gradle and device/emulator commands after the initial scaffold lands.
+Use Java 17, Android SDK 36, and Android NDK r29 for Mozc. Use Bazelisk to build Mozc. Run Gradle with `ANDROID_HOME` set to the local Android SDK. Use emulator widths of 412dp and 840dp when a Fold7 device is unavailable, and report emulator evidence separately from physical-device evidence.
 
 ### Tests
 

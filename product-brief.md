@@ -29,7 +29,7 @@ Android の system IME として「日本語」「テンキー」「カーソル
 
 - 対象は Galaxy Z Fold7 上で動作する Android native IME。
 - Kotlin の Custom View と Mozc JNI を用いる。package は `com.masuidrive.gestureime`。
-- 開発基準は Java 17、Android SDK 36、NDK 27。Mozc r29 系の取得・ビルドには Bazelisk を使う。
+- 開発基準は Java 17、Android SDK 36、Mozc 用 Android NDK r29。Mozc の取得・ビルドには Bazelisk を使う。
 - 文字入力・変換の主要経路は offline で利用できること。
 - 参照資料: `https://fjsiuw2d.aboutme.style/` と `https://fjsiuw2d.aboutme.style/android-native-implementation.md`。
 
@@ -55,4 +55,4 @@ Android の system IME として「日本語」「テンキー」「カーソル
 
 ## Open Questions
 
-- [NEEDS CLARIFICATION: Fold7 実機を最終検証に利用できるか。利用できない場合、どのエミュレータ寸法を受入条件とするか]
+- Fold7 実機の利用可否は工程上の制約として扱う。実機未接続時は Android エミュレータの 412dp / 840dp 幅で検証し、実機未検証の範囲と区別して報告する。

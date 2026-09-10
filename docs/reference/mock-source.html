@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="日本語、テンキー、カーソル、QWERTY、記号の5レイヤーを備えたジェスチャーIMEモックとAndroid native実装仕様">
+  <title>Gesture IME — Android implementation reference</title>
+  <style>
+    :root {
+      color-scheme:light dark;
+      --paper:light-dark(#f6f3ec,#151619);
+      --surface:light-dark(#fffdf8,#1d1f23);
+      --ink:light-dark(#191a1d,#f2f1ed);
+      --muted:light-dark(#666761,#aaa9a2);
+      --line:light-dark(#d7d3c8,#35373c);
+      --accent:light-dark(#2459d3,#8db0ff);
+      --accent-soft:light-dark(#e9efff,#24304d);
+      --code:light-dark(#202226,#0d0e10);
+      --code-ink:#f5f2e9;
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; background:var(--paper); }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif; line-height:1.75; }
+    a { color:var(--accent); text-underline-offset:3px; }
+    .skip { position:absolute; left:-9999px; top:0; z-index:100; padding:10px 14px; background:var(--ink); color:var(--paper); }
+    .skip:focus { left:12px; top:12px; }
+    .masthead { position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:64px; padding:0 clamp(18px,4vw,56px); border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--paper) 90%,transparent); backdrop-filter:blur(18px); }
+    .brand { display:flex; align-items:baseline; gap:11px; color:var(--ink); text-decoration:none; font-weight:720; letter-spacing:-.02em; }
+    .brand small { color:var(--muted); font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
+    .masthead nav { display:flex; align-items:center; gap:18px; font-size:13px; }
+    .masthead nav a { color:var(--muted); text-decoration:none; }
+    .masthead nav a:hover { color:var(--ink); }
+    .download { border:1px solid var(--line); border-radius:999px; padding:6px 12px; }
+    .workbench { display:grid; grid-template-columns:minmax(340px,460px) minmax(0,760px); align-items:start; gap:clamp(38px,6vw,88px); width:min(1320px,100%); margin:0 auto; padding:clamp(30px,5vw,72px) clamp(16px,4vw,56px) 100px; }
+    .prototype { position:sticky; top:92px; }
+    .eyebrow { margin:0 0 10px; color:var(--accent); font:700 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.14em; text-transform:uppercase; }
+    h1 { margin:0; font-size:clamp(38px,5vw,66px); line-height:.98; letter-spacing:-.055em; font-weight:760; }
+    h1 span { display:block; }
+    .lede { max-width:40rem; margin:22px 0 20px; color:var(--muted); font-size:15px; }
+    .change-note { display:flex; gap:10px; align-items:flex-start; margin:0 0 28px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:12px; line-height:1.55; }
+    .change-note strong { flex:none; color:var(--accent); font:700 10px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.1em; }
+    .mock-frame { padding:10px; border:1px solid var(--line); border-radius:28px; background:var(--surface); box-shadow:0 22px 55px light-dark(#29230f18,#0007); }
+    .mock-frame #ios-keyboard-demo .phone { width:100%; border-color:var(--line); }
+    .try-note { margin:12px 8px 0; color:var(--muted); font-size:12px; }
+    .document { min-width:0; padding-top:6px; }
+    .doc-meta { display:grid; grid-template-columns:repeat(3,1fr); margin:0 0 42px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .doc-meta div { padding:14px 12px; border-right:1px solid var(--line); }
+    .doc-meta div:last-child { border-right:0; }
+    .doc-meta dt { color:var(--muted); font:650 9px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; text-transform:uppercase; }
+    .doc-meta dd { margin:5px 0 0; font-size:13px; font-weight:650; }
+    .guide-links { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 34px; }
+    .guide-links a { display:block; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); text-decoration:none; }
+    .guide-links strong { display:block; font-size:13px; }
+    .guide-links span { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
+    .toc { margin:0 0 54px; padding:0 0 30px; border-bottom:1px solid var(--line); }
+    .toc h2 { margin:0 0 16px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
+    .toc ol { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 28px; margin:0; padding:0; list-style:none; counter-reset:toc; }
+    .toc li { counter-increment:toc; display:flex; gap:10px; font-size:13px; }
+    .toc li::before { content:counter(toc,decimal-leading-zero); color:var(--muted); font:500 10px/1.9 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .toc a { color:var(--ink); text-decoration:none; }
+    .document > h2 { scroll-margin-top:92px; margin:72px 0 18px; padding-top:18px; border-top:1px solid var(--line); font-size:clamp(25px,3vw,34px); line-height:1.15; letter-spacing:-.035em; }
+    .document > h2:first-of-type { margin-top:0; }
+    .document > h2 a { color:inherit; text-decoration:none; }
+    .document p { margin:0 0 19px; color:var(--ink); font-size:15px; }
+    .document ul,.document ol { margin:0 0 24px; padding-left:1.45em; }
+    .document li { margin:7px 0; padding-left:4px; }
+    .document code { padding:.12em .35em; border:1px solid var(--line); border-radius:4px; background:var(--surface); font:500 .88em/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    pre { overflow:auto; margin:24px 0 30px; padding:19px 20px; border-radius:10px; background:var(--code); color:var(--code-ink); line-height:1.58; box-shadow:inset 0 0 0 1px #ffffff10; }
+    pre code { padding:0!important; border:0!important; background:transparent!important; color:inherit!important; font:500 12px/1.58 ui-monospace,SFMono-Regular,Menlo,monospace!important; }
+    .table-scroll { overflow-x:auto; margin:24px 0 32px; border-top:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; min-width:580px; font-size:13px; line-height:1.55; }
+    th,td { padding:12px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--muted); font:700 10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; text-transform:uppercase; }
+    .footer { padding:24px clamp(18px,4vw,56px) 42px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; text-align:center; }
+    @media(max-width:920px) {
+      .masthead nav a:not(.download) { display:none; }
+      .workbench { grid-template-columns:1fr; max-width:none; padding-left:0; padding-right:0; }
+      .prototype { position:static; }
+      .prototype > :not(.mock-frame) { margin-left:clamp(18px,5vw,42px); margin-right:clamp(18px,5vw,42px); }
+      .mock-frame { width:100%; max-width:none; margin:0; padding:0; border-left:0; border-right:0; border-radius:0; box-shadow:none; }
+      .mock-frame #ios-keyboard-demo .phone { width:100%; max-width:none; border-left:0; border-right:0; border-radius:0; }
+      .try-note { max-width:none; }
+      .document { padding-left:clamp(24px,5vw,48px); padding-right:clamp(24px,5vw,48px); }
+    }
+    @media(max-width:520px) {
+      .masthead { min-height:56px; }
+      .brand small { display:none; }
+      .workbench { padding:26px 0 72px; gap:58px; }
+      .prototype > :not(.mock-frame) { margin-left:16px; margin-right:16px; }
+      .mock-frame { padding:0; border-left:0; border-right:0; border-radius:0; box-shadow:none; }
+      .mock-frame #ios-keyboard-demo .phone { border:0; border-radius:0; max-width:none; }
+      .document { padding:0 18px; }
+      .doc-meta { grid-template-columns:1fr; }
+      .doc-meta div { border-right:0; border-bottom:1px solid var(--line); }
+      .doc-meta div:last-child { border-bottom:0; }
+      .toc ol { grid-template-columns:1fr; }
+      .guide-links { grid-template-columns:1fr; }
+      .document > h2 { margin-top:58px; }
+    }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#spec">仕様へ移動</a>
+  <header class="masthead">
+    <a class="brand" href="#top">Gesture IME <small>REFERENCE / 0.2</small></a>
+    <nav aria-label="ページ内ナビゲーション">
+      <a href="#gestures">Gestures</a>
+      <a href="#label-animation">Animation</a>
+      <a class="download" href="html-mock-implementation.md">HTML guide</a>
+    </nav>
+  </header>
+  <main id="top" class="workbench">
+    <section class="prototype" aria-labelledby="page-title">
+      <p class="eyebrow">Interactive HTML mock</p>
+      <h1 id="page-title"><span>Android</span><span>ジェスチャー</span><span>キーボード</span></h1>
+      <p class="lede">日本語、テンキー、カーソル、QWERTY、記号の5レイヤーと、かな漢字変換を確認する実装リファレンスです。</p>
+      <p class="change-note"><strong>UPDATED</strong><span>Fold7の外画面・内画面ではモックを画面幅いっぱいに表示。Enter下段のPasteと5レイヤー表示も反映。</span></p>
+      <div class="mock-frame"><div id="ios-keyboard-demo" data-device="cover">
+  <div class="device-picker" role="group" aria-label="Galaxy Z Fold7の画面">
+    <span class="device-name">Galaxy Z Fold7</span>
+    <button type="button" data-device="cover" aria-pressed="true">外画面</button>
+    <button type="button" data-device="inner" aria-pressed="false">内画面</button>
+    <span class="device-size">6.5″ · 2520 × 1080</span>
+  </div>
+  <div class="phone">
+    <header class="topbar"><span class="app-title">キーボード</span></header>
+    <div class="editor-wrap">
+      <label class="editor-label" for="ios-typing-area">入力を試す<span class="count">0 文字</span></label>
+      <textarea id="ios-typing-area" aria-label="入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに入力されます" rows="4"></textarea>
+    </div>
+    <div class="feedback" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
+    <div class="keyboard" role="group" aria-label="画面キーボード">
+      <div class="candidate-bar" role="listbox" aria-label="日本語変換候補" hidden></div>
+      <div class="keys"></div>
+      <div class="trackpad-status" role="status" aria-live="polite" hidden>←↓↑→</div>
+      <div class="keyboard-bottom"><button type="button" data-key="globe" aria-label="日本語に切り替える">あ</button><span class="language">QWERTY</span><button type="button" data-key="hide" aria-label="キーボードを閉じる">⌄</button></div>
+      <div class="home-indicator" aria-hidden="true"></div>
+      <div class="popup" aria-hidden="true" hidden></div>
+    </div>
+    <button class="reopen" type="button" data-key="show" hidden>キーボードを表示</button>
+  </div>
+</div>
+<style>
+  #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
+  #ios-keyboard-demo * { box-sizing:border-box; }
+  #ios-keyboard-demo { --ik-key:light-dark(#fff,#414144); --ik-special:light-dark(#aeb3bd,#303034); --ik-key-muted:light-dark(#73737b,#b5b5bf); --ik-selected:light-dark(#174ea6,#a8ceff); --ik-selected-ink:light-dark(#fff,#102844); --ik-popup:light-dark(#fff,#55555a); --ik-popup-ink:light-dark(#19191b,#f4f4f6); --ik-popup-line:light-dark(#d0d2d8,#74747a); }
+  #ios-keyboard-demo .device-picker { display:flex; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
+  #ios-keyboard-demo .device-picker .device-name { margin:0 8px; color:var(--ik-muted); font-size:11px; white-space:nowrap; }
+  #ios-keyboard-demo .device-picker button { border:0; border-radius:7px; padding:7px 12px; background:transparent; color:var(--ik-muted); font-size:12px; }
+  #ios-keyboard-demo .device-picker button[aria-pressed=true] { background:var(--ik-active); color:var(--ik-ink); }
+  #ios-keyboard-demo .device-size { min-width:126px; margin:0 8px; color:var(--ik-muted); font:500 10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; }
+  #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); min-height:min(960px,calc(100svh - 72px)); margin:0 auto; border:1px solid var(--ik-line); border-radius:22px; background:var(--ik-paper); overflow:hidden; }
+  #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); min-height:min(930px,calc(100svh - 72px)); border-radius:26px; }
+  #ios-keyboard-demo button { font-family:inherit; cursor:pointer; color:inherit; margin:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  #ios-keyboard-demo .topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 16px; }
+  #ios-keyboard-demo .app-title { font-size:19px; font-weight:500; letter-spacing:-.5px; }
+  #ios-keyboard-demo .editor-wrap { flex:1; min-height:190px; padding:22px 20px 12px; }
+  #ios-keyboard-demo .editor-label { display:flex; justify-content:space-between; font-size:11px; color:var(--ik-muted); margin-bottom:10px; }
+  #ios-keyboard-demo textarea { display:block; width:100%; height:100%; min-height:144px; resize:none; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
+  #ios-keyboard-demo textarea::placeholder { color:var(--ik-muted); opacity:.65; }
+  #ios-keyboard-demo .feedback { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:8px 16px; font-size:11px; border-top:1px solid var(--ik-line); gap:8px; }
+  #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
+  #ios-keyboard-demo .last-input { color:var(--ik-blue); }
+  #ios-keyboard-demo .keyboard { background:var(--ik-bg); position:relative; padding:8px 3px 0; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  #ios-keyboard-demo .candidate-bar { display:flex; align-items:center; gap:5px; height:42px; padding:0 3px 8px; overflow-x:auto; scrollbar-width:none; }
+  #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
+  #ios-keyboard-demo .candidate-bar[hidden] { display:none; }
+  #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .candidate-bar .candidate-empty { flex:1; color:var(--ik-muted); font-size:12px; text-align:center; }
+  #ios-keyboard-demo .keys { position:relative; }
+  #ios-keyboard-demo .key-row { display:flex; justify-content:center; height:54px; margin-bottom:7px; gap:0; }
+  #ios-keyboard-demo .key { display:flex; position:relative; justify-content:center; align-items:center; flex:1; min-width:0; height:100%; background:none; border:0; padding:0 3px; font-size:25px; font-weight:400; touch-action:none; }
+  #ios-keyboard-demo .key-face { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--ik-key); border-radius:5px; box-shadow:0 1px 0 light-dark(#898c94,#141416); width:100%; height:100%; pointer-events:none; }
+  #ios-keyboard-demo .special .key-face { background:var(--ik-special); font-size:16px; }
+  #ios-keyboard-demo .key small { font-size:10px; line-height:1.1; margin-top:2px; opacity:.7; letter-spacing:.7px; }
+  #ios-keyboard-demo .key.pressed .key-face, #ios-keyboard-demo .key.mode-on .key-face { background:var(--ik-selected); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.cursor .key-face { font-size:13px; }
+  #ios-keyboard-demo .cursor-cross { position:relative; width:34px; height:34px; }
+  #ios-keyboard-demo .cursor-arrow { position:absolute; font-size:13px; line-height:1; }
+  #ios-keyboard-demo .cursor-arrow.up { top:0; left:50%; transform:translateX(-50%); }
+  #ios-keyboard-demo .cursor-arrow.left { top:50%; left:1px; transform:translateY(-50%); }
+  #ios-keyboard-demo .cursor-arrow.right { top:50%; right:1px; transform:translateY(-50%); }
+  #ios-keyboard-demo .cursor-arrow.down { bottom:0; left:50%; transform:translateX(-50%); }
+  #ios-keyboard-demo .key.home .key-face, #ios-keyboard-demo .key.end .key-face { font-size:18px; }
+  #ios-keyboard-demo .key.modifier-gesture .key-face { position:relative; }
+  #ios-keyboard-demo .key.modifier-gesture .key-main { font-size:18px; line-height:1; }
+  #ios-keyboard-demo .key.modifier-gesture .modifier-direction { position:absolute; left:0; right:0; margin:0; color:var(--ik-key-muted); font-size:10px; line-height:1; letter-spacing:0; opacity:1; transition:opacity .09s ease; }
+  #ios-keyboard-demo .key.modifier-gesture .modifier-up { top:6px; }
+  #ios-keyboard-demo .key.modifier-gesture .modifier-down { bottom:6px; }
+  #ios-keyboard-demo .key.modifier-gesture.mode-on .modifier-direction, #ios-keyboard-demo .key.modifier-gesture.choice-active .modifier-direction { opacity:0; }
+  #ios-keyboard-demo .key .key-corner { position:absolute; right:5px; bottom:4px; margin:0; color:var(--ik-key-muted); font-size:10px; line-height:1; letter-spacing:0; opacity:.76; }
+  #ios-keyboard-demo .key.mode-on .key-corner { opacity:0; }
+  #ios-keyboard-demo .popup.letter.modifier-popup { min-width:90px; font-size:24px; }
+  #ios-keyboard-demo .key.return .key-face { font-size:15px; }
+  #ios-keyboard-demo .kana .key.side { flex:1; }
+  #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
+  #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana .key-row { position:relative; }
+  #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 6px); z-index:1; }
+  #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
+  #ios-keyboard-demo .kana .punct .key-face, #ios-keyboard-demo .kana .modifier .key-face { font-size:18px; }
+  #ios-keyboard-demo .kana .key-row { height:51px; margin-bottom:6px; }
+  #ios-keyboard-demo .english .key-row { height:45px; margin-bottom:10px; }
+  #ios-keyboard-demo .english .key { font-size:24px; }
+  #ios-keyboard-demo .english .key.has-flick { font-size:22px; }
+  #ios-keyboard-demo .english .key-row:nth-child(2) { justify-content:flex-start; padding-left:0; }
+  #ios-keyboard-demo .english .key-row:nth-child(2) .key { flex:0 0 10%; }
+  #ios-keyboard-demo .english .key-row:nth-child(2) .modifier-gesture,
+  #ios-keyboard-demo .english .key-row:nth-child(2) .flick-backspace { flex-basis:5%; }
+  #ios-keyboard-demo .key.has-flick .key-face { position:relative; overflow:hidden; padding-top:10px; }
+  #ios-keyboard-demo .key .key-main { transition:transform .09s ease,opacity .09s ease; }
+  #ios-keyboard-demo .key.letter-layer-toggle .key-face { position:relative; }
+  #ios-keyboard-demo .key.letter-layer-toggle .key-main { position:relative; z-index:1; transform:translateX(-3px); }
+  #ios-keyboard-demo .key.letter-layer-toggle .key-ghost { position:absolute; z-index:0; left:50%; top:50%; transform:translate(2px,-35%); color:var(--ik-key-muted); font-size:75%; opacity:.72; }
+  #ios-keyboard-demo .key.pressed .key-ghost, #ios-keyboard-demo .key.mode-on .key-ghost { color:var(--ik-selected-ink); opacity:1; }
+  #ios-keyboard-demo .key.letter-layer-toggle.navigation-selected .key-ghost { opacity:0; }
+  #ios-keyboard-demo .key .key-alt { position:absolute; top:3px; left:0; right:0; text-align:center; color:var(--ik-key-muted); font-size:11px; line-height:12px; transition:transform .09s ease,color .09s ease; }
+  #ios-keyboard-demo .key .key-hint { order:3; }
+  #ios-keyboard-demo .key.space .key-hint { order:-1; margin:0 0 2px; }
+  #ios-keyboard-demo .key.return .key-hint { order:-1; margin:0 0 2px; }
+  #ios-keyboard-demo .key.return.mode-on .key-hint { opacity:0; }
+  #ios-keyboard-demo .key.pressed .key-alt { color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.flick-selected .key-alt { transform:translateY(13px) scale(1.7); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.flick-selected .key-main { transform:translateY(22px); opacity:0; }
+  #ios-keyboard-demo .key.uppercase-selected .key-main { transform:translateY(-3px); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.uppercase-selected .key-alt { opacity:0; }
+  #ios-keyboard-demo .trackpad .key-face, #ios-keyboard-demo .trackpad .key-face * { color:transparent!important; }
+  #ios-keyboard-demo .keyboard.popup-active .keys .key:not(.pressed) .key-face { opacity:.42; }
+  @media(prefers-reduced-motion:reduce) { #ios-keyboard-demo .key .key-main, #ios-keyboard-demo .key .key-alt { transition:none; } }
+  #ios-keyboard-demo .english .key.backspace .key-face, #ios-keyboard-demo .english .key.return .key-face { background:var(--ik-key); }
+  #ios-keyboard-demo .english .key-row:last-child .key { flex:1.45; }
+  #ios-keyboard-demo .english .key-row:last-child .space { flex:4.2; }
+  #ios-keyboard-demo .english .space .key-face { font-size:16px; }
+  #ios-keyboard-demo .english .key-row:last-child .return { flex:2; }
+  #ios-keyboard-demo .keyboard-bottom { display:flex; align-items:center; justify-content:space-between; height:40px; padding:0 12px; }
+  #ios-keyboard-demo .keyboard-bottom button { padding:0; width:44px; height:38px; border:0; background:transparent; font-size:30px; touch-action:none; }
+  #ios-keyboard-demo .language { font-size:12px; color:var(--ik-muted); }
+  #ios-keyboard-demo .home-indicator { width:118px; height:4px; background:var(--ik-ink); border-radius:4px; margin:6px auto 0; transform:translateY(-3px); opacity:.85; }
+  #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 47px; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
+  #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
+  #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
+  #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
+  #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
+  #ios-keyboard-demo .popup span { position:absolute; width:50px; height:50px; background:var(--ik-popup); color:var(--ik-popup-ink); display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:27px; border:1px solid var(--ik-popup-line); }
+  #ios-keyboard-demo .popup span.chosen, #ios-keyboard-demo .popup.letter.modifier-popup { background:var(--ik-selected); color:var(--ik-selected-ink); border-color:var(--ik-selected); }
+  #ios-keyboard-demo .popup.letter { min-width:58px; height:66px; padding:4px 10px; background:var(--ik-popup); color:var(--ik-popup-ink); border:1px solid var(--ik-popup-line); border-radius:9px 9px 5px 5px; text-align:center; font-size:40px; line-height:56px; }
+  #ios-keyboard-demo .popup.accents { display:flex; background:var(--ik-popup); border:1px solid var(--ik-popup-line); border-radius:8px; padding:3px; }
+  #ios-keyboard-demo .popup.accents span { position:relative; width:34px; height:48px; font-size:25px; border:0; }
+  #ios-keyboard-demo .reopen { border:0; background:var(--ik-active); color:var(--ik-blue); width:100%; min-height:48px; font-size:15px; }
+  #ios-keyboard-demo[data-device=inner] .topbar, #ios-keyboard-demo[data-device=inner] .editor-wrap { padding-left:28px; padding-right:28px; }
+  #ios-keyboard-demo[data-device=inner] .keyboard { padding-left:10px; padding-right:10px; }
+  #ios-keyboard-demo[data-device=inner] .english .key-row { height:52px; }
+  #ios-keyboard-demo[data-device=inner] .kana .key-row { height:58px; }
+  @media(max-width:560px) { #ios-keyboard-demo .device-picker .device-name { display:none; } #ios-keyboard-demo .device-size { min-width:0; } }
+  @media(max-width:360px) { #ios-keyboard-demo .key { padding:0 2px; } #ios-keyboard-demo .topbar { padding-top:16px; } #ios-keyboard-demo .device-size { display:none; } }
+</style>
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('ios-keyboard-demo');
+  const $ = selector => root.querySelector(selector);
+  const editor = $('textarea'), keyboard = $('.keyboard'), keys = $('.keys'), popup = $('.popup');
+  const candidateBar = $('.candidate-bar'), trackpadStatus = $('.trackpad-status');
+  const kanaRows = [
+    [['cursor','カーソル',{visual:'cursor-cross'}],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
+    [['symbols','#'],['た',['た','ち','つ','て','と']],['な',['な','に','ぬ','ね','の']],['は',['は','ひ','ふ','へ','ほ']],['space','Space']],
+    [['numbers','123'],['ま',['ま','み','む','め','も']],['や',['や','（','ゆ','）','よ']],['ら',['ら','り','る','れ','ろ']],['return','Enter']],
+    [['english','ABC',{layerSwitch:true}],['modifier','小゛゜'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
+  ];
+  const tenkeyRows = [
+    [['cursor','カーソル',{visual:'cursor-cross'}],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
+    [['symbols','#'],['4','4',{text:true}],['5','5',{text:true}],['6','6',{text:true}],['space','Space']],
+    [['letters','あいう'],['7','7',{text:true}],['8','8',{text:true}],['9','9',{text:true}],['return','Enter']],
+    [['english','ABC',{layerSwitch:true}],['-',['-','+','/','*',',']],['0','0',{text:true}],['.','.',{text:true}],[null,'']]
+  ];
+  const cursorRows = [
+    [['letters','あいう'],[null,''],[null,''],[null,''],['backspace','⌫']],
+    [['symbols','#'],['home','先頭'],['up','↑'],['end','末尾'],[null,'']],
+    [['numbers','123'],['left','←'],['space','space',{hint:'←↓↑→'}],['right','→'],['return','Enter']],
+    [['english','ABC',{layerSwitch:true}],[null,''],['down','↓'],[null,''],[null,'']]
+  ];
+  const kanaRowsByLayer = {letters:kanaRows,numbers:tenkeyRows,cursor:cursorRows};
+  const layerToggleLabels = {
+    numbers:{main:'1',ghost:'9'},
+    letters:{main:'あ',ghost:'ん'},
+    english:{main:'A',ghost:'Z'},
+    symbols:{main:'#',ghost:'!'}
+  };
+  const layerNavigation = {left:{label:'記号',action:'symbol-layer'},up:{label:'日本語',action:'kana'},right:{label:'テンキー',action:'kana-numbers'},down:{label:'QWERTY',action:'english'}};
+  const pasteNavigation = {down:{label:'paste',action:'paste'}};
+  const repeatKeys = ['backspace','left','right','up','down'];
+  const accents = {a:'àáâäæãåā',e:'èéêëēėę',i:'îïíīįì',o:'ôöòóœøōõ',u:'ûüùúū',c:'çćč',n:'ñń',s:'ßśš',y:'ÿ'};
+  const modifierCycles = ['あぁ','いぃ','うぅゔ','えぇ','おぉ','かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つっづ','てで','とど','はばぱ','ひびぴ','ふぶぷ','へべぺ','ほぼぽ','やゃ','ゆゅ','よょ','わゎ'];
+  const conversionDictionary = {
+    'にほんご':['日本語','日本語入力'],'きょう':['今日','京都','きょう'],'あした':['明日','あした'],
+    'わたし':['私','わたし'],'かんじ':['漢字','感じ'],'へんかん':['変換','返還'],'にゅうりょく':['入力'],
+    'こんにちは':['こんにちは','今日は'],'ありがとう':['ありがとう','有難う'],'おねがいします':['お願いします'],
+    'とうきょう':['東京'],'おおさか':['大阪'],'じかん':['時間','次官'],'かいしゃ':['会社'],'かいぎ':['会議']
+  };
+  const segmenter = new Intl.Segmenter('ja',{granularity:'grapheme'});
+  const active = new Map();
+  const composition = {reading:'',start:0,end:0,candidates:[],index:0,converted:false};
+  let preserveComposition = false;
+  // BEGIN KEY FLICK LOGIC
+  // QWERTY secondary legends, compacted to the phone-size surface.
+  const flickSymbols = Object.fromEntries([
+    ...[...'qwertyuiop'].map((key,i)=>[key,'1234567890'[i]]),
+    ...[...'asdfghjkl'].map((key,i)=>[key, '@#$&*()\'"'[i]]),
+    ...[...'zxcvbnm,.'].map((key,i)=>[key, '%-+=/;:!?'[i]])
+  ]);
+  function updateKeyFlick(p,dx,dy) {
+    if(!p.flickKey)return false;
+    const canUppercase=/^[a-z]$/.test(p.flickKey);
+    if(!p.flickAxis && Math.hypot(dx,dy)>=12) {
+      p.flickAxis=Math.abs(dy)>Math.abs(dx)&&(dy>0||canUppercase)?'vertical':'slide';
+    }
+    if(p.flickAxis==='slide')return false;
+    p.altSelected=p.flickAxis==='vertical' && dy>=(p.altSelected?10:18);
+    p.upperSelected=canUppercase && p.flickAxis==='vertical' && dy<=-(p.upperSelected?10:18);
+    return true;
+  }
+  function keyOutput(p) {
+    if(p.altSelected)return p.key.alt;
+    if(p.variants)return p.variants[p.accentIndex];
+    return p.upperSelected||p.upper?p.key.text.toUpperCase():p.key.text;
+  }
+  function updateModifierFlick(p,dx,dy) {
+    if(!p.modifierFlick)return false;
+    if(!p.modifierAxis&&Math.hypot(dx,dy)>=12)p.modifierAxis=Math.abs(dy)>Math.abs(dx)?'vertical':'slide';
+    if(p.modifierAxis==='slide')return false;
+    const ctrl=dy>=(p.modifierChoice==='Control'?10:18);
+    const alt=dy<=-(p.modifierChoice==='Alt'?10:18);
+    p.modifierChoice=p.modifierAxis==='vertical'?(ctrl?'Control':alt?'Alt':null):null;
+    return true;
+  }
+  function updateNavigationFlick(p,dx,dy) {
+    if(!p.key.navigation)return false;
+    const horizontal=Boolean(p.key.navigation.left||p.key.navigation.right);
+    const vertical=Boolean(p.key.navigation.up||p.key.navigation.down);
+    if(!p.navigationAxis&&Math.hypot(dx,dy)>=12)p.navigationAxis=horizontal&&Math.abs(dx)>Math.abs(dy)?'horizontal':vertical&&Math.abs(dy)>Math.abs(dx)?'vertical':'slide';
+    if(p.navigationAxis==='slide')return false;
+    if(p.navigationAxis==='horizontal') {
+      const left=dx<=-(p.navigationChoice==='left'?10:18),right=dx>=(p.navigationChoice==='right'?10:18);
+      p.navigationChoice=left?'left':right?'right':null;
+    } else if(vertical) {
+      const up=dy<=-(p.navigationChoice==='up'?10:18),down=dy>=(p.navigationChoice==='down'?10:18);
+      p.navigationChoice=up?'up':down?'down':null;
+    } else p.navigationChoice=null;
+    return true;
+  }
+  function lockSwipeAxis(currentAxis,dx,dy) {
+    if(currentAxis)return currentAxis;
+    if(Math.hypot(dx,dy)<10)return null;
+    return Math.abs(dx)>Math.abs(dy)?'horizontal':'vertical';
+  }
+  function modifiedKey(text,modifier,shifted=false) {
+    const letter=/^[a-z]$/i.test(text);
+    return {key:letter?(shifted?text.toUpperCase():text.toLowerCase()):text,ctrlKey:modifier==='Control',altKey:modifier==='Alt',shiftKey:shifted};
+  }
+  function verticalTarget(stops,pos,amount,preferredX) {
+    const current=stops.find(s=>s.pos===pos)||stops[0];
+    const x=preferredX??current.x;
+    const nextRows=stops.filter(s=>amount<0?s.y<current.y-2:s.y>current.y+2);
+    if(!nextRows.length)return {pos:amount<0?stops[0].pos:stops.at(-1).pos,x};
+    const y=amount<0?Math.max(...nextRows.map(s=>s.y)):Math.min(...nextRows.map(s=>s.y));
+    const row=nextRows.filter(s=>Math.abs(s.y-y)<2);
+    return {pos:row.reduce((best,s)=>Math.abs(s.x-x)<Math.abs(best.x-x)?s:best).pos,x};
+  }
+  // END KEY FLICK LOGIC
+  let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
+  let keyMap = new Map();
+  let preferredCursorX = null, cursorReturnLayer = 'letters';
+  const segments = text => [...segmenter.segment(text)];
+  function updateCount() { $('.count').textContent = segments(editor.value).length+' 文字'; }
+  function announce(text) { $('.last-input').textContent = text; }
+  const modifierLabel=value=>value==='Control'?'Ctrl':value;
+  function currentModifier() { return [...active.values()].find(p=>p.modifierChoice&&!p.used)?.modifierChoice||pendingModifier; }
+  function applyModified(text,modifier=currentModifier(),shifted=false) {
+    if(!modifier)return false;
+    const detail=modifiedKey(text,modifier,shifted);
+    pendingModifier=null;lastSpace=-Infinity;
+    for(const held of active.values())if(held.modifierChoice===modifier)held.used=true;
+    const event=new CustomEvent('virtualkey',{detail,bubbles:true,cancelable:true});
+    const useDefault=editor.dispatchEvent(event);
+    if(useDefault&&detail.ctrlKey&&detail.key.toLowerCase()==='a') {
+      editor.focus({preventScroll:true});editor.setSelectionRange(0,editor.value.length);
+    }
+    announce(modifierLabel(modifier)+(detail.shiftKey?' + Shift':'')+' + '+(detail.key===' '?'Space':detail.key.length===1?detail.key.toUpperCase():detail.key));
+    return true;
+  }
+  function clearComposition() {
+    Object.assign(composition,{reading:'',start:0,end:0,candidates:[],index:0,converted:false});
+  }
+  function conversionCandidates(reading) {
+    const katakana=reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+    return [...new Set([...(conversionDictionary[reading]||[]),reading,katakana])];
+  }
+  function syncComposition() {
+    if(language!=='kana'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd) {clearComposition();return;}
+    const end=editor.selectionStart,match=editor.value.slice(0,end).match(/[\u3041-\u3096ー〜]+$/u);
+    if(!match) {clearComposition();return;}
+    Object.assign(composition,{reading:match[0],start:end-match[0].length,end,candidates:conversionCandidates(match[0]),index:0,converted:false});
+  }
+  function replaceComposition(index,commit=false) {
+    if(!composition.reading||!composition.candidates.length)return false;
+    const choice=composition.candidates[(index+composition.candidates.length)%composition.candidates.length];
+    preserveComposition=true;
+    editor.focus({preventScroll:true});
+    editor.setRangeText(choice,composition.start,composition.end,'end');
+    composition.end=composition.start+choice.length;composition.index=(index+composition.candidates.length)%composition.candidates.length;composition.converted=true;
+    editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;
+    announce(commit?'確定：'+choice:'変換：'+choice);
+    if(commit)clearComposition();
+    render();return true;
+  }
+  function renderCandidates() {
+    candidateBar.replaceChildren();
+    candidateBar.hidden=language!=='kana'||layer!=='letters';
+    if(candidateBar.hidden)return;
+    if(!composition.reading) {
+      const empty=document.createElement('span');empty.className='candidate-empty';empty.textContent='かなを入力すると変換候補を表示';candidateBar.append(empty);return;
+    }
+    composition.candidates.forEach((candidate,index)=>{
+      const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
+      button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
+      button.textContent=candidate;candidateBar.append(button);
+    });
+  }
+  function insert(text) {
+    if (!text) return;
+    if(composition.converted)clearComposition();
+    preferredCursorX=null;
+    editor.focus({preventScroll:true});
+    editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));
+    announce(text==='\n'?'改行':text===' '?'空白':text);
+  }
+  function erase() {
+    preferredCursorX=null;
+    const start=editor.selectionStart,end=editor.selectionEnd;
+    if(start===end && start===0)return;
+    const previous=segments(editor.value.slice(0,start)).at(-1);
+    editor.setRangeText('',start===end ? previous.index : start,end,'end');
+    editor.focus({preventScroll:true});editor.dispatchEvent(new Event('input',{bubbles:true}));lastSpace=-Infinity;announce('削除');
+  }
+  const cursorDirectionLabel = (horizontal,vertical) => {
+    if(vertical<0)return '↑ 上';
+    if(vertical>0)return '↓ 下';
+    if(horizontal<0)return '← 左';
+    if(horizontal>0)return '→ 右';
+    return 'カーソル';
+  };
+  function moveCursor(amount) {
+    preferredCursorX=null;
+    const boundaries=[0,...segments(editor.value).map(s=>s.index+s.segment.length)];
+    const selected=editor.selectionStart!==editor.selectionEnd;
+    const start=amount>0?editor.selectionEnd:editor.selectionStart;
+    let index=boundaries.findIndex(p=>p>=start);
+    const delta=selected?amount-Math.sign(amount):amount;
+    setCursor(boundaries[Math.max(0,Math.min(boundaries.length-1,index+delta))],null,cursorDirectionLabel(amount,0));
+  }
+  function caretStops() {
+    // Measure the same text and wrapping as the textarea, without changing it.
+    const mirror=document.createElement('div'),style=getComputedStyle(editor);
+    for(const name of ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','paddingTop','paddingBottom','paddingLeft','paddingRight','tabSize','direction','wordBreak'])mirror.style[name]=style[name];
+    Object.assign(mirror.style,{position:'absolute',visibility:'hidden',pointerEvents:'none',left:'0',top:'0',width:editor.clientWidth+'px',boxSizing:'border-box',whiteSpace:'pre-wrap',overflowWrap:'break-word'});
+    mirror.setAttribute('aria-hidden','true');
+    const text=document.createTextNode(editor.value+'\u200b');mirror.append(text);root.append(mirror);
+    try {
+      const base=mirror.getBoundingClientRect(),range=document.createRange();
+      return [0,...segments(editor.value).map(s=>s.index+s.segment.length)].map(pos=>{
+        range.setStart(text,pos);range.collapse(true);
+        const rect=range.getBoundingClientRect();
+        return {pos,x:rect.x-base.x,y:rect.y-base.y};
+      });
+    } finally {mirror.remove();}
+  }
+  function setCursor(pos,stops=null,label='カーソル移動') {
+    clearComposition();
+    editor.focus({preventScroll:true});editor.setSelectionRange(pos,pos);lastSpace=-Infinity;
+    if(stops) {
+      const caret=stops.find(s=>s.pos===pos),lineHeight=parseFloat(getComputedStyle(editor).lineHeight);
+      if(caret.y<editor.scrollTop)editor.scrollTop=caret.y;
+      else if(caret.y+lineHeight>editor.scrollTop+editor.clientHeight)editor.scrollTop=caret.y+lineHeight-editor.clientHeight;
+    }
+    announce(label);
+  }
+  function moveVertical(amount) {
+    const stops=caretStops(),pos=amount>0?editor.selectionEnd:editor.selectionStart;
+    const target=verticalTarget(stops,pos,amount,preferredCursorX);
+    preferredCursorX=target.x;setCursor(target.pos,stops,cursorDirectionLabel(0,amount));
+  }
+  function beginTrackpad(p,dx=0,dy=0) {
+    clearTimeout(p.timer);p.trackpad=true;p.trackpadAxis=lockSwipeAxis(null,dx,dy);p.cursorX=p.x;p.cursorY=p.y;lastSpace=-Infinity;
+    keyboard.classList.add('trackpad');keyboard.classList.remove('popup-active');popup.hidden=true;
+    trackpadStatus.hidden=false;trackpadStatus.textContent='←↓↑→';announce('カーソル移動');
+  }
+  function modify() {
+    const end=editor.selectionStart;if(end!==editor.selectionEnd)return;
+    const prev=segments(editor.value.slice(0,end)).at(-1);if(!prev)return;
+    const cycle=modifierCycles.find(c=>c.includes(prev.segment));if(!cycle)return;
+    const next=cycle[(cycle.indexOf(prev.segment)+1)%cycle.length];
+    editor.setSelectionRange(prev.index,end);insert(next);
+  }
+  function action(id,modifier=currentModifier()) {
+    const specialKeys={backspace:'Backspace',space:' ',return:'Enter',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
+    if(specialKeys[id]&&applyModified(specialKeys[id],modifier)) {render();return true;}
+    if(id!=='space')lastSpace=-Infinity;
+    if(id==='backspace')erase();
+    else if(id==='left'||id==='right')moveCursor(id==='left'?-1:1);
+    else if(id==='up'||id==='down')moveVertical(id==='up'?-1:1);
+    else if(id==='home'||id==='end') {preferredCursorX=null;setCursor(id==='home'?0:editor.value.length,null,id==='home'?'⇤ 先頭':'⇥ 末尾');editor.scrollTop=id==='home'?0:editor.scrollHeight;}
+    else if(id==='modifier')modify();
+    else if(id==='return') {
+      if(composition.reading) {announce('確定');clearComposition();}
+      else insert('\n');
+    }
+    else if(id==='space') {
+      const now=performance.now(),pos=editor.selectionStart;
+      if(language==='kana'&&layer==='letters'&&composition.reading) {
+        replaceComposition(composition.converted?composition.index+1:0);return true;
+      }else if(language==='english'&&now-lastSpace<350&&pos===editor.selectionEnd&&/[\p{L}\p{N}][ ]$/u.test(editor.value.slice(0,pos))) {
+        editor.setSelectionRange(pos-1,pos);insert('. ');lastSpace=-Infinity;
+      }else {insert(' ');lastSpace=now;}
+    }else if(id==='paste') {
+      clearComposition();
+      if(navigator.clipboard?.readText)navigator.clipboard.readText().then(text=>{if(text)insert(text);else announce('クリップボードは空です');render();}).catch(()=>{announce('Pasteを利用できません');render();});
+      else announce('Pasteを利用できません');
+    }else if(id==='modifier-gesture') {if(pendingModifier){pendingModifier=null;announce('修飾キーを解除');}}
+    else if(id==='symbols') {if(language==='kana'){language='english';layer='symbols';}else layer=layer==='letters'?'symbols':'letters';clearComposition();}
+    else if(id==='symbol-layer') {language='english';layer='symbols';pendingModifier=null;clearComposition();}
+    else if(id==='kana-numbers') {language='kana';layer='numbers';pendingModifier=null;clearComposition();}
+    else if(id==='kana-cursor') {language='kana';layer='cursor';clearComposition();}
+    else if(id==='numbers') {layer='numbers';clearComposition();}
+    else if(id==='letters') {layer='letters';clearComposition();}
+    else if(id==='cursor') {clearComposition();if(layer==='cursor')layer=cursorReturnLayer;else {cursorReturnLayer=layer;layer='cursor';}}
+    else if(['english','kana','globe'].includes(id)) {
+      language=id==='globe'?(language==='kana'?'english':'kana'):id;layer='letters';pendingModifier=null;clearComposition();
+    }else if(id==='hide') { keyboard.hidden=true;$('.reopen').hidden=false;editor.blur(); }
+    else if(id==='show') { keyboard.hidden=false;$('.reopen').hidden=true;editor.focus({preventScroll:true}); }
+    render();
+  }
+  // Layout data, DOM creation and runtime state are kept separate so this
+  // remains one portable HTML file without turning render() into a monolith.
+  const makeKey=(id,label,options={})=>({id,label,...options});
+  const textKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,preview:'press'}));
+  const letterKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,alt:flickSymbols[c],preview:'press'}));
+  const modifierGesture=()=>makeKey('modifier-gesture','',{modifierFlick:true,preview:'selection'});
+  const flickBackspace=()=>makeKey('flick-backspace','',{alt:'⌫',altAction:'backspace',preview:'selection'});
+  const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
+  function createKanaKey([id,value,options={}],index) {
+    if(id===null)return makeKey(null,'');
+    const flick=Array.isArray(value)?value:null;
+    const toggle=layerToggleLabels[id];
+    const text=options.text?value:null;
+    return makeKey(id,toggle?.main??options.label??(flick?flick[0]:value),{
+      flick,
+      text,
+      hint:options.hint??null,
+      ghost:toggle?.ghost??null,
+      navigation:options.layerSwitch?layerNavigation:null,
+      preview:flick||text?'press':null,
+      visual:options.visual??null,
+      special:index===0||index===4,
+      side:index===0||index===4
+    });
+  }
+  function englishBottomRow() {
+    return [
+      makeKey('kana','あ',{special:true,ghost:'ん',navigation:layerNavigation}),
+      makeKey('space','Space',{hint:'←↓↑→'}),
+      makeKey('return','Enter',{hint:'paste',navigation:pasteNavigation})
+    ];
+  }
+  function qwertyRows() {
+    return [
+      letterKeys('qwertyuiop'),
+      [modifierGesture(),...letterKeys('asdfghjkl'),flickBackspace()],
+      [makeKey('symbols','#',{special:true,ghost:'!'}),...letterKeys('zxcvbnm,.')],
+      englishBottomRow()
+    ];
+  }
+  function symbolRows() {
+    return [
+      textKeys('1234567890'),
+      [modifierGesture(),...textKeys('^_\\|~{}[]'),flickBackspace()],
+      [makeKey('symbols','A',{special:true,ghost:'Z'}),...textKeys('`"!?;:<>/')],
+      englishBottomRow()
+    ];
+  }
+  function keyboardRows() {
+    if(language==='kana')return kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+    return layer==='letters'?qwertyRows():symbolRows();
+  }
+  function keyAriaLabel(key) {
+    const layerDirections='左フリックで記号、上フリックで日本語、右フリックでテンキー、下フリックでQWERTY';
+    const names={
+      backspace:'削除',
+      'flick-backspace':'下フリックで削除、タップと上フリックは無効',
+      'modifier-gesture':pendingModifier
+        ?modifierLabel(pendingModifier)+' 選択中。タップで解除、下スワイプでCtrl、上スワイプでAlt'
+        :'下スワイプでCtrl、上スワイプでAlt、タップは無効',
+      modifier:'小文字・濁点・半濁点',
+      left:'カーソルを左へ',
+      right:'カーソルを右へ',
+      up:'カーソルを上の行へ',
+      down:'カーソルを下の行へ',
+      home:'文章の先頭へ',
+      end:'文章の末尾へ',
+      cursor:'カーソルレイヤーへ切り替える',
+      space:'Space。フリックでカーソル移動',
+      return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
+      numbers:'テンキーへ切り替える',
+      kana:'タップで日本語。'+layerDirections,
+      symbols:language==='kana'?'記号へ切り替える':layer==='letters'?'記号へ切り替える':'QWERTYへ戻る',
+      letters:'日本語へ戻る',
+      english:key.navigation?'タップでQWERTY。'+layerDirections:'QWERTYへ切り替える',
+      globe:'QWERTYへ切り替える'
+    };
+    if(names[key.id])return names[key.id];
+    const baseLabel=key.flick?key.flick.filter(Boolean).join(' '):key.label;
+    if(!key.alt)return baseLabel;
+    const uppercaseHint=/^[a-z]$/.test(key.id)?'、上スワイプで大文字':'';
+    return baseLabel+'、下フリックで '+key.alt+uppercaseHint;
+  }
+  function createCursorCross() {
+    const cross=document.createElement('span');
+    cross.className='cursor-cross';
+    const directions=['up','left','right','down'];
+    ['↑','←','→','↓'].forEach((glyph,index)=>{
+      const arrow=document.createElement('span');
+      arrow.className='cursor-arrow '+directions[index];
+      arrow.textContent=glyph;
+      cross.append(arrow);
+    });
+    return cross;
+  }
+  function createKeyElement(key) {
+    if(key.id===null) {
+      const slot=document.createElement('span');
+      slot.className='key-slot';
+      slot.setAttribute('aria-hidden','true');
+      return slot;
+    }
+    keyMap.set(key.id,key);
+    const button=document.createElement('button');
+    const classNames=[
+      'key',key.id,
+      key.special?'special':null,
+      key.side?'side':null,
+      key.ghost?'letter-layer-toggle':null,
+      key.id==='modifier-gesture'&&pendingModifier?'mode-on':null,
+      key.alt?'has-flick':null
+    ].filter(Boolean);
+    button.type='button';
+    button.dataset.key=key.id;
+    button.className=classNames.join(' ');
+    button.setAttribute('aria-label',keyAriaLabel(key));
+    if(key.id==='cursor') {
+      button.classList.toggle('mode-on',layer==='cursor');
+      button.setAttribute('aria-pressed',String(layer==='cursor'));
+    }
+    const face=document.createElement('span');
+    face.className='key-face';
+    const main=document.createElement('span');
+    main.className='key-main';
+    main.textContent=key.id==='modifier-gesture'?modifierGlyph(pendingModifier):key.visual==='cursor-cross'?'':key.label;
+    face.append(main);
+    if(key.visual==='cursor-cross')face.append(createCursorCross());
+    if(key.ghost) {
+      const ghost=document.createElement('span');
+      ghost.className='key-ghost';
+      ghost.textContent=key.ghost;
+      face.prepend(ghost);
+    }
+    if(key.id==='modifier-gesture') {
+      const up=document.createElement('small');
+      const down=document.createElement('small');
+      up.className='modifier-direction modifier-up';
+      down.className='modifier-direction modifier-down';
+      up.textContent='C';
+      down.textContent='A';
+      up.setAttribute('aria-hidden','true');
+      down.setAttribute('aria-hidden','true');
+      face.prepend(up);
+      face.append(down);
+    }
+    if(key.alt) {
+      const alt=document.createElement('span');
+      alt.className='key-alt';
+      alt.textContent=key.alt;
+      alt.setAttribute('aria-hidden','true');
+      face.append(alt);
+    }
+    if(key.hint) {
+      const hint=document.createElement('small');
+      hint.className='key-hint';
+      hint.textContent=key.hint;
+      face.append(hint);
+    }
+    if(key.corner) {
+      const corner=document.createElement('small');
+      corner.className='key-corner';
+      corner.textContent=key.corner;
+      corner.setAttribute('aria-hidden','true');
+      face.append(corner);
+    }
+    button.append(face);
+    return button;
+  }
+  function renderKeys() {
+    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='cursor'?' cursor-layer':'');
+    for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
+  }
+  function render(force=false) {
+    if(active.size&&!force)return;
+    renderCandidates();renderKeys();
+    $('.mode-label').textContent=language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
+    if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
+    $('.language').textContent=language==='kana'?'日本語':'QWERTY';
+    const languageButton=$('.keyboard-bottom [data-key="globe"]');
+    languageButton.textContent=language==='kana'?'':'あ';languageButton.style.visibility=language==='kana'?'hidden':'visible';languageButton.disabled=language==='kana';
+    languageButton.setAttribute('aria-label',language==='kana'?'QWERTYへ切り替える':'日本語へ切り替える');
+  }
+  function direction(dx,dy) {
+    if(Math.hypot(dx,dy)<18)return 0;
+    return Math.abs(dx)>Math.abs(dy)?(dx<0?1:3):(dy<0?2:4);
+  }
+  function showPopup(p) {
+    const rect=p.element.getBoundingClientRect(), base=keyboard.getBoundingClientRect();
+    keyboard.classList.add('popup-active');popup.replaceChildren();popup.hidden=false;
+    if(p.key.flick) {
+      popup.className='popup flick';
+      const positions=[[50,50],[0,50],[50,0],[100,50],[50,100]];
+      p.key.flick.forEach((c,i)=>{if(!c)return;const s=document.createElement('span');s.textContent=c;s.style.left=positions[i][0]+'px';s.style.top=positions[i][1]+'px';s.classList.toggle('chosen',i===p.dir);popup.append(s);});
+      popup.style.left=Math.max(0,Math.min(base.width-150,rect.x+rect.width/2-base.x-75))+'px';popup.style.top=rect.y-base.y-50+'px';
+    } else {
+    const isModifier=p.modifierFlick&&p.key.id==='modifier-gesture',width=isModifier?90:58;
+      popup.className='popup letter'+(isModifier?' modifier-popup':'');popup.textContent=isModifier?(modifierLabel(p.modifierChoice)||'Ctrl / Alt'):keyOutput(p);
+      popup.style.left=Math.max(0,Math.min(base.width-width,rect.x+rect.width/2-base.x-width/2))+'px';popup.style.top=rect.y-base.y-62+'px';
+    }
+  }
+  function hidePopup() {popup.hidden=true;keyboard.classList.remove('popup-active');}
+  function updateSelectionPopup(p,selected) {if(selected)showPopup(p);else hidePopup();}
+  function showAccents(p) {
+    p.variants=[p.key.text,...accents[p.key.text]].map(c=>p.upper?c.toUpperCase():c);p.accentIndex=0;
+    const rect=p.element.getBoundingClientRect(),base=keyboard.getBoundingClientRect(),width=p.variants.length*34+6;
+    p.accentLeft=Math.max(base.x,Math.min(base.right-width,rect.x-8));
+    keyboard.classList.add('popup-active');popup.className='popup accents';popup.replaceChildren();popup.hidden=false;
+    p.variants.forEach((c,i)=>{const s=document.createElement('span');s.textContent=c;s.classList.toggle('chosen',i===0);popup.append(s);});
+    popup.style.left=p.accentLeft-base.x+'px';popup.style.top=rect.y-base.y-56+'px';
+  }
+  function clearTimers(p) { clearTimeout(p.timer);clearInterval(p.repeat); }
+  function cancelAll() {
+    for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');}
+    active.clear();pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
+  }
+  keyboard.addEventListener('contextmenu',e=>e.preventDefault());
+  keyboard.addEventListener('pointerdown',e=>{
+    const element=e.target.closest('.key');if(!element||e.button!==0)return;
+    e.preventDefault();editor.focus({preventScroll:true});
+    const key=keyMap.get(element.dataset.key);
+    if([...active.values()].some(p=>p.trackpad))return;
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt?key.id:null,altSelected:false,upperSelected:false};
+    active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
+    if(key.id==='modifier-gesture') {
+      p.modifierFlick=true;p.modifierChoice=null;
+      element.querySelector('.key-main').textContent=modifierGlyph(pendingModifier);
+    }
+    if(key.text)for(const held of active.values())if(held!==p&&held.key.id==='modifier-gesture')held.used=true;
+    if(key.preview==='press')showPopup(p);
+    if(repeatKeys.includes(key.id)) {
+      const modified=action(key.id,p.keyModifier);if(!modified)p.timer=setTimeout(()=>{p.repeat=setInterval(()=>action(key.id),65);action(key.id);},420);
+    } else if(key.id==='space') {
+      if(!p.keyModifier)p.timer=setTimeout(()=>beginTrackpad(p),450);
+    } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
+  });
+  keyboard.addEventListener('pointermove',e=>{
+    const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
+    const dx=e.clientX-p.x,dy=e.clientY-p.y;
+    if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
+    if(updateModifierFlick(p,dx,dy)) {
+      p.element.classList.toggle('choice-active',Boolean(p.modifierChoice));
+      p.element.querySelector('.key-main').textContent=modifierGlyph(p.modifierChoice||pendingModifier);
+      updateSelectionPopup(p,Boolean(p.modifierChoice));
+      return;
+    }
+    if(updateNavigationFlick(p,dx,dy)) {
+      const selection=p.navigationChoice&&p.key.navigation[p.navigationChoice];
+      p.element.classList.toggle('mode-on',Boolean(selection));
+      p.element.classList.toggle('navigation-selected',Boolean(selection));
+      p.element.querySelector('.key-main').textContent=selection?.label||p.key.label;
+      if(selection)announce(selection.label);
+      return;
+    }
+    if(p.trackpad) {
+      p.trackpadAxis=lockSwipeAxis(p.trackpadAxis,dx,dy);
+      if(!p.trackpadAxis)return;
+      const steps=p.trackpadAxis==='horizontal'?Math.trunc((e.clientX-p.cursorX)/8):0;
+      const lines=p.trackpadAxis==='vertical'?Math.trunc((e.clientY-p.cursorY)/24):0;
+      if(steps){moveCursor(steps);p.cursorX+=steps*8;}
+      if(lines){for(let i=0;i<Math.abs(lines);i++)moveVertical(Math.sign(lines));p.cursorY+=lines*24;}
+      if(steps||lines) {
+        const label=cursorDirectionLabel(steps,lines);
+        trackpadStatus.textContent=label;announce(label);
+      }
+      return;
+    }
+    if(p.variants) {
+      p.accentIndex=Math.max(0,Math.min(p.variants.length-1,Math.floor((e.clientX-p.accentLeft-3)/34)));
+      [...popup.children].forEach((s,i)=>s.classList.toggle('chosen',i===p.accentIndex));return;
+    }
+    if(p.key.flick) {p.dir=direction(dx,dy);showPopup(p);return;}
+    if(Math.hypot(dx,dy)>12)clearTimeout(p.timer);
+    if(updateKeyFlick(p,dx,dy)) {
+      p.element.classList.toggle('flick-selected',p.altSelected);
+      p.element.classList.toggle('uppercase-selected',p.upperSelected);
+      p.element.querySelector('.key-main').textContent=p.upperSelected||p.upper?p.key.text.toUpperCase():p.key.text;
+      if(p.key.preview==='selection')updateSelectionPopup(p,p.altSelected||p.upperSelected);
+      else showPopup(p);
+      return;
+    }
+    if(p.key.text) {
+      const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.key');
+      const next=over&&keyMap.get(over.dataset.key);
+      if(next?.text) {p.element.classList.remove('pressed');p.key=next;p.element=over;over.classList.add('pressed');p.outside=false;showPopup(p);}
+      else {p.outside=true;popup.hidden=true;keyboard.classList.remove('popup-active');}
+    }
+  });
+  function finish(e,canceled=false) {
+    const p=active.get(e.pointerId);if(!p)return;
+    clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
+    if(!canceled&&!p.trackpad) {
+      if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
+      else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
+      else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
+      else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
+      else if(p.key.text&&!p.outside) {
+        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected)))insert(keyOutput(p));
+        lastSpace=-Infinity;
+      }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
+    }
+    if(keyboard.hasPointerCapture(e.pointerId))keyboard.releasePointerCapture(e.pointerId);
+    render();
+  }
+  keyboard.addEventListener('pointerup',e=>finish(e));
+  keyboard.addEventListener('pointercancel',e=>finish(e,true));
+  keyboard.addEventListener('lostpointercapture',e=>finish(e,true));
+  root.addEventListener('click',e=>{
+    const candidate=e.target.closest('button[data-candidate-index]');
+    if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
+    const b=e.target.closest('button[data-key]');if(!b)return;
+    if(b.classList.contains('key')) {
+      if(e.detail!==0)return;
+      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier()))insert(k.text);render();}else action(k.id);
+    }else {cancelAll();action(b.dataset.key);}
+  });
+  editor.addEventListener('input',()=>{preferredCursorX=null;updateCount();if(!preserveComposition)syncComposition();if(!active.size)render();});
+  editor.addEventListener('pointerup',()=>{preferredCursorX=null;lastSpace=-Infinity;syncComposition();render();});
+  editor.addEventListener('keydown',e=>{
+    if(pendingModifier&&!e.isComposing&&!['Shift','Control','Alt','Meta'].includes(e.key)) {
+      e.preventDefault();
+      if(e.key==='Escape') {pendingModifier=null;announce('修飾キーを解除');}
+      else applyModified(e.key,pendingModifier,e.shiftKey);
+      render();return;
+    }
+    if(e.key==='Escape'){cancelAll();action('hide');}
+    lastSpace=-Infinity;
+  });
+  root.addEventListener('keydown',e=>{
+    if(!e.target.closest('.key.modifier-gesture')||!['ArrowUp','ArrowDown'].includes(e.key))return;
+    e.preventDefault();pendingModifier=e.key==='ArrowDown'?'Control':'Alt';
+    announce(modifierLabel(pendingModifier)+'：次のキーに適用');render();$('.key.modifier-gesture').focus();
+  });
+  window.addEventListener('blur',cancelAll);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAll();});
+  // Mobile browser chrome can change height during a gesture. Only a width
+  // change invalidates the keyboard layout (rotation, split view, resizing).
+  let layoutWidth=root.getBoundingClientRect().width;
+  window.addEventListener('resize',()=>{
+    const width=root.getBoundingClientRect().width;
+    if(Math.abs(width-layoutWidth)>1)cancelAll();
+    layoutWidth=width;
+  });
+  const fold7Displays={
+    cover:{label:'6.5″ · 2520 × 1080'},
+    inner:{label:'8.0″ · 2184 × 1968'}
+  };
+  root.querySelectorAll('.device-picker [data-device]').forEach(button=>button.addEventListener('click',()=>{
+    cancelAll();root.dataset.device=button.dataset.device;
+    root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    $('.device-size').textContent=fold7Displays[button.dataset.device].label;
+  }));
+  render();
+})();
+</script>
+</div>
+      <p class="try-note">日本語で「にほんご」を入力してspaceを押すと候補を巡回できます。QWERTYのspaceは上下左右へカーソルを移動します。</p>
+    </section>
+    <article id="spec" class="document">
+      <div class="guide-links" aria-label="Markdownドキュメント">
+        <a href="android-native-implementation.md"><strong>Android Native 実装仕様</strong><span>Mozc、InputConnection、レイアウトと検証項目</span></a>
+        <a href="html-mock-implementation.md"><strong>HTMLモック作成ガイド</strong><span>構造、ジェスチャー判定、ラベルアニメーション</span></a>
+      </div>
+      <dl class="doc-meta">
+        <div><dt>Target</dt><dd>Android system IME</dd></div>
+        <div><dt>UI</dt><dd>Custom View + Kotlin</dd></div>
+        <div><dt>Conversion</dt><dd>Mozc via JNI</dd></div>
+      </dl>
+      <nav class="toc" aria-label="実装仕様の目次">
+        <h2>Implementation map</h2>
+        <ol>
+          <li><a href="#goal">目的</a></li>
+          <li><a href="#layout">キー配列</a></li>
+          <li><a href="#architecture">Android構成</a></li>
+          <li><a href="#state">状態モデル</a></li>
+          <li><a href="#conversion-ui">日本語変換UI</a></li>
+          <li><a href="#gestures">ジェスチャー</a></li>
+          <li><a href="#label-animation">ラベルアニメーション</a></li>
+          <li><a href="#input-connection">InputConnection</a></li>
+          <li><a href="#mozc">Mozc</a></li>
+          <li><a href="#dictionary">個人辞書</a></li>
+          <li><a href="#rendering">アクセシビリティ</a></li>
+          <li><a href="#security">セキュリティ</a></li>
+          <li><a href="#testing">検証</a></li>
+          <li><a href="#delivery">実装順序</a></li>
+        </ol>
+      </nav>
+      <h2 id="goal"><a href="#goal">目的</a></h2>
+<p>Galaxy Z Fold7 の外画面と内画面で使う Android IME を実装する。英字は QWERTY の各キーをタップして小文字、上スワイプでその1文字だけ大文字、下フリックで数字または ASCII 記号を入力する。日本語は連打なしの12キーフリックとし、候補列でかな漢字変換を行う。</p>
+<p>HTMLモックは操作、寸法、状態遷移を確認するリファレンスである。製品版では <code>InputMethodService</code>、<code>InputConnection</code>、Mozc などの変換エンジンを使う。</p>
+<p>画面と文書ではレイヤー名を「日本語」「テンキー」「カーソル」「QWERTY」「記号」に統一する。<code>language</code> と <code>layer</code> は実装上の内部状態名として扱う。</p>
+<h2 id="layout"><a href="#layout">キー配列</a></h2>
+<p>英字1〜3行目の基本幅を <code>1w</code> とする。2行目だけ左端と右端に <code>0.5w</code> のジェスチャー専用キーが入る。</p>
+<div class="table-scroll"><table><thead><tr>
+<th>行</th>
+<th>QWERTYレイヤー</th>
+<th>記号レイヤー</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td><code>q w e r t y u i o p</code></td>
+<td><code>1 2 3 4 5 6 7 8 9 0</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>C/A(0.5w) a…l BS(0.5w)</code></td>
+<td>C/A、<code>^ _</code>、backslash、vertical bar、<code>~</code>、波括弧、角括弧、BS</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code># z x c v b n m , .</code></td>
+<td>AZ、backtick、double quote、<code>! ? ; : &lt; &gt; /</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>あん Space Enter</code></td>
+<td><code>あん Space Enter</code></td>
+</tr>
+</tbody></table></div>
+<p><code>C/A</code> は記号の副ラベルと同じ高さになるよう、上側の <code>C</code> と下側の <code>A</code> に少し間を空けて固定する。上スワイプで Alt、下スワイプで Ctrl を次の1キーへ適用する。方向選択中と選択後は上下ラベルを消して、中央に選ばれた <code>A</code> または <code>C</code> を表示する。選択後のタップは修飾状態を解除する。未選択の<code>C/A</code>と<code>BS</code>はタップでも上スワイプでもポップアップを出さない。<code>BS</code>は下フリックだけで候補表示と削除を有効にする。QWERTYレイヤーの <code>#</code> は中央の <code>#</code> と右後ろの淡い <code>!</code> を重ねた <code>#!</code> キーで記号へ入り、記号レイヤーでは中央の <code>A</code> と右後ろの淡い <code>Z</code> を重ねた <code>AZ</code> キーでQWERTYへ戻る。どちらも暗い背景のモードキーとする。記号レイヤーは ASCII 文字だけを収録する。</p>
+<p>4行目のレイヤー切替キーはQWERTY形式では<code>あん</code>、テンキー形式では<code>AZ</code>とする。タップはQWERTY形式から日本語レイヤーへ、テンキー形式からQWERTYレイヤーへ移動する。全レイヤーで左フリックは記号、上フリックは日本語、右フリックはテンキー、下フリックはQWERTYへ移動する。方向選択中は元の補助文字を消し、キー中央に移動先のレイヤー名だけを表示する。<code>#!</code>、<code>あん</code>、<code>AZ</code>、<code>19</code> の補助文字は主ラベルの約75%のサイズで揃える。<code>Enter</code> は上側に小さく <code>paste</code> を常時表示し、下スワイプ中は中央ラベルを小文字の <code>paste</code> へ変える。離すとクリップボード内容を確定する。QWERTYの<code>Space</code>は上側に補助表示 <code>←↓↑→</code> を置き、操作中も同じ記号列を初期表示に使う。</p>
+<p>日本語レイヤーは全行5列に揃える。右端のEnterキーは3行目から4行目にまたがる縦長キーとする。日本語レイヤーの左列は上から十字配置の4矢印、<code>#!</code>、<code>19</code>、<code>AZ</code> とし、<code>#</code> で記号レイヤーへ移動する。テンキーレイヤーでも4矢印、<code>#!</code>、<code>あん</code>、<code>AZ</code> を並べる。テンキーレイヤーは <code>1 2 3 / 4 5 6 / 7 8 9 / - 0 .</code> とし、<code>-</code> は中央が <code>-</code>、左が <code>+</code>、上が <code>/</code>、右が <code>*</code>、下が <code>,</code> の5方向フリックにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。カーソルレイヤーの左列は上から <code>あん</code>、<code>#!</code>、<code>19</code>、<code>AZ</code> とし、中央のSpaceはQWERTYと同じ4方向トラックパッドとして動作する。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
+<h2 id="architecture"><a href="#architecture">推奨するAndroid構成</a></h2>
+<pre><code class="language-text">ImeService : InputMethodService
+├── KeyboardRootView : ViewGroup
+│   ├── CandidateStripView
+│   ├── KeyGridView
+│   └── GestureOverlayView
+├── KeyboardState
+│   ├── language / layer / deviceMode
+│   ├── pendingModifier
+│   ├── activePointers
+│   └── composition
+├── GestureInterpreter
+├── TextInputController
+└── ConversionEngine
+    └── MozcBridge (JNI)</code></pre>
+<p>描画は Custom View を推奨する。キー数が少なくポインター追跡と座標制御が中心なので、Viewの再生成よりも、レイアウトデータと描画状態を分けて <code>invalidate()</code> する方が実装しやすい。候補列は横スクロール可能な独立Viewにする。</p>
+<h2 id="state"><a href="#state">状態モデル</a></h2>
+<div class="table-scroll"><table><thead><tr>
+<th>表示するレイヤー名</th>
+<th>内部状態</th>
+</tr></thead><tbody>
+<tr>
+<td>日本語</td>
+<td><code>language = KANA</code>, <code>layer = LETTERS</code></td>
+</tr>
+<tr>
+<td>テンキー</td>
+<td><code>language = KANA</code>, <code>layer = NUMBERS</code></td>
+</tr>
+<tr>
+<td>カーソル</td>
+<td><code>language = KANA</code>, <code>layer = CURSOR</code></td>
+</tr>
+<tr>
+<td>QWERTY</td>
+<td><code>language = ENGLISH</code>, <code>layer = LETTERS</code></td>
+</tr>
+<tr>
+<td>記号</td>
+<td><code>language = ENGLISH</code>, <code>layer = SYMBOLS</code></td>
+</tr>
+</tbody></table></div>
+<pre><code class="language-kotlin">data class KeyboardState(
+    val language: Language = Language.ENGLISH,
+    val layer: Layer = Layer.LETTERS,
+    val deviceMode: DeviceMode = DeviceMode.COVER,
+    val pendingModifier: Modifier? = null,
+    val composition: Composition = Composition.Empty,
+    val cursorMode: Boolean = false,
+)
+
+data class Composition(
+    val reading: String,
+    val candidates: List&lt;String&gt;,
+    val selectedIndex: Int,
+    val converted: Boolean,
+)</code></pre>
+<p>大文字はモードにせず、英字キーの1回の上スワイプ結果として扱う。Ctrl と Alt は1キーだけ有効な保留状態で、入力後またはキャンセル時に解除する。複数指入力では <code>pointerId</code> ごとに開始座標、現在方向、対象キー、タイマーを保持する。</p>
+<h2 id="conversion-ui"><a href="#conversion-ui">日本語変換UI</a></h2>
+<p>日本語レイヤーではキーの上に候補列を常時確保する。未入力時は説明文、読みがある時は変換候補を横並びで表示する。候補は選択中だけアクセント色にする。</p>
+<ol>
+<li>フリック確定ごとに読みを <code>setComposingText()</code> で更新する。</li>
+<li>変換エンジンへ読みと文脈を渡し、候補列を更新する。</li>
+<li>space のタップで先頭候補を選び、続けて押すと次候補へ進む。</li>
+<li>候補タップまたは Enter で <code>commitText()</code> して変換を確定する。</li>
+<li>読みがない時の space は空白、変換中でない時の Enter は改行にする。</li>
+<li>Backspace、カーソル移動、言語・レイヤー切替では、変換中状態を確定または破棄する規則を一箇所に集約する。</li>
+</ol>
+<p>HTMLデモは内蔵の小さな辞書で候補UIと状態遷移だけを再現する。製品版の候補生成、文節分割、学習は Mozc 側へ委譲する。</p>
+<h2 id="gestures"><a href="#gestures">ジェスチャー定数</a></h2>
+<div class="table-scroll"><table><thead><tr>
+<th>用途</th>
+<th>値</th>
+<th>動作</th>
+</tr></thead><tbody>
+<tr>
+<td>軸ロック</td>
+<td>12 px</td>
+<td>縦・横の優勢方向を確定</td>
+</tr>
+<tr>
+<td>選択開始</td>
+<td>18 px</td>
+<td>フリック先を選択</td>
+</tr>
+<tr>
+<td>復帰ヒステリシス</td>
+<td>10 px</td>
+<td>選択後の細かな揺れを抑える</td>
+</tr>
+<tr>
+<td>レイヤー移動</td>
+<td>18 px</td>
+<td>あんの上・下、Enterの下を確定</td>
+</tr>
+<tr>
+<td>spaceトラックパッド開始</td>
+<td>10 px</td>
+<td>長押しを待たずカーソルモードへ入る</td>
+</tr>
+<tr>
+<td>水平カーソル1文字</td>
+<td>8 px</td>
+<td>書記素単位で左右移動</td>
+</tr>
+<tr>
+<td>垂直カーソル1行</td>
+<td>24 px</td>
+<td>見た目の折返し行に沿って上下移動</td>
+</tr>
+<tr>
+<td>長押し</td>
+<td>450 ms</td>
+<td>英字アクセント候補を表示</td>
+</tr>
+<tr>
+<td>連続削除開始</td>
+<td>420 ms</td>
+<td>以後65 ms間隔で繰り返す</td>
+</tr>
+</tbody></table></div>
+<p>端末の物理ピクセルではなく、Android側では <code>dp</code> と実機テストから閾値を調整する。開始後に方向を変えた場合は現在位置から再判定し、指が中心へ戻ったら通常入力へ戻す。<code>ACTION_CANCEL</code>、フォーカス喪失、画面回転では入力を確定せず全ポインターを破棄する。</p>
+<h2 id="label-animation"><a href="#label-animation">フリックラベルのアニメーション</a></h2>
+<p>英字キーには中央の主ラベルと上端の副ラベルを別レイヤーで描く。通常時の副ラベルは主ラベルより小さく、文字色を一段落として、キーを見た瞬間に主入力と区別できるようにする。</p>
+<p>下フリックが18pxを越えたら、副ラベルを90msの <code>ease</code> で下へ13px移動し、1.7倍へ拡大する。同時に主ラベルを下へ22px移動し、透明度を0へ落とす。中心へ10px以内に戻ったら逆再生する。上スワイプでは主ラベルを上へ3px移動し、副ラベルを透明にして、大文字のプレビューを表示する。</p>
+<p>日本語フリックは150×150px相当の5方向ポップアップを表示し、中心と上下左右を50px角で配置する。指の方向が変わるたびに選択タイルの背景色を切り替える。ポップアップ自体は追従移動させず、選択状態だけを更新するため、視線が安定する。ダーク表示の候補は暗い面と明るい文字の関係を保ち、通常キーより一段明るい面、境界線、影で浮かせる。表示中は選択元以外のキーを42%の不透明度へ落とす。</p>
+<p>Androidでは <code>ValueAnimator</code> または描画時の補間値で同じ状態を作る。アニメーションは入力判定から独立させ、指を離した時点の論理状態を確定値にする。システムの「アニメーションを無効化」が有効な場合は時間を0msにする。</p>
+<h2 id="input-connection"><a href="#input-connection">アプリへの文字送信</a></h2>
+<p>通常文字は <code>currentInputConnection.commitText(text, 1)</code>、変換中の読みは <code>setComposingText(text, 1)</code>、候補確定は <code>finishComposingText()</code> と <code>commitText()</code> を使う。PasteはAndroidの <code>ClipboardManager.primaryClip</code> から先頭のテキストを取得し、機密入力欄を除いて <code>commitText()</code> する。Backspace、Enter、矢印、Ctrl、Alt など編集キーは対象アプリとの互換性を確認し、必要な場合だけ <code>sendKeyEvent()</code> を使う。</p>
+<pre><code class="language-kotlin">fun sendModifiedKey(keyCode: Int, ctrl: Boolean, alt: Boolean) {
+    val meta = (if (ctrl) KeyEvent.META_CTRL_ON else 0) or
+        (if (alt) KeyEvent.META_ALT_ON else 0)
+    currentInputConnection.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+    currentInputConnection.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, meta))
+}</code></pre>
+<p>パスワード欄では学習、候補収集、外部ログ由来辞書を無効にする。アプリによってハードウェアキーイベントの扱いが異なるため、Chrome、Slack、LINE、ターミナル、一般的なEditTextで確認する。</p>
+<h2 id="mozc"><a href="#mozc">Mozcによる日本語変換</a></h2>
+<p>OSSで実用的な候補は Mozc。Androidアプリへ組み込む場合は、変換セッションを保持するC++層とKotlinから呼ぶJNI境界を小さく保つ。UIイベントをMozc内部型へ直接結びつけず、<code>start(reading)</code>、<code>update(reading)</code>、<code>nextCandidate()</code>、<code>commit(index)</code>、<code>reset()</code> 程度の独自インターフェースを置く。</p>
+<p>Mozc本体、辞書、ビルド成果物のライセンス表示を配布前に確認する。AOSPや既存IMEのUIコードを流用する場合も、コードとアセットそれぞれのライセンスを確認する。</p>
+<h2 id="dictionary"><a href="#dictionary">個人辞書とログ取り込み</a></h2>
+<p>端末の標準ユーザー辞書は <code>UserDictionary.Words</code> を、ユーザーが明示的に許可した場合だけ読み込む。LINE、Slack、ChatGPT、Claudeなどのログは、各サービスの公式エクスポートをユーザー自身が選択して端末内へ取り込み、頻出語と読み候補を生成する方式が扱いやすい。</p>
+<p>取り込み前にプレビュー、対象期間、除外語を表示する。原文を保存せず、抽出した語と頻度だけを暗号化して保持できる設計にする。連絡先、URL、メールアドレス、トークン、長い数字列、パスワードらしい文字列は既定で除外する。削除と再学習の操作を設定画面に用意する。</p>
+<h2 id="rendering"><a href="#rendering">描画とアクセシビリティ</a></h2>
+<p>Fold7外画面を狭い基準、内画面を広い基準として、幅からキー単位 <code>w</code> を計算する。内画面でもキー数とジェスチャーは変えず、キーの高さと左右余白を増やす。ヒンジやセーフ領域は <code>WindowInsets</code> を使って避ける。</p>
+<p>副ラベルは色だけでなく位置とサイズでも主ラベルと区別する。押下、フリック選択、候補選択には4.5:1以上の文字コントラストを保つ。TalkBackには通常入力、上スワイプ、下フリックの結果をまとめた説明を付ける。触覚は方向確定、候補変更、削除開始に短く1回だけ返す。</p>
+<h2 id="security"><a href="#security">セキュリティ</a></h2>
+<p>IMEは全入力へ触れられるため、ネットワーク権限を持たない完全ローカル構成を初期値とする。ログへ入力文字列を出さない。学習データ、個人辞書、クラッシュ情報に原文を含めない。バックアップと同期を追加する場合は、対象データと送信先を明示し、利用者が明示的に有効化する。</p>
+<h2 id="testing"><a href="#testing">検証計画</a></h2>
+<ul>
+<li>各かなキーの中央・左・上・右・下と、18px未満の揺れを検証する。</li>
+<li>全英字のタップ、上スワイプ大文字、下フリック副文字を検証する。</li>
+<li><code>C/A</code> と <code>BS</code> がタップでは発火せず、指定方向だけで動くことを検証する。</li>
+<li>あんの上下レイヤー移動、Enterの下Paste、スワイプ中だけ変わるラベルを検証する。</li>
+<li>日本語左列のカーソル、#!、19、AZと、テンキー−の5方向を検証する。</li>
+<li>ラベルアニメーションの開始、中心復帰、方向反転、アニメーション無効設定を検証する。</li>
+<li>かな入力、候補生成、spaceでの候補巡回、候補タップとEnter確定を検証する。</li>
+<li>Spaceの軸固定された上下左右移動、斜め入力の抑止、折返し行、絵文字、結合文字、選択範囲を検証する。</li>
+<li>Fold7の外画面・内画面、縦横回転、ダークテーマ、フォント倍率、TalkBackを確認する。</li>
+<li>Chrome、Slack、LINE、ターミナル、一般的なEditTextで文字確定と編集キーを確認する。</li>
+</ul>
+<h2 id="delivery"><a href="#delivery">実装順序</a></h2>
+<ol>
+<li>レイアウトデータ、状態モデル、Custom Viewを作る。</li>
+<li>ポインター追跡と日本語5方向フリックを実装する。</li>
+<li>英字の上下ジェスチャー、C/A、BS、ラベルアニメーションを加える。</li>
+<li>InputConnectionで通常文字、編集キー、compositionを送る。</li>
+<li>候補列UIと変換エンジン境界を作り、Mozcを接続する。</li>
+<li>カーソルモード、Fold7内外レイアウト、アクセシビリティを仕上げる。</li>
+<li>実機テストで閾値、誤入力率、候補応答時間を調整する。</li>
+</ol>
+    </article>
+  </main>
+  <footer class="footer">Gesture IME prototype · Behavior and implementation reference · 2026-09-10</footer>
+</body>
+</html>
