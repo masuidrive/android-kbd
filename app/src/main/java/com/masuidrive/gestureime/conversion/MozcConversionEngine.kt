@@ -71,7 +71,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         check(lastOutput.output.consumed) { "Mozc did not submit the conversion" }
         val committed = commandResult(selectionOutput) + commandResult(lastOutput)
         if (committed.isEmpty()) return@withContext null
-        state = ConversionState("", emptyList(), 0)
+        state = ConversionState("", emptyList(), -1)
         ConversionCommit(committed)
     } }
 
@@ -90,7 +90,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
             )
         }
         deleteSession()
-        state = ConversionState("", emptyList(), 0)
+        state = ConversionState("", emptyList(), -1)
     } }
 
     private lateinit var lastOutput: ProtoCommands.Command
