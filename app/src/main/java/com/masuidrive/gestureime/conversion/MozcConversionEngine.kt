@@ -133,7 +133,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                                 ProtoCommands.Request.SpecialRomanjiTable.TOGGLE_FLICK_TO_HIRAGANA,
                             )
                             .setKanaModifierInsensitiveConversion(true)
-                            .setAutoPartialSuggestion(true)
+                            .setAutoPartialSuggestion(false)
                             .setLanguageAwareInput(
                                 ProtoCommands.Request.LanguageAwareInputBehavior.NO_LANGUAGE_AWARE_INPUT,
                             ),

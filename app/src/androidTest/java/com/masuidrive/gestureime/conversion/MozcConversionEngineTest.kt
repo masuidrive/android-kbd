@@ -40,6 +40,19 @@ class MozcConversionEngineTest {
     }
 
     @Test
+    fun suggestionCommitKeepsTheWholeLongReading() = runBlocking {
+        val reading = "きょうはいいてんきです"
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
+        val state = engine.update(reading)
+
+        assertTrue("Mozc returned no suggestion candidates", state.candidates.isNotEmpty())
+        val committed = requireNotNull(engine.commit(0)).value
+        assertTrue("Mozc dropped the later segment: $committed", committed.contains("天気"))
+        assertTrue("Mozc dropped the sentence ending: $committed", committed.endsWith("です"))
+        engine.reset()
+    }
+
+    @Test
     fun emptyUpdateClearsReadingAndSelection() = runBlocking {
         val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
         engine.update("にほんご")
