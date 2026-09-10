@@ -1,0 +1,58 @@
+# Product Brief: Galaxy Z Fold7 向け Android 日本語キーボード
+
+Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/product-brief.md
+
+本文中で「まだ決められない・確認が必要」な箇所には `[NEEDS CLARIFICATION: 具体的な問い]` を埋め込む。
+coding agent はこのマーカーに触れる判断を推測で埋めず、実装を止めて確認する。解消したらマーカーを決定内容に置き換える。
+
+## Background
+
+Galaxy Z Fold7 の外画面と内画面で快適に使える、端末内完結の Android 日本語 IME を新規に作る。操作・寸法・状態遷移の正本は `docs/reference/sites-native-spec.txt` とする。
+
+## Who
+
+Galaxy Z Fold7 の外画面と内画面を使い分けながら、日本語と英数字を日常的に入力する人。Chrome、Slack、LINE、ターミナル、一般的な Android のテキスト欄で使う。
+
+## Problem
+
+画面幅が大きく変わる Fold7 で、日本語、英字、数字、記号、カーソル操作を行き来しながら入力すると、既存キーボードでは操作が分散しやすい。入力内容を外部へ送らず、同じジェスチャー体系で素早く操作したい。
+
+## Solution
+
+Android の system IME として「日本語」「テンキー」「カーソル」「QWERTY」「記号」の5レイヤーを提供する。日本語は12キーフリックとかな漢字候補、英字はタップ・上スワイプ・下フリック、Space は軸固定カーソル操作を担う。Custom View で端末幅に応じて描画し、InputConnection で対象アプリへ入力し、Mozc を小さな JNI 境界の後ろへ接続する。
+
+## Appetite
+
+まず仕様にある5レイヤー、入力ジェスチャー、InputConnection、かな漢字変換、Fold7 幅対応を一貫して動かす。個人辞書とサービスログ取り込みは基礎入力が完成した後の拡張とし、初回実装へ混ぜない。
+
+## Constraints
+
+- 対象は Galaxy Z Fold7 上で動作する Android native IME。
+- Kotlin の Custom View と Mozc JNI を用いる。package は `com.masuidrive.gestureime`。
+- 開発基準は Java 17、Android SDK 36、NDK 27。Mozc r29 系の取得・ビルドには Bazelisk を使う。
+- 文字入力・変換の主要経路は offline で利用できること。
+- 参照資料: `https://fjsiuw2d.aboutme.style/` と `https://fjsiuw2d.aboutme.style/android-native-implementation.md`。
+
+## Architectural Invariants
+
+- AI-1: IME 本体はネットワーク権限を持たず、通常入力・変換を端末内だけで完結させる。
+- AI-2: 入力文字列、学習データ、個人辞書、クラッシュ情報へ原文を記録・送信しない。
+- AI-3: UI イベントは Mozc 内部型へ直接依存せず、プロジェクト固有の小さな変換インターフェースを介する。
+- AI-4: 大文字はモード化せず1回の上スワイプ結果、Ctrl/Alt は次の1キーだけの保留状態として扱う。
+
+## Done
+
+- Android の system IME として有効化し、仕様の5レイヤーから文字入力・編集操作ができる。
+- かな入力から Mozc 候補の巡回・選択・確定までを対象アプリ上で完了できる。
+- Fold7 の外画面相当と内画面相当の幅で、キー数とジェスチャーを保ったまま利用できる。
+- 検証計画にある入力、回転、テーマ、文字倍率、TalkBack、対象アプリ互換の結果が記録される。
+
+## Non-goals
+
+- 端末外の変換 API、同期、バックアップ。
+- 個人辞書と LINE、Slack、ChatGPT、Claude 等のエクスポートログ取り込み（基礎入力後の拡張）。
+- HTML モック自体を製品版として出荷すること。
+
+## Open Questions
+
+- [NEEDS CLARIFICATION: Fold7 実機を最終検証に利用できるか。利用できない場合、どのエミュレータ寸法を受入条件とするか]

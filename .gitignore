@@ -1,0 +1,14 @@
+current-ticket.md
+current-note.md
+current-ticket
+
+AGENTS.local.md
+
+# Android/Gradle local and generated files
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+*.iml
+.cxx/

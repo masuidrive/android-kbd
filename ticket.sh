@@ -1,0 +1,6897 @@
+#!/usr/bin/env bash
+
+# Early bash check (POSIX compatible)
+if [ -z "${BASH_VERSION}" ]; then
+    echo "Error: This script requires bash. Please run with 'bash ticket.sh' or make sure bash is your default shell."
+    echo "Current shell: $0"
+    exit 1
+fi
+
+# IMPORTANT NOTE: This file is generated from source files. DO NOT EDIT DIRECTLY!
+# To make changes, edit the source files in src/ directory and run ./build.sh
+# Source file: src/ticket.sh
+
+# ticket.sh - Git-based Ticket Management System for Development
+# Version: 20260830.110226
+# Built from source files
+#
+# A lightweight ticket management system that uses Git branches and Markdown files.
+# Perfect for small teams, solo developers, and AI coding assistants.
+#
+# Features:
+#   - Each ticket is a Markdown file with YAML frontmatter
+#   - Automatic Git branch creation/management per ticket
+#   - Simple CLI interface for common workflows
+#   - No external dependencies (pure Bash + Git)
+#
+# For detailed documentation, installation instructions, and examples:
+# https://github.com/masuidrive/ticket.sh
+#
+# Quick Start:
+#   ./ticket.sh init          # Initialize in your project
+#   ./ticket.sh new my-task   # Create a new ticket
+#   ./ticket.sh start <name>  # Start working on a ticket
+#   ./ticket.sh close         # Complete and merge ticket
+
+set -euo pipefail
+
+# === Inlined Libraries ===
+
+# --- yaml-sh.sh ---
+
+# yaml-sh: A simple YAML parser for Bash 3.2+
+# Version: 2.0.0
+# Usage: source yaml-sh.sh
+#
+# Supported YAML syntax:
+# - Key-value pairs: key: value
+# - Lists with dash notation: - item
+# - Inline lists: [item1, item2, item3]
+# - Multiline strings:
+#   - Literal style (|): Preserves newlines
+#   - Folded style (>): Converts newlines to spaces
+#   - Strip modifier (-): Removes final newline
+#   - Keep modifier (+): Keeps all trailing newlines
+# - Quoted strings: 'single quotes' and "double quotes"
+# - Comments: # comment (except in multiline strings)
+# - Flat structure only (no nested objects support)
+#
+# Known limitations:
+# - Pipe multiline strings (|): May lose the final newline
+# - Folded strings (>): May lose the trailing space
+# - No support for nested objects or complex data structures
+# - No support for anchors, aliases, or tags
+# - No support for flow style mappings
+#
+# API Functions:
+# - yaml_parse <file>: Parse a YAML file
+# - yaml_get <key>: Get value by key
+# - yaml_keys: List all keys
+# - yaml_has_key <key>: Check if key exists
+# - yaml_list_size <prefix>: Get size of a list
+# - yaml_load <file> [prefix]: Load YAML into environment variables
+# - yaml_update <file> <key> <value>: Update a top-level single-line value
+
+# Global variables to store parsed data
+declare -a _YAML_KEYS
+declare -a _YAML_VALUES
+_YAML_CURRENT_FILE=""
+
+# Simple AWK parser for YAML
+_yaml_parse_awk() {
+    awk '
+    BEGIN {
+        in_multiline = 0
+        multiline_key = ""
+        multiline_value = ""
+        multiline_type = ""
+        key_indent = 0
+        multiline_base_indent = -1
+    }
+    
+    {
+        # Store original line
+        original = $0
+        
+        # Get indent
+        indent = 0
+        if (match(original, /^[ ]+/)) {
+            indent = RLENGTH
+        }
+        
+        # Skip empty lines in normal mode
+        if (!in_multiline && match(original, /^[ ]*$/)) {
+            next
+        }
+        
+        # Remove comments
+        line = original
+        if (!in_multiline) {
+            sub(/[ ]*#.*$/, "", line)
+        }
+        
+        # Trim trailing whitespace
+        sub(/[ \t]+$/, "", line)
+    }
+    
+    # In multiline mode
+    in_multiline {
+        # Check if this line belongs to multiline
+        if (match(original, /^[ ]*$/) || indent > key_indent) {
+            # Extract content preserving internal spacing
+            if (length(original) > key_indent) {
+                content = substr(original, key_indent + 1)
+            } else {
+                content = ""
+            }
+            
+            # For first line, determine base indent
+            if (multiline_base_indent == -1 && content != "") {
+                if (match(content, /^[ ]+/)) {
+                    multiline_base_indent = RLENGTH
+                } else {
+                    multiline_base_indent = 0
+                }
+            }
+            
+            # Strip base indent from content
+            if (multiline_base_indent > 0 && length(content) >= multiline_base_indent) {
+                content = substr(content, multiline_base_indent + 1)
+            } else if (content == "") {
+                # Keep empty lines
+            } else {
+                # Line with less indent than base - should not happen in valid YAML
+                content = ""
+            }
+            
+            # Add to multiline value
+            if (multiline_value == "") {
+                multiline_value = content
+            } else {
+                # For folded strings, replace newlines with spaces
+                if (substr(multiline_type, 1, 1) == ">") {
+                    # Empty line creates paragraph break
+                    if (content == "") {
+                        multiline_value = multiline_value "\n"
+                    } else {
+                        multiline_value = multiline_value " " content
+                    }
+                } else {
+                    # Literal strings preserve newlines
+                    multiline_value = multiline_value "\n" content
+                }
+            }
+            next
+        } else {
+            # End of multiline - output value
+            # For folded strings, process the folding
+            if (substr(multiline_type, 1, 1) == ">") {
+                # First, normalize spaces and newlines
+                gsub(/ +\n/, "\n", multiline_value)
+                gsub(/\n\n+/, "\n\n", multiline_value)
+                # Remove leading spaces from folded strings
+                gsub(/^ +/, "", multiline_value)
+                # Add trailing space if the string doesn'\''t end with newline
+                if (match(multiline_value, /\n$/)) {
+                    # Has newline at end, keep as is
+                } else {
+                    multiline_value = multiline_value " "
+                }
+            }
+            # Handle strip/keep modifiers
+            if (multiline_type ~ /-$/) {
+                # Strip final newline
+                sub(/\n$/, "", multiline_value)
+            } else if (multiline_type ~ /\+$/) {
+                # Keep all trailing newlines (already in multiline_value)
+            } else {
+                # Default: keep single final newline
+                # Ensure exactly one trailing newline
+                sub(/\n*$/, "\n", multiline_value)
+            }
+            print "VALUE", key_indent, multiline_key, multiline_value
+            in_multiline = 0
+            multiline_value = ""
+            multiline_base_indent = -1
+            # Fall through to process current line
+        }
+    }
+    
+    # Empty line
+    length(line) == 0 { next }
+    
+    # Process non-empty lines
+    {
+        # Get stripped line for processing
+        stripped_line = line
+        if (indent > 0) {
+            stripped_line = substr(original, indent + 1)
+        }
+        
+        # List item
+        if (match(stripped_line, /^- /)) {
+            item = substr(stripped_line, 3)
+            gsub(/^[ \t]+|[ \t]+$/, "", item)
+            print "LIST", indent, item
+            next
+        }
+        
+        # Key-value pair
+        if (match(stripped_line, /^[^:]+:/)) {
+            # Split key and value
+            pos = index(stripped_line, ":")
+            key = substr(stripped_line, 1, pos - 1)
+            value = substr(stripped_line, pos + 1)
+            gsub(/^[ \t]+|[ \t]+$/, "", value)
+        
+        # Check for multiline indicator
+        if (value == "|" || value == "|-" || value == "|+" || value == ">" || value == ">-" || value == ">+") {
+            multiline_type = value
+            multiline_key = key
+            key_indent = indent
+            in_multiline = 1
+            multiline_value = ""
+            print "KEY", indent, key, ""
+        }
+        # Inline list
+        else if (match(value, /^\[.*\]$/)) {
+            print "KEY", indent, key, ""
+            # Remove brackets
+            value = substr(value, 2, length(value) - 2)
+            # Split by comma
+            n = split(value, items, ",")
+            for (i = 1; i <= n; i++) {
+                item = items[i]
+                gsub(/^[ \t]+|[ \t]+$/, "", item)
+                # Remove quotes if present
+                if (match(item, /^["'\''].*["'\'']$/)) {
+                    item = substr(item, 2, length(item) - 2)
+                }
+                print "ILIST", indent, item
+            }
+        }
+        # Single/double quoted strings
+        else if (match(value, /^'\''.*/)) {
+            # Extract content between single quotes
+            content = substr(value, 2)
+            if (match(content, /'\''[^'\'']*$/)) {
+                content = substr(content, 1, RSTART - 1)
+            }
+            print "KEY", indent, key, content
+        }
+        else if (match(value, /^".*/)) {
+            # Extract content between double quotes
+            content = substr(value, 2)
+            if (match(content, /"[^"]*$/)) {
+                content = substr(content, 1, RSTART - 1)
+            }
+            print "KEY", indent, key, content
+        }
+            # Regular value
+            else {
+                print "KEY", indent, key, value
+            }
+        }
+    }
+    
+    END {
+        # Output any remaining multiline
+        if (in_multiline) {
+            # Apply same processing as in main block
+            if (substr(multiline_type, 1, 1) == ">") {
+                gsub(/ +\n/, "\n", multiline_value)
+                gsub(/\n\n+/, "\n\n", multiline_value)
+                gsub(/^ +/, "", multiline_value)
+                if (match(multiline_value, /\n$/)) {
+                    # Has newline at end
+                } else {
+                    multiline_value = multiline_value " "
+                }
+            }
+            # Handle strip/keep modifiers
+            if (multiline_type ~ /-$/) {
+                sub(/\n$/, "", multiline_value)
+            } else if (multiline_type ~ /\+$/) {
+                # Keep all trailing newlines
+            } else {
+                # Default: keep single final newline
+                sub(/\n*$/, "\n", multiline_value)
+            }
+            print "VALUE", key_indent, multiline_key, multiline_value
+        }
+    }
+    ' "$1"
+}
+
+# Main parsing function
+yaml_parse() {
+    local file="$1"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    _YAML_CURRENT_FILE="$file"
+    
+    # Clear previous data
+    _YAML_KEYS=()
+    _YAML_VALUES=()
+    
+    local current_path=""
+    local list_index=0
+    local in_list=0
+    
+    local line
+    local multiline_value=""
+    local reading_multiline=0
+
+    # Declared here rather than inside the read loop below: re-running `local` on
+    # the same names every iteration makes zsh dump the parameter list to stdout,
+    # which corrupts the output for anyone sourcing this into zsh.
+    local type indent key value rest
+    
+    # Use temporary file to avoid process substitution (bash 3.2 compatibility)
+    local temp_yaml_output="/tmp/yaml_parse_$$.tmp"
+    _yaml_parse_awk "$file" > "$temp_yaml_output" 2>/dev/null || true
+    
+    # Ensure file exists and is not empty before processing
+    if [[ ! -f "$temp_yaml_output" ]]; then
+        echo "Error: Failed to create temporary YAML output" >&2
+        return 1
+    fi
+    
+    # Read line by line with explicit error handling for bash 5.1+ compatibility
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        if [[ $reading_multiline -eq 1 ]]; then
+            # Check if this is the start of a new entry
+            if [[ "$line" =~ ^(KEY|VALUE|LIST|ILIST) ]]; then
+                # Save the completed multiline value
+                _YAML_KEYS+=("$current_path")
+                _YAML_VALUES+=("$multiline_value")
+                reading_multiline=0
+                multiline_value=""
+            else
+                # Continue reading multiline value
+                if [[ -n "$multiline_value" ]]; then
+                    multiline_value+=$'\n'"$line"
+                else
+                    multiline_value="$line"
+                fi
+                continue
+            fi
+        fi
+        
+        # Parse the line. _yaml_parse_awk always emits four fields
+        # ("<type> <indent> <key> <value>", the last possibly empty), so peeling
+        # them off one space at a time splits exactly where `cut -d' '` would -
+        # including a value that carries its own leading or repeated spaces.
+        #
+        # This used to shell out four times per line. That is 28 processes for a
+        # single ticket's frontmatter, and it dominated the cost of every
+        # command that reads YAML: listing 100 tickets spent 5.8s of its 7s here.
+        rest="$line"
+        type="${rest%% *}"
+        rest="${rest#* }"
+        indent="${rest%% *}"
+        rest="${rest#* }"
+        key="${rest%% *}"
+        value="${rest#* }"
+
+        # For LIST/ILIST entries, key contains the full list item (may have spaces)
+        if [[ "$type" == "LIST" ]] || [[ "$type" == "ILIST" ]]; then
+            key="$rest"
+        fi
+        
+        case "$type" in
+            KEY)
+                # Only reset in_list if we're changing to a different key
+                if [[ "$current_path" != "$key" ]]; then
+                    in_list=0
+                fi
+                current_path="$key"
+                if [[ -n "$value" ]]; then
+                    _YAML_KEYS+=("$current_path")
+                    _YAML_VALUES+=("$value")
+                fi
+                ;;
+                
+            VALUE)
+                # Check if value continues on next lines
+                if [[ -n "$value" ]]; then
+                    multiline_value="$value"
+                    reading_multiline=1
+                else
+                    _YAML_KEYS+=("$current_path")
+                    _YAML_VALUES+=("")
+                fi
+                ;;
+                
+            LIST)
+                if [[ $in_list -eq 0 ]]; then
+                    list_index=0
+                    in_list=1
+                else
+                    list_index=$((list_index + 1))
+                fi
+                _YAML_KEYS+=("${current_path}.${list_index}")
+                _YAML_VALUES+=("$key")  # key contains the list item
+                ;;
+                
+            ILIST)
+                if [[ $in_list -eq 0 ]]; then
+                    list_index=0
+                    in_list=1
+                else
+                    list_index=$((list_index + 1))
+                fi
+                _YAML_KEYS+=("${current_path}.${list_index}")
+                _YAML_VALUES+=("$key")  # key contains the list item
+                ;;
+        esac
+    done < "$temp_yaml_output"
+    
+    # Clean up temporary file
+    rm -f "$temp_yaml_output"
+    
+    # Handle last multiline value if any
+    if [[ $reading_multiline -eq 1 ]]; then
+        _YAML_KEYS+=("$current_path")
+        _YAML_VALUES+=("$multiline_value")
+    fi
+    
+    return 0
+}
+
+# Get a value by key
+yaml_get() {
+    local key="$1"
+    local i=0
+    local len=${#_YAML_KEYS[@]}
+    
+    while [[ $i -lt $len ]]; do
+        if [[ "${_YAML_KEYS[$i]}" == "$key" ]]; then
+            echo "${_YAML_VALUES[$i]}"
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    
+    return 1
+}
+
+# List all keys
+yaml_keys() {
+    local i=0
+    local len=${#_YAML_KEYS[@]}
+    
+    while [[ $i -lt $len ]]; do
+        echo "${_YAML_KEYS[$i]}"
+        i=$((i + 1))
+    done
+}
+
+# Check if a key exists
+yaml_has_key() {
+    local key="$1"
+    local i=0
+    local len=${#_YAML_KEYS[@]}
+    
+    while [[ $i -lt $len ]]; do
+        if [[ "${_YAML_KEYS[$i]}" == "$key" ]]; then
+            return 0
+        fi
+        i=$((i + 1))
+    done
+    
+    return 1
+}
+
+# Get the size of a list
+yaml_list_size() {
+    local prefix="$1"
+    local count=0
+    local i=0
+    local len=${#_YAML_KEYS[@]}
+    
+    while [[ $i -lt $len ]]; do
+        if [[ "${_YAML_KEYS[$i]}" =~ ^${prefix}\.([0-9]+)$ ]]; then
+            local index="${BASH_REMATCH[1]}"
+            if [[ $index -ge $count ]]; then
+                count=$((index + 1))
+            fi
+        fi
+        i=$((i + 1))
+    done
+    
+    echo "$count"
+}
+
+# Load a YAML file with a prefix (variables are set in the caller's scope)
+yaml_load() {
+    local file="$1"
+    local prefix="${2:-}"
+    
+    yaml_parse "$file" || return 1
+    
+    local i=0
+    local len=${#_YAML_KEYS[@]}
+    
+    while [[ $i -lt $len ]]; do
+        local key="${_YAML_KEYS[$i]}"
+        local value="${_YAML_VALUES[$i]}"
+        
+        # Convert dots to underscores for valid variable names
+        local var_name=$(echo "$key" | tr '.' '_')
+        
+        if [[ -n "$prefix" ]]; then
+            var_name="${prefix}_${var_name}"
+        fi
+        
+        # Export the variable in the caller's scope
+        eval "export $var_name=\"\$value\""
+        
+        i=$((i + 1))
+    done
+    
+    return 0
+}
+
+# Update a top-level single-line string value in a YAML file
+# Only updates simple key: value pairs, preserves comments
+yaml_update() {
+    local file="$1"
+    local key="$2"
+    local new_value="$3"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    if [[ -z "$key" ]] || [[ -z "$new_value" ]]; then
+        echo "Error: Key and value are required" >&2
+        return 1
+    fi
+    
+    # Create a temporary file
+    local temp_file=$(mktemp)
+    local found=0
+    
+    # Process the file line by line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        # Check if this line contains the key we're looking for
+        if [[ "$line" =~ ^[[:space:]]*${key}:[[:space:]]* ]]; then
+            # Extract the value part after the colon
+            local after_colon="${line#*:}"
+            
+            # Check for comment
+            local comment=""
+            local value_part="$after_colon"
+            if [[ "$after_colon" =~ \# ]]; then
+                # Split at the hash
+                value_part="${after_colon%%#*}"
+                comment=" #${after_colon#*#}"
+            fi
+            
+            # Trim the value
+            value_part="${value_part#"${value_part%%[![:space:]]*}"}"  # Trim leading
+            value_part="${value_part%"${value_part##*[![:space:]]}"}"  # Trim trailing
+            
+            # Only update if it's not a multiline indicator or empty
+            if [[ "$value_part" != "|" ]] && [[ "$value_part" != "|-" ]] && \
+               [[ "$value_part" != "|+" ]] && [[ "$value_part" != ">" ]] && \
+               [[ "$value_part" != ">-" ]] && [[ "$value_part" != ">+" ]] && \
+               [[ -n "$value_part" ]]; then
+                # Write the updated line
+                echo "${key}: ${new_value}${comment}" >> "$temp_file"
+                found=1
+            else
+                # Keep the original line for multiline or complex values
+                echo "$line" >> "$temp_file"
+            fi
+        else
+            # Keep the original line
+            echo "$line" >> "$temp_file"
+        fi
+    done < "$file"
+    
+    if [[ $found -eq 1 ]]; then
+        # Replace the original file
+        mv "$temp_file" "$file"
+        return 0
+    else
+        # Key not found or not updatable
+        rm "$temp_file"
+        echo "Error: Key '$key' not found or is not a simple value" >&2
+        return 1
+    fi
+}
+# --- yaml-frontmatter.sh ---
+
+# Functions to handle YAML frontmatter in markdown files
+
+# Update a field in YAML frontmatter using sed
+# Usage: update_yaml_frontmatter_field <file> <field> <value>
+update_yaml_frontmatter_field() {
+    local file="$1"
+    local field="$2"
+    local value="$3"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    # Create temporary file
+    local temp_file=$(mktemp)
+    
+    # State tracking
+    local in_frontmatter=0
+    local frontmatter_start=0
+    local frontmatter_end=0
+    local line_num=0
+    local field_updated=0
+    
+    # First pass: find frontmatter boundaries
+    while IFS= read -r line; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            frontmatter_start=1
+            in_frontmatter=1
+        elif [[ $in_frontmatter -eq 1 ]] && [[ "$line" == "---" ]]; then
+            frontmatter_end=$line_num
+            break
+        fi
+    done < "$file" || true
+    
+    if [[ $frontmatter_start -eq 0 ]] || [[ $frontmatter_end -eq 0 ]]; then
+        echo "Error: No YAML frontmatter found in file" >&2
+        rm "$temp_file"
+        return 1
+    fi
+    
+    # Second pass: update the field
+    line_num=0
+    in_frontmatter=0
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            echo "$line" >> "$temp_file"
+            in_frontmatter=1
+        elif [[ $in_frontmatter -eq 1 ]] && [[ $line_num -eq $frontmatter_end ]]; then
+            echo "$line" >> "$temp_file"
+            in_frontmatter=0
+        elif [[ $in_frontmatter -eq 1 ]]; then
+            # Check if this line contains the field
+            if [[ "$line" =~ ^[[:space:]]*${field}:[[:space:]]* ]]; then
+                # Extract indentation
+                local indent=""
+                if [[ "$line" =~ ^([[:space:]]*) ]]; then
+                    indent="${BASH_REMATCH[1]}"
+                fi
+                
+                # Check for comment
+                local comment=""
+                local after_colon="${line#*:}"
+                if [[ "$after_colon" =~ \# ]]; then
+                    comment=" #${after_colon#*#}"
+                fi
+                
+                # Write updated line
+                echo "${indent}${field}: ${value}${comment}" >> "$temp_file"
+                field_updated=1
+            else
+                echo "$line" >> "$temp_file"
+            fi
+        else
+            echo "$line" >> "$temp_file"
+        fi
+    done < "$file" || true
+    
+    if [[ $field_updated -eq 0 ]]; then
+        echo "Error: Field '$field' not found in frontmatter" >&2
+        rm "$temp_file"
+        return 1
+    fi
+    
+    # Check if the file is writable before replacing
+    if [[ ! -w "$file" ]]; then
+        echo "Error: File '$file' is not writable" >&2
+        rm "$temp_file"
+        return 1
+    fi
+    
+    # Replace original file
+    mv "$temp_file" "$file"
+    return 0
+}
+
+# Extract YAML frontmatter from a markdown file
+# Usage: extract_yaml_frontmatter <file>
+extract_yaml_frontmatter() {
+    local file="$1"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    local in_frontmatter=0
+    local line_num=0
+    local content=""
+    
+    while IFS= read -r line; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_frontmatter=1
+            continue
+        elif [[ $in_frontmatter -eq 1 ]] && [[ "$line" == "---" ]]; then
+            break
+        elif [[ $in_frontmatter -eq 1 ]]; then
+            content+="$line"$'\n'
+        fi
+    done < "$file"
+    
+    if [[ $in_frontmatter -eq 0 ]]; then
+        echo "Error: No YAML frontmatter found" >&2
+        return 1
+    fi
+    
+    echo -n "$content"
+}
+
+# Extract markdown body (content after frontmatter)
+# Usage: extract_markdown_body <file>
+#
+# Counters here are incremented as `n=$((n + 1))`, never `((n++))`: the latter
+# evaluates to the OLD value, so the first increment from 0 makes the arithmetic
+# command return 1, and under `set -e` that kills the shell on line one. Command
+# substitution happens to survive it; a process substitution or an explicit
+# subshell does not, and would silently yield an empty body.
+extract_markdown_body() {
+    local file="$1"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    local in_frontmatter=0
+    local past_frontmatter=0
+    local line_num=0
+    local first_body_line=1
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove CRLF line endings
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_frontmatter=1
+        elif [[ $in_frontmatter -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_frontmatter=0
+            past_frontmatter=1
+        elif [[ $past_frontmatter -eq 1 ]]; then
+            if [[ $first_body_line -eq 1 ]]; then
+                echo -n "$line"
+                first_body_line=0
+            else
+                echo
+                echo -n "$line"
+            fi
+        elif [[ $in_frontmatter -eq 0 ]] && [[ $line_num -eq 1 ]]; then
+            # No frontmatter, output from first line
+            echo -n "$line"
+            past_frontmatter=1
+            first_body_line=0
+        fi
+    done < "$file"
+    
+    # Add final newline if there was content
+    if [[ $past_frontmatter -eq 1 ]] && [[ $first_body_line -eq 0 ]]; then
+        echo
+    fi
+}
+# --- utils.sh ---
+
+# Utility functions for ticket.sh
+
+# Check if we're in a git repository (supports worktrees where .git is a file)
+check_git_repo() {
+    if [[ ! -d .git ]] && [[ ! -f .git ]]; then
+        cat >&2 << EOF
+Error: Not in a git repository
+This directory is not a git repository. Please:
+1. Navigate to your project root directory, or
+2. Initialize a new git repository with 'git init'
+EOF
+        return 1
+    fi
+    return 0
+}
+
+# Check if current directory is a git worktree (not the main working tree)
+is_git_worktree() {
+    [[ -f .git ]] && grep -q "^gitdir:" .git 2>/dev/null
+}
+
+# Get the main repository path from a worktree
+get_main_repo_from_worktree() {
+    if is_git_worktree; then
+        git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | sed 's|/\.git$||'
+    else
+        git rev-parse --show-toplevel 2>/dev/null
+    fi
+}
+
+# Check if config file exists
+check_config() {
+    CONFIG_FILE=$(get_config_file)
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat >&2 << EOF
+Error: Ticket system not initialized
+Configuration file not found. Please:
+1. Run 'ticket.sh init' to initialize the ticket system, or
+2. Navigate to the project root directory where the config exists
+3. Expected files: .ticket-config.yaml or .ticket-config.yml
+EOF
+        return 1
+    fi
+    return 0
+}
+
+# Validate slug format (lowercase, numbers, hyphens only)
+validate_slug() {
+    local slug="$1"
+    
+    if [[ ! "$slug" =~ ^[a-z0-9-]+$ ]]; then
+        cat >&2 << EOF
+Error: Invalid slug format
+Slug '$slug' contains invalid characters. Please:
+1. Use only lowercase letters (a-z)
+2. Use only numbers (0-9)
+3. Use only hyphens (-) for separation
+Example: 'implement-user-auth' or 'fix-bug-123'
+EOF
+        return 1
+    fi
+    return 0
+}
+
+# Get current git branch
+get_current_branch() {
+    # Try to get current branch name
+    local branch_name=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    
+    # If HEAD doesn't exist (no commits yet), try to get default branch
+    if [[ -z "$branch_name" ]] || [[ "$branch_name" == "HEAD" ]]; then
+        # Try to get the default branch from git config
+        branch_name=$(git config --get init.defaultBranch 2>/dev/null)
+        
+        # If still empty, try to detect from git symbolic-ref
+        if [[ -z "$branch_name" ]]; then
+            branch_name=$(git symbolic-ref --short HEAD 2>/dev/null)
+        fi
+        
+        # If still empty, default to "main"
+        if [[ -z "$branch_name" ]]; then
+            branch_name="main"
+        fi
+    fi
+    
+    echo "$branch_name"
+}
+
+# Check if git working directory is clean
+# Usage: check_clean_working_dir [tickets_dir]
+check_clean_working_dir() {
+    local tickets_dir="${1:-tickets}"
+    local porcelain_output
+    porcelain_output="$(git status --porcelain 2>/dev/null)"
+
+    if [[ -n "$porcelain_output" ]]; then
+        # Check if all uncommitted files are under tickets_dir/
+        local has_non_ticket_files=false
+        while IFS= read -r line; do
+            # git status --porcelain format: XY filename (or XY orig -> renamed)
+            local file_path="${line:3}"
+            # Handle renames: "R  old -> new"
+            if [[ "$file_path" == *" -> "* ]]; then
+                file_path="${file_path##* -> }"
+            fi
+            if [[ "$file_path" != "${tickets_dir}/"* ]]; then
+                has_non_ticket_files=true
+                break
+            fi
+        done <<< "$porcelain_output"
+
+        if [[ "$has_non_ticket_files" == "false" ]]; then
+            cat >&2 << EOF
+Error: Uncommitted changes (ticket files only)
+Only ticket files under '${tickets_dir}/' are uncommitted.
+Please commit them and retry:
+  git add ${tickets_dir}/ && git commit -m "Add ticket files"
+Then re-run the ticket command.
+EOF
+        else
+            cat >&2 << EOF
+Error: Uncommitted changes
+Working directory has uncommitted changes. Please:
+1. Commit your changes: git add . && git commit -m "message"
+2. Or stash changes: git stash
+3. Then retry the ticket operation
+
+Remember to update current-ticket.md with your progress before committing.
+
+IMPORTANT: Never use 'git restore' or 'rm' to discard file changes without
+explicit user permission. User's work must be preserved.
+EOF
+        fi
+        return 1
+    fi
+    return 0
+}
+
+# Generate ticket filename from slug
+generate_ticket_filename() {
+    local slug="$1"
+    local timestamp=$(date -u '+%y%m%d-%H%M%S')
+    echo "${timestamp}-${slug}"
+}
+
+# Extract ticket name from various input formats.
+# Accepts: bare name, .md file, tickets/<name>/ticket.md, tickets/<name>/,
+# tickets/done/<name>/ticket.md.
+extract_ticket_name() {
+    local input="$1"
+
+    # Strip trailing slashes
+    input="${input%/}"
+
+    local basename="${input##*/}"
+
+    if [[ "$basename" == "ticket.md" ]]; then
+        # Path is <...>/<name>/ticket.md — take parent dir name
+        local parent="${input%/*}"
+        basename="${parent##*/}"
+    else
+        basename="${basename%.md}"
+    fi
+
+    echo "$basename"
+}
+
+# Detect layout for a given ticket name.
+# Echoes one of: "new" (dir with ticket.md), "legacy" (flat .md), "unknown".
+# Usage: ticket_layout <ticket_name> <tickets_dir>
+ticket_layout() {
+    local ticket_name="$1"
+    local tickets_dir="$2"
+    ticket_name=$(extract_ticket_name "$ticket_name")
+
+    if [[ -f "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+        echo "new"
+    elif [[ -f "${tickets_dir}/done/${ticket_name}/ticket.md" ]]; then
+        echo "new"
+    elif [[ -f "${tickets_dir}/${ticket_name}.md" ]]; then
+        echo "legacy"
+    elif [[ -f "${tickets_dir}/done/${ticket_name}.md" ]]; then
+        echo "legacy"
+    else
+        echo "unknown"
+    fi
+}
+
+# Get ticket file path from ticket name.
+# Prefers the new-format path when the per-ticket directory exists (open or done);
+# falls back to the legacy flat path otherwise.
+get_ticket_file() {
+    local ticket_name="$1"
+    local tickets_dir="$2"
+
+    ticket_name=$(extract_ticket_name "$ticket_name")
+
+    if [[ -f "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+        echo "${tickets_dir}/${ticket_name}/ticket.md"
+    elif [[ -f "${tickets_dir}/done/${ticket_name}/ticket.md" ]]; then
+        echo "${tickets_dir}/done/${ticket_name}/ticket.md"
+    else
+        echo "${tickets_dir}/${ticket_name}.md"
+    fi
+}
+
+# Get note file path from ticket name.
+# For new-format tickets, returns the note.md inside the ticket dir; for
+# legacy, returns the flat -note.md sibling. Prefers the open location over done/.
+get_note_file() {
+    local ticket_name="$1"
+    local tickets_dir="$2"
+
+    ticket_name=$(extract_ticket_name "$ticket_name")
+
+    if [[ -d "${tickets_dir}/${ticket_name}" ]]; then
+        echo "${tickets_dir}/${ticket_name}/note.md"
+    elif [[ -d "${tickets_dir}/done/${ticket_name}" ]]; then
+        echo "${tickets_dir}/done/${ticket_name}/note.md"
+    else
+        echo "${tickets_dir}/${ticket_name}-note.md"
+    fi
+}
+
+# Check if main repo is in a safe state to perform merge operations.
+# In parallel multi-worktree workflows, another worker may have checked out
+# a different branch or left uncommitted changes in the main repo. Blindly
+# merging into the current branch would disrupt them, so this guard halts
+# with a clear error.
+#
+# Usage: check_main_repo_ready <main_repo> <default_branch>
+check_main_repo_ready() {
+    local main_repo="$1"
+    local default_branch="$2"
+
+    local main_branch
+    main_branch=$(git -C "$main_repo" symbolic-ref --short HEAD 2>/dev/null)
+    if [[ -z "$main_branch" ]]; then
+        echo "Error: Cannot determine main repo HEAD at '$main_repo' (detached or invalid)" >&2
+        return 1
+    fi
+
+    if [[ "$main_branch" != "$default_branch" ]]; then
+        cat >&2 << EOF
+Error: Main repo HEAD is not on '$default_branch'
+Main repository at '$main_repo' is currently on branch '$main_branch',
+but ticket.sh needs '$default_branch' to perform the merge.
+
+This commonly happens in parallel multi-worktree workflows where another
+worker has checked out a different branch in the main repo. Merging into
+'$main_branch' silently would disrupt that worker.
+
+Please switch main repo back to '$default_branch':
+  git -C $main_repo checkout $default_branch
+Then retry the close.
+EOF
+        return 1
+    fi
+
+    if [[ -n "$(git -C "$main_repo" status --porcelain 2>/dev/null)" ]]; then
+        cat >&2 << EOF
+Error: Main repo has uncommitted changes
+Main repository at '$main_repo' has uncommitted changes that could conflict
+with the merge. Another worker may be editing files there.
+
+Please commit or stash the changes in the main repo manually, then retry.
+EOF
+        return 1
+    fi
+
+    return 0
+}
+
+# Run git command and show output
+run_git_command() {
+    local cmd="$1"
+    
+    echo "# run command" >&2
+    echo "$cmd" >&2
+    
+    # Execute the command and capture both stdout and stderr
+    local output
+    output=$(eval "$cmd" 2>&1)
+    local exit_code=$?
+    
+    # Show output if any
+    if [[ -n "$output" ]]; then
+        echo "$output" >&2
+    fi
+    
+    echo >&2  # Add blank line after command output
+    
+    return $exit_code
+}
+
+# Derive a ticket's name from the path to its file, for either layout:
+#   tickets/<name>/ticket.md -> <name>
+#   tickets/<name>.md        -> <name>
+#
+# Usage: ticket_name_from_path <path>
+ticket_name_from_path() {
+    local path="$1"
+    local base="${path##*/}"
+
+    if [[ "$base" == "ticket.md" ]]; then
+        local parent="${path%/*}"
+        echo "${parent##*/}"
+    else
+        echo "${base%.md}"
+    fi
+}
+
+# Read started_at out of a ticket file as it stands on <branch>, without
+# checking anything out. Prints nothing when the branch has no such file, or
+# when the value is null.
+#
+# Usage: started_at_on_branch <branch> <ticket_path>
+started_at_on_branch() {
+    local branch="$1"
+    local ticket_path="$2"
+
+    git show "${branch}:${ticket_path}" 2>/dev/null | awk '
+        /^---[[:space:]]*$/ { fence++; if (fence > 1) exit; next }
+        fence == 1 && /^started_at:/ {
+            sub(/^started_at:[[:space:]]*/, "")
+            sub(/[[:space:]]*#.*$/, "")
+            print
+            exit
+        }'
+}
+
+# Find the working tree that has <branch> checked out, if any.
+# Prints its path, or nothing when the branch is checked out nowhere.
+#
+# Usage: worktree_holding_branch <repo> <branch>
+worktree_holding_branch() {
+    local repo="$1"
+    local branch="$2"
+
+    git -C "$repo" worktree list --porcelain 2>/dev/null \
+        | awk -v target="branch refs/heads/${branch}" '/^worktree /{wt=$0} $0==target{print wt}' \
+        | sed 's/^worktree //'
+}
+
+# Remove <rel_path> from <wt> when it is untracked there and still hashes to
+# <expected_hash>.
+#
+# Untracked files block a fast-forward that would create them. Removing one is
+# only safe when nothing would be lost: it must still match the snapshot taken
+# before the commit was built, which rules out both an edit that exists only in
+# this tree and a change made by someone else while we worked.
+#
+# Usage: drop_untracked_if_unchanged <worktree> <rel_path> <expected_hash>
+drop_untracked_if_unchanged() {
+    local wt="$1"
+    local rel_path="$2"
+    local expected_hash="$3"
+
+    [[ -f "${wt}/${rel_path}" ]] || return 0
+    [[ -n "$expected_hash" ]] || return 1
+
+    # Tracked files are git's business: it knows how to update them, and
+    # refuses on its own when they carry local changes.
+    if git -C "$wt" ls-files --error-unmatch -- "$rel_path" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local current_hash
+    current_hash=$(git -C "$wt" hash-object -- "${wt}/${rel_path}" 2>/dev/null) || return 1
+    [[ "$current_hash" == "$expected_hash" ]] || return 1
+
+    rm -f "${wt}/${rel_path}"
+}
+
+# Fast-forward <branch> to <commit-ish>.
+#
+# The mechanism depends on whether the branch is checked out somewhere, not on
+# worktree mode. The two cases are mutually exclusive: git refuses to fetch into
+# a checked-out branch, and a branch nobody has checked out has no working tree
+# to merge in.
+#
+# Optional <path> <hash> pairs name files that may be removed from the target
+# working tree first if they are still untracked and unchanged - see
+# drop_untracked_if_unchanged. A ticket created by 'new' (which makes no commit)
+# sits there untracked and would otherwise block the fast-forward.
+#
+# Returns non-zero when the fast-forward isn't possible - the branch moved on,
+# or the target tree has conflicting local changes. Callers are expected to warn
+# and carry on: this is bookkeeping, not the user's work.
+#
+# Usage: advance_branch_ff <repo> <branch> <commit-ish> [<path> <hash>]...
+advance_branch_ff() {
+    local repo="$1"
+    local branch="$2"
+    local commit="$3"
+    shift 3
+
+    local wt
+    wt=$(worktree_holding_branch "$repo" "$branch")
+
+    if [[ -z "$wt" ]]; then
+        # Nobody has it checked out, so move the ref directly. git rejects a
+        # non-fast-forward update here by itself.
+        git -C "$repo" fetch . "${commit}:${branch}" >/dev/null 2>&1
+        return $?
+    fi
+
+    while [[ $# -ge 2 ]]; do
+        drop_untracked_if_unchanged "$wt" "$1" "$2"
+        shift 2
+    done
+
+    git -C "$wt" merge --ff-only "$commit" >/dev/null 2>&1
+}
+
+# Format ISO 8601 UTC timestamp
+get_utc_timestamp() {
+    date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+# Check if value is null or empty
+is_null_or_empty() {
+    local value="$1"
+    [[ -z "$value" ]] || [[ "$value" == "null" ]]
+}
+
+# Parse ticket status from YAML data
+get_ticket_status() {
+    local started_at="$1"
+    local closed_at="$2"
+    local canceled_at="${3:-null}"
+
+    if ! is_null_or_empty "$canceled_at"; then
+        echo "canceled"
+    elif is_null_or_empty "$closed_at"; then
+        if is_null_or_empty "$started_at"; then
+            echo "todo"
+        else
+            echo "doing"
+        fi
+    else
+        echo "done"
+    fi
+}
+
+# Convert UTC time to local timezone
+# Usage: convert_utc_to_local <utc_time>
+# Returns the original time on error (graceful degradation)
+convert_utc_to_local() {
+    local utc_time="$1"
+    
+    # Return original if empty or null
+    if is_null_or_empty "$utc_time"; then
+        echo "$utc_time"
+        return 0
+    fi
+    
+    # Try GNU date first (Linux)
+    if date --version >/dev/null 2>&1; then
+        local result=$(date -d "${utc_time}" "+%Y-%m-%d %H:%M:%S %Z" 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "$result"
+            return 0
+        fi
+    fi
+    
+    # Try BSD date (macOS)
+    if date -j >/dev/null 2>&1; then
+        # Try with ISO 8601 format first
+        local result=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "${utc_time}" "+%Y-%m-%d %H:%M:%S %Z" 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "$result"
+            return 0
+        fi
+        
+        # Try without Z suffix
+        local time_no_z="${utc_time%Z}"
+        result=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${time_no_z}" "+%Y-%m-%d %H:%M:%S %Z" 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "$result"
+            return 0
+        fi
+    fi
+    
+    # Fallback to original
+    echo "$utc_time"
+}
+
+# Get configuration file path with priority: .yaml > .yml
+get_config_file() {
+    if [[ -f ".ticket-config.yaml" ]]; then
+        echo ".ticket-config.yaml"
+    elif [[ -f ".ticket-config.yml" ]]; then
+        echo ".ticket-config.yml"
+    else
+        # Return default for new installations
+        echo ".ticket-config.yaml"
+    fi
+}
+# --- checklist.sh ---
+
+# checklist.sh - find unchecked checklist items in a ticket's files.
+#
+# Both files a ticket owns can carry checkboxes, and nothing used to look at
+# whether they got filled in:
+#
+#   ticket.md   the "## Tasks" list - present in the stock template
+#   note.md     whatever checklist a project puts in its note template
+#
+# These functions scan them, group the checkboxes by the heading each one sits
+# under, and report (or refuse) based on what is still empty. The two files are
+# kept apart throughout, so the output says which one to go and edit.
+#
+# Three states are recognised:
+#   - [x] ...                       done
+#   - [ ] ...                       unchecked  -> blocks
+#   - [-] ... - skip: <reason>      not applicable to this ticket -> passes
+#
+# A `[-]` without a reason counts as unchecked. Deleting the line is NOT a way
+# to pass, in the sense that a deleted line simply stops being checked - see
+# https://github.com/masuidrive/ticket.sh/issues/4 for why reconciling against
+# the config template was left out.
+#
+# This is a deliberately small Markdown scanner, not a CommonMark parser. It
+# understands what these files actually contain: ATX headings, list items,
+# fenced code blocks and indented code blocks. Setext headings (underlined with
+# === or ---) are not treated as headings, because a horizontal rule would then
+# be indistinguishable from one.
+#
+# The scanner is pure parameter expansion - no subprocess per line. These files
+# are read once per command, and `list` already showed what per-line process
+# spawning costs.
+
+# Read Markdown from stdin and emit one record per checkbox, in file order:
+#
+#   <state><TAB><file><TAB><group><TAB><label>
+#
+# state is one of: done | skip | todo
+# file is the label passed in (ticket.md / note.md)
+# group is the text of the nearest preceding heading, or (ungrouped).
+_checklist_scan_stream() {
+    local label="$1"
+
+    local group="(ungrouped)"
+    local fence_char="" fence_len=0
+    local in_indented_code=0
+    local prev_blank=1
+    local in_list=0
+    local line stripped indent blank
+    local backtick='`'
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"
+        # A tab counts as four columns in Markdown's indentation rules, and
+        # this also keeps tabs out of the TAB-separated records below.
+        line="${line//$'\t'/    }"
+
+        stripped="${line#"${line%%[![:space:]]*}"}"
+        indent=$(( ${#line} - ${#stripped} ))
+        blank=0
+        [[ -z "$stripped" ]] && blank=1
+
+        # --- inside a fenced code block: nothing counts until it closes ---
+        if [[ -n "$fence_char" ]]; then
+            if [[ $blank -eq 1 ]]; then
+                prev_blank=1
+                continue
+            fi
+            prev_blank=0
+            if [[ "${stripped:0:1}" == "$fence_char" ]]; then
+                local run=0
+                while [[ "${stripped:$run:1}" == "$fence_char" ]]; do run=$((run + 1)); done
+                if (( run >= fence_len )); then
+                    local tail="${stripped:$run}"
+                    tail="${tail#"${tail%%[![:space:]]*}"}"
+                    [[ -z "$tail" ]] && fence_char=""
+                fi
+            fi
+            continue
+        fi
+
+        # --- inside an indented code block: ends at the first non-blank
+        # --- line that is indented less than four columns
+        if [[ $in_indented_code -eq 1 ]]; then
+            if [[ $blank -eq 1 ]]; then
+                prev_blank=1
+                continue
+            fi
+            if (( indent >= 4 )); then
+                prev_blank=0
+                continue
+            fi
+            in_indented_code=0
+            # fall through and process this line normally
+        fi
+
+        if [[ $blank -eq 1 ]]; then
+            prev_blank=1
+            continue
+        fi
+
+        # --- start of an indented code block ---
+        # Only outside a list. Inside a list, four columns of indentation is
+        # the item's own continuation, not code: treating it as code would
+        # make nested checkboxes silently vanish from the count, which would
+        # hand back exactly the "indent it and it stops blocking" loophole
+        # this check exists to close.
+        if (( indent >= 4 )) && [[ $in_list -eq 0 && $prev_blank -eq 1 ]]; then
+            in_indented_code=1
+            prev_blank=0
+            continue
+        fi
+
+        prev_blank=0
+
+        # --- opening fence ---
+        # Allowed at any indentation while inside a list, where the fence is
+        # indented to the list item's content column.
+        if (( indent <= 3 )) || [[ $in_list -eq 1 ]]; then
+            if [[ "${stripped:0:3}" == "${backtick}${backtick}${backtick}" || "${stripped:0:3}" == '~~~' ]]; then
+                fence_char="${stripped:0:1}"
+                fence_len=0
+                while [[ "${stripped:$fence_len:1}" == "$fence_char" ]]; do fence_len=$((fence_len + 1)); done
+                continue
+            fi
+        fi
+
+        # --- ATX heading: starts a new group ---
+        if (( indent <= 3 )) && [[ "${stripped:0:1}" == "#" ]]; then
+            local level=0
+            while [[ "${stripped:$level:1}" == "#" ]]; do level=$((level + 1)); done
+            if (( level <= 6 )) && [[ -z "${stripped:$level:1}" || "${stripped:$level:1}" == " " ]]; then
+                local title="${stripped:$level}"
+                title="${title#"${title%%[![:space:]]*}"}"
+                title="${title%"${title##*[![:space:]]}"}"
+                # Optional closing sequence ("## Title ##"), which requires a
+                # space before it - a heading may legitimately end in '#'.
+                if [[ "$title" =~ ^(.*[[:space:]])#+$ ]]; then
+                    title="${BASH_REMATCH[1]}"
+                    title="${title%"${title##*[![:space:]]}"}"
+                fi
+                group="${title:-(ungrouped)}"
+                in_list=0
+                continue
+            fi
+        fi
+
+        # --- list item, possibly a checkbox ---
+        if [[ "$stripped" =~ ^([-*+]|[0-9]+[.\)])[[:space:]]+(.*)$ ]]; then
+            in_list=1
+            local rest="${BASH_REMATCH[2]}"
+            if [[ "${rest:0:1}" == "[" && "${rest:2:1}" == "]" ]]; then
+                local mark="${rest:1:1}"
+                local label_text="${rest:3}"
+                label_text="${label_text#"${label_text%%[![:space:]]*}"}"
+                label_text="${label_text%"${label_text##*[![:space:]]}"}"
+                case "$mark" in
+                    x|X)
+                        printf 'done\t%s\t%s\t%s\n' "$label" "$group" "$label_text"
+                        ;;
+                    ' ')
+                        printf 'todo\t%s\t%s\t%s\n' "$label" "$group" "$label_text"
+                        ;;
+                    '-')
+                        # A reason is what makes "not applicable" reviewable.
+                        # Without one it is indistinguishable from skipping the
+                        # work, so it counts as unchecked.
+                        if [[ "$label_text" =~ [Ss][Kk][Ii][Pp]:[[:space:]]*[^[:space:]] ]]; then
+                            printf 'skip\t%s\t%s\t%s\n' "$label" "$group" "$label_text"
+                        else
+                            printf 'todo\t%s\t%s\t%s\n' "$label" "$group" "$label_text"
+                        fi
+                        ;;
+                    *)
+                        # Not part of the vocabulary ([~], [/], ...). Saying
+                        # nothing beats guessing what the author meant.
+                        ;;
+                esac
+            fi
+            continue
+        fi
+
+        # --- ordinary text: a line at column 0 ends the list ---
+        if (( indent == 0 )); then
+            in_list=0
+        fi
+    done
+
+    return 0
+}
+
+# Scan one file.
+#
+# Usage: checklist_scan <file> <label> [strip_frontmatter]
+#
+# strip_frontmatter is "true" for the ticket body, which carries YAML
+# frontmatter: without stripping it, a `- [ ]` inside a block scalar (a
+# multi-line `description`, say) would be counted as a checkbox. The note file
+# has no frontmatter, and is read as-is - running it through the stripper would
+# risk mistaking a horizontal rule on its first line for a frontmatter fence.
+#
+# Prints nothing (and succeeds) when the file is missing.
+checklist_scan() {
+    local file="$1"
+    local label="$2"
+    local strip="${3:-false}"
+
+    [[ -f "$file" ]] || return 0
+
+    if [[ "$strip" == "true" ]]; then
+        _checklist_scan_stream "$label" < <(extract_markdown_body "$file")
+    else
+        _checklist_scan_stream "$label" < "$file"
+    fi
+    return 0
+}
+
+# Aggregate the ticket body and the note into per-group counters, in
+# first-appearance order (ticket first, then note). A group is identified by
+# BOTH the file and the heading text: the same heading in both files stays two
+# groups, so the output can say which file to go and edit.
+#
+# Populates these globals (plain indexed arrays - Bash 3.2 has no associative
+# arrays); one entry per group:
+#
+#   CL_FILES[]     which file the group came from (ticket.md / note.md)
+#   CL_GROUPS[]    heading text
+#   CL_TOTAL[]     checkboxes in the group
+#   CL_DONE[]      checked, including skipped
+#   CL_SKIP[]      skipped with a reason
+#   CL_TODO[]      newline-separated labels of the unchecked ones
+#   CL_SUM_TOTAL   CL_SUM_DONE   CL_SUM_TODO    totals across both files
+#
+# Usage: checklist_aggregate <ticket-file> <note-file>
+# Either path may be missing; a missing file simply contributes nothing.
+checklist_aggregate() {
+    local ticket_file="$1"
+    local note_file="$2"
+
+    CL_FILES=()
+    CL_GROUPS=()
+    CL_TOTAL=()
+    CL_DONE=()
+    CL_SKIP=()
+    CL_TODO=()
+    CL_SUM_TOTAL=0
+    CL_SUM_DONE=0
+    CL_SUM_TODO=0
+
+    local state file group label idx i found
+    while IFS=$'\t' read -r state file group label; do
+        [[ -z "$state" ]] && continue
+
+        idx=-1
+        found=0
+        i=0
+        while (( i < ${#CL_GROUPS[@]} )); do
+            if [[ "${CL_FILES[$i]}" == "$file" && "${CL_GROUPS[$i]}" == "$group" ]]; then
+                idx=$i
+                found=1
+                break
+            fi
+            i=$((i + 1))
+        done
+        if [[ $found -eq 0 ]]; then
+            idx=${#CL_GROUPS[@]}
+            CL_FILES[$idx]="$file"
+            CL_GROUPS[$idx]="$group"
+            CL_TOTAL[$idx]=0
+            CL_DONE[$idx]=0
+            CL_SKIP[$idx]=0
+            CL_TODO[$idx]=""
+        fi
+
+        CL_TOTAL[$idx]=$(( ${CL_TOTAL[$idx]} + 1 ))
+        CL_SUM_TOTAL=$(( CL_SUM_TOTAL + 1 ))
+        case "$state" in
+            done)
+                CL_DONE[$idx]=$(( ${CL_DONE[$idx]} + 1 ))
+                CL_SUM_DONE=$(( CL_SUM_DONE + 1 ))
+                ;;
+            skip)
+                CL_DONE[$idx]=$(( ${CL_DONE[$idx]} + 1 ))
+                CL_SKIP[$idx]=$(( ${CL_SKIP[$idx]} + 1 ))
+                CL_SUM_DONE=$(( CL_SUM_DONE + 1 ))
+                ;;
+            todo)
+                if [[ -n "${CL_TODO[$idx]}" ]]; then
+                    CL_TODO[$idx]="${CL_TODO[$idx]}"$'\n'"$label"
+                else
+                    CL_TODO[$idx]="$label"
+                fi
+                CL_SUM_TODO=$(( CL_SUM_TODO + 1 ))
+                ;;
+        esac
+    done < <(
+        checklist_scan "$ticket_file" "ticket.md" true
+        checklist_scan "$note_file" "note.md"
+    )
+
+    return 0
+}
+
+# The one line printed under every failure, so the reader always sees both ways
+# out: do the thing, or record why it does not apply.
+checklist_hint() {
+    echo 'Check them, or mark the ones that do not apply as `- [-] ... - skip: <reason>`.'
+}
+
+# Width of the group-name column, over the entries a caller selects.
+# Usage: _checklist_width <extra> [todo_only]
+_checklist_width() {
+    local extra="$1"
+    local todo_only="${2:-false}"
+    local width=0 i name
+    i=0
+    while (( i < ${#CL_GROUPS[@]} )); do
+        if [[ "$todo_only" != "true" || -n "${CL_TODO[$i]}" ]]; then
+            name="${CL_GROUPS[$i]}"
+            (( ${#name} > width )) && width=${#name}
+        fi
+        i=$((i + 1))
+    done
+    echo $((width + extra))
+}
+
+# Report every group and what is still empty, split by file. Never fails:
+# mid-ticket, the later groups being empty is the normal state, and a check
+# that always failed on day one would just be turned off.
+#
+# Usage: checklist_report <ticket-file> <note-file>
+checklist_report() {
+    checklist_aggregate "$1" "$2"
+    [[ $CL_SUM_TOTAL -eq 0 ]] && return 0
+
+    local width
+    width=$(_checklist_width 4)
+
+    echo ""
+    echo "Checklist: ${CL_SUM_DONE} / ${CL_SUM_TOTAL}"
+
+    local i=0 current="" name pad line label
+    while (( i < ${#CL_GROUPS[@]} )); do
+        if [[ "${CL_FILES[$i]}" != "$current" ]]; then
+            current="${CL_FILES[$i]}"
+            echo "  ${current}"
+        fi
+        name="${CL_GROUPS[$i]}"
+        pad=""
+        while (( ${#name} + ${#pad} < width )); do pad="${pad} "; done
+        line="    ${name}${pad}${CL_DONE[$i]} / ${CL_TOTAL[$i]}"
+        if [[ "${CL_DONE[$i]}" == "${CL_TOTAL[$i]}" ]]; then
+            line="${line}  done"
+            if (( ${CL_SKIP[$i]} > 0 )); then
+                line="${line} (${CL_SKIP[$i]} skipped)"
+            fi
+        fi
+        echo "$line"
+        if [[ -n "${CL_TODO[$i]}" ]]; then
+            while IFS= read -r label; do
+                echo "        - ${label}"
+            done <<< "${CL_TODO[$i]}"
+        fi
+        i=$((i + 1))
+    done
+
+    return 0
+}
+
+# Evaluate one group by name over the aggregate already in CL_*, and leave the
+# answer in CLG_*:
+#
+#   CLG_MATCHED   1 when at least one group carries that heading
+#   CLG_TOTAL  CLG_DONE  CLG_SKIP
+#   CLG_TODO      newline-separated labels of the unchecked ones
+#
+# A heading with no checkboxes under it never becomes a group at all (see
+# checklist_aggregate), so it comes back unmatched. That is what lets the
+# callers tell "the section is not there" from "the section is finished" -
+# counting unchecked boxes cannot, because both come to zero.
+_checklist_group_eval() {
+    local want="$1"
+
+    CLG_MATCHED=0
+    CLG_TOTAL=0
+    CLG_DONE=0
+    CLG_SKIP=0
+    CLG_TODO=""
+
+    local i=0
+    while (( i < ${#CL_GROUPS[@]} )); do
+        if [[ "${CL_GROUPS[$i]}" == "$want" ]]; then
+            CLG_MATCHED=1
+            CLG_TOTAL=$(( CLG_TOTAL + ${CL_TOTAL[$i]} ))
+            CLG_DONE=$(( CLG_DONE + ${CL_DONE[$i]} ))
+            CLG_SKIP=$(( CLG_SKIP + ${CL_SKIP[$i]} ))
+            if [[ -n "${CL_TODO[$i]}" ]]; then
+                if [[ -n "$CLG_TODO" ]]; then
+                    CLG_TODO="${CLG_TODO}"$'\n'"${CL_TODO[$i]}"
+                else
+                    CLG_TODO="${CL_TODO[$i]}"
+                fi
+            fi
+        fi
+        i=$((i + 1))
+    done
+
+    return 0
+}
+
+# The groups that do exist, printed under a failure so the reader can see what
+# the name should have been.
+_checklist_print_groups() {
+    if [[ ${#CL_GROUPS[@]} -eq 0 ]]; then
+        echo "Neither the ticket nor the note has any checkboxes."
+        return 0
+    fi
+
+    echo "Groups that do exist:"
+    local current="" i=0
+    while (( i < ${#CL_GROUPS[@]} )); do
+        if [[ "${CL_FILES[$i]}" != "$current" ]]; then
+            current="${CL_FILES[$i]}"
+            echo "  ${current}"
+        fi
+        echo "    - ${CL_GROUPS[$i]}"
+        i=$((i + 1))
+    done
+    return 0
+}
+
+# Judge a single group, named by the caller. The caller is the one that knows
+# which stage the work is at; ticket.sh only has to match a string.
+#
+# The name is matched against heading text alone, with no file qualifier: a
+# group by that name in EITHER file is judged, and both together if it appears
+# in both. Callers say which stage they expect to be finished, not which file
+# the author chose to keep it in.
+#
+# A name that matches nothing is a failure, not a pass. Letting it pass would
+# turn a typo into a check that always succeeds - the caller would believe it
+# is enforcing something while nothing is being looked at, which is the same
+# hole this whole feature exists to close.
+#
+# Usage: checklist_require <ticket-file> <note-file> <group-name>
+checklist_require() {
+    local ticket_file="$1"
+    local note_file="$2"
+    local want="$3"
+
+    checklist_aggregate "$ticket_file" "$note_file"
+    _checklist_group_eval "$want"
+
+    if [[ $CLG_MATCHED -eq 0 ]]; then
+        echo "✗ No checklist group named \"${want}\""
+        echo ""
+        _checklist_print_groups
+        return 1
+    fi
+
+    if [[ -z "$CLG_TODO" ]]; then
+        local msg="✓ ${want}: ${CLG_DONE} / ${CLG_TOTAL}"
+        if (( CLG_SKIP > 0 )); then
+            msg="${msg}  (${CLG_SKIP} skipped)"
+        fi
+        echo "$msg"
+        return 0
+    fi
+
+    echo "✗ ${want}: ${CLG_DONE} / ${CLG_TOTAL}"
+    echo ""
+    echo "  Unchecked"
+    local label
+    while IFS= read -r label; do
+        echo "    - ${label}"
+    done <<< "$CLG_TODO"
+    echo ""
+    checklist_hint
+    return 1
+}
+
+# Judge the groups the config declares must be there - the
+# `require_checklist_groups` key. Used by close's preflight.
+#
+# This is the half `require_checklist` cannot cover. That one counts unchecked
+# boxes, so a section that is not in the file at all contributes nothing and
+# reads exactly like a section where everything got done: close passes, and
+# nothing in the output says the check looked at nothing. Naming the section
+# here turns its absence into a refusal, the same way checklist_require already
+# treats a name that matches nothing as a failure rather than a pass.
+#
+# What is refused, per declared name:
+#   - no heading by that name in either file          -> missing
+#   - a heading by that name with no checkboxes under -> missing (same thing,
+#     as far as the aggregate is concerned, and the same thing to a reader:
+#     there is nothing there to have been judged)
+#   - checkboxes by that name still unchecked         -> unfinished
+#
+# The last one overlaps with require_checklist when that is on. It is here
+# anyway, because the two keys are independent: declaring a group is the opt-in
+# for that group, whether or not the whole-file gate is switched on.
+#
+# Prints nothing when every declared name is present and settled. Writes to
+# stdout; close redirects it to stderr alongside its other refusals.
+#
+# Usage: checklist_require_groups <ticket-file> <note-file> <name>...
+checklist_require_groups() {
+    local ticket_file="$1"
+    local note_file="$2"
+    shift 2
+    [[ $# -eq 0 ]] && return 0
+
+    checklist_aggregate "$ticket_file" "$note_file"
+
+    local want missing="" unfinished="" failed=0
+    for want in "$@"; do
+        [[ -z "$want" ]] && continue
+        _checklist_group_eval "$want"
+        if [[ $CLG_MATCHED -eq 0 ]]; then
+            missing="${missing}${want}"$'\n'
+            failed=1
+        elif [[ -n "$CLG_TODO" ]]; then
+            unfinished="${unfinished}${want}"$'\n'
+            failed=1
+        fi
+    done
+    [[ $failed -eq 0 ]] && return 0
+
+    local name label
+    if [[ -n "$missing" ]]; then
+        local count=0
+        while IFS= read -r name; do
+            [[ -z "$name" ]] && continue
+            count=$((count + 1))
+        done <<< "$missing"
+        local noun="required checklist groups are missing"
+        [[ $count -eq 1 ]] && noun="required checklist group is missing"
+        echo "✗ ${count} ${noun}"
+        echo ""
+        while IFS= read -r name; do
+            [[ -z "$name" ]] && continue
+            echo "    - ${name}"
+        done <<< "$missing"
+        echo ""
+        echo "Declared in config under \`require_checklist_groups\`. A group is a heading"
+        echo "with at least one checkbox under it, in the ticket body or the note."
+        echo ""
+        _checklist_print_groups
+    fi
+
+    if [[ -n "$unfinished" ]]; then
+        [[ -n "$missing" ]] && echo ""
+        while IFS= read -r name; do
+            [[ -z "$name" ]] && continue
+            _checklist_group_eval "$name"
+            echo "✗ ${name}: ${CLG_DONE} / ${CLG_TOTAL}"
+            echo ""
+            echo "  Unchecked"
+            while IFS= read -r label; do
+                echo "    - ${label}"
+            done <<< "$CLG_TODO"
+            echo ""
+        done <<< "$unfinished"
+        checklist_hint
+    fi
+
+    return 1
+}
+
+# Show where the declared groups stand, without judging. `check` is
+# deliberately a command that never fails - mid-ticket, the later groups being
+# empty is the normal state - so a missing required group is shown here and
+# refused at close.
+#
+# Usage: checklist_report_groups <ticket-file> <note-file> <name>...
+checklist_report_groups() {
+    local ticket_file="$1"
+    local note_file="$2"
+    shift 2
+    [[ $# -eq 0 ]] && return 0
+
+    checklist_aggregate "$ticket_file" "$note_file"
+
+    local want width=0
+    for want in "$@"; do
+        [[ -z "$want" ]] && continue
+        (( ${#want} > width )) && width=${#want}
+    done
+    width=$((width + 4))
+
+    echo ""
+    echo "Required groups"
+
+    local pad line
+    for want in "$@"; do
+        [[ -z "$want" ]] && continue
+        _checklist_group_eval "$want"
+        pad=""
+        while (( ${#want} + ${#pad} < width )); do pad="${pad} "; done
+        if [[ $CLG_MATCHED -eq 0 ]]; then
+            line="    ${want}${pad}missing  (close will refuse)"
+        else
+            line="    ${want}${pad}${CLG_DONE} / ${CLG_TOTAL}"
+            if [[ -z "$CLG_TODO" ]]; then
+                line="${line}  done"
+                if (( CLG_SKIP > 0 )); then
+                    line="${line} (${CLG_SKIP} skipped)"
+                fi
+            fi
+        fi
+        echo "$line"
+    done
+
+    return 0
+}
+
+# Judge every group in both files. Used by close's preflight.
+# Succeeds when there are no checkboxes at all, so projects that put none in
+# either template are unaffected.
+#
+# Usage: checklist_gate <ticket-file> <note-file>
+checklist_gate() {
+    checklist_aggregate "$1" "$2"
+    [[ $CL_SUM_TODO -eq 0 ]] && return 0
+
+    local width
+    width=$(_checklist_width 3 true)
+
+    local noun="items remain"
+    [[ $CL_SUM_TODO -eq 1 ]] && noun="item remains"
+    echo "✗ ${CL_SUM_TODO} unchecked ${noun}" >&2
+    echo "" >&2
+
+    local i=0 current="" name pad count label
+    while (( i < ${#CL_GROUPS[@]} )); do
+        if [[ -n "${CL_TODO[$i]}" ]]; then
+            if [[ "${CL_FILES[$i]}" != "$current" ]]; then
+                current="${CL_FILES[$i]}"
+                echo "  ${current}" >&2
+            fi
+            name="${CL_GROUPS[$i]}"
+            pad=""
+            while (( ${#name} + ${#pad} < width )); do pad="${pad} "; done
+            count=0
+            while IFS= read -r label; do count=$((count + 1)); done <<< "${CL_TODO[$i]}"
+            echo "    ${name}${pad}${count}" >&2
+            while IFS= read -r label; do
+                echo "        - ${label}" >&2
+            done <<< "${CL_TODO[$i]}"
+        fi
+        i=$((i + 1))
+    done
+    echo "" >&2
+    checklist_hint >&2
+    return 1
+}
+
+# === Main Script ===
+
+
+# Check if running with bash (POSIX compatible check)
+if [ -z "${BASH_VERSION:-}" ]; then
+    echo "Error: This script requires bash. Please run with 'bash ticket.sh' or make sure bash is your default shell."
+    echo "Current shell: $0"
+    exit 1
+fi
+
+# ticket.sh - Git-based Ticket Management System for Development
+# Version: 20260830.110226
+#
+# A lightweight ticket management system that uses Git branches and Markdown files.
+# Perfect for small teams, solo developers, and AI coding assistants.
+#
+# Features:
+#   - Each ticket is a Markdown file with YAML frontmatter
+#   - Automatic Git branch creation/management per ticket
+#   - Simple CLI interface for common workflows
+#   - No external dependencies (pure Bash + Git)
+#
+# For detailed documentation, installation instructions, and examples:
+# https://github.com/masuidrive/ticket.sh
+#
+# Quick Start:
+#   $SCRIPT_COMMAND init          # Initialize in your project
+#   $SCRIPT_COMMAND new my-task   # Create a new ticket
+#   $SCRIPT_COMMAND start <name>  # Start working on a ticket
+#   $SCRIPT_COMMAND close         # Complete and merge ticket
+
+set -euo pipefail
+
+# Ensure UTF-8 support and locale-independent behavior
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# Unset environment variables that could affect behavior
+unset GREP_OPTIONS  # Prevent user's grep options from affecting behavior
+unset CDPATH       # Prevent unexpected directory changes
+unset IFS          # Reset Internal Field Separator to default
+
+# Git-related - ensure we use the current directory's git repo
+unset GIT_DIR
+unset GIT_WORK_TREE
+
+# Shell behavior - prevent unexpected script execution
+unset BASH_ENV
+unset ENV
+
+# Ensure consistent behavior
+unset POSIXLY_CORRECT  # We rely on bash-specific features
+
+# Set secure defaults
+# Note: noclobber is disabled because it causes issues with mktemp in some environments
+# set -o noclobber   # Prevent accidental file overwrites with >
+umask 0022         # Ensure created files have proper permissions
+
+# Get the directory where this script is located
+
+# Function to detect how the script was invoked
+get_script_command() {
+    local script_path="$0"
+    
+    # Get current process command line
+    local current_args=""
+    if [[ -r /proc/self/cmdline ]]; then
+        # Linux: use /proc/self/cmdline
+        current_args=$(tr '\0' ' ' < /proc/self/cmdline 2>/dev/null || echo "")
+    elif command -v ps >/dev/null 2>&1; then
+        # macOS/BSD: use ps command
+        current_args=$(ps -p $$ -o args= 2>/dev/null || echo "")
+    fi
+    
+    # Check if invoked via shell (bash, sh, zsh, etc.)
+    local shell_pattern='^(bash|sh|dash|zsh|fish|ksh|/.*/(bash|sh|dash|zsh|fish|ksh))[[:space:]]+'
+    
+    if [[ "$current_args" =~ $shell_pattern ]]; then
+        # Extract shell command
+        local shell_cmd=$(echo "$current_args" | sed -E 's/^([^[:space:]]+).*/\1/')
+        
+        # Check if script path is in the command line
+        local script_basename=$(basename "$script_path")
+        if [[ "$current_args" == *"$script_path"* ]] || [[ "$current_args" == *"$script_basename"* ]]; then
+            echo "$shell_cmd $script_path"
+        else
+            echo "bash $script_path"
+        fi
+    else
+        # Direct execution: check if script is executable and use as-is
+        if [[ -x "$script_path" ]]; then
+            echo "$script_path"
+        else
+            echo "bash $script_path"
+        fi
+    fi
+}
+
+# Detect and store the command used to invoke this script
+SCRIPT_COMMAND=$(get_script_command)
+
+
+# Global variables
+VERSION="20260830.110226"  # This will be replaced during build
+CONFIG_FILE=""  # Will be set dynamically by get_config_file()
+CURRENT_TICKET_LINK="current-ticket.md"
+CURRENT_NOTE_LINK="current-note.md"
+CURRENT_TICKET_DIR_LINK="current-ticket"
+
+# Default configuration values
+DEFAULT_TICKETS_DIR="tickets"
+DEFAULT_BRANCH="main"
+DEFAULT_BRANCH_PREFIX="feature/"
+DEFAULT_REPOSITORY="origin"
+DEFAULT_AUTO_PUSH="true"
+DEFAULT_DELETE_REMOTE_ON_CLOSE="true"
+DEFAULT_NEW_SUCCESS_MESSAGE=""
+DEFAULT_START_SUCCESS_MESSAGE="Please review the ticket content in \`current-ticket.md\` and make any necessary adjustments before beginning work."
+DEFAULT_RESTORE_SUCCESS_MESSAGE=""
+DEFAULT_CLOSE_SUCCESS_MESSAGE=""
+DEFAULT_WORKTREE_MODE="false"
+DEFAULT_WORKTREE_DIR=""  # Empty means auto: ../<project-name>.worktrees
+DEFAULT_NO_VERIFY="false"  # Run Git hooks on commits ticket.sh makes itself
+DEFAULT_REQUIRE_CHECKLIST="false"  # close does not judge the ticket/note checklists
+DEFAULT_CONTENT='# Ticket Overview
+
+Write the overview and tasks for this ticket here.
+
+
+## Tasks
+
+- [ ] Task 1
+- [ ] Task 2
+...
+- [ ] Get developer approval before closing
+
+
+## Notes
+
+Additional notes or requirements.'
+
+# Get dynamic script command name based on how script was invoked
+get_script_command() {
+    local script_path="$0"
+    local current_args=""
+    
+    # Try to get command line from /proc (Linux) or ps (macOS/other)
+    if [[ -r /proc/self/cmdline ]]; then
+        current_args=$(tr '\0' ' ' < /proc/self/cmdline 2>/dev/null || echo "")
+    elif command -v ps >/dev/null 2>&1; then
+        current_args=$(ps -p $$ -o args= 2>/dev/null || echo "")
+    fi
+    
+    # Extract actual invocation method from command line
+    if [[ "$current_args" =~ bash[[:space:]]+([^[:space:]]+) ]]; then
+        echo "bash ${BASH_REMATCH[1]}"
+    elif [[ "$current_args" =~ sh[[:space:]]+([^[:space:]]+) ]]; then
+        echo "sh ${BASH_REMATCH[1]}"
+    else
+        echo "$script_path"
+    fi
+}
+
+# Set dynamic script command at startup
+SCRIPT_COMMAND=$(get_script_command)
+
+# Show usage information
+show_usage() {
+    echo "# Ticket Management System for Coding Agents"
+    echo "Version: $VERSION"
+    echo "https://github.com/masuidrive/ticket.sh"
+    echo ""
+    cat << EOF
+## Overview
+
+This is a self-contained ticket management system using shell script + files + Git.
+
+Each ticket lives in its own per-ticket directory:
+
+\`\`\`
+tickets/
+  <TICKETNAME>/
+    ticket.md     # ticket body (YAML frontmatter + Markdown)
+    note.md       # working notes / log
+    tmp/          # ticket-local temp helpers (auto-created; ignored via tickets/.gitignore)
+  done/<TICKETNAME>/    # closed / cancelled tickets (moved as a whole directory)
+\`\`\`
+
+While a ticket is active, three symlinks are created in the repository root:
+\`current-ticket/\` (directory symlink to the per-ticket dir),
+\`current-ticket.md\` and \`current-note.md\` (compat file symlinks).
+
+*Legacy compatibility*: existing flat-file tickets
+(\`tickets/<TICKETNAME>.md\` + \`tickets/<TICKETNAME>-note.md\`) continue to
+be recognized by every command; they are never auto-migrated.
+
+## Usage
+
+- \`$SCRIPT_COMMAND init\` - Initialize system (create config, directories, .gitignore)
+- \`$SCRIPT_COMMAND new <slug> [--epic <epic-slug>] [--created-at <YYMMDD-hhmmss>]\` - Create new ticket file (slug: lowercase, numbers, hyphens only; --created-at overrides the timestamp, used as filename prefix and UTC created_at)
+- \`$SCRIPT_COMMAND list [--status STATUS] [--count N]\` - List tickets (default: todo + doing, count: 20)
+  - A ticket the current branch calls \`todo\` is checked against \`{branch_prefix}<name>\` before being believed. If that branch carries a \`started_at\`, the ticket is \`doing\` and the line \`started_at_only_on: <branch>\` says the timestamp lives only there - which happens when \`start\`'s fast-forward onto the base branch was skipped.
+- \`$SCRIPT_COMMAND start [--worktree] [--copy-file <path>]... <ticket-name>\` - Start working on ticket (creates or switches to feature branch, --worktree creates a separate worktree)
+  - With \`--worktree\`: **cd to the worktree directory after start; cd back to the main repo after close.** In environments where cwd resets each command (e.g. LLM agents), cd must be re-run every time.
+  - \`start\` commits \`started_at\` on the feature branch and fast-forwards the base branch onto that commit, so the ticket shows as \`doing\` from the base branch too. Nothing is pushed: the base branch reaches the remote on close. If the base branch has moved on, the fast-forward is skipped with a note and the start time stays on the feature branch.
+  - \`--copy-file <path>\` (repeatable) copies the given file from the main repo into the new worktree, appended to the \`worktree_copy_files\` config list. Only applied when a worktree is created. Existing files in the target are never overwritten; missing sources warn and continue. Typical use: bringing gitignored \`.env\` into the worktree.
+- \`$SCRIPT_COMMAND restore\` - Restore current-ticket.md symlink from branch name
+- \`$SCRIPT_COMMAND check [--require "<group name>"]\` - Check current directory and ticket/branch synchronization status
+  - Also reports the checklists in **both** the ticket body (its \`## Tasks\` list) and the note, listed per file. Every checkbox is grouped by the nearest preceding heading above it. \`- [x]\` is done, \`- [ ]\` is unchecked, and \`- [-] ... - skip: <reason>\` marks an item that does not apply to this ticket (a \`[-]\` with no reason counts as unchecked). Checkboxes inside code blocks are ignored; ones merely nested under another item are not. The ticket's YAML frontmatter is skipped, so a \`- [ ]\` inside a multi-line \`description\` is not counted.
+  - Plain \`check\` never fails on an unfinished checklist - mid-ticket, the later groups being empty is the normal state. With \`require_checklist_groups\` set, it also shows where those groups stand (a missing one as \`missing  (close will refuse)\`), and still exits 0.
+  - \`--require "<group name>"\` judges that one group and exits 1 if anything in it is unchecked. The name matches heading text in either file, so callers name the stage, not the file. Use it when the caller knows which stage the work is at; ticket.sh has no notion of stages. A name that matches no group is an error, not a pass, so a typo cannot become a check that always succeeds.
+- \`$SCRIPT_COMMAND close [--no-push] [--force|-f] [--no-delete-remote] [--keep-worktree] [--dry-run|-n]\` - Complete current ticket (squash merge to default branch)
+  - \`--dry-run\` (\`-n\`) runs all preflight checks (clean working dir, branch, ticket state, base_branch existence, worktree main repo state) and exits before any commit/merge. Useful for catching format mistakes or stale state before the real close. Note: pre-commit hooks are NOT executed by --dry-run.
+  - The squash commit's subject is \`[<ticket-name>] <description>\` (description folded onto one line), and its body is the ticket's **Markdown body only** - the YAML frontmatter is never included. This is fixed behavior with no config key. Keeping the body in the message is what lets \`git blame\` reach the reasoning without opening \`tickets/done/\`.
+  - With \`require_checklist: true\` in config, close refuses while the ticket body or the note has unchecked items, and lists them per file. Off by default. \`--force\` does not bypass it: the way out is \`- [-] ... - skip: <reason>\`, which leaves the reason in the file. \`--dry-run\` surfaces it too.
+  - \`require_checklist_groups\` (a list of heading names) makes close refuse when a named group is in **neither** file - or is there with no checkboxes under it - as well as when anything under it is unchecked. \`require_checklist\` alone cannot catch this: it counts unchecked boxes, so a section that is not in the file at all counts zero and reads exactly like one where everything got done. Empty by default, independent of \`require_checklist\`, and not bypassed by \`--force\`.
+  - From a worktree, close refuses to merge if the main repo is on a non-default branch or has uncommitted changes (protects parallel workers).
+  - **Coding agents (Claude Code / Codex / etc.) must pass \`--keep-worktree\`**: without it, the worker's worktree is deleted and the agent's shell cwd points to a removed directory → every subsequent Bash tool call fails.
+  - \`--no-merge [--closed-at <ISO8601-UTC>] <ticket-name>\` - Skip the squash-merge (assume the ticket's changes are already on the base branch, e.g. after a GitHub PR merge). Only set closed_at, move the ticket/note to done/, commit and push. Requires \`<ticket-name>\`. \`--closed-at\` overrides closed_at with a full ISO8601 UTC value (default: now).
+- \`$SCRIPT_COMMAND cancel [--force|-f] [--keep-worktree]\` - Cancel current ticket (no merge, moves to done/ with CANCELED marker)
+  - Same rule as close: coding agents should pass \`--keep-worktree\` to avoid dangling cwd.
+- \`$SCRIPT_COMMAND selfupdate\` - Update ticket.sh to the latest version from GitHub
+- \`$SCRIPT_COMMAND version\` - Display version information
+- \`$SCRIPT_COMMAND prompt\` - Display prompt instructions for AI coding assistants
+
+## Ticket Naming
+
+- Format: \`YYMMDD-hhmmss-<slug>\`
+- Example: \`241225-143502-implement-user-auth\`
+- Generated automatically when creating tickets
+
+## Ticket Status
+
+- \`todo\`: not started (started_at: null)
+- \`doing\`: in progress (started_at set, closed_at: null)
+- \`done\`: completed (closed_at set)
+- \`canceled\`: canceled (canceled_at set)
+
+## YAML Frontmatter Fields
+
+- \`base_branch\`: Override base branch for start/close per ticket (default: use default_branch from config)
+
+## Configuration
+
+- Config file: \`.ticket-config.yaml\` or \`.ticket-config.yml\` (in project root)
+- Initialize with: \`$SCRIPT_COMMAND init\`
+- Edit to customize directories, branches, templates, and success messages
+- \`no_verify: true\` skips Git hooks on commits ticket.sh makes itself, such as
+  the start-time stamp. Hooks run by default.
+
+### Worktree extras
+
+- \`worktree_copy_files\`: list of paths (relative to the main repo root) that
+  are copied into a freshly-created worktree. Consulted only when \`start\`
+  actually creates a worktree. Existing files in the target are never
+  overwritten; missing sources emit a warning and continue. Combine with
+  \`--copy-file <path>\` (repeatable) to append entries at invocation time.
+  Typical use: bringing gitignored \`.env\` into the worktree.
+  Example (in \`.ticket-config.yaml\`):
+  \`\`\`
+  worktree_copy_files:
+    - .env
+  \`\`\`
+  Assumes the listed files are gitignored — the same secrets do not spread
+  across users, each collaborator's own \`.env\` is copied into their own
+  worktree.
+
+### Success Messages
+
+- \`new_success_message\`: Displayed after creating a new ticket
+- \`start_success_message\`: Displayed after starting work on a ticket
+- \`restore_success_message\`: Displayed after restoring current ticket link
+- \`close_success_message\`: Displayed after closing a ticket
+- All messages default to empty (disabled) and support multiline YAML format
+
+## Push Control
+
+- Set \`auto_push: false\` in config to disable automatic pushing for close command
+- Use \`--no-push\` flag with close command to skip pushing
+- \`start\` never pushes. It records the start time and fast-forwards the base
+  branch locally; both reach the remote on close. Publishing the base branch
+  from \`start\` would carry along any unpushed commits already sitting there
+- Feature branches are always created locally (no auto-push on start)
+- Git commands and outputs are displayed for transparency
+
+## Workflow
+
+### Create New Ticket
+
+1. Create ticket: \`$SCRIPT_COMMAND new feature-name\`
+2. Edit ticket content and description in the generated file
+
+### Start Work
+
+1. Check available tickets: \`$SCRIPT_COMMAND list\` or browse tickets directory
+2. Start work: \`$SCRIPT_COMMAND start 241225-143502-feature-name\`
+3. Develop on feature branch (\`current-ticket.md\` shows active ticket)
+
+### Closing
+
+1. Before closing:
+   - Review ticket content and description
+   - Check all tasks in checklist are completed (mark with \`[x]\`)
+   - Get user approve before proceeding
+2. Complete: \`$SCRIPT_COMMAND close\`
+
+**Note**: If specific workflow instructions are provided elsewhere (e.g., in project documentation or CLAUDE.md), those take precedence over this general workflow.
+
+## For Claude Code (and similar coding agents)
+
+Claude Code's Bash tool resets cwd on each invocation, so any cd inside a
+command evaporates by the next tool call. Combine ticket.sh's worktree
+support with Claude Code's \`EnterWorktree\` to keep the session cwd pinned:
+
+1. **Start in a worktree**: \`$SCRIPT_COMMAND start --worktree <ticket-name>\`
+   - Output includes \`WORKTREE:<absolute-path>\`. Pin the session cwd to that
+     path via \`EnterWorktree({ path: "<absolute-path>" })\`.
+2. **Work inside the worktree** for the whole ticket. Do NOT run ticket.sh
+   from the main repo — \`current-ticket/\` and \`current-ticket.md\` only
+   exist in the worktree.
+3. **Always close with \`--keep-worktree\`**:
+     \`$SCRIPT_COMMAND close --keep-worktree\`
+   - Preserves the worktree so the cwd stays valid.
+   - Without it, close removes the worktree and the next Bash tool call
+     returns "Working directory no longer exists" → session hangs.
+4. **Cancel also uses \`--keep-worktree\`**: same reason.
+5. **Parallel multi-worktree**: each agent runs in its own worktree. Keep
+   the main repo on the default branch (don't check out other branches
+   there); close refuses if main repo HEAD has drifted, to protect the
+   other workers.
+6. After close, exit the worktree with \`ExitWorktree\` and pick up the
+   next ticket with a fresh \`start --worktree\`.
+
+**TL;DR for agents**: \`start --worktree\` → pin cwd → \`close --keep-worktree\`.
+
+## Troubleshooting
+
+- Run from project root (where \`.git\` and config file exist)
+- Use \`restore\` if \`current-ticket.md\` is missing after clone/pull
+- Check \`list\` to see available tickets and their status
+- Ensure Git working directory is clean before start/close
+
+**Note**: \`current-ticket.md\` is git-ignored and needs \`restore\` after clone/pull.
+EOF
+}
+
+# Initialize ticket system
+cmd_init() {
+    # Check git repository
+    check_git_repo || return 1
+    
+    # Get current branch for default_branch setting
+    local current_branch=$(get_current_branch)
+    local default_branch_value="$DEFAULT_BRANCH"
+    if [[ "$current_branch" =~ ^(main|master|develop)$ ]]; then
+        default_branch_value="$current_branch"
+    fi
+    
+    # Determine config file (prefer .yaml for new installations)
+    CONFIG_FILE=$(get_config_file)
+    
+    # Check if critical components are missing to determine if this is a new initialization
+    local is_new_init=false
+    [[ ! -f "$CONFIG_FILE" ]] && is_new_init=true
+    [[ ! -d "${DEFAULT_TICKETS_DIR}" ]] && is_new_init=true
+    
+    if [[ "$is_new_init" == "false" ]]; then
+        echo "Ticket system is already initialized. Checking for missing components..."
+    else
+        echo "Initializing ticket system..."
+    fi
+    
+    # Create config file if it doesn't exist
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        cat > "$CONFIG_FILE" << EOF
+# Ticket system configuration
+# https://github.com/masuidrive/ticket.sh
+
+# Directory settings
+tickets_dir: "$DEFAULT_TICKETS_DIR"
+
+# Git settings
+default_branch: "$default_branch_value"
+branch_prefix: "$DEFAULT_BRANCH_PREFIX"
+repository: "$DEFAULT_REPOSITORY"
+
+# Automatically push changes to remote repository during close command
+# Set to false if you want to manually control when to push
+auto_push: $DEFAULT_AUTO_PUSH
+
+# Skip Git hooks (--no-verify) on commits ticket.sh makes itself, such as the
+# start-time stamp. Hooks run by default; set to true if a slow or strict
+# pre-commit hook gets in the way of ticket bookkeeping.
+no_verify: $DEFAULT_NO_VERIFY
+
+# Automatically delete remote feature branch after closing ticket
+# Set to false if you want to keep remote branches for history
+delete_remote_on_close: $DEFAULT_DELETE_REMOTE_ON_CLOSE
+
+# Refuse to close while the ticket's Tasks list or the note still has unchecked
+# checklist items. Both files are read; checkboxes are grouped by the nearest
+# preceding heading, per file. Three states are recognised: '- [x]' done,
+# '- [ ]' unchecked, and '- [-] ... - skip: <reason>' for an item that does not
+# apply to this ticket. Off by default, because existing tickets and notes are
+# full of boxes nobody ever filled in and turning this on for them would block
+# every close at once.
+# 'check' always reports the state regardless of this setting, and
+# 'check --require "<group>"' judges a single group on demand.
+require_checklist: $DEFAULT_REQUIRE_CHECKLIST
+
+# Headings that have to be there. require_checklist counts unchecked boxes, so
+# a section that is not in the file at all counts zero and passes - it reads
+# exactly like a section where everything got done. Naming a heading here makes
+# close refuse when neither the ticket body nor the note has it (or has it with
+# no checkboxes under it), which is what catches a ticket made before the
+# template, written by hand, or carried over from another template.
+# Empty by default: with nothing declared, close behaves exactly as it did.
+# Independent of require_checklist - the list itself is the opt-in.
+# require_checklist_groups:
+#   - "Required Probes"
+
+# Worktree mode: create a separate git worktree for each ticket
+# When true, 'start' always creates a worktree (same as --worktree flag)
+# worktree_mode: false
+# worktree_dir: ""  # Custom worktree directory (default: ../<project>.worktrees/)
+
+# Files copied from the main repo into a freshly-created worktree.
+# Only consulted when 'start' actually creates a worktree (--worktree or
+# worktree_mode: true). Existing files in the target worktree are never
+# overwritten; missing sources warn and continue. Intended for gitignored
+# helpers (e.g. .env) that a new worktree still needs.
+# Extra one-shot entries can be added at invocation via --copy-file <path>.
+# Example:
+#   worktree_copy_files:
+#     - .env
+#     - .env.local
+worktree_copy_files: []
+
+# Success messages (leave empty to disable)
+# Message displayed after creating a new ticket
+new_success_message: |
+  
+# Message displayed after starting work on a ticket
+start_success_message: |
+  Please review the ticket content in \`current-ticket.md\` and make any necessary adjustments before beginning work.
+
+# Message displayed after restoring current ticket link
+restore_success_message: |
+  
+# Message displayed after closing a ticket
+close_success_message: |
+  
+
+# Note template (optional - if not defined, no note file will be created)
+note_content: |
+  # Work Notes for \$\$TICKET_NAME\$\$
+  
+  ## Implementation Details
+  
+  ...
+
+  ## Task 1
+  
+  ...
+
+  ## Task N
+  
+  ...
+  
+  
+  ## Reviewer note #N
+  
+  ...
+  
+
+# Ticket template
+default_content: |
+  # Ticket Overview
+  
+  Write the overview and tasks for this ticket here.
+
+  Please record any notes related to this ticket, such as debugging information, review results, or other work logs, \`\$\$NOTE_PATH\$\$\`.
+
+
+  ## Tasks
+  
+  - [ ] Task 1
+  - [ ] Task 2
+  ...
+  - [ ] Run tests before closing and pass all tests (No exceptions)
+  - [ ] Run \`bash build.sh\` to build the project
+  - [ ] Update documentation if necessary
+    - [ ] Update README.*.md
+    - [ ] Update spec.*.md
+    - [ ] Update DEV.md
+  - [ ] Get developer approval before closing
+EOF
+        echo "Created configuration file: $CONFIG_FILE"
+    else
+        echo "Configuration file already exists: $CONFIG_FILE"
+    fi
+    
+    # Parse config to get tickets_dir
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Warning: Could not parse config file, using defaults" >&2
+        local tickets_dir="$DEFAULT_TICKETS_DIR"
+    else
+        local tickets_dir
+        tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    fi
+    
+    # Create tickets directory
+    if [[ ! -d "$tickets_dir" ]]; then
+        if ! mkdir -p "$tickets_dir"; then
+            cat >&2 << EOF
+Error: Permission denied
+Cannot create directory '$tickets_dir'. Please:
+1. Check file permissions in current directory, or
+2. Run with appropriate permissions (sudo if needed), or
+3. Choose a different location for tickets_dir in config
+EOF
+            return 1
+        fi
+        echo "Created tickets directory: $tickets_dir/"
+    else
+        echo "Tickets directory already exists: $tickets_dir/"
+    fi
+    
+    # Create tickets/README.md file
+    local readme_file="${tickets_dir}/README.md"
+    if [[ ! -f "$readme_file" ]]; then
+        cat > "$readme_file" << EOF
+# Tickets Directory
+
+This directory contains all the ticket files for the project.
+
+## Important Guidelines
+
+**⚠️ Always use ticket.sh commands to manage tickets:**
+
+- **Create new tickets:** \`$SCRIPT_COMMAND new <slug>\`
+- **Start working on a ticket:** \`$SCRIPT_COMMAND start <ticket-name>\`
+- **Complete a ticket:** \`$SCRIPT_COMMAND close\`
+
+**❌ DO NOT manually merge feature branches to the default branch!**
+The \`$SCRIPT_COMMAND close\` command handles merging and cleanup automatically.
+
+## Directory Structure
+
+Each ticket lives in its own per-ticket directory:
+
+\`\`\`
+tickets/
+  <TICKETNAME>/
+    ticket.md   # the ticket body (YAML frontmatter + Markdown)
+    note.md     # working notes / log
+    tmp/        # ticket-local temp helpers (auto-created; ignored via tickets/.gitignore)
+  done/
+    <TICKETNAME>/    # closed / canceled tickets, moved here as a whole directory
+\`\`\`
+
+While a ticket is active, three symlinks in the repository root point at it:
+\`current-ticket/\` (directory), \`current-ticket.md\`, and \`current-note.md\`.
+
+Legacy compatibility: existing flat tickets (\`<TICKETNAME>.md\` +
+\`<TICKETNAME>-note.md\`) are still recognized by every command. They are not
+migrated automatically.
+
+## Getting Help
+
+For detailed usage instructions, run:
+\`\`\`bash
+$SCRIPT_COMMAND help
+\`\`\`
+
+For a list of all available commands:
+\`\`\`bash
+$SCRIPT_COMMAND --help
+\`\`\`
+EOF
+        echo "Created README file: $readme_file"
+    else
+        echo "README file already exists: $readme_file"
+    fi
+    
+    # Update .gitignore. Cover both the per-ticket-directory symlink
+    # (current-ticket) and the two compat file symlinks (current-ticket.md,
+    # current-note.md).
+    local _gi_entries=("$CURRENT_TICKET_LINK" "$CURRENT_NOTE_LINK" "$CURRENT_TICKET_DIR_LINK")
+    if [[ ! -f .gitignore ]]; then
+        printf '%s\n' "${_gi_entries[@]}" > .gitignore
+        echo "Created .gitignore with: ${_gi_entries[*]}"
+    else
+        local _entry
+        for _entry in "${_gi_entries[@]}"; do
+            if ! grep -q "^${_entry}$" .gitignore; then
+                echo "$_entry" >> .gitignore
+                echo "Added to .gitignore: $_entry"
+            else
+                echo ".gitignore already contains: $_entry"
+            fi
+        done
+    fi
+
+    # Also generate <tickets_dir>/.gitignore so the per-ticket temp-helper
+    # directories (tickets/<TICKETNAME>/tmp/ and tickets/done/<TICKETNAME>/tmp/)
+    # are ignored. tmp/ is created at start/restore time as a scratch space and
+    # its contents are never part of the ticket contract, so they must not be
+    # committed.
+    local _tickets_gi="${tickets_dir}/.gitignore"
+    local _tickets_gi_entries=("*/tmp/" "done/*/tmp/")
+    if [[ ! -f "$_tickets_gi" ]]; then
+        printf '%s\n' "${_tickets_gi_entries[@]}" > "$_tickets_gi"
+        echo "Created $_tickets_gi with: ${_tickets_gi_entries[*]}"
+    else
+        local _tentry
+        for _tentry in "${_tickets_gi_entries[@]}"; do
+            if ! grep -Fxq "$_tentry" "$_tickets_gi"; then
+                echo "$_tentry" >> "$_tickets_gi"
+                echo "Added to $_tickets_gi: $_tentry"
+            else
+                echo "$_tickets_gi already contains: $_tentry"
+            fi
+        done
+    fi
+    
+    echo ""
+    if [[ "$is_new_init" == "true" ]]; then
+        echo "Ticket system initialized successfully!"
+        echo ""
+        echo "The setup is not yet complete. Please ensure that you and your users follow the steps below. It is your mission."
+        echo ""
+        echo "## Next Steps:"
+    else
+        echo "Component check completed!"
+        echo ""
+        echo "For help and usage information, run:"
+        echo "  $SCRIPT_COMMAND help"
+        echo ""
+        echo "Quick reference:"
+        echo "  - Create a ticket: '$SCRIPT_COMMAND new <slug>'"
+        echo "  - List tickets: '$SCRIPT_COMMAND list'"
+        echo "  - Start work: '$SCRIPT_COMMAND start <ticket-name>'"
+        echo "  - Complete: '$SCRIPT_COMMAND close'"
+        return 0
+    fi
+    
+    echo "1. **Configure your ticket system** (optional):"
+    echo "   Edit your config file to customize:"
+    echo "   - tickets_dir: Where tickets are stored (default: \"tickets\")"
+    echo "   - default_branch: Main development branch (default: \"develop\")"
+    echo "   - branch_prefix: Feature branch naming (default: \"feature/\")"
+    echo "   - auto_push: Push on close (default: true)"
+    echo "   - no_verify: Skip Git hooks on ticket.sh's own commits (default: false)"
+    echo "   - default_content: Template for new tickets"
+    echo ""
+    echo "2. **Get AI assistant instructions for your coding agent:**"
+    echo ""
+    echo "   Run the following command to get instructions for your AI coding assistant:"
+    echo "   \`$SCRIPT_COMMAND prompt\`"
+    echo ""
+    echo "   To save to CLAUDE.md (or your custom prompt file):"
+    echo "   \`$SCRIPT_COMMAND prompt >> CLAUDE.md\`"
+    echo ""
+    echo "Use \`$SCRIPT_COMMAND\` for ticket management."
+    echo ""
+    echo "## Ticket layout"
+    echo ""
+    echo "Each ticket is a per-ticket directory:"
+    echo ""
+    echo "    tickets/<TICKETNAME>/"
+    echo "      ticket.md   # ticket body (YAML frontmatter + Markdown)"
+    echo "      note.md     # working notes / log"
+    echo "      tmp/        # ticket-local temp helpers (auto-created; ignored via tickets/.gitignore)"
+    echo ""
+    echo "While a ticket is active, three symlinks in the repo root point at it:"
+    echo ""
+    echo "- \`current-ticket/\` -> the per-ticket directory (reach as \`current-ticket/ticket.md\`, \`current-ticket/note.md\`, etc.)"
+    echo "- \`current-ticket.md\` -> the ticket body (compat file symlink)"
+    echo "- \`current-note.md\` -> the note file (compat file symlink)"
+    echo ""
+    echo "*Legacy compatibility*: flat-file tickets from earlier ticket.sh versions"
+    echo "(\`tickets/<TICKETNAME>.md\` + \`tickets/<TICKETNAME>-note.md\`) still work with"
+    echo "every command; they are never auto-migrated."
+    echo ""
+    echo "## Working with the active ticket"
+    echo ""
+    echo "### If \`current-ticket/\` (or \`current-ticket.md\`) exists in the repo root"
+    echo ""
+    echo "- This is your work instruction - follow its contents"
+    echo "- When receiving additional instructions from users, add them as new tasks under \`## Tasks\` and record details in \`current-ticket/note.md\` (compat: \`current-note.md\`) before proceeding"
+    echo "- During the work, keep notes, logs, and findings in \`current-ticket/note.md\`"
+    echo "- Continue working on the active ticket"
+    echo ""
+    echo "### If it does not exist in the repo root"
+    echo "- When receiving user requests, first ask whether to create a new ticket"
+    echo "- Do not start work without confirming ticket creation"
+    echo "- Even small requests should be tracked through the ticket system"
+    echo ""
+    echo "## Create New Ticket"
+    echo ""
+    echo "1. Create ticket: \`$SCRIPT_COMMAND new feature-name\` (creates \`tickets/<TICKETNAME>/{ticket.md,note.md}\`)"
+    echo "2. Edit the ticket content in \`tickets/<TICKETNAME>/ticket.md\`"
+    echo ""
+    echo "## Start Working on Ticket"
+    echo ""
+    echo "1. Check available tickets: \`$SCRIPT_COMMAND list\` (both new and legacy layouts are shown)"
+    echo "2. Start work: \`$SCRIPT_COMMAND start 241225-143502-feature-name\`"
+    echo "3. Read the \"Active ticket paths:\" block that \`start\` emits to get the resolved paths (ticket, note, ticket_dir, tmp_dir, and every symlink correspondence)"
+    echo "4. Develop on the feature branch. Reference files via the symlinks:"
+    echo "   - \`current-ticket/ticket.md\` - the active ticket with tasks"
+    echo "   - \`current-ticket/note.md\` - working notes for this ticket"
+    echo ""
+    echo "## Closing Tickets"
+    echo ""
+    echo "1. Before closing:"
+    echo "   - Review the ticket content and description, collect information from \`current-ticket/note.md\` and other notes, and summarize the final work results so anyone reading the ticket can understand what was done"
+    echo "   - Check all tasks in the checklist are completed (mark with \`[x]\`)"
+    echo "   - Settle the checkboxes in \`current-ticket/ticket.md\` and \`current-ticket/note.md\` as you go, not at the end: mark each box \`[x]\` when you do the thing, or \`- [-] ... - skip: <reason>\` when it does not apply to this ticket. Run \`$SCRIPT_COMMAND check\` to see what is still open in both files"
+    echo "   - Commit all your work: \`git add . && git commit -m \"your message\"\`"
+    echo "   - Get user approval before proceeding"
+    echo "2. Complete: \`$SCRIPT_COMMAND close\` (moves the whole \`tickets/<TICKETNAME>/\` directory to \`tickets/done/<TICKETNAME>/\` in a single commit that also stamps \`closed_at\`)"
+    echo ""
+    echo "3. **Quick start**:"
+    echo "   - Create a ticket: \`$SCRIPT_COMMAND new <slug>\`"
+    echo "   - List tickets: \`$SCRIPT_COMMAND list\`"
+    echo "   - Start work: \`$SCRIPT_COMMAND start <ticket-name>\`"
+    echo "   - Complete: \`$SCRIPT_COMMAND close\`"
+    echo ""
+    echo "For detailed help: \`$SCRIPT_COMMAND help\`"
+}
+
+# Create new ticket
+cmd_new() {
+    local slug=""
+    local epic_slug=""
+    local created_at_override=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --epic)
+                epic_slug="$2"; shift 2 ;;
+            --created-at)
+                if [[ -z "${2:-}" ]]; then
+                    echo "Error: --created-at requires an argument (YYMMDD-hhmmss)" >&2
+                    return 1
+                fi
+                created_at_override="$2"; shift 2 ;;
+            --*)
+                echo "Error: Unknown option: $1" >&2
+                return 1 ;;
+            *)
+                if [[ -z "$slug" ]]; then slug="$1"; else echo "Error: Unexpected argument: $1" >&2; return 1; fi
+                shift ;;
+        esac
+    done
+
+    if [[ -z "$slug" ]]; then
+        echo "Error: slug required" >&2
+        echo "Usage: $SCRIPT_COMMAND new <slug> [--epic <epic-slug>] [--created-at <YYMMDD-hhmmss>]" >&2
+        return 1
+    fi
+
+    # Validate --created-at format if provided (interpreted as UTC, like auto-generated timestamps)
+    if [[ -n "$created_at_override" ]] && [[ ! "$created_at_override" =~ ^[0-9]{6}-[0-9]{6}$ ]]; then
+        echo "Error: Invalid --created-at value '$created_at_override'" >&2
+        echo "Expected format: YYMMDD-hhmmss (e.g., 240115-093000)" >&2
+        return 1
+    fi
+
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+
+    # Validate slug
+    validate_slug "$slug" || return 1
+
+    # If --epic provided, resolve epic and pin epic_id + base_branch
+    local epic_id_value="" epic_base_branch=""
+    if [[ -n "$epic_slug" ]]; then
+        validate_epic_slug "$epic_slug" || return 3
+        if ! resolve_epic "$epic_slug"; then
+            echo "Error: Epic '$epic_slug' not found" >&2
+            return 1
+        fi
+        local _efm
+        _efm=$(epic_extract_frontmatter "$EPIC_RAW")
+        local _eclosed _ecancelled
+        _eclosed=$(get_yaml_field "$_efm" "closed_at"); [[ "$_eclosed" == "null" ]] && _eclosed=""
+        _ecancelled=$(get_yaml_field "$_efm" "cancelled_at"); [[ "$_ecancelled" == "null" ]] && _ecancelled=""
+        if [[ -n "$_eclosed" ]] || [[ -n "$_ecancelled" ]]; then
+            echo "Error: Epic '$epic_slug' is already closed or cancelled" >&2
+            return 2
+        fi
+        epic_id_value="$epic_slug"
+        epic_base_branch=$(get_yaml_field "$_efm" "branch")
+        [[ -z "$epic_base_branch" ]] && epic_base_branch="main"
+    fi
+    
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local default_content=$(yaml_get "default_content" || echo "$DEFAULT_CONTENT")
+    local note_content=$(yaml_get "note_content" || echo "")
+    local new_success_message=$(yaml_get "new_success_message" || echo "$DEFAULT_NEW_SUCCESS_MESSAGE")
+    
+    # Generate filename
+    local ticket_name
+    if [[ -n "$created_at_override" ]]; then
+        ticket_name="${created_at_override}-${slug}"
+    else
+        ticket_name=$(generate_ticket_filename "$slug")
+    fi
+    # New-format per-ticket directory layout:
+    #   tickets/<TICKETNAME>/ticket.md
+    #   tickets/<TICKETNAME>/note.md
+    #   tickets/<TICKETNAME>/tmp/    (ticket-local temp helpers, auto-created on start/restore)
+    local ticket_dir="${tickets_dir}/${ticket_name}"
+    local ticket_file="${ticket_dir}/ticket.md"
+    local note_file="${ticket_dir}/note.md"
+
+    # Refuse if either the new-format dir or the legacy flat file already exists
+    if [[ -e "$ticket_dir" ]]; then
+        cat >&2 << EOF
+Error: Ticket already exists
+Directory '$ticket_dir' already exists. Please:
+1. Use a different slug name, or
+2. Edit the existing ticket, or
+3. Remove the existing directory if it's no longer needed
+EOF
+        return 1
+    fi
+    if [[ -f "${tickets_dir}/${ticket_name}.md" ]]; then
+        cat >&2 << EOF
+Error: Ticket already exists (legacy flat layout)
+File '${tickets_dir}/${ticket_name}.md' already exists. Please:
+1. Use a different slug name, or
+2. Edit the existing ticket, or
+3. Remove the existing file if it's no longer needed
+EOF
+        return 1
+    fi
+
+    # Create the per-ticket directory
+    if ! mkdir -p "$ticket_dir"; then
+        cat >&2 << EOF
+Error: Permission denied
+Cannot create directory '$ticket_dir'. Please:
+1. Check write permissions in tickets directory, or
+2. Run with appropriate permissions
+EOF
+        return 1
+    fi
+
+    # Process placeholders in default_content
+    local processed_content="$default_content"
+    if [[ -n "$note_content" ]]; then
+        # Ticket body links to sibling note.md
+        processed_content="${processed_content//\$\$NOTE_PATH\$\$/note.md}"
+    else
+        processed_content="${processed_content//\$\$NOTE_PATH\$\$/}"
+    fi
+    
+    # Replace $$TICKET_NAME$$ in both contents
+    processed_content="${processed_content//\$\$TICKET_NAME\$\$/$ticket_name}"
+    if [[ -n "$note_content" ]]; then
+        note_content="${note_content//\$\$TICKET_NAME\$\$/$ticket_name}"
+    fi
+    
+    # Create ticket file
+    local timestamp
+    if [[ -n "$created_at_override" ]]; then
+        local d="$created_at_override"
+        timestamp="20${d:0:2}-${d:2:2}-${d:4:2}T${d:7:2}:${d:9:2}:${d:11:2}Z"
+    else
+        timestamp=$(get_utc_timestamp)
+    fi
+    local _base_line="base_branch: default  # Override base branch for start/close (default: use default_branch from config)"
+    local _epic_line=""
+    if [[ -n "$epic_id_value" ]]; then
+        _base_line="base_branch: ${epic_base_branch}"
+        _epic_line=$'\n'"epic_id: ${epic_id_value}"
+    fi
+    if ! cat > "$ticket_file" << EOF
+---
+priority: 2
+${_base_line}${_epic_line}
+description: ""
+created_at: "$timestamp"
+started_at: null  # Do not modify manually
+closed_at: null   # Do not modify manually
+canceled_at: null # Do not modify manually
+---
+
+$processed_content
+EOF
+    then
+        cat >&2 << EOF
+Error: Permission denied
+Cannot create file '$ticket_file'. Please:
+1. Check write permissions in tickets directory, or
+2. Run with appropriate permissions, or
+3. Verify tickets directory exists and is writable
+EOF
+        rm -rf "$ticket_dir"
+        return 1
+    fi
+
+    echo "Created ticket directory: $ticket_dir"
+    echo "Created ticket file: $ticket_file"
+    if [[ -n "$epic_id_value" ]]; then
+        echo "epic_id: $epic_id_value"
+    fi
+
+    # Create note file if note_content is defined
+    if [[ -n "$note_content" ]]; then
+        if ! cat > "$note_file" << EOF
+$note_content
+EOF
+        then
+            cat >&2 << EOF
+Error: Permission denied
+Cannot create note file '$note_file'. Please:
+1. Check write permissions in tickets directory, or
+2. Run with appropriate permissions
+EOF
+            rm -rf "$ticket_dir"
+            return 1
+        fi
+        echo "Created note file: $note_file"
+    fi
+    
+    echo "Please edit $ticket_file to add title, description and details."
+    echo "To start working on this ticket, you **must** run: $SCRIPT_COMMAND start $ticket_name"
+    
+    # Display success message if configured
+    if [[ -n "$new_success_message" ]]; then
+        echo ""
+        echo "$new_success_message"
+    fi
+}
+
+# Create the three current-* symlinks that point at an active ticket.
+#
+# Behavior by layout (per PDH per-ticket-directory design):
+#   new    : current-ticket/    -> tickets/<name>/       (dir symlink)
+#            current-ticket.md  -> tickets/<name>/ticket.md   (compat)
+#            current-note.md    -> tickets/<name>/note.md     (compat)
+#   legacy : current-ticket.md  -> tickets/<name>.md      (as before)
+#            current-note.md    -> tickets/<name>-note.md (only if it exists)
+#            current-ticket/    is NOT created (there is no per-ticket dir)
+#
+# The two compat file symlinks are maintained permanently as the migration
+# layer so existing skills/scripts that read current-ticket.md keep working.
+#
+# Usage: create_current_ticket_symlinks <link_dir> <tickets_dir> <ticket_name>
+#   link_dir     - directory in which to create symlinks (usually "." or worktree path)
+#   tickets_dir  - configured tickets directory (repo-relative)
+#   ticket_name  - bare ticket name (no path, no .md)
+# Returns 0 on success, 1 if the primary ticket symlink cannot be created.
+create_current_ticket_symlinks() {
+    local link_dir="$1"
+    local tickets_dir="$2"
+    local ticket_name="$3"
+
+    local layout
+    layout=$(ticket_layout "$ticket_name" "$tickets_dir")
+
+    # Wipe any stale links (both formats) before writing
+    rm -f "${link_dir}/$CURRENT_TICKET_LINK" \
+          "${link_dir}/$CURRENT_NOTE_LINK"
+    # Directory symlink needs -rf because it may resolve as a dir
+    rm -rf "${link_dir}/$CURRENT_TICKET_DIR_LINK"
+
+    if [[ "$layout" == "new" ]]; then
+        local ticket_dir="${tickets_dir}/${ticket_name}"
+        local ticket_file="${ticket_dir}/ticket.md"
+        local note_file="${ticket_dir}/note.md"
+
+        if ! ln -s "$ticket_dir" "${link_dir}/$CURRENT_TICKET_DIR_LINK"; then
+            echo "Error: Cannot create symlink $CURRENT_TICKET_DIR_LINK" >&2
+            return 1
+        fi
+        if ! ln -s "$ticket_file" "${link_dir}/$CURRENT_TICKET_LINK"; then
+            echo "Error: Cannot create symlink $CURRENT_TICKET_LINK" >&2
+            return 1
+        fi
+        # note.md may not exist yet for a freshly-created ticket; link anyway
+        # for compat (dangling is OK — old skills that write to it will create it)
+        if ! ln -s "$note_file" "${link_dir}/$CURRENT_NOTE_LINK"; then
+            echo "Warning: Cannot create note symlink $CURRENT_NOTE_LINK" >&2
+        fi
+        echo "Current ticket linked: $CURRENT_TICKET_DIR_LINK -> $ticket_dir"
+        echo "Current ticket linked: $CURRENT_TICKET_LINK -> $ticket_file"
+        echo "Current note linked: $CURRENT_NOTE_LINK -> $note_file"
+    else
+        # legacy flat layout (or unknown — best-effort)
+        local ticket_file="${tickets_dir}/${ticket_name}.md"
+        local note_file="${tickets_dir}/${ticket_name}-note.md"
+
+        if ! ln -s "$ticket_file" "${link_dir}/$CURRENT_TICKET_LINK"; then
+            echo "Error: Cannot create symlink $CURRENT_TICKET_LINK" >&2
+            return 1
+        fi
+        echo "Current ticket linked: $CURRENT_TICKET_LINK -> $ticket_file"
+        if [[ -f "${link_dir}/${note_file}" ]] || [[ -f "$note_file" ]]; then
+            if ! ln -s "$note_file" "${link_dir}/$CURRENT_NOTE_LINK"; then
+                echo "Warning: Cannot create note symlink $CURRENT_NOTE_LINK" >&2
+            else
+                echo "Current note linked: $CURRENT_NOTE_LINK -> $note_file"
+            fi
+        fi
+    fi
+    return 0
+}
+
+# Remove all current-* symlinks (used by close/cancel).
+# Usage: remove_current_ticket_symlinks <link_dir>
+remove_current_ticket_symlinks() {
+    local link_dir="$1"
+    rm -f "${link_dir}/$CURRENT_TICKET_LINK" \
+          "${link_dir}/$CURRENT_NOTE_LINK"
+    rm -rf "${link_dir}/$CURRENT_TICKET_DIR_LINK"
+}
+
+# Ensure the per-ticket temp helper directory exists for a new-format ticket.
+# Called from start / restore so agents can drop files into
+# `current-ticket/tmp/` (or `tickets/<TICKETNAME>/tmp/`) without having to
+# mkdir it first. tmp/ contents are ignored via <tickets_dir>/.gitignore
+# (init creates that file).
+#
+# For legacy flat tickets, no per-ticket directory exists, so this is a no-op.
+#
+# Usage: ensure_ticket_tmp_dir <link_dir> <tickets_dir> <ticket_name>
+ensure_ticket_tmp_dir() {
+    local link_dir="$1"
+    local tickets_dir="$2"
+    local ticket_name="$3"
+
+    local layout
+    layout=$(ticket_layout "$ticket_name" "$tickets_dir")
+    if [[ "$layout" != "new" ]]; then
+        return 0
+    fi
+
+    # Prefer the open ticket path; fall back to done/ (unusual — a done-side
+    # ticket doesn't really need tmp/, but we don't want to fail if that's
+    # where the resolver landed).
+    local ticket_dir="${tickets_dir}/${ticket_name}"
+    if [[ ! -d "${link_dir}/${ticket_dir}" ]] && [[ -d "${link_dir}/${tickets_dir}/done/${ticket_name}" ]]; then
+        ticket_dir="${tickets_dir}/done/${ticket_name}"
+    fi
+    mkdir -p "${link_dir}/${ticket_dir}/tmp" 2>/dev/null || true
+}
+
+# Copy configured files from the main repo working tree into a fresh worktree.
+# Behavior (per entry):
+#   - source (main repo root) missing        → warn to stderr, continue
+#   - target (worktree root) already exists  → skip (never overwrite)
+#   - both fine                              → cp -p, echo a line to stdout
+# Callers pass the resolved list already merged with any --copy-file CLI
+# overrides so this function itself has no config knowledge.
+#
+# Usage: copy_worktree_files <source_dir> <target_dir> <path1> [<path2>...]
+copy_worktree_files() {
+    local src_dir="$1"
+    local dst_dir="$2"
+    shift 2
+
+    local rel
+    for rel in "$@"; do
+        [[ -z "$rel" ]] && continue
+        local src="${src_dir}/${rel}"
+        local dst="${dst_dir}/${rel}"
+        if [[ ! -e "$src" ]]; then
+            echo "Warning: worktree_copy_files source not found, skipping: ${rel}" >&2
+            continue
+        fi
+        if [[ -e "$dst" ]]; then
+            echo "worktree_copy_files: target already exists, skipping: ${rel}"
+            continue
+        fi
+        mkdir -p "$(dirname "$dst")"
+        if cp -p "$src" "$dst" 2>/dev/null; then
+            echo "worktree_copy_files: copied ${rel}"
+        else
+            echo "Warning: worktree_copy_files failed to copy: ${rel}" >&2
+        fi
+    done
+}
+
+# Resolve the effective worktree_copy_files list from config + CLI overrides.
+# Reads yaml_list_size / yaml_get for the `worktree_copy_files` key (assumes
+# yaml_parse of the config file has already been performed by the caller),
+# then appends every path passed on the CLI. Prints one path per line so
+# callers can read via `mapfile` or a while loop.
+#
+# Usage: resolve_worktree_copy_files "<cli_extras space-separated? no — pass as
+#        additional args>"
+# Actual signature: resolve_worktree_copy_files [<cli_path> ...]
+resolve_worktree_copy_files() {
+    local size
+    size=$(yaml_list_size "worktree_copy_files" 2>/dev/null || echo 0)
+    local i=0
+    while [[ $i -lt $size ]]; do
+        local v
+        v=$(yaml_get "worktree_copy_files.${i}" || echo "")
+        [[ -n "$v" ]] && echo "$v"
+        i=$((i + 1))
+    done
+    local extra
+    for extra in "$@"; do
+        [[ -n "$extra" ]] && echo "$extra"
+    done
+}
+
+# Emit a fixed-format "Active ticket paths" block so a downstream agent can
+# consume the output alone (without re-guessing which layout was produced) to
+# find the ticket body, note file, ticket directory (new-format only) and the
+# corresponding current-* symlinks. Called at the end of start/restore.
+#
+# Usage: emit_active_ticket_paths <link_dir> <tickets_dir> <ticket_name>
+#   link_dir     - where current-* symlinks live (usually "." or the worktree path)
+#   tickets_dir  - configured tickets directory (repo-relative)
+#   ticket_name  - bare ticket name (no path, no .md)
+#
+# Emitted keys (one per line, stable machine-parseable format):
+#   layout:       new | legacy
+#   ticket:       <path to ticket body markdown, always present>
+#   note:         <path to note markdown, always present>
+#   ticket_dir:   <path to per-ticket directory> (new layout only)
+#   tmp_dir:      <path for ticket-local temp helpers> (new layout only)
+#   symlink_dir:  <link_dir>/current-ticket → ticket_dir (new layout only)
+#   symlink_file: <link_dir>/current-ticket.md → ticket
+#   symlink_note: <link_dir>/current-note.md → note
+#   legacy_note:  (only when layout=legacy) explains the flat -note.md convention
+emit_active_ticket_paths() {
+    local link_dir="$1"
+    local tickets_dir="$2"
+    local ticket_name="$3"
+
+    local layout
+    layout=$(ticket_layout "$ticket_name" "$tickets_dir")
+
+    echo ""
+    echo "Active ticket paths:"
+    echo "  layout:       $layout"
+
+    if [[ "$layout" == "new" ]]; then
+        local ticket_dir="${tickets_dir}/${ticket_name}"
+        [[ ! -d "$ticket_dir" ]] && ticket_dir="${tickets_dir}/done/${ticket_name}"
+        echo "  ticket:       ${ticket_dir}/ticket.md"
+        echo "  note:         ${ticket_dir}/note.md"
+        echo "  ticket_dir:   ${ticket_dir}/   (per-ticket root: ticket.md + note.md + tmp/)"
+        echo "  tmp_dir:      ${ticket_dir}/tmp/   (ticket-local temp helpers, auto-created; ignored via ${tickets_dir}/.gitignore)"
+        echo "  symlink_dir:  ${link_dir}/${CURRENT_TICKET_DIR_LINK} -> ${ticket_dir}"
+        echo "  symlink_file: ${link_dir}/${CURRENT_TICKET_LINK} -> ${ticket_dir}/ticket.md"
+        echo "  symlink_note: ${link_dir}/${CURRENT_NOTE_LINK} -> ${ticket_dir}/note.md"
+    else
+        # Legacy flat layout: one ticket .md and a sibling <name>-note.md file.
+        # Resolve to whichever exists (open first, then done/).
+        local ticket_path="${tickets_dir}/${ticket_name}.md"
+        [[ ! -f "$ticket_path" ]] && ticket_path="${tickets_dir}/done/${ticket_name}.md"
+        local note_path="${tickets_dir}/${ticket_name}-note.md"
+        [[ ! -f "$note_path" ]] && note_path="${tickets_dir}/done/${ticket_name}-note.md"
+        echo "  ticket:       ${ticket_path}"
+        echo "  note:         ${note_path}"
+        echo "  symlink_file: ${link_dir}/${CURRENT_TICKET_LINK} -> ${ticket_path}"
+        if [[ -L "${link_dir}/${CURRENT_NOTE_LINK}" ]]; then
+            echo "  symlink_note: ${link_dir}/${CURRENT_NOTE_LINK} -> ${note_path}"
+        else
+            echo "  symlink_note: (not created; legacy tickets don't get a note symlink unless the note file exists)"
+        fi
+        echo "  legacy_note:  legacy flat layout — no per-ticket directory, no tmp_dir. Ticket body lives at the shown path; note lives as a sibling <name>-note.md file."
+    fi
+    echo ""
+}
+
+# Strip surrounding whitespace and one matching pair of quotes.
+#
+# yaml-sh takes the quotes off an inline list ([a, b]) but leaves them on dash
+# notation, so `- "Required Probes"` arrives quotes and all. Compared like that
+# against heading text it would never match, and a required group that can
+# never match is a check that always fails - the mirror of the hole this is
+# closing. One pair only: a heading that really is written "Done", quotes
+# included, is not worth the escape syntax yaml-sh does not have anyway.
+_config_unquote() {
+    local v="$1"
+    v="${v#"${v%%[![:space:]]*}"}"
+    v="${v%"${v##*[![:space:]]}"}"
+    if (( ${#v} >= 2 )); then
+        local first="${v:0:1}" last="${v: -1}"
+        if [[ "$first" == '"' && "$last" == '"' ]] || [[ "$first" == "'" && "$last" == "'" ]]; then
+            v="${v:1:${#v}-2}"
+        fi
+    fi
+    printf '%s' "$v"
+}
+
+# Read a YAML list from the already-parsed config into CONFIG_LIST[].
+#
+# yaml-sh stores list items as '<key>.<n>'. A scalar under the key is read as a
+# one-item list: `require_checklist_groups: "Required Probes"` is a natural way
+# to write it, and the alternative - reading it as no list at all - would be a
+# config that says it is enforcing something while nothing is looked at, which
+# is the exact failure this key exists to end.
+#
+# Bash 3.2 has no way to return an array, and expanding an empty one under
+# `set -u` is an error there, so callers read CONFIG_LIST with the
+# ${CONFIG_LIST[@]+"${CONFIG_LIST[@]}"} guard.
+#
+# Usage: config_read_list <key>
+config_read_list() {
+    local key="$1"
+    CONFIG_LIST=()
+
+    local size item i=0
+    size=$(yaml_list_size "$key" 2>/dev/null || echo 0)
+    [[ -z "$size" ]] && size=0
+
+    if (( size > 0 )); then
+        while (( i < size )); do
+            item=$(_config_unquote "$(yaml_get "${key}.${i}" || echo "")")
+            [[ -n "$item" ]] && CONFIG_LIST[${#CONFIG_LIST[@]}]="$item"
+            i=$((i + 1))
+        done
+        return 0
+    fi
+
+    item=$(_config_unquote "$(yaml_get "$key" 2>/dev/null || echo "")")
+    [[ -n "$item" ]] && CONFIG_LIST[0]="$item"
+    return 0
+}
+
+# The checklist config key was named require_note_checklist while the check only
+# looked at the note. It now reads the ticket body too, so the key is
+# require_checklist and the old name is gone.
+#
+# Silently ignoring the old name is the one outcome to avoid: a config that says
+# require_note_checklist: true would stop gating without saying so, which is
+# exactly the "it is there and nobody looks at it" failure the check exists to
+# end. So an enabled old key is an error. A disabled one only warns - nothing is
+# being switched off behind the user's back, it is just stale.
+#
+# Assumes the config has already been parsed by yaml_parse.
+check_legacy_checklist_key() {
+    local legacy
+    legacy=$(yaml_get "require_note_checklist" 2>/dev/null || echo "")
+    [[ -z "$legacy" ]] && return 0
+
+    if [[ "$legacy" == "true" ]]; then
+        cat >&2 << EOF
+Error: 'require_note_checklist' has been renamed
+The checklist check now reads the ticket body as well as the note, so the key is
+'require_checklist'. Leaving the old name in place would silently stop gating
+close. Please rename it in $CONFIG_FILE:
+
+  require_checklist: true
+
+EOF
+        return 1
+    fi
+
+    echo "Warning: 'require_note_checklist' in $CONFIG_FILE is no longer read." >&2
+    echo "It is now called 'require_checklist'. Remove or rename the old key." >&2
+    return 0
+}
+
+# List tickets
+cmd_list() {
+    local filter_status=""
+    local count=20
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status)
+                shift
+                filter_status="$1"
+                if [[ ! "$filter_status" =~ ^(todo|doing|done|canceled)$ ]]; then
+                    cat >&2 << EOF
+Error: Invalid status
+Status '$filter_status' is not valid. Please use one of:
+- todo (for unstarted tickets)
+- doing (for in-progress tickets)
+- done (for completed tickets)
+- canceled (for canceled tickets)
+EOF
+                    return 1
+                fi
+                shift
+                ;;
+            --count)
+                shift
+                count="$1"
+                if ! [[ "$count" =~ ^[0-9]+$ ]] || [[ "$count" -eq 0 ]]; then
+                    cat >&2 << EOF
+Error: Invalid count value
+Count '$count' is not a valid number. Please:
+1. Use a positive integer (e.g., --count 10)
+2. Or omit --count to use default (20)
+EOF
+                    return 1
+                fi
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+    
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    # Read this now, while yaml_get still holds the config: the loop below
+    # re-parses yaml_get for every ticket's frontmatter, and asking afterwards
+    # would silently fall back to the default.
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+
+    # Check if tickets directory exists
+    if [[ ! -d "$tickets_dir" ]]; then
+        cat >&2 << EOF
+Error: Tickets directory not found
+Directory '$tickets_dir' does not exist. Please:
+1. Run '$SCRIPT_COMMAND init' to create required directories, or
+2. Check if you're in the correct project directory, or
+3. Verify tickets_dir setting in your config file
+EOF
+        return 1
+    fi
+    
+    echo "📋 Ticket List"
+    echo "---------------------------"
+    if [[ "$filter_status" == "done" ]]; then
+        echo "(sorted by closed date, newest first)"
+    elif [[ "$filter_status" == "canceled" ]]; then
+        echo "(sorted by canceled date, newest first)"
+    elif [[ -z "$filter_status" ]]; then
+        echo "(sorted by status: doing, todo, done, then by priority asc)"
+    fi
+    
+    local displayed=0
+    local temp_file=$(mktemp)
+
+    # List the feature branches once. The todo fallback below needs to know
+    # which ones exist, and asking git per ticket would mean a process apiece.
+    local feature_branches=$(git for-each-ref --format='%(refname:short)' "refs/heads/${branch_prefix}*" 2>/dev/null)
+
+    # Collect all tickets with their metadata.
+    # Enumerate both layouts:
+    #   legacy: tickets/<name>.md, tickets/done/<name>.md
+    #   new:    tickets/<name>/ticket.md, tickets/done/<name>/ticket.md
+    # nullglob is not portable across bash 3.2 (macOS) — skip non-existent
+    # entries with the -f test below.
+    for ticket_file in \
+        "$tickets_dir"/*.md \
+        "$tickets_dir"/done/*.md \
+        "$tickets_dir"/*/ticket.md \
+        "$tickets_dir"/done/*/ticket.md; do
+        [[ -f "$ticket_file" ]] || continue
+        
+        # Extract YAML frontmatter
+        local yaml_content=$(extract_yaml_frontmatter "$ticket_file" 2>/dev/null)
+        [[ -z "$yaml_content" ]] && continue
+        
+        # Parse YAML in a temporary file
+        echo "$yaml_content" >| "${temp_file}.yml"
+        yaml_parse "${temp_file}.yml" 2>/dev/null || continue
+        
+        # Get fields
+        local priority=$(yaml_get "priority" 2>/dev/null || echo "2")
+        local description=$(yaml_get "description" 2>/dev/null || echo "")
+        local created_at=$(yaml_get "created_at" 2>/dev/null || echo "")
+        local started_at=$(yaml_get "started_at" 2>/dev/null || echo "null")
+        local closed_at=$(yaml_get "closed_at" 2>/dev/null || echo "null")
+        local canceled_at=$(yaml_get "canceled_at" 2>/dev/null || echo "null")
+
+        # Determine status
+        local status=$(get_ticket_status "$started_at" "$closed_at" "$canceled_at")
+
+        # A start whose fast-forward didn't land leaves started_at on the
+        # feature branch alone, so reading only the base branch would call work
+        # in progress 'todo' - the very thing recording the start time was meant
+        # to fix. Check the branch before believing it.
+        local started_on_branch=""
+        if [[ "$status" == "todo" ]]; then
+            local _branch="${branch_prefix}$(ticket_name_from_path "$ticket_file")"
+            if [[ $'\n'"${feature_branches}"$'\n' == *$'\n'"${_branch}"$'\n'* ]]; then
+                local _branch_started=$(started_at_on_branch "$_branch" "${ticket_file#./}")
+                if ! is_null_or_empty "$_branch_started"; then
+                    started_at="$_branch_started"
+                    status="doing"
+                    started_on_branch="$_branch"
+                fi
+            fi
+        fi
+
+        # Apply filter
+        if [[ -n "$filter_status" ]] && [[ "$status" != "$filter_status" ]]; then
+            continue
+        fi
+
+        # Default filter: show only todo and doing
+        if [[ -z "$filter_status" ]] && [[ "$status" == "done" || "$status" == "canceled" ]]; then
+            continue
+        fi
+        
+        # Get relative path from project root
+        local ticket_path="${ticket_file#./}"
+        
+        # Store in temp file for sorting
+        # Format: status|priority|ticket_path|description|created_at|started_at|closed_at|canceled_at|started_on_branch
+        echo "${status}|${priority}|${ticket_path}|${description}|${created_at}|${started_at}|${closed_at}|${canceled_at}|${started_on_branch}" >> "$temp_file"
+    done
+    
+    # Sort and display
+    # Sort by: status (doing first, then todo, then done), then by priority
+    # For done tickets, sort by closed_at in descending order (most recent first)
+    local sorted_file=$(mktemp)
+    if [[ "$filter_status" == "done" ]]; then
+        # For done tickets only: sort by closed_at in descending order
+        sort -t'|' -k7,7r "$temp_file" > "$sorted_file"
+    elif [[ "$filter_status" == "canceled" ]]; then
+        # For canceled tickets only: sort by canceled_at in descending order
+        sort -t'|' -k8,8r "$temp_file" > "$sorted_file"
+    else
+        # For all tickets or other statuses: use original sorting logic
+        sort -t'|' -k1,1 -k2,2n "$temp_file" | sed 's/^doing|/0|/; s/^todo|/1|/; s/^done|/2|/; s/^canceled|/3|/' | sort -t'|' -k1,1n -k2,2n | sed 's/^0|/doing|/; s/^1|/todo|/; s/^2|/done|/; s/^3|/canceled|/' > "$sorted_file"
+    fi
+
+    while IFS='|' read -r status priority ticket_path description created_at started_at closed_at canceled_at started_on_branch; do
+        [[ $displayed -ge $count ]] && break
+
+        # Convert timestamps to local timezone
+        local created_at_local=$(convert_utc_to_local "$created_at")
+        local started_at_local=$(convert_utc_to_local "$started_at")
+        local closed_at_local=$(convert_utc_to_local "$closed_at")
+        local canceled_at_local=$(convert_utc_to_local "$canceled_at")
+
+        echo "- status: $status"
+        echo "  ticket_path: $ticket_path"
+        [[ -n "$description" ]] && echo "  description: $description"
+        echo "  priority: $priority"
+        echo "  created_at: $created_at_local"
+        [[ "$status" != "todo" ]] && echo "  started_at: $started_at_local"
+        # Only the feature branch carries this start time - the fast-forward
+        # onto the base branch didn't happen, so the ticket file there still
+        # says null.
+        [[ -n "$started_on_branch" ]] && echo "  started_at_only_on: $started_on_branch"
+        [[ "$status" == "done" ]] && [[ "$closed_at" != "null" ]] && echo "  closed_at: $closed_at_local"
+        [[ "$status" == "canceled" ]] && [[ "$canceled_at" != "null" ]] && echo "  canceled_at: $canceled_at_local"
+
+        # Show worktree info for doing tickets
+        if [[ "$status" == "doing" ]]; then
+            local _branch="${branch_prefix}$(ticket_name_from_path "$ticket_path")"
+            local _wt_path=$(worktree_holding_branch "." "$_branch")
+            if [[ -n "$_wt_path" ]]; then
+                echo "  worktree: $_wt_path"
+            fi
+        fi
+        echo
+        
+        displayed=$((displayed + 1))
+    done < "$sorted_file" || true
+    
+    rm -f "$sorted_file"
+    
+    # Cleanup
+    rm -f "$temp_file" "${temp_file}.yml"
+    
+    if [[ $displayed -eq 0 ]]; then
+        echo "(No tickets found)"
+    fi
+    
+    # Always return success
+    return 0
+}
+
+# Record the ticket's start time on the base branch.
+#
+# 'start' stamps started_at into the feature branch's working tree only, so the
+# base branch keeps showing the ticket as todo: 'list' run from there cannot
+# tell that anyone is working on it. Commit the stamp on the feature branch and
+# fast-forward the base branch onto that commit, so both views agree.
+#
+# Committing on the feature branch and fast-forwarding (rather than writing to
+# the base branch directly) is what keeps 'close' working: the merge base moves
+# with it, so close's divergence preflight sees no base-side edit to the ticket
+# file and its squash-merge finds no local changes to overwrite.
+#
+# The fast-forward is best-effort. When the base branch has moved on - a
+# concurrent start, say - we leave it alone and carry on: started_at is on the
+# feature branch either way, and this is bookkeeping, not the user's work.
+# 'list' falls back to reading the feature branch, so a skipped fast-forward
+# costs the ticket file on the base branch, not the ticket's visibility.
+#
+# Nothing here pushes. 'start' says work is beginning; it is not a request to
+# publish the base branch, and doing so would carry along whatever unpushed
+# commits happen to be sitting there - someone else's, in a repo where several
+# worktrees share a base. The base branch reaches the remote on close.
+#
+# Usage: record_start_on_base <work_tree> <repo> <base_branch> <feature_branch>
+#                             <ticket_rel> <note_rel> <ticket_hash> <note_hash>
+#                             <no_verify>
+record_start_on_base() {
+    local work_tree="$1"
+    local repo="$2"
+    local base_branch="$3"
+    local feature_branch="$4"
+    local ticket_rel="$5"
+    local note_rel="$6"
+    local ticket_hash="$7"
+    local note_hash="$8"
+    local no_verify="$9"
+
+    # Stage by path. The tree also holds the current-* symlinks, the ticket's
+    # tmp/, and anything worktree_copy_files brought in; those are meant to be
+    # gitignored, but an older .gitignore would let 'add -A' swallow them.
+    local commit_paths=("$ticket_rel")
+    [[ -f "${work_tree}/${note_rel}" ]] && commit_paths+=("$note_rel")
+
+    if ! git -C "$work_tree" add -- "${commit_paths[@]}" 2>/dev/null; then
+        echo "Warning: Could not stage ticket files to record the start time" >&2
+        return 0
+    fi
+
+    if git -C "$work_tree" diff --cached --quiet -- "${commit_paths[@]}" 2>/dev/null; then
+        # Nothing to record - the stamp is already committed.
+        return 0
+    fi
+
+    local verify_flag=""
+    [[ "$no_verify" == "true" ]] && verify_flag=" --no-verify"
+
+    # Commit those paths explicitly, so an unrelated staged change already
+    # sitting in the index doesn't ride along.
+    local paths_arg="" _path
+    for _path in "${commit_paths[@]}"; do
+        paths_arg="${paths_arg} \"${_path}\""
+    done
+
+    if ! run_git_command "git -C \"$work_tree\" commit${verify_flag} -m \"[start] $feature_branch\" --${paths_arg}"; then
+        echo "Warning: Could not commit the start time on '$feature_branch'" >&2
+        echo "  started_at is written to the ticket file but left uncommitted." >&2
+        return 0
+    fi
+
+    if ! advance_branch_ff "$repo" "$base_branch" "$feature_branch" \
+            "$ticket_rel" "$ticket_hash" "$note_rel" "$note_hash"; then
+        echo "Note: Could not fast-forward '$base_branch' to record the start time." >&2
+        echo "  '$base_branch' has moved on, or its working tree holds conflicting changes." >&2
+        echo "  The start time is committed on '$feature_branch', and 'list' reads it from" >&2
+        echo "  there, so the ticket still shows as doing." >&2
+        return 0
+    fi
+
+    echo "Recorded start time on '$base_branch'."
+
+    return 0
+}
+
+# Start working on a ticket
+cmd_start() {
+    local use_worktree=false
+    local ticket_input=""
+    # Extra paths appended to config's worktree_copy_files via --copy-file.
+    # Repeatable; ignored entirely unless use_worktree is true.
+    local cli_copy_files=()
+
+    # Parse arguments. Note there is no --no-push: start never pushes, so a
+    # leftover --no-push from older invocations falls through to the
+    # ignore-unknown-flags case below and harmlessly does nothing.
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --worktree)
+                use_worktree=true
+                shift
+                ;;
+            --copy-file)
+                if [[ -z "${2:-}" ]] || [[ "${2:-}" == -* ]]; then
+                    echo "Error: --copy-file requires a path argument" >&2
+                    return 1
+                fi
+                cli_copy_files+=("$2")
+                shift 2
+                ;;
+            --copy-file=*)
+                cli_copy_files+=("${1#--copy-file=}")
+                shift
+                ;;
+            -*)
+                # Ignore unknown flags for backward compatibility
+                shift
+                ;;
+            *)
+                if [[ -z "$ticket_input" ]]; then
+                    ticket_input="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$ticket_input" ]]; then
+        echo "Error: ticket name required" >&2
+        echo "Usage: $SCRIPT_COMMAND start [--worktree] [--no-push] [--copy-file <path>]... <ticket-name>" >&2
+        return 1
+    fi
+
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local default_branch=$(yaml_get "default_branch" || echo "$DEFAULT_BRANCH")
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+    local repository=$(yaml_get "repository" || echo "$DEFAULT_REPOSITORY")
+    local no_verify=$(yaml_get "no_verify" || echo "$DEFAULT_NO_VERIFY")
+    local start_success_message=$(yaml_get "start_success_message" || echo "$DEFAULT_START_SUCCESS_MESSAGE")
+
+    # Check if worktree mode is enabled by config
+    local worktree_mode=$(yaml_get "worktree_mode" || echo "$DEFAULT_WORKTREE_MODE")
+    if [[ "$worktree_mode" == "true" ]]; then
+        use_worktree=true
+    fi
+    local worktree_dir=$(yaml_get "worktree_dir" || echo "$DEFAULT_WORKTREE_DIR")
+
+    # Resolve worktree_copy_files list (config entries + --copy-file CLI extras).
+    # Read into a bash array via a loop (mapfile isn't available on macOS bash 3.2).
+    # Guard the `"${cli_copy_files[@]}"` expansion: under `set -u`, expanding an
+    # empty array errors out on bash 3.2.
+    local copy_files_list=()
+    if [[ "$use_worktree" == "true" ]]; then
+        local _cf_line
+        if [[ ${#cli_copy_files[@]} -gt 0 ]]; then
+            while IFS= read -r _cf_line; do
+                [[ -n "$_cf_line" ]] && copy_files_list+=("$_cf_line")
+            done < <(resolve_worktree_copy_files "${cli_copy_files[@]}")
+        else
+            while IFS= read -r _cf_line; do
+                [[ -n "$_cf_line" ]] && copy_files_list+=("$_cf_line")
+            done < <(resolve_worktree_copy_files)
+        fi
+    fi
+
+    # Get ticket file path early to determine base_branch before switching branches
+    local ticket_name=$(extract_ticket_name "$ticket_input")
+    local ticket_file=$(get_ticket_file "$ticket_name" "$tickets_dir")
+    # Resolve main repo path (needed here so we can probe the base branch when
+    # the ticket isn't in cwd's tree — e.g. worktree started from a stale branch).
+    local main_repo
+    if is_git_worktree; then
+        main_repo=$(get_main_repo_from_worktree)
+    else
+        main_repo=$(git rev-parse --show-toplevel)
+    fi
+    # If the ticket isn't in cwd's tree, get_ticket_file falls back to the
+    # legacy flat path by default. Correct that by probing git objects on the
+    # current branch and on default_branch for the new-format path.
+    if [[ ! -f "$ticket_file" ]]; then
+        local _new_path="${tickets_dir}/${ticket_name}/ticket.md"
+        local _new_done_path="${tickets_dir}/done/${ticket_name}/ticket.md"
+        local _probe_branch
+        for _probe_branch in "$(get_current_branch)" "$default_branch"; do
+            [[ -z "$_probe_branch" ]] && continue
+            if git -C "$main_repo" cat-file -e "${_probe_branch}:${_new_path}" 2>/dev/null; then
+                ticket_file="$_new_path"
+                break
+            fi
+            if git -C "$main_repo" cat-file -e "${_probe_branch}:${_new_done_path}" 2>/dev/null; then
+                ticket_file="$_new_done_path"
+                break
+            fi
+        done
+    fi
+
+    # Determine effective base branch (base_branch from ticket, or default_branch)
+    local effective_base="$default_branch"
+    if [[ -f "$ticket_file" ]]; then
+        local _yaml_content=$(extract_yaml_frontmatter "$ticket_file")
+        echo "$_yaml_content" >| /tmp/ticket_yaml_early.yml
+        yaml_parse /tmp/ticket_yaml_early.yml
+        local _base_branch=$(yaml_get "base_branch" || echo "")
+        # Backward compatibility: fall back to merge_to if base_branch is not set
+        if is_null_or_empty "$_base_branch" || [[ "$(echo "$_base_branch" | tr '[:upper:]' '[:lower:]')" == "default" ]]; then
+            _base_branch=$(yaml_get "merge_to" || echo "default")
+        fi
+        rm -f /tmp/ticket_yaml_early.yml
+
+        local _base_lower=$(echo "$_base_branch" | tr '[:upper:]' '[:lower:]')
+        if ! is_null_or_empty "$_base_branch" && [[ "$_base_lower" != "default" ]]; then
+            if git rev-parse --verify "$_base_branch" >/dev/null 2>&1; then
+                effective_base="$_base_branch"
+            fi
+        fi
+    fi
+
+    # main_repo was resolved above (needed for ticket-file probe).
+
+    # The note file follows the ticket's layout: a sibling inside the per-ticket
+    # directory for new-format tickets, a flat -note.md for legacy ones.
+    local note_file_rel
+    if [[ "$ticket_file" == "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+        note_file_rel="${tickets_dir}/${ticket_name}/note.md"
+    else
+        note_file_rel="${tickets_dir}/${ticket_name}-note.md"
+    fi
+
+    # Snapshot the ticket files as they stand in whatever working tree holds the
+    # base branch. 'new' makes no commit, so they usually sit there untracked,
+    # which would block the fast-forward that records the start time. These
+    # hashes are what lets us tell "the file we are about to commit" apart from
+    # "an edit that exists only there" when clearing the way.
+    local base_ticket_hash="" base_note_hash=""
+    local _base_wt
+    _base_wt=$(worktree_holding_branch "$main_repo" "$effective_base")
+    if [[ -n "$_base_wt" ]]; then
+        base_ticket_hash=$(git -C "$_base_wt" hash-object -- "${_base_wt}/${ticket_file}" 2>/dev/null || echo "")
+        base_note_hash=$(git -C "$_base_wt" hash-object -- "${_base_wt}/${note_file_rel}" 2>/dev/null || echo "")
+    fi
+
+    # Check current branch
+    local current_branch=$(get_current_branch)
+    if [[ "$use_worktree" == "true" ]]; then
+        # Worktree mode: do NOT touch cwd HEAD. Worktree is created directly
+        # from the base branch via 'git -C <main_repo> worktree add', so we
+        # don't need to checkout effective_base in cwd. This avoids:
+        #   - clobbering the user's current feature branch
+        #   - 'fatal: <branch> is already used by worktree at ...' errors when
+        #     cwd is inside another worktree and effective_base is held by the
+        #     main repo (or another sibling worktree)
+        # Just verify the base branch exists in the main repo.
+        if ! git -C "$main_repo" rev-parse --verify "$effective_base" >/dev/null 2>&1; then
+            cat >&2 << EOF
+Error: Base branch not found
+Base branch '$effective_base' does not exist in the main repository at:
+  $main_repo
+Please:
+1. Check the ticket's base_branch in YAML frontmatter, or
+2. Create the branch in the main repo: git -C $main_repo branch $effective_base
+EOF
+            return 1
+        fi
+    elif [[ "$current_branch" != "$effective_base" ]]; then
+        # We're not on the effective base branch - handle different scenarios
+        local git_status_output
+        if ! git_status_output=$(git status --porcelain 2>&1); then
+            echo "Error: Failed to check git status" >&2
+            echo "Git repository may be corrupted or inaccessible" >&2
+            return 1
+        fi
+        if [[ -n "$git_status_output" ]]; then
+            # Branch with uncommitted changes - prompt for commit and exit
+            cat >&2 << EOF
+Error: Uncommitted changes on feature branch
+You are on feature branch '$current_branch' with uncommitted changes. Please:
+1. Commit your changes: git add . && git commit -m "message"
+2. Or stash changes: git stash
+3. Then retry starting the new ticket
+EOF
+            return 1
+        else
+            # No uncommitted changes - switch to effective base branch
+            echo "Warning: Currently on branch '$current_branch' with no uncommitted changes."
+            echo "Creating new feature branch from '$effective_base' branch instead."
+
+            # Switch to effective base branch first
+            echo "Switching to '$effective_base' branch..."
+            run_git_command "git checkout $effective_base" || return 1
+
+            # Check if effective base branch has differences with the branch we were on
+            local diff_count
+            if ! diff_count=$(git rev-list --count "$current_branch..$effective_base" 2>&1); then
+                echo "Warning: Cannot compare branches - using git log instead" >&2
+                # Fallback to simpler check if rev-list fails
+                diff_count="0"
+            fi
+            if [[ "$diff_count" -gt 0 ]]; then
+                cat << EOF
+
+Note: The branch '$effective_base' has $diff_count new commit(s) compared to branch '$current_branch'.
+Consider merging or rebasing '$current_branch' to incorporate these changes:
+  git checkout $current_branch
+  git merge $effective_base
+  # or
+  git rebase $effective_base
+
+EOF
+            fi
+        fi
+    else
+        # We're on the effective base branch - check for clean working directory
+        check_clean_working_dir "$tickets_dir" || return 1
+    fi
+
+    # Check if ticket exists.
+    # In worktree mode we don't switch cwd HEAD, so the ticket may not be in
+    # cwd's working tree if cwd is on a different branch / worktree. Also
+    # accept the case where the ticket exists in the base branch on main repo.
+    if [[ ! -f "$ticket_file" ]]; then
+        local ticket_in_base=false
+        if [[ "$use_worktree" == "true" ]]; then
+            if git -C "$main_repo" cat-file -e "${effective_base}:${ticket_file}" 2>/dev/null; then
+                ticket_in_base=true
+            fi
+        fi
+        if [[ "$ticket_in_base" != "true" ]]; then
+            cat >&2 << EOF
+Error: Ticket not found
+Ticket '$ticket_file' does not exist. Please:
+1. Check the ticket name spelling
+2. Run '$SCRIPT_COMMAND list' to see available tickets
+3. Use '$SCRIPT_COMMAND new <slug>' to create a new ticket
+EOF
+            return 1
+        fi
+    fi
+    
+    # Create branch name
+    local branch_name="${branch_prefix}${ticket_name}"
+
+    # Determine worktree path if using worktree mode.
+    # Anchor the worktree path on main_repo (not cwd's toplevel) so callers
+    # inside other worktrees still produce the canonical path.
+    local wt_path=""
+    if [[ "$use_worktree" == "true" ]]; then
+        local project_root="$main_repo"
+        local project_name=$(basename "$project_root")
+        if [[ -n "$worktree_dir" ]]; then
+            wt_path="${worktree_dir}/${ticket_name}"
+        else
+            wt_path="${project_root}/../${project_name}.worktrees/${ticket_name}"
+        fi
+        # Normalize path
+        wt_path=$(cd "$(dirname "$wt_path")" 2>/dev/null && echo "$(pwd)/$(basename "$wt_path")" || echo "$wt_path")
+    fi
+
+    # Check if branch is already checked out in another worktree.
+    # Query main repo directly so we get a consistent view regardless of cwd.
+    local worktree_using_branch=$(worktree_holding_branch "$main_repo" "$branch_name")
+    if [[ -n "$worktree_using_branch" ]]; then
+        local current_toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+        # It's OK if the current directory IS the worktree that has this branch
+        if [[ "$worktree_using_branch" != "$current_toplevel" ]]; then
+            if [[ "$use_worktree" == "true" ]]; then
+                # Worktree mode: reuse the existing worktree
+                echo "Branch '$branch_name' is already checked out in worktree: $worktree_using_branch"
+                wt_path="$worktree_using_branch"
+            else
+                cat >&2 << EOF
+Error: Branch already checked out in worktree
+Branch '$branch_name' is already checked out in another worktree at:
+  $worktree_using_branch
+
+You cannot checkout this branch here. Please either:
+1. Work in the existing worktree: cd $worktree_using_branch
+2. Use worktree mode: $SCRIPT_COMMAND start --worktree $ticket_input
+3. Remove the worktree first: git worktree remove $worktree_using_branch
+
+WARNING: Do NOT run 'git worktree prune' - it may destroy worktree metadata
+and break all active worktrees.
+EOF
+                return 1
+            fi
+        fi
+    fi
+
+    # Check if branch already exists.
+    # Query main repo so worktree mode works from any cwd.
+    local branch_exists_check
+    if branch_exists_check=$(git -C "$main_repo" show-ref --verify "refs/heads/$branch_name" 2>&1); then
+        # Branch exists - resume work
+        echo "Branch '$branch_name' already exists. Resuming work on existing ticket..."
+
+        if [[ "$use_worktree" == "true" ]]; then
+            # Check if worktree already exists for this branch (may already be set above)
+            local existing_wt=$(worktree_holding_branch "$main_repo" "$branch_name")
+            if [[ -n "$existing_wt" ]]; then
+                echo "Worktree already exists at: $existing_wt"
+                wt_path="$existing_wt"
+            else
+                # Create worktree for existing branch (operate on main repo, never touch cwd HEAD)
+                if [[ -d "$wt_path" ]]; then
+                    echo "Error: Directory '$wt_path' already exists but is not a worktree for this branch" >&2
+                    return 1
+                fi
+                mkdir -p "$(dirname "$wt_path")"
+                run_git_command "git -C $main_repo worktree add $wt_path $branch_name" || return 1
+            fi
+        else
+            # Checkout existing branch (original behavior)
+            run_git_command "git checkout $branch_name" || return 1
+        fi
+
+        # Check if there are differences between this feature branch and the effective base branch
+        local ahead_count behind_count
+        if ! ahead_count=$(git rev-list --count "$effective_base..$branch_name" 2>&1); then
+            echo "Warning: Cannot determine if feature branch is ahead of base branch" >&2
+            ahead_count="0"
+        fi
+        if ! behind_count=$(git rev-list --count "$branch_name..$effective_base" 2>&1); then
+            echo "Warning: Cannot determine if feature branch is behind base branch" >&2
+            behind_count="0"
+        fi
+
+        if [[ "$behind_count" -gt 0 ]]; then
+            cat << EOF
+
+Warning: Feature branch '$branch_name' is $behind_count commit(s) behind '$effective_base'.
+Consider updating your feature branch to incorporate recent changes:
+  git merge $effective_base
+  # or
+  git rebase $effective_base
+
+EOF
+        fi
+
+        if [[ "$ahead_count" -gt 0 ]]; then
+            echo "Feature branch '$branch_name' is $ahead_count commit(s) ahead of '$effective_base'."
+        fi
+
+        # Determine target directory for symlinks
+        local link_dir="."
+        if [[ "$use_worktree" == "true" ]]; then
+            link_dir="$wt_path"
+        fi
+
+        # Recreate all current-* symlinks (handles both new/legacy layouts).
+        # For new-format tickets this also creates the current-ticket/ dir symlink.
+        create_current_ticket_symlinks "$link_dir" "$tickets_dir" "$ticket_name" || return 1
+        ensure_ticket_tmp_dir "$link_dir" "$tickets_dir" "$ticket_name"
+        # Populate the worktree with any configured extras (idempotent — skips
+        # entries that already exist in the target).
+        if [[ "$use_worktree" == "true" ]] && [[ ${#copy_files_list[@]} -gt 0 ]]; then
+            copy_worktree_files "$main_repo" "$wt_path" "${copy_files_list[@]}"
+        fi
+        echo "Resumed ticket: $ticket_name"
+        echo "Continuing work on existing feature branch."
+        emit_active_ticket_paths "$link_dir" "$tickets_dir" "$ticket_name"
+
+        if [[ "$use_worktree" == "true" ]]; then
+            echo "Worktree: $wt_path"
+            echo "WORKTREE:${wt_path}"
+            echo ""
+            echo "CAUTION: All subsequent commands must run in the worktree directory."
+            echo "  cd $wt_path"
+            echo ""
+            echo "When opening sub-shells, sub-agents, or new terminals, cd to the same path first."
+            echo "Working in the main repo will miss current-ticket.md and may cause context confusion."
+        fi
+
+        # Display success message if configured
+        if [[ -n "$start_success_message" ]]; then
+            echo ""
+            echo "$start_success_message"
+        fi
+        return 0
+    fi
+
+    # Branch doesn't exist - check if ticket is already started
+    local yaml_content=$(extract_yaml_frontmatter "$ticket_file")
+    echo "$yaml_content" >| /tmp/ticket_yaml.yml
+    yaml_parse /tmp/ticket_yaml.yml
+    local started_at=$(yaml_get "started_at" || echo "null")
+    rm -f /tmp/ticket_yaml.yml
+
+    if ! is_null_or_empty "$started_at"; then
+        cat >&2 << EOF
+Error: Ticket already started but branch is missing
+Ticket has been started (started_at is set) but the branch doesn't exist. Please:
+1. Reset the ticket by manually editing started_at to null
+2. Or create the branch manually: git checkout -b $branch_name
+3. Then use '$SCRIPT_COMMAND restore' to restore the link
+EOF
+        return 1
+    fi
+
+    # Use effective_base (already determined above from ticket's base_branch)
+    local start_from="$effective_base"
+
+    if [[ "$use_worktree" == "true" ]]; then
+        # Create worktree with new branch (operate on main repo, never touch cwd HEAD)
+        mkdir -p "$(dirname "$wt_path")"
+        run_git_command "git -C $main_repo worktree add -b $branch_name $wt_path $start_from" || return 1
+
+        # If the ticket file isn't on start_from, bring it (and related files)
+        # over from cwd's branch. Note: cwd is unchanged in worktree mode, so
+        # current_branch (captured earlier) is still cwd's HEAD.
+        local prev_branch="$current_branch"
+        if [[ "$start_from" != "$prev_branch" ]]; then
+            # In worktree context, use git checkout to copy files
+            git -C "$wt_path" checkout "$prev_branch" -- "$ticket_file" 2>/dev/null || true
+            if [[ "$ticket_file" == "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+                # New-format layout: also fetch sibling note.md if present.
+                # tmp/ is ticket-local (agent scratch space) and doesn't need to travel.
+                git -C "$wt_path" checkout "$prev_branch" -- "${tickets_dir}/${ticket_name}/note.md" 2>/dev/null || true
+            else
+                # Legacy flat layout
+                git -C "$wt_path" checkout "$prev_branch" -- "${tickets_dir}/${ticket_name}-note.md" 2>/dev/null || true
+            fi
+            git -C "$wt_path" checkout "$prev_branch" -- "${tickets_dir}/README.md" 2>/dev/null || true
+        fi
+
+        # Final fallback: if the ticket file still isn't in the worktree but
+        # exists in cwd's working tree (e.g. just-created ticket not yet
+        # committed on start_from), copy it (and sibling note.md for new-format)
+        # directly.
+        if [[ ! -f "${wt_path}/${ticket_file}" ]] && [[ -f "$ticket_file" ]]; then
+            mkdir -p "${wt_path}/$(dirname "$ticket_file")"
+            cp "$ticket_file" "${wt_path}/${ticket_file}"
+            if [[ "$ticket_file" == "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+                local _src_note="${tickets_dir}/${ticket_name}/note.md"
+                if [[ -f "$_src_note" ]]; then
+                    cp "$_src_note" "${wt_path}/${_src_note}"
+                fi
+            fi
+        fi
+
+        # Update ticket started_at in worktree
+        local timestamp=$(get_utc_timestamp)
+        update_yaml_frontmatter_field "${wt_path}/${ticket_file}" "started_at" "$timestamp"
+
+        record_start_on_base "$wt_path" "$main_repo" "$effective_base" "$branch_name" \
+            "$ticket_file" "$note_file_rel" "$base_ticket_hash" "$base_note_hash" \
+            "$no_verify"
+
+        # Create symlinks in worktree directory (handles new + legacy layouts;
+        # for new-format tickets this also sets up current-ticket/ dir symlink).
+        # Resolve layout against the worktree's tree, not cwd's.
+        ( cd "$wt_path" && create_current_ticket_symlinks "." "$tickets_dir" "$ticket_name" ) || return 1
+        ensure_ticket_tmp_dir "$wt_path" "$tickets_dir" "$ticket_name"
+        # Populate the freshly-created worktree with configured extras (e.g.
+        # gitignored .env). Idempotent — skips entries that already exist.
+        if [[ ${#copy_files_list[@]} -gt 0 ]]; then
+            copy_worktree_files "$main_repo" "$wt_path" "${copy_files_list[@]}"
+        fi
+        echo "Started ticket: $ticket_name"
+        # Emit resolved paths relative to the worktree (that's where the agent
+        # will operate from, per the CAUTION below). The link_dir prefix in the
+        # output is "$wt_path" so downstream consumers can resolve without cwd.
+        emit_active_ticket_paths "$wt_path" "$tickets_dir" "$ticket_name"
+        echo "Worktree created: $wt_path"
+        echo "WORKTREE:${wt_path}"
+        echo "Note: Branch created locally. Use 'git push -u $repository $branch_name' when ready to share."
+        echo ""
+        echo "CAUTION: All subsequent commands must run in the worktree directory."
+        echo "  cd $wt_path"
+        echo ""
+        echo "When opening sub-shells, sub-agents, or new terminals, cd to the same path first."
+        echo "Working in the main repo will miss current-ticket.md and may cause context confusion."
+    else
+        # Create and checkout new branch from base branch (original behavior)
+        local prev_branch=$(get_current_branch)
+        run_git_command "git checkout -b $branch_name $start_from" || return 1
+
+        # If base_branch differs from where ticket was created, bring ticket files over
+        if [[ "$start_from" != "$prev_branch" ]]; then
+            run_git_command "git checkout $prev_branch -- $ticket_file" || {
+                echo "Error: Failed to retrieve ticket file from $prev_branch" >&2
+                return 1
+            }
+            if [[ "$ticket_file" == "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+                git checkout "$prev_branch" -- "${tickets_dir}/${ticket_name}/note.md" 2>/dev/null || true
+            else
+                git checkout "$prev_branch" -- "${tickets_dir}/${ticket_name}-note.md" 2>/dev/null || true
+            fi
+            run_git_command "git checkout $prev_branch -- ${tickets_dir}/README.md" 2>/dev/null || true
+        fi
+
+        # Update ticket started_at
+        local timestamp=$(get_utc_timestamp)
+        update_yaml_frontmatter_field "$ticket_file" "started_at" "$timestamp"
+
+        record_start_on_base "." "$main_repo" "$effective_base" "$branch_name" \
+            "$ticket_file" "$note_file_rel" "$base_ticket_hash" "$base_note_hash" \
+            "$no_verify"
+
+        # Create current-* symlinks (handles new + legacy layouts).
+        create_current_ticket_symlinks "." "$tickets_dir" "$ticket_name" || return 1
+        ensure_ticket_tmp_dir "." "$tickets_dir" "$ticket_name"
+        echo "Started ticket: $ticket_name"
+        emit_active_ticket_paths "." "$tickets_dir" "$ticket_name"
+        echo "Note: Branch created locally. Use 'git push -u $repository $branch_name' when ready to share."
+    fi
+
+    # Display success message if configured
+    if [[ -n "$start_success_message" ]]; then
+        echo ""
+        echo "$start_success_message"
+    fi
+}
+
+# Restore current ticket link
+cmd_restore() {
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+    
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+    local restore_success_message=$(yaml_get "restore_success_message" || echo "$DEFAULT_RESTORE_SUCCESS_MESSAGE")
+    
+    # Get current branch
+    local current_branch=$(get_current_branch)
+    
+    # Check if on feature branch
+    if [[ ! "$current_branch" =~ ^${branch_prefix} ]]; then
+        cat >&2 << EOF
+Error: Not on a feature branch
+Current branch '$current_branch' is not a feature branch. Please:
+1. Switch to a feature branch (${branch_prefix}*)
+2. Or start a new ticket: $SCRIPT_COMMAND start <ticket-name>
+3. Feature branches should start with '$branch_prefix'
+EOF
+        return 1
+    fi
+    
+    # Extract ticket name from branch
+    local ticket_name="${current_branch#"$branch_prefix"}"
+
+    # Resolve ticket layout & path. Prefer new-format (per-ticket dir); fall
+    # back to legacy flat. Check both open and done/ locations.
+    local layout=$(ticket_layout "$ticket_name" "$tickets_dir")
+    local ticket_file
+    if [[ -f "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+        ticket_file="${tickets_dir}/${ticket_name}/ticket.md"
+    elif [[ -f "${tickets_dir}/done/${ticket_name}/ticket.md" ]]; then
+        ticket_file="${tickets_dir}/done/${ticket_name}/ticket.md"
+    elif [[ -f "${tickets_dir}/${ticket_name}.md" ]]; then
+        ticket_file="${tickets_dir}/${ticket_name}.md"
+    elif [[ -f "${tickets_dir}/done/${ticket_name}.md" ]]; then
+        ticket_file="${tickets_dir}/done/${ticket_name}.md"
+    else
+        cat >&2 << EOF
+Error: No matching ticket found
+No ticket file found for branch '$current_branch'. Please:
+1. Check if ticket file exists in $tickets_dir/ or $tickets_dir/done/
+2. Ensure branch name matches ticket name format
+3. Or start a new ticket if this is a new feature
+EOF
+        return 1
+    fi
+
+    # For new-format tickets in done/, create_current_ticket_symlinks would
+    # target the open location. Handle done-directly case specially by falling
+    # back to a bare file symlink in that case.
+    if [[ "$layout" == "new" ]] && [[ "$ticket_file" != */done/* ]]; then
+        # Standard case: open new-format ticket. Create the dir + compat symlinks.
+        create_current_ticket_symlinks "." "$tickets_dir" "$ticket_name" || return 1
+        ensure_ticket_tmp_dir "." "$tickets_dir" "$ticket_name"
+        local _sink_dir="${tickets_dir}/${ticket_name}"
+        echo "Restored $CURRENT_TICKET_DIR_LINK -> $_sink_dir"
+    else
+        # Legacy layout, or new-format ticket already in done/ (unusual).
+        # Just re-establish the compat file symlinks and clear the dir symlink.
+        rm -rf "$CURRENT_TICKET_DIR_LINK"
+        rm -f "$CURRENT_TICKET_LINK"
+        if ! ln -s "$ticket_file" "$CURRENT_TICKET_LINK"; then
+            cat >&2 << EOF
+Error: Cannot create symlink
+Permission denied creating symlink. Please:
+1. Check write permissions in current directory
+2. Ensure no file named '$CURRENT_TICKET_LINK' exists
+3. Run with appropriate permissions if needed
+EOF
+            return 1
+        fi
+
+        # Note symlink for legacy layout
+        local note_file_regular="${tickets_dir}/${ticket_name}-note.md"
+        local note_file_done="${tickets_dir}/done/${ticket_name}-note.md"
+        local note_file=""
+        if [[ -f "$note_file_regular" ]]; then
+            note_file="$note_file_regular"
+        elif [[ -f "$note_file_done" ]]; then
+            note_file="$note_file_done"
+        fi
+
+        if [[ -n "$note_file" ]] && [[ -f "$note_file" ]]; then
+            rm -f "$CURRENT_NOTE_LINK"
+            if ! ln -s "$note_file" "$CURRENT_NOTE_LINK"; then
+                echo "Warning: Cannot create note symlink $CURRENT_NOTE_LINK" >&2
+            fi
+            echo "Restored current ticket link: $CURRENT_TICKET_LINK -> $ticket_file"
+            echo "Restored current note link: $CURRENT_NOTE_LINK -> $note_file"
+        else
+            rm -f "$CURRENT_NOTE_LINK"
+            echo "Restored current ticket link: $CURRENT_TICKET_LINK -> $ticket_file"
+        fi
+    fi
+
+    # Emit resolved paths so a downstream agent can act on this output alone.
+    emit_active_ticket_paths "." "$tickets_dir" "$ticket_name"
+
+    # Display success message if configured
+    if [[ -n "$restore_success_message" ]]; then
+        echo ""
+        echo "$restore_success_message"
+    fi
+}
+
+# Check current directory and ticket/branch synchronization status
+cmd_check() {
+    # --require names one checklist group in the note and judges only that one.
+    # Which group belongs to which stage of the work is the caller's business,
+    # not ticket.sh's - it only has to match a string.
+    local require_group=""
+    local require_given=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --require)
+                if [[ -z "${2:-}" ]]; then
+                    echo "Error: --require needs a group name" >&2
+                    echo "Usage: $SCRIPT_COMMAND check [--require \"<group name>\"]" >&2
+                    return 1
+                fi
+                require_group="$2"
+                require_given=true
+                shift 2
+                ;;
+            --require=*)
+                require_group="${1#--require=}"
+                require_given=true
+                shift
+                ;;
+            *)
+                echo "Error: Unknown option '$1'" >&2
+                echo "Usage: $SCRIPT_COMMAND check [--require \"<group name>\"]" >&2
+                return 1
+                ;;
+        esac
+    done
+    if [[ "$require_given" == "true" && -z "$require_group" ]]; then
+        echo "Error: --require needs a non-empty group name" >&2
+        return 1
+    fi
+
+    # Set when a ticket is actually linked to this branch, so the checklist
+    # block at the end knows which note to read.
+    local checklist_ticket=""
+
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+    
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local default_branch=$(yaml_get "default_branch" || echo "$DEFAULT_BRANCH")
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+    check_legacy_checklist_key || return 1
+    # Read here: the yaml-sh globals get reused for the ticket's frontmatter
+    # further down.
+    config_read_list "require_checklist_groups"
+    local _required_groups=(${CONFIG_LIST[@]+"${CONFIG_LIST[@]}"})
+    
+    # Get current branch
+    local current_branch=$(get_current_branch)
+    
+    # Check if current-ticket.md exists
+    if [[ -L "$CURRENT_TICKET_LINK" && -f "$CURRENT_TICKET_LINK" ]]; then
+        # Case 1 & 2: current-ticket.md exists
+        local ticket_file=$(readlink "$CURRENT_TICKET_LINK")
+        local ticket_name
+        if [[ "$(basename "$ticket_file")" == "ticket.md" ]]; then
+            # New-format: <parent>/ticket.md
+            local _parent="${ticket_file%/*}"
+            ticket_name="${_parent##*/}"
+        else
+            ticket_name=$(basename "$ticket_file" .md)
+        fi
+        local expected_branch="${branch_prefix}${ticket_name}"
+        
+        if [[ "$current_branch" == "$expected_branch" ]]; then
+            # Case 1: current-ticket.md exists and matches branch
+            checklist_ticket="$ticket_name"
+            echo "✓ Current ticket is active and synchronized"
+            echo "Working on: $ticket_name"
+            echo "Branch: $current_branch"
+            echo "Continue working on this ticket."
+        else
+            # Case 2: current-ticket.md exists but doesn't match branch
+            echo "✗ Ticket file and branch mismatch detected"
+            echo "Current ticket file: $ticket_file"
+            echo "Current branch: $current_branch"
+            echo "Please run '$SCRIPT_COMMAND restore' to fix synchronization or switch to the correct branch."
+            return 1
+        fi
+    else
+        # Cases 3-6: current-ticket.md doesn't exist
+        if [[ "$current_branch" == "$default_branch" ]]; then
+            # Case 3: On default branch, no current ticket
+            echo "✓ No active ticket (on default branch)"
+            echo "You can view available tickets with: $SCRIPT_COMMAND list"
+            echo "Create a new ticket with: $SCRIPT_COMMAND new <name>"
+            echo "Start working on a ticket with: $SCRIPT_COMMAND start <ticket-name>"
+        elif [[ "$current_branch" =~ ^${branch_prefix} ]]; then
+            # Cases 4-5: On feature branch
+            local ticket_name="${current_branch#"$branch_prefix"}"
+            # Resolve to either new-format or legacy path; prefer new-format.
+            local ticket_file
+            if [[ -f "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+                ticket_file="${tickets_dir}/${ticket_name}/ticket.md"
+            elif [[ -f "${tickets_dir}/done/${ticket_name}/ticket.md" ]]; then
+                ticket_file="${tickets_dir}/done/${ticket_name}/ticket.md"
+            elif [[ -f "${tickets_dir}/${ticket_name}.md" ]]; then
+                ticket_file="${tickets_dir}/${ticket_name}.md"
+            else
+                ticket_file="${tickets_dir}/${ticket_name}.md"
+            fi
+
+            # Check if ticket file exists in regular location or done folder
+            if [[ -f "$ticket_file" ]]; then
+                # Extract YAML frontmatter and check started_at
+                local yaml_content=$(extract_yaml_frontmatter "$ticket_file" 2>/dev/null)
+                local temp_yaml_file=$(mktemp)
+                echo "$yaml_content" > "$temp_yaml_file"
+                
+                # Parse the YAML and check started_at
+                yaml_parse "$temp_yaml_file"
+                local started_at=$(yaml_get "started_at")
+                rm -f "$temp_yaml_file"
+                
+                if [[ "$started_at" == "null" || -z "$started_at" ]]; then
+                    # started_at is null, ticket not started
+                    echo "✗ No ticket found for current feature branch"
+                    echo "Current branch: $current_branch"
+                    echo "Expected ticket file: $ticket_file"
+                    echo ""
+                    echo "Possible solutions:"
+                    echo "1. Create new ticket: $SCRIPT_COMMAND new <name>"
+                    echo "2. Check if ticket file exists in another branch (git branch -a)"
+                    echo "3. Switch to default branch: git checkout $default_branch"
+                    return 1
+                else
+                    # Case 4: Ticket exists and started_at is not null, restore it
+                    rm -f "$CURRENT_TICKET_LINK"
+                    if ln -s "$ticket_file" "$CURRENT_TICKET_LINK"; then
+                        checklist_ticket="$ticket_name"
+                        echo "✓ Found matching ticket for current branch"
+                        echo "Restored ticket link: $ticket_name"
+                        echo "Continue working on this ticket."
+                    else
+                        echo "Error: Cannot create symlink $CURRENT_TICKET_LINK" >&2
+                        echo "Permission denied or filesystem issue" >&2
+                        return 1
+                    fi
+                fi
+            else
+                # Check in done folder (both layouts)
+                if [[ -f "${tickets_dir}/done/${ticket_name}/ticket.md" ]]; then
+                    ticket_file="${tickets_dir}/done/${ticket_name}/ticket.md"
+                else
+                    ticket_file="${tickets_dir}/done/${ticket_name}.md"
+                fi
+                if [[ -f "$ticket_file" ]]; then
+                    # Extract YAML frontmatter and check started_at
+                    local yaml_content=$(extract_yaml_frontmatter "$ticket_file" 2>/dev/null)
+                    local temp_yaml_file=$(mktemp)
+                    echo "$yaml_content" > "$temp_yaml_file"
+                    
+                    # Parse the YAML and check started_at
+                    yaml_parse "$temp_yaml_file"
+                    local started_at=$(yaml_get "started_at")
+                    rm -f "$temp_yaml_file"
+                    
+                    if [[ "$started_at" == "null" || -z "$started_at" ]]; then
+                        # started_at is null, ticket not started
+                        echo "✗ No ticket found for current feature branch"
+                        echo "Current branch: $current_branch"
+                        echo "Expected ticket file: $ticket_file"
+                        echo ""
+                        echo "Possible solutions:"
+                        echo "1. Create new ticket: $SCRIPT_COMMAND new <name>"
+                        echo "2. Check if ticket file exists in another branch (git branch -a)"
+                        echo "3. Switch to default branch: git checkout $default_branch"
+                        return 1
+                    else
+                        # Ticket exists in done folder and started_at is not null, restore it
+                        rm -f "$CURRENT_TICKET_LINK"
+                        if ln -s "$ticket_file" "$CURRENT_TICKET_LINK"; then
+                            checklist_ticket="$ticket_name"
+                            echo "✓ Found matching ticket for current branch"
+                            echo "Restored ticket link: $ticket_name"
+                            echo "Continue working on this ticket."
+                        else
+                            echo "Error: Cannot create symlink $CURRENT_TICKET_LINK" >&2
+                            echo "Permission denied or filesystem issue" >&2
+                            return 1
+                        fi
+                    fi
+                else
+                    # Case 5: No ticket file found for feature branch
+                    echo "✗ No ticket found for current feature branch"
+                    echo "Current branch: $current_branch"
+                    echo "Expected ticket file: ${tickets_dir}/${ticket_name}.md"
+                    echo ""
+                    echo "Possible solutions:"
+                    echo "1. Create new ticket: $SCRIPT_COMMAND new <name>"
+                    echo "2. Check if ticket file exists in another branch (git branch -a)"
+                    echo "3. Switch to default branch: git checkout $default_branch"
+                    return 1
+                fi
+            fi
+        else
+            # Case 6: On unknown branch
+            echo "⚠ You are on an unknown branch"
+            echo "Current branch: $current_branch"
+            echo "Recommended: Switch to default branch with 'git checkout $default_branch'"
+            echo "Then use '$SCRIPT_COMMAND list' to see available tickets."
+        fi
+    fi
+
+    # --- note checklist ---
+    # Reporting is unconditional and never fails. Halfway through a ticket the
+    # later groups being empty is the normal state, so a check that failed on
+    # all of them would fail on day one and get switched off. Only --require,
+    # where the caller has said which group it expects to be finished by now,
+    # is allowed to fail.
+    if [[ -z "$checklist_ticket" ]]; then
+        if [[ "$require_given" == "true" ]]; then
+            echo ""
+            echo "✗ --require needs an active ticket"
+            echo "No ticket is linked to the current branch, so there is no note to judge."
+            return 1
+        fi
+        return 0
+    fi
+
+    local checklist_ticket_file checklist_note_file
+    checklist_ticket_file=$(get_ticket_file "$checklist_ticket" "$tickets_dir")
+    checklist_note_file=$(get_note_file "$checklist_ticket" "$tickets_dir")
+
+    if [[ "$require_given" == "true" ]]; then
+        if [[ ! -f "$checklist_ticket_file" && ! -f "$checklist_note_file" ]]; then
+            echo ""
+            echo "✗ Nothing to judge: neither $checklist_ticket_file nor $checklist_note_file exists"
+            return 1
+        fi
+        echo ""
+        checklist_require "$checklist_ticket_file" "$checklist_note_file" "$require_group" || return 1
+        return 0
+    fi
+
+    checklist_report "$checklist_ticket_file" "$checklist_note_file"
+    # Shown, not judged: `check` stays a command that never fails, and close is
+    # where a missing required group is refused.
+    checklist_report_groups "$checklist_ticket_file" "$checklist_note_file" \
+        ${_required_groups[@]+"${_required_groups[@]}"}
+}
+
+# Finalize a ticket without merging (close --no-merge).
+# Assumes the ticket's changes are already on the base branch (e.g. the PR
+# was merged on GitHub). Only sets closed_at, moves ticket/note to done/,
+# commits on the current branch and pushes. No squash-merge, no branch
+# switching, no worktree/remote-branch operations.
+# Usage: cmd_close_no_merge <ticket-name> <closed-at-override> <no-push>
+cmd_close_no_merge() {
+    local ticket_name_arg="$1"
+    local closed_at_override="$2"
+    local no_push="$3"
+
+    if [[ -z "$ticket_name_arg" ]]; then
+        echo "Error: <ticket-name> is required with --no-merge" >&2
+        echo "Usage: $SCRIPT_COMMAND close --no-merge [--closed-at <ISO8601-UTC>] [--no-push] <ticket-name>" >&2
+        return 1
+    fi
+
+    # Validate --closed-at format if provided (full ISO8601 UTC, matches frontmatter)
+    if [[ -n "$closed_at_override" ]] && \
+       [[ ! "$closed_at_override" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+        echo "Error: Invalid --closed-at value '$closed_at_override'" >&2
+        echo "Expected ISO8601 UTC format: YYYY-MM-DDThh:mm:ssZ (e.g., 2026-05-29T12:17:36Z)" >&2
+        return 1
+    fi
+
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local repository=$(yaml_get "repository" || echo "$DEFAULT_REPOSITORY")
+    local auto_push=$(yaml_get "auto_push" || echo "$DEFAULT_AUTO_PUSH")
+    local close_success_message=$(yaml_get "close_success_message" || echo "$DEFAULT_CLOSE_SUCCESS_MESSAGE")
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+
+    # Normalize ticket name (accept name, path, or .md)
+    local ticket_name=$(extract_ticket_name "$ticket_name_arg")
+    local done_dir="${tickets_dir}/done"
+
+    # Detect layout: new (per-ticket dir) vs legacy (flat .md + -note.md)
+    local is_new_format=false
+    local ticket_file="" note_file="" src_ticket_dir=""
+    local done_ticket="" done_note="" done_ticket_dir=""
+    if [[ -f "${tickets_dir}/${ticket_name}/ticket.md" ]]; then
+        is_new_format=true
+        src_ticket_dir="${tickets_dir}/${ticket_name}"
+        ticket_file="${src_ticket_dir}/ticket.md"
+        done_ticket_dir="${done_dir}/${ticket_name}"
+        done_ticket="${done_ticket_dir}/ticket.md"
+    else
+        ticket_file="${tickets_dir}/${ticket_name}.md"
+        note_file="${tickets_dir}/${ticket_name}-note.md"
+        done_ticket="${done_dir}/${ticket_name}.md"
+        done_note="${done_dir}/${ticket_name}-note.md"
+    fi
+
+    # Idempotent: already finalized (either layout in done/)
+    if [[ -f "${done_dir}/${ticket_name}/ticket.md" ]] || [[ -f "${done_dir}/${ticket_name}.md" ]]; then
+        echo "Ticket already finalized: $ticket_name"
+        return 0
+    fi
+
+    # Target must exist
+    if [[ ! -f "$ticket_file" ]]; then
+        cat >&2 << EOF
+Error: Ticket not found
+Ticket file '$ticket_file' does not exist (and not already in done/). Please:
+1. Check the ticket name, or
+2. Verify you are on the base branch where the ticket file lives
+EOF
+        return 1
+    fi
+
+    local current_branch=$(get_current_branch)
+    local description=$(get_yaml_field "$(extract_yaml_frontmatter "$ticket_file")" "description")
+
+    # Set closed_at (override or now-UTC)
+    local timestamp="${closed_at_override:-$(get_utc_timestamp)}"
+    update_yaml_frontmatter_field "$ticket_file" "closed_at" "$timestamp" || {
+        echo "Error: Failed to update ticket closed_at field" >&2
+        return 1
+    }
+
+    # Move ticket (and note / whole dir) into done/
+    if [[ ! -d "$done_dir" ]] && ! mkdir -p "$done_dir"; then
+        echo "Error: Failed to create done directory: $done_dir" >&2
+        return 1
+    fi
+
+    if [[ "$is_new_format" == "true" ]]; then
+        run_git_command "git mv \"$src_ticket_dir\" \"$done_ticket_dir\"" || {
+            echo "Error: Failed to move ticket directory to done folder" >&2
+            return 1
+        }
+    else
+        run_git_command "git mv \"$ticket_file\" \"$done_ticket\"" || {
+            echo "Error: Failed to move ticket to done folder" >&2
+            return 1
+        }
+        if [[ -f "$note_file" ]]; then
+            run_git_command "git mv \"$note_file\" \"$done_note\"" || {
+                echo "Error: Failed to move note file to done folder" >&2
+                return 1
+            }
+        fi
+    fi
+
+    # git mv stages the pre-edit blob under the new name, so re-add the moved
+    # ticket to capture the closed_at edit in the same commit.
+    run_git_command "git add \"$done_ticket\"" || {
+        echo "Error: Failed to stage finalized ticket" >&2
+        return 1
+    }
+
+    # Commit on the current (base) branch
+    local commit_msg="Finalize ticket ${ticket_name} (closed via merged PR)"
+    if [[ -n "$description" ]]; then
+        commit_msg="${commit_msg}"$'\n\n'"${description}"
+    fi
+    echo "$commit_msg" | run_git_command "git commit -F -" || {
+        echo "Error: Failed to commit ticket finalization" >&2
+        return 1
+    }
+
+    if [[ "$auto_push" == "true" ]] && [[ "$no_push" == "false" ]]; then
+        run_git_command "git push $repository $current_branch" || {
+            echo "Warning: Failed to push to remote repository" >&2
+            echo "Local finalization completed. Please push manually later:" >&2
+            echo "  git push $repository $current_branch" >&2
+        }
+    fi
+
+    echo "Ticket finalized: $ticket_name"
+    echo "closed_at: $timestamp"
+    if [[ "$is_new_format" == "true" ]]; then
+        echo "Moved to: $done_ticket_dir/ (no merge; assumed already on '$current_branch')"
+    else
+        echo "Moved to: $done_ticket (no merge; assumed already on '$current_branch')"
+    fi
+
+    if [[ "$auto_push" == "false" ]] || [[ "$no_push" == "true" ]]; then
+        echo "Note: Changes not pushed to remote. Use 'git push $repository $current_branch' when ready."
+    fi
+
+    if [[ -n "$close_success_message" ]]; then
+        echo ""
+        echo "$close_success_message"
+    fi
+}
+
+# Close current ticket
+cmd_close() {
+    local no_push=false
+    local force=false
+    local no_delete_remote=false
+    local keep_worktree=false
+    local dry_run=false
+    local no_merge=false
+    local closed_at_override=""
+    local ticket_name_arg=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-push)
+                no_push=true
+                shift
+                ;;
+            --force|-f)
+                force=true
+                shift
+                ;;
+            --no-delete-remote)
+                no_delete_remote=true
+                shift
+                ;;
+            --keep-worktree)
+                keep_worktree=true
+                shift
+                ;;
+            --dry-run|-n)
+                dry_run=true
+                shift
+                ;;
+            --no-merge)
+                no_merge=true
+                shift
+                ;;
+            --closed-at)
+                if [[ -z "${2:-}" ]]; then
+                    echo "Error: --closed-at requires an argument (ISO8601 UTC, e.g. 2026-05-29T12:17:36Z)" >&2
+                    return 1
+                fi
+                closed_at_override="$2"
+                shift 2
+                ;;
+            -*)
+                echo "Error: Unknown option: $1" >&2
+                echo "Usage: $SCRIPT_COMMAND close [--no-push] [--force|-f] [--no-delete-remote] [--keep-worktree] [--dry-run|-n]" >&2
+                echo "       $SCRIPT_COMMAND close --no-merge [--closed-at <ISO8601-UTC>] [--no-push] <ticket-name>" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$ticket_name_arg" ]]; then
+                    ticket_name_arg="$1"
+                else
+                    echo "Error: Unexpected argument: $1" >&2
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+
+    # --no-merge: finalize a ticket whose changes are already on the base
+    # branch (e.g. after a GitHub PR merge). No squash-merge / branch switch.
+    if [[ "$no_merge" == "true" ]]; then
+        cmd_close_no_merge "$ticket_name_arg" "$closed_at_override" "$no_push"
+        return $?
+    fi
+
+    if [[ -n "$ticket_name_arg" ]]; then
+        echo "Error: <ticket-name> is only valid with --no-merge" >&2
+        return 1
+    fi
+
+    # Check clean working directory unless --force is used
+    if [[ "$force" == "false" ]]; then
+        # Parse config to get tickets_dir for smarter error messages
+        local _close_tickets_dir="$DEFAULT_TICKETS_DIR"
+        if yaml_parse "$CONFIG_FILE" 2>/dev/null; then
+            _close_tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+        fi
+        if ! check_clean_working_dir "$_close_tickets_dir"; then
+            cat >&2 << EOF
+
+To ignore uncommitted changes and force close, use:
+  $SCRIPT_COMMAND close --force (or -f)
+EOF
+            return 1
+        fi
+    fi
+
+    # Check current ticket link
+    if [[ ! -L "$CURRENT_TICKET_LINK" ]]; then
+        cat >&2 << EOF
+Error: No current ticket
+No current ticket found ($CURRENT_TICKET_LINK missing). Please:
+1. Start a ticket: $SCRIPT_COMMAND start <ticket-name>
+2. Or restore link: $SCRIPT_COMMAND restore (if on feature branch)
+3. Or switch to a feature branch first
+EOF
+        return 1
+    fi
+    
+    # Get ticket file
+    local ticket_file=$(readlink "$CURRENT_TICKET_LINK")
+    if [[ ! -f "$ticket_file" ]]; then
+        cat >&2 << EOF
+Error: Invalid current ticket
+Current ticket file not found or corrupted. Please:
+1. Use '$SCRIPT_COMMAND restore' to fix the link
+2. Or start a new ticket: $SCRIPT_COMMAND start <ticket-name>
+3. Check if ticket file was moved or deleted
+EOF
+        return 1
+    fi
+    
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        echo "Configuration file may be corrupted or unreadable" >&2
+        return 1
+    fi
+    local default_branch=$(yaml_get "default_branch" || echo "$DEFAULT_BRANCH")
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+    local repository=$(yaml_get "repository" || echo "$DEFAULT_REPOSITORY")
+    local auto_push=$(yaml_get "auto_push" || echo "$DEFAULT_AUTO_PUSH")
+    local delete_remote_on_close=$(yaml_get "delete_remote_on_close" || echo "$DEFAULT_DELETE_REMOTE_ON_CLOSE")
+    local close_success_message=$(yaml_get "close_success_message" || echo "$DEFAULT_CLOSE_SUCCESS_MESSAGE")
+    local require_checklist=$(yaml_get "require_checklist" || echo "$DEFAULT_REQUIRE_CHECKLIST")
+    check_legacy_checklist_key || return 1
+    # Read here, not at the point of use: the ticket's own frontmatter is
+    # parsed into the same yaml-sh globals further down, which overwrites the
+    # config.
+    config_read_list "require_checklist_groups"
+    local _required_groups=(${CONFIG_LIST[@]+"${CONFIG_LIST[@]}"})
+    
+    # Check current branch
+    local current_branch=$(get_current_branch)
+    if [[ ! "$current_branch" =~ ^${branch_prefix} ]]; then
+        cat >&2 << EOF
+Error: Not on a feature branch
+Must be on a feature branch to close ticket. Please:
+1. Switch to feature branch: git checkout ${branch_prefix}<ticket-name>
+2. Or check current branch: git branch
+3. Feature branches start with '$branch_prefix'
+EOF
+        return 1
+    fi
+    
+    # Check ticket status
+    local yaml_content=$(extract_yaml_frontmatter "$ticket_file")
+    echo "$yaml_content" >| /tmp/ticket_yaml.yml
+    yaml_parse /tmp/ticket_yaml.yml
+    local started_at=$(yaml_get "started_at" || echo "null")
+    local closed_at=$(yaml_get "closed_at" || echo "null")
+    local description=$(yaml_get "description" || echo "")
+    local base_branch=$(yaml_get "base_branch" || echo "")
+    # Backward compatibility: fall back to merge_to if base_branch is not set
+    if is_null_or_empty "$base_branch" || [[ "$(echo "$base_branch" | tr '[:upper:]' '[:lower:]')" == "default" ]]; then
+        base_branch=$(yaml_get "merge_to" || echo "default")
+    fi
+    rm -f /tmp/ticket_yaml.yml
+
+    # Override default_branch if base_branch is specified in ticket
+    local base_branch_lower=$(echo "$base_branch" | tr '[:upper:]' '[:lower:]')
+    if ! is_null_or_empty "$base_branch" && [[ "$base_branch_lower" != "default" ]]; then
+        # Verify base_branch exists
+        if ! git rev-parse --verify "$base_branch" >/dev/null 2>&1; then
+            echo "Error: base_branch '$base_branch' does not exist" >&2
+            echo "Please create the branch first or update the base_branch field in the ticket" >&2
+            return 1
+        fi
+        default_branch="$base_branch"
+    fi
+    
+    if is_null_or_empty "$started_at"; then
+        cat >&2 << EOF
+Error: Ticket not started
+Ticket has no start time (started_at is null). Please:
+1. Start the ticket first: $SCRIPT_COMMAND start <ticket-name>
+2. Or check if you're on the correct ticket
+EOF
+        return 1
+    fi
+    
+    if ! is_null_or_empty "$closed_at"; then
+        cat >&2 << EOF
+Error: Ticket already completed
+Ticket is already closed (closed_at is set). Please:
+1. Check ticket status: $SCRIPT_COMMAND list
+2. Start a new ticket if needed
+3. Or reopen by manually editing the ticket file
+EOF
+        return 1
+    fi
+
+    # Detect worktree mode and validate main repo state early, before we
+    # mutate any ticket files. If main_repo is off default_branch or dirty,
+    # we must abort so a concurrent worker's state is not clobbered.
+    local in_worktree=false
+    local worktree_path=""
+    local main_repo=""
+    if is_git_worktree; then
+        in_worktree=true
+        worktree_path=$(pwd)
+        main_repo=$(get_main_repo_from_worktree)
+        check_main_repo_ready "$main_repo" "$default_branch" || {
+            echo "Aborting close to protect main repo state." >&2
+            echo "Your feature branch '$current_branch' is untouched." >&2
+            return 1
+        }
+    fi
+
+    # Detect divergent edits to the ticket file itself on the base branch.
+    # `close` squash-merges via a real content-level 3-way merge (base =
+    # merge-base(default_branch, current_branch), ours = default_branch HEAD,
+    # theirs = current_branch HEAD). If the SAME ticket file was also
+    # modified on default_branch after this feature branch was created
+    # (e.g. a human-review wording tweak applied directly to the base
+    # branch, or a commit landed against the wrong checkout/worktree), the
+    # squash-merge can produce a genuine CONFLICT instead of a clean merge.
+    # Surface that here, before any state is mutated, instead of leaving the
+    # user mid-conflict after close has already committed on the feature
+    # branch and switched to default_branch.
+    local _merge_base
+    _merge_base=$(git merge-base "$default_branch" "$current_branch" 2>/dev/null || echo "")
+    if [[ -n "$_merge_base" ]] && ! git diff --quiet "$_merge_base" "$default_branch" -- "$ticket_file" 2>/dev/null; then
+        if [[ "$force" == "true" ]]; then
+            echo "Warning: '$ticket_file' was also modified on '$default_branch' since this" >&2
+            echo "ticket's branch was created. Continuing due to --force; the upcoming" >&2
+            echo "squash-merge may still conflict and require manual resolution." >&2
+        else
+            cat >&2 << EOF
+Error: Ticket file diverged on base branch
+'$ticket_file' was also modified on '$default_branch' after '$current_branch'
+was created from it. Squash-merging now may produce a real content conflict
+instead of a clean merge.
+
+Please reconcile before closing:
+  git fetch                     # if '$default_branch' moved on a remote
+  git merge $default_branch     # or: git rebase $default_branch
+  # resolve any conflicts in '$ticket_file' on '$current_branch', then re-run close
+
+To proceed anyway and resolve the squash-merge conflict manually if it occurs:
+  $SCRIPT_COMMAND close --force (or -f)
+EOF
+            return 1
+        fi
+    fi
+
+    # Refuse to close while a checklist the config asked for is unsettled:
+    # a group named in require_checklist_groups that is not in either file, or
+    # - with require_checklist on - any unchecked item anywhere.
+    # Deliberately NOT bypassed by --force: --force is about the state of the
+    # Git tree (a ticket file that also moved on the base branch), and the way
+    # out of this one is to mark the item `- [-] ... - skip: <reason>`, which
+    # leaves the reason in the file where a reader can weigh it. An escape
+    # hatch that records nothing would put the checklist right back where it
+    # was - present, and never looked at.
+    local _close_note_file
+    if [[ "${ticket_file##*/}" == "ticket.md" ]]; then
+        _close_note_file="${ticket_file%/ticket.md}/note.md"
+    else
+        _close_note_file="${ticket_file%.md}-note.md"
+    fi
+
+    # Declared groups first. "The section is not in the file" is the more basic
+    # answer of the two, and someone shown the unchecked list first would fill
+    # it in only to be told afterwards that the section they needed was never
+    # there.
+    if [[ ${#_required_groups[@]} -gt 0 ]]; then
+        if ! checklist_require_groups "$ticket_file" "$_close_note_file" \
+                ${_required_groups[@]+"${_required_groups[@]}"} >&2; then
+            echo "Nothing was closed." >&2
+            return 1
+        fi
+    fi
+
+    if [[ "$require_checklist" == "true" ]]; then
+        # A ticket with no note file at all (note_content undefined in config)
+        # simply contributes nothing, and checklist_gate passes when neither
+        # file holds a checkbox.
+        if ! checklist_gate "$ticket_file" "$_close_note_file"; then
+            echo "Nothing was closed." >&2
+            return 1
+        fi
+    fi
+
+    # --dry-run: all preflight checks passed; exit before any mutation.
+    if [[ "$dry_run" == "true" ]]; then
+        echo "Dry-run: all preflight checks passed."
+        echo "  ticket file:    $ticket_file"
+        echo "  feature branch: $current_branch"
+        echo "  base branch:    $default_branch"
+        if [[ "$in_worktree" == "true" ]]; then
+            echo "  mode:           worktree"
+            echo "  main repo:      $main_repo"
+            echo "  worktree path:  $worktree_path"
+        else
+            echo "  mode:           in-place"
+        fi
+        echo ""
+        echo "No changes were made. Re-run without --dry-run to close the ticket."
+        echo "Note: pre-commit hooks are NOT executed by --dry-run."
+        return 0
+    fi
+
+    # Store original ticket state for rollback
+    local original_ticket_content=$(cat "$ticket_file")
+    local original_branch=$(get_current_branch)
+
+    # Update closed_at
+    local timestamp=$(get_utc_timestamp)
+    update_yaml_frontmatter_field "$ticket_file" "closed_at" "$timestamp" || {
+        echo "Error: Failed to update ticket closed_at field" >&2
+        return 1
+    }
+    
+    # Remove current-ticket.md and current-note.md from git history if they exist
+    # This prevents accidental commits of these files when force-added
+    if git ls-files | grep -q "^current-ticket.md$"; then
+        run_git_command "git rm --cached current-ticket.md" || {
+            echo "Error: Failed to remove current-ticket.md from git history" >&2
+            # Rollback ticket file changes
+            echo "$original_ticket_content" > "$ticket_file"
+            return 1
+        }
+    fi
+    if git ls-files | grep -q "^current-note.md$"; then
+        run_git_command "git rm --cached current-note.md" || {
+            echo "Error: Failed to remove current-note.md from git history" >&2
+            # Rollback ticket file changes
+            echo "$original_ticket_content" > "$ticket_file"
+            return 1
+        }
+    fi
+    
+    # Commit the change
+    run_git_command "git add $ticket_file" || {
+        echo "Error: Failed to stage ticket file" >&2
+        # Rollback ticket file changes
+        echo "$original_ticket_content" > "$ticket_file"
+        return 1
+    }
+    
+    run_git_command "git commit -m \"Close ticket\"" || {
+        echo "Error: Failed to commit ticket closure" >&2
+        # Rollback ticket file changes
+        echo "$original_ticket_content" > "$ticket_file"
+        # Unstage if needed
+        if ! git restore --staged "$ticket_file" 2>&1; then
+            echo "Warning: Could not unstage ticket file - manual cleanup may be needed" >&2
+        fi
+        return 1
+    }
+    
+    # Get ticket name and full content BEFORE switching branches.
+    # For new-format tickets ($ticket_file ends in /<name>/ticket.md) the
+    # canonical ticket name is the parent-dir name, not the file basename.
+    local ticket_name
+    local is_new_format=false
+    if [[ "$(basename "$ticket_file")" == "ticket.md" ]]; then
+        is_new_format=true
+        local _parent_dir="${ticket_file%/*}"
+        ticket_name="${_parent_dir##*/}"
+    else
+        ticket_name="$(basename "$ticket_file" .md)"
+    fi
+    # The Markdown body only - never the YAML frontmatter. The frontmatter is
+    # metadata this script writes for whoever edits the ticket ("# Do not modify
+    # manually"), not for whoever reads the history later, and dropping it loses
+    # nothing: the same commit carries tickets/done/<name>/ticket.md with the
+    # frontmatter intact, closed_at duplicates the commit's author date, and
+    # description duplicates the subject. Embedding the body itself is
+    # deliberate - it is what lets `git blame` reach the "why" without opening
+    # tickets/done/. extract_markdown_body returns the whole file when there is
+    # no frontmatter, so hand-written and legacy tickets still work.
+    local ticket_content=$(extract_markdown_body "$ticket_file")
+    # Strip the blank line that sits between the frontmatter fence and the first
+    # heading, so the subject is followed by exactly one blank line.
+    while [[ "$ticket_content" == $'\n'* ]]; do
+        ticket_content="${ticket_content#$'\n'}"
+    done
+
+    # Push feature branch if auto_push
+    if [[ "$auto_push" == "true" ]] && [[ "$no_push" == "false" ]]; then
+        run_git_command "git push $repository $current_branch" || {
+            echo "Warning: Failed to push feature branch" >&2
+        }
+    fi
+
+    # Create commit message (used by both merge paths below)
+    # A block-scalar description ("description: |") comes back from yaml_get with
+    # embedded newlines and a trailing blank line. Left alone it would silently
+    # spill the subject across several lines. Fold it onto one line - how long
+    # the description is stays the ticket author's call, but its shape is ours.
+    local subject_desc="${description//$'\n'/ }"
+    subject_desc="${subject_desc#"${subject_desc%%[![:space:]]*}"}"
+    subject_desc="${subject_desc%"${subject_desc##*[![:space:]]}"}"
+
+    local commit_msg="[${ticket_name}] ${subject_desc}"
+    if [[ -z "$subject_desc" ]]; then
+        commit_msg="[${ticket_name}] Ticket completed"
+    fi
+    # $'\n\n', not a literal "\n\n" - the message is written with plain `echo`
+    # below, so `echo -e` is not needed and must not be used: it would also
+    # expand any backslash escape the ticket body happens to contain.
+    if [[ -n "$ticket_content" ]]; then
+        commit_msg="${commit_msg}"$'\n\n'"${ticket_content}"
+    fi
+
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local done_dir="${tickets_dir}/done"
+    # Compute source/destination paths for the mv step. New-format tickets move
+    # the whole per-ticket directory in one git-mv; legacy uses separate mv for
+    # ticket.md and -note.md.
+    local src_ticket_dir="" src_note="" note_file=""
+    local new_ticket_path="" new_note_path="" new_ticket_dir=""
+    if [[ "$is_new_format" == "true" ]]; then
+        src_ticket_dir="${tickets_dir}/${ticket_name}"
+        new_ticket_dir="${done_dir}/${ticket_name}"
+    else
+        note_file="${tickets_dir}/${ticket_name}-note.md"
+        src_note="$note_file"
+        new_ticket_path="${done_dir}/$(basename "$ticket_file")"
+        new_note_path="${done_dir}/$(basename "$note_file")"
+    fi
+
+    if [[ "$in_worktree" == "true" ]]; then
+        # Worktree mode: perform the merge via "git -C $main_repo" so this
+        # process's cwd stays in the worker's worktree. We assume main_repo
+        # is already on $default_branch (the intended invariant for parallel
+        # multi-worktree setups); if it is not, git will surface the error.
+        echo "Closing ticket from worktree..."
+
+        run_git_command "git -C $main_repo merge --squash $current_branch" || {
+            echo "Error: Failed to squash merge feature branch into '$default_branch'" >&2
+            echo "Feature branch '$current_branch' still exists with your changes" >&2
+            echo "Please resolve merge conflicts manually in '$main_repo' or run 'git -C $main_repo merge --abort'" >&2
+            return 1
+        }
+
+        if [[ ! -d "${main_repo}/${done_dir}" ]] && ! mkdir -p "${main_repo}/${done_dir}"; then
+            echo "Error: Failed to create done directory inside main repo" >&2
+            return 1
+        fi
+
+        if [[ "$is_new_format" == "true" ]]; then
+            # Move the whole per-ticket directory in one shot. git-mv on a
+            # directory renames every tracked entry beneath it (ticket.md,
+            # note.md, tmp/) as a single change.
+            run_git_command "git -C $main_repo mv \"$src_ticket_dir\" \"$new_ticket_dir\"" || {
+                echo "Error: Failed to move ticket directory to done folder" >&2
+                return 1
+            }
+        else
+            run_git_command "git -C $main_repo mv \"$ticket_file\" \"$new_ticket_path\"" || {
+                echo "Error: Failed to move ticket to done folder" >&2
+                return 1
+            }
+            if [[ -f "${main_repo}/${note_file}" ]]; then
+                run_git_command "git -C $main_repo mv \"$note_file\" \"$new_note_path\"" || {
+                    echo "Error: Failed to move note file to done folder" >&2
+                    return 1
+                }
+            fi
+        fi
+
+        echo "$commit_msg" | run_git_command "git -C $main_repo commit -F -" || {
+            echo "Error: Failed to commit final merge" >&2
+            return 1
+        }
+
+        if [[ "$auto_push" == "true" ]] && [[ "$no_push" == "false" ]]; then
+            run_git_command "git -C $main_repo push $repository $default_branch" || {
+                echo "Warning: Failed to push to remote repository" >&2
+                echo "Local ticket closing completed. Please push manually later:" >&2
+                echo "  git -C $main_repo push $repository $default_branch" >&2
+            }
+        fi
+
+        if [[ "$delete_remote_on_close" == "true" ]] && [[ "$no_delete_remote" == "false" ]]; then
+            if [[ "$auto_push" == "true" ]] || [[ "$no_push" == "false" ]]; then
+                if git -C "$main_repo" ls-remote --heads "$repository" "$current_branch" | grep -q "$current_branch"; then
+                    run_git_command "git -C $main_repo push $repository --delete $current_branch" || {
+                        echo "Warning: Failed to delete remote branch '$current_branch'" >&2
+                    }
+                else
+                    echo "Note: Remote branch '$current_branch' not found (may have been already deleted)"
+                fi
+            fi
+        fi
+
+        # Optionally remove the worker's feature worktree. Agents pass
+        # --keep-worktree so their shell cwd stays valid and they can
+        # continue on to the next ticket; humans typically let it go.
+        if [[ "$keep_worktree" == "true" ]]; then
+            echo "Worker worktree preserved: $worktree_path"
+            echo "(--keep-worktree: branch '$current_branch' was merged but the worktree stays.)"
+        else
+            run_git_command "git -C $main_repo worktree remove $worktree_path" || {
+                echo "Warning: Failed to remove worktree at '$worktree_path'" >&2
+                echo "You can manually remove it with: git worktree remove $worktree_path" >&2
+            }
+            echo "Worktree removed: $worktree_path"
+            echo ""
+            echo "CAUTION: The worktree has been removed. Return to the main repository."
+            echo "  cd $main_repo"
+            echo ""
+            echo "Your shell is still in the removed worktree directory; subsequent commands will fail until you cd."
+        fi
+    else
+        # Non-worktree mode: classic in-place merge on the current checkout.
+        run_git_command "git checkout $default_branch" || {
+            echo "Error: Failed to switch to default branch '$default_branch'" >&2
+            echo "Your changes have been committed on feature branch '$current_branch'" >&2
+            echo "Please manually switch to '$default_branch' and run close again" >&2
+            return 1
+        }
+
+        run_git_command "git merge --squash $current_branch" || {
+            echo "Error: Failed to squash merge feature branch" >&2
+            echo "You are now on '$default_branch' branch" >&2
+            echo "Feature branch '$current_branch' still exists with your changes" >&2
+            echo "Please resolve merge conflicts manually or run 'git merge --abort'" >&2
+            return 1
+        }
+
+        if [[ ! -d "$done_dir" ]] && ! mkdir -p "$done_dir"; then
+            echo "Error: Failed to create done directory: $done_dir" >&2
+            return 1
+        fi
+
+        if [[ "$is_new_format" == "true" ]]; then
+            run_git_command "git mv \"$src_ticket_dir\" \"$new_ticket_dir\"" || {
+                echo "Error: Failed to move ticket directory to done folder" >&2
+                return 1
+            }
+        else
+            run_git_command "git mv \"$ticket_file\" \"$new_ticket_path\"" || {
+                echo "Error: Failed to move ticket to done folder" >&2
+                return 1
+            }
+            if [[ -f "$note_file" ]]; then
+                run_git_command "git mv \"$note_file\" \"$new_note_path\"" || {
+                    echo "Error: Failed to move note file to done folder" >&2
+                    return 1
+                }
+            fi
+        fi
+
+        echo "$commit_msg" | run_git_command "git commit -F -" || {
+            echo "Error: Failed to commit final merge" >&2
+            echo "Squash merge is staged but not committed" >&2
+            echo "You can commit manually with: git commit" >&2
+            echo "Or abort with: git reset --hard HEAD" >&2
+            return 1
+        }
+
+        if [[ "$auto_push" == "true" ]] && [[ "$no_push" == "false" ]]; then
+            run_git_command "git push $repository $default_branch" || {
+                echo "Warning: Failed to push to remote repository" >&2
+            }
+        fi
+
+        if [[ "$delete_remote_on_close" == "true" ]] && [[ "$no_delete_remote" == "false" ]]; then
+            if [[ "$auto_push" == "true" ]] || [[ "$no_push" == "false" ]]; then
+                if git ls-remote --heads "$repository" "$current_branch" | grep -q "$current_branch"; then
+                    run_git_command "git push $repository --delete $current_branch" || {
+                        echo "Warning: Failed to delete remote branch '$current_branch'" >&2
+                    }
+                else
+                    echo "Note: Remote branch '$current_branch' not found (may have been already deleted)"
+                fi
+            fi
+        fi
+    fi
+
+    # Remove current-* links (compat file symlinks + dir symlink) — core
+    # workflow is complete, safe to remove.
+    remove_current_ticket_symlinks "."
+
+    echo "Ticket completed: $ticket_name"
+    echo "Merged to $default_branch branch"
+
+    if [[ "$auto_push" == "false" ]] || [[ "$no_push" == "true" ]]; then
+        echo "Note: Changes not pushed to remote. Use 'git push $repository $default_branch' and 'git push $repository $current_branch' when ready."
+    fi
+
+    # Display success message if configured
+    if [[ -n "$close_success_message" ]]; then
+        echo ""
+        echo "$close_success_message"
+    fi
+}
+
+# Command: cancel
+# Cancel the current ticket without merging
+cmd_cancel() {
+    local force=false
+    local keep_worktree=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force|-f)
+                force=true
+                shift
+                ;;
+            --keep-worktree)
+                keep_worktree=true
+                shift
+                ;;
+            *)
+                echo "Error: Unknown option: $1" >&2
+                echo "Usage: $SCRIPT_COMMAND cancel [--force|-f] [--keep-worktree]" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    # Check prerequisites
+    check_git_repo || return 1
+    check_config || return 1
+
+    # Check clean working directory unless --force is used
+    if [[ "$force" == "false" ]]; then
+        # Parse config to get tickets_dir for smarter error messages
+        local _cancel_tickets_dir="$DEFAULT_TICKETS_DIR"
+        if yaml_parse "$CONFIG_FILE" 2>/dev/null; then
+            _cancel_tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+        fi
+        if ! check_clean_working_dir "$_cancel_tickets_dir"; then
+            cat >&2 << EOF
+
+To ignore uncommitted changes and force cancel, use:
+  $SCRIPT_COMMAND cancel --force (or -f)
+EOF
+            return 1
+        fi
+    fi
+
+    # Check current ticket link
+    if [[ ! -L "$CURRENT_TICKET_LINK" ]]; then
+        cat >&2 << EOF
+Error: No current ticket
+No current ticket found ($CURRENT_TICKET_LINK missing). Please:
+1. Start a ticket: $SCRIPT_COMMAND start <ticket-name>
+2. Or restore link: $SCRIPT_COMMAND restore (if on feature branch)
+EOF
+        return 1
+    fi
+
+    # Get ticket file
+    local ticket_file=$(readlink "$CURRENT_TICKET_LINK")
+    if [[ ! -f "$ticket_file" ]]; then
+        cat >&2 << EOF
+Error: Invalid current ticket
+Current ticket file not found or corrupted. Please:
+1. Use '$SCRIPT_COMMAND restore' to fix the link
+2. Or start a new ticket: $SCRIPT_COMMAND start <ticket-name>
+EOF
+        return 1
+    fi
+
+    # Load configuration
+    if ! yaml_parse "$CONFIG_FILE"; then
+        echo "Error: Cannot parse configuration file: $CONFIG_FILE" >&2
+        return 1
+    fi
+    local default_branch=$(yaml_get "default_branch" || echo "$DEFAULT_BRANCH")
+    local branch_prefix=$(yaml_get "branch_prefix" || echo "$DEFAULT_BRANCH_PREFIX")
+
+    # Check current branch
+    local current_branch=$(get_current_branch)
+    if [[ ! "$current_branch" =~ ^${branch_prefix} ]]; then
+        cat >&2 << EOF
+Error: Not on a feature branch
+Must be on a feature branch to cancel ticket. Please:
+1. Switch to feature branch: git checkout ${branch_prefix}<ticket-name>
+2. Or check current branch: git branch
+EOF
+        return 1
+    fi
+
+    # Check ticket status
+    local yaml_content=$(extract_yaml_frontmatter "$ticket_file")
+    echo "$yaml_content" >| /tmp/ticket_yaml.yml
+    yaml_parse /tmp/ticket_yaml.yml
+    local started_at=$(yaml_get "started_at" || echo "null")
+    local closed_at=$(yaml_get "closed_at" || echo "null")
+    local canceled_at=$(yaml_get "canceled_at" || echo "null")
+    local description=$(yaml_get "description" || echo "")
+    local base_branch=$(yaml_get "base_branch" || echo "")
+    # Backward compatibility: fall back to merge_to if base_branch is not set
+    if is_null_or_empty "$base_branch" || [[ "$(echo "$base_branch" | tr '[:upper:]' '[:lower:]')" == "default" ]]; then
+        base_branch=$(yaml_get "merge_to" || echo "default")
+    fi
+    rm -f /tmp/ticket_yaml.yml
+
+    # Override default_branch if base_branch is specified
+    local base_branch_lower=$(echo "$base_branch" | tr '[:upper:]' '[:lower:]')
+    if ! is_null_or_empty "$base_branch" && [[ "$base_branch_lower" != "default" ]]; then
+        if ! git rev-parse --verify "$base_branch" >/dev/null 2>&1; then
+            echo "Error: base_branch '$base_branch' does not exist" >&2
+            return 1
+        fi
+        default_branch="$base_branch"
+    fi
+
+    if ! is_null_or_empty "$closed_at"; then
+        echo "Error: Ticket already completed (closed_at is set)" >&2
+        return 1
+    fi
+
+    if ! is_null_or_empty "$canceled_at"; then
+        echo "Error: Ticket already canceled (canceled_at is set)" >&2
+        return 1
+    fi
+
+    # Detect worktree mode and validate main repo state early. See cmd_close
+    # for the same rationale.
+    local in_worktree=false
+    local worktree_path=""
+    local main_repo=""
+    if is_git_worktree; then
+        in_worktree=true
+        worktree_path=$(pwd)
+        main_repo=$(get_main_repo_from_worktree)
+        check_main_repo_ready "$main_repo" "$default_branch" || {
+            echo "Aborting cancel to protect main repo state." >&2
+            return 1
+        }
+    fi
+
+    # Store original ticket state for rollback
+    local original_ticket_content=$(cat "$ticket_file")
+
+    # Update canceled_at
+    local timestamp=$(get_utc_timestamp)
+    update_yaml_frontmatter_field "$ticket_file" "canceled_at" "$timestamp" || {
+        echo "Error: Failed to update ticket canceled_at field" >&2
+        return 1
+    }
+
+    # Update description with [CANCELED] prefix
+    local new_description="[CANCELED] ${description}"
+    update_yaml_frontmatter_field "$ticket_file" "description" "$new_description" || {
+        echo "Error: Failed to update ticket description" >&2
+        echo "$original_ticket_content" > "$ticket_file"
+        return 1
+    }
+
+    # Remove current-ticket.md and current-note.md from git history if they exist
+    if git ls-files | grep -q "^current-ticket.md$"; then
+        run_git_command "git rm --cached current-ticket.md" || {
+            echo "Error: Failed to remove current-ticket.md from git history" >&2
+            echo "$original_ticket_content" > "$ticket_file"
+            return 1
+        }
+    fi
+    if git ls-files | grep -q "^current-note.md$"; then
+        run_git_command "git rm --cached current-note.md" || {
+            echo "Error: Failed to remove current-note.md from git history" >&2
+            echo "$original_ticket_content" > "$ticket_file"
+            return 1
+        }
+    fi
+
+    # Commit the change on feature branch
+    run_git_command "git add $ticket_file" || {
+        echo "Error: Failed to stage ticket file" >&2
+        echo "$original_ticket_content" > "$ticket_file"
+        return 1
+    }
+
+    run_git_command "git commit -m \"Cancel ticket\"" || {
+        echo "Error: Failed to commit ticket cancellation" >&2
+        echo "$original_ticket_content" > "$ticket_file"
+        git restore --staged "$ticket_file" 2>/dev/null || true
+        return 1
+    }
+
+    # Get ticket name and layout BEFORE proceeding with cleanup paths.
+    # For new-format tickets, ticket_file ends in /<name>/ticket.md.
+    local ticket_name
+    local is_new_format=false
+    if [[ "$(basename "$ticket_file")" == "ticket.md" ]]; then
+        is_new_format=true
+        local _parent_dir="${ticket_file%/*}"
+        ticket_name="${_parent_dir##*/}"
+    else
+        ticket_name="$(basename "$ticket_file" .md)"
+    fi
+
+    local tickets_dir=$(yaml_get "tickets_dir" || echo "$DEFAULT_TICKETS_DIR")
+    local done_dir="${tickets_dir}/done"
+
+    # Build canceled name: insert -CANCELED- after the timestamp prefix.
+    # Original: YYMMDD-hhmmss-slug -> YYMMDD-hhmmss-CANCELED-slug
+    local canceled_name
+    if [[ "$ticket_name" =~ ^([0-9]{6}-[0-9]{6})-(.*)$ ]]; then
+        canceled_name="${BASH_REMATCH[1]}-CANCELED-${BASH_REMATCH[2]}"
+    else
+        canceled_name="CANCELED-${ticket_name}"
+    fi
+
+    local src_ticket_dir="" canceled_dir=""
+    local note_file="" new_ticket_path="" new_note_path=""
+    if [[ "$is_new_format" == "true" ]]; then
+        src_ticket_dir="${tickets_dir}/${ticket_name}"
+        canceled_dir="${done_dir}/${canceled_name}"
+    else
+        note_file="${tickets_dir}/${ticket_name}-note.md"
+        new_ticket_path="${done_dir}/${canceled_name}.md"
+        new_note_path="${done_dir}/${canceled_name}-note.md"
+    fi
+
+    local commit_msg="[${ticket_name}] Ticket canceled"
+
+    if [[ "$in_worktree" == "true" ]]; then
+        # Worktree mode: stage the cancel commit via "git -C $main_repo"
+        # without cd'ing. main_repo is assumed to already be on $default_branch.
+        echo "Canceling ticket from worktree..."
+
+        if [[ ! -d "${main_repo}/${done_dir}" ]] && ! mkdir -p "${main_repo}/${done_dir}"; then
+            echo "Error: Failed to create done directory inside main repo" >&2
+            return 1
+        fi
+
+        if [[ "$is_new_format" == "true" ]]; then
+            # Bring the feature-branch version of the ticket dir into main repo,
+            # then rename it to the CANCELED location via git-mv (preserves history).
+            run_git_command "git -C $main_repo checkout $current_branch -- \"$src_ticket_dir\"" || {
+                echo "Error: Failed to retrieve ticket directory from feature branch" >&2
+                return 1
+            }
+            run_git_command "git -C $main_repo mv \"$src_ticket_dir\" \"$canceled_dir\"" || {
+                echo "Error: Failed to move ticket directory to canceled location" >&2
+                return 1
+            }
+        else
+            run_git_command "git -C $main_repo checkout $current_branch -- $ticket_file" || {
+                echo "Error: Failed to retrieve ticket file from feature branch" >&2
+                return 1
+            }
+
+            mv "${main_repo}/${ticket_file}" "${main_repo}/${new_ticket_path}" || {
+                echo "Error: Failed to move ticket to canceled location" >&2
+                return 1
+            }
+
+            if git -C "$main_repo" show "${current_branch}:${note_file}" >/dev/null 2>&1; then
+                run_git_command "git -C $main_repo checkout $current_branch -- $note_file" || true
+                if [[ -f "${main_repo}/${note_file}" ]]; then
+                    mv "${main_repo}/${note_file}" "${main_repo}/${new_note_path}" || true
+                fi
+            fi
+        fi
+
+        run_git_command "git -C $main_repo add ${done_dir}/" || {
+            echo "Error: Failed to stage canceled ticket" >&2
+            return 1
+        }
+
+        run_git_command "git -C $main_repo commit -m \"$commit_msg\"" || {
+            echo "Error: Failed to commit canceled ticket" >&2
+            return 1
+        }
+
+        if [[ "$keep_worktree" == "true" ]]; then
+            echo "Worker worktree preserved: $worktree_path"
+        else
+            run_git_command "git -C $main_repo worktree remove $worktree_path" || {
+                echo "Warning: Failed to remove worktree at '$worktree_path'" >&2
+                echo "You can manually remove it with: git worktree remove $worktree_path" >&2
+            }
+            echo "Worktree removed: $worktree_path"
+            echo ""
+            echo "CAUTION: The worktree has been removed. Return to the main repository."
+            echo "  cd $main_repo"
+            echo ""
+            echo "Your shell is still in the removed worktree directory; subsequent commands will fail until you cd."
+        fi
+    else
+        # Non-worktree mode: classic in-place behavior on the current checkout.
+        run_git_command "git checkout $default_branch" || {
+            echo "Error: Failed to switch to default branch '$default_branch'" >&2
+            echo "Your changes have been committed on feature branch '$current_branch'" >&2
+            return 1
+        }
+
+        if [[ ! -d "$done_dir" ]] && ! mkdir -p "$done_dir"; then
+            echo "Error: Failed to create done directory: $done_dir" >&2
+            return 1
+        fi
+
+        if [[ "$is_new_format" == "true" ]]; then
+            run_git_command "git checkout $current_branch -- \"$src_ticket_dir\"" || {
+                echo "Error: Failed to retrieve ticket directory from feature branch" >&2
+                return 1
+            }
+            run_git_command "git mv \"$src_ticket_dir\" \"$canceled_dir\"" || {
+                echo "Error: Failed to move ticket directory to canceled location" >&2
+                return 1
+            }
+        else
+            run_git_command "git checkout $current_branch -- $ticket_file" || {
+                echo "Error: Failed to retrieve ticket file from feature branch" >&2
+                return 1
+            }
+
+            mv "$ticket_file" "$new_ticket_path"
+
+            if git show "${current_branch}:${note_file}" >/dev/null 2>&1; then
+                run_git_command "git checkout $current_branch -- $note_file" || true
+                if [[ -f "$note_file" ]]; then
+                    mv "$note_file" "$new_note_path"
+                fi
+            fi
+        fi
+
+        run_git_command "git add ${done_dir}/" || {
+            echo "Error: Failed to stage canceled ticket" >&2
+            return 1
+        }
+
+        run_git_command "git commit -m \"$commit_msg\"" || {
+            echo "Error: Failed to commit canceled ticket" >&2
+            return 1
+        }
+    fi
+
+    # Remove current-* symlinks (compat file symlinks + dir symlink)
+    remove_current_ticket_symlinks "."
+
+    echo "Ticket canceled: $ticket_name"
+    if [[ "$is_new_format" == "true" ]]; then
+        echo "Moved to: $canceled_dir/"
+    else
+        echo "Moved to: $new_ticket_path"
+    fi
+    echo "Feature branch '$current_branch' has been kept (not deleted)"
+}
+
+# Command: version
+# Display version information
+cmd_version() {
+    echo "ticket.sh - Git-based Ticket Management System"
+    echo "Version: $VERSION"
+    echo "https://github.com/masuidrive/ticket.sh"
+}
+
+# Command: prompt
+# Display the prompt instructions for AI coding assistants
+cmd_prompt() {
+    cat << 'EOF'
+# Ticket Management Instructions
+
+Use `./ticket.sh` for ticket management.
+
+## Layout
+
+Each ticket lives in its own per-ticket directory:
+
+```
+tickets/<TICKETNAME>/
+  ticket.md   # ticket body
+  note.md     # working notes / log
+  tmp/        # ticket-local temp helpers (auto-created; ignored via tickets/.gitignore)
+```
+
+When a ticket is active, three symlinks in the repo root point at it:
+
+- `current-ticket/` → the per-ticket directory (all files reachable as `current-ticket/ticket.md`, `current-ticket/note.md`, `current-ticket/tmp/`)
+- `current-ticket.md` → the ticket body (compat with older tooling)
+- `current-note.md` → the note file (compat with older tooling)
+
+Legacy compatibility: pre-existing flat tickets (`tickets/<TICKETNAME>.md` +
+`tickets/<TICKETNAME>-note.md`) still work end-to-end; they are not migrated
+automatically.
+
+## Working with the active ticket
+
+### If `current-ticket/` (or `current-ticket.md`) exists in the repo root
+
+- This is your work instruction — follow its contents.
+- Record additional instructions and progress in `current-ticket/note.md` (or the compat `current-note.md`) before proceeding.
+- During the work, keep notes, logs, and findings in `current-ticket/note.md`.
+- Continue working on the active ticket.
+
+### If it does not exist in the repo root
+
+- When receiving user requests, first ask whether to create a new ticket.
+- Do not start work without confirming ticket creation.
+- Even small requests should be tracked through the ticket system.
+
+## Create New Ticket
+
+1. Create ticket: `./ticket.sh new feature-name` — creates `tickets/<TICKETNAME>/{ticket.md,note.md}`.
+2. Edit ticket content and description in the generated `tickets/<TICKETNAME>/ticket.md`.
+
+## Start Working on Ticket
+
+1. Check available tickets: `./ticket.sh list` (both new and legacy layouts are shown).
+2. Start work: `./ticket.sh start 241225-143502-feature-name` — creates the feature branch and the three `current-*` symlinks.
+3. Develop on the feature branch.
+4. Reference work files via the active-ticket symlinks:
+   - `current-ticket/ticket.md` — the ticket body
+   - `current-ticket/note.md` — working notes for this ticket
+   - Compat: `current-ticket.md`, `current-note.md`
+
+## Closing Tickets
+
+1. Before closing:
+   - Review the ticket content and description; collect information from `current-ticket/note.md` and summarize the final work so any reader can understand what was done on this branch.
+   - Check all checklist tasks are completed (mark with `[x]`).
+   - Settle the checkboxes in `current-ticket/ticket.md` and `current-ticket/note.md` as you go, not at the end: mark each box `[x]` when you actually do the thing, or `- [-] ... - skip: <reason>` when it does not apply to this ticket. `./ticket.sh check` reports what is still open in both files, and with `require_checklist: true` in config, `close` refuses until nothing is.
+   - Commit all your work: `git add . && git commit -m "your message"`.
+   - Get user approval before proceeding.
+2. Complete: `./ticket.sh close`
+   - `close` moves the whole `tickets/<TICKETNAME>/` directory to `tickets/done/<TICKETNAME>/` in a single commit that also records `closed_at`.
+   - **When inside a worktree, always add `--keep-worktree`**: `./ticket.sh close --keep-worktree`.
+     Without it, ticket.sh removes the worktree and your shell's cwd becomes dangling, which makes every subsequent Bash tool call fail.
+   - Same rule for cancel: `./ticket.sh cancel --keep-worktree`.
+EOF
+}
+
+# Command: selfupdate
+# Update ticket.sh from the latest version on GitHub
+cmd_selfupdate() {
+    echo "Starting self-update..."
+    
+    local script_path="$(realpath "$0")"
+    local temp_file=$(mktemp)
+    local update_script=$(mktemp)
+    
+    # Download latest version
+    echo "Downloading latest version from GitHub..."
+    if ! curl -fsSL https://raw.githubusercontent.com/masuidrive/ticket.sh/main/ticket.sh -o "$temp_file"; then
+        echo "Error: Failed to download update" >&2
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Verify download
+    if [[ ! -s "$temp_file" ]]; then
+        echo "Error: Downloaded file is empty" >&2
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Create update script
+    cat > "$update_script" << EOF
+# Wait for parent process to exit
+sleep 1
+
+# Ensure LF line endings (CRLF compatibility fix)
+# This prevents "/usr/bin/env: 'bash\r': No such file or directory" errors
+if command -v dos2unix >/dev/null 2>&1; then
+    dos2unix "$temp_file" >/dev/null 2>&1
+elif command -v sed >/dev/null 2>&1; then
+    # Remove any CR characters using sed (more portable)
+    sed -i.bak 's/\r$//' "$temp_file" && rm -f "${temp_file}.bak"
+else
+    # Fallback: try tr command
+    if command -v tr >/dev/null 2>&1; then
+        tr -d '\r' < "$temp_file" > "${temp_file}.tmp" && mv "${temp_file}.tmp" "$temp_file"
+    fi
+fi
+
+# Replace with new version
+mv "$temp_file" "$script_path" 2>/dev/null || cp "$temp_file" "$script_path"
+chmod +x "$script_path"
+
+# Show completion message
+echo ""
+echo "✅ Update completed successfully!"
+echo "Run '$script_path help' to see available commands."
+
+# Clean up
+rm -f "\$0"
+EOF
+    
+    chmod +x "$update_script"
+    
+    # Launch update process
+    echo "Installing update..."
+    nohup bash "$update_script" 2>&1 | tail -n +2 &
+    
+    # Exit to allow update
+    exit 0
+}
+
+# ============================================================================
+# Epic management
+# ============================================================================
+# Epic = a hand-named, longer-lived unit of work that contains multiple tickets.
+# Epic files live at epics/<slug>.md (open) and epics/done/<slug>/index.md
+# (closed/cancelled). Branch policy is declared in the epic's `branch:` frontmatter:
+#   - "main"          : main-direct, edits land on main, tickets branch off main
+#   - "epic/<slug>"   : epic-branch, work isolated, tickets branch off the epic branch
+# See gist 09b482ac for the full spec.
+
+# Validate epic slug: ^[a-z][a-z0-9._-]{0,79}$ (looser than ticket slugs).
+validate_epic_slug() {
+    local slug="$1"
+    if [[ ! "$slug" =~ ^[a-z][a-z0-9._-]{0,79}$ ]]; then
+        cat >&2 << EOF
+Error: Invalid epic slug
+Epic slug '$slug' must match ^[a-z][a-z0-9._-]{0,79}\$.
+1. Start with a lowercase letter (a-z)
+2. Use lowercase letters, digits, '.', '_', '-' only
+3. Max 80 characters
+EOF
+        return 1
+    fi
+    return 0
+}
+
+# Escape a string for inclusion in JSON. Handles \, ", and control chars (0x00-0x1F).
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    s="${s//$'\b'/\\b}"
+    s="${s//$'\f'/\\f}"
+    printf '%s' "$s"
+}
+
+# Read a single field from raw YAML frontmatter content (no $file required).
+# Strips surrounding quotes and inline `# comment` tail. Always returns 0
+# (emits empty string when the field is absent) so callers using
+# `var=$(get_yaml_field ...)` under `set -e` are not terminated.
+# Usage: get_yaml_field <yaml_content> <field>
+get_yaml_field() {
+    local content="$1"
+    local field="$2"
+    local line
+    while IFS= read -r line; do
+        line=${line%$'\r'}
+        if [[ "$line" =~ ^[[:space:]]*${field}:[[:space:]]*(.*)$ ]]; then
+            local value="${BASH_REMATCH[1]}"
+            # Strip trailing inline comment ' #...' (only when preceded by space)
+            if [[ "$value" =~ ^(.*[^[:space:]])[[:space:]]+#.*$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            elif [[ "$value" =~ ^[[:space:]]*#.*$ ]]; then
+                value=""
+            fi
+            # Strip surrounding double or single quotes
+            if [[ "$value" =~ ^\"(.*)\"[[:space:]]*$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            elif [[ "$value" =~ ^\'(.*)\'[[:space:]]*$ ]]; then
+                value="${BASH_REMATCH[1]}"
+            fi
+            # Trim trailing whitespace
+            value="${value%"${value##*[![:space:]]}"}"
+            printf '%s' "$value"
+            return 0
+        fi
+    done <<< "$content"
+    return 0
+}
+
+# Resolve an epic slug to its source. Search order:
+#   1. main:epics/<slug>.md                     (open on main / main-direct)
+#   2. <each refs/heads/epic/*>:epics/<slug>.md (open on epic branch)
+#   3. main:epics/done/<slug>/index.md          (closed/cancelled)
+# Sets globals: EPIC_ORIGIN ("main"|"branch"|"done"), EPIC_SOURCE_REF (the git ref
+# we read from), EPIC_PATH (the path within that ref), EPIC_RAW (full file content).
+# Returns 0 on success, 1 if not found.
+resolve_epic() {
+    local slug="$1"
+    local content
+
+    # 1. main:epics/<slug>.md
+    if content=$(git show "main:epics/${slug}.md" 2>/dev/null); then
+        EPIC_ORIGIN="main"
+        EPIC_SOURCE_REF="main"
+        EPIC_PATH="epics/${slug}.md"
+        EPIC_RAW="$content"
+        return 0
+    fi
+
+    # 2. each refs/heads/epic/*
+    local branch
+    while IFS= read -r branch; do
+        [[ -z "$branch" ]] && continue
+        if content=$(git show "${branch}:epics/${slug}.md" 2>/dev/null); then
+            EPIC_ORIGIN="branch"
+            EPIC_SOURCE_REF="$branch"
+            EPIC_PATH="epics/${slug}.md"
+            EPIC_RAW="$content"
+            return 0
+        fi
+    done < <(git for-each-ref --format='%(refname:short)' refs/heads/epic/ 2>/dev/null)
+
+    # 3. main:epics/done/<slug>/index.md
+    if content=$(git show "main:epics/done/${slug}/index.md" 2>/dev/null); then
+        EPIC_ORIGIN="done"
+        EPIC_SOURCE_REF="main"
+        EPIC_PATH="epics/done/${slug}/index.md"
+        EPIC_RAW="$content"
+        return 0
+    fi
+
+    return 1
+}
+
+# Extract just the frontmatter portion from EPIC_RAW (or any markdown content).
+# Usage: epic_extract_frontmatter <raw_content>
+epic_extract_frontmatter() {
+    local raw="$1"
+    local in_fm=0 line_num=0 out=""
+    while IFS= read -r line; do
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_fm=1
+            continue
+        elif [[ $in_fm -eq 1 ]] && [[ "$line" == "---" ]]; then
+            break
+        elif [[ $in_fm -eq 1 ]]; then
+            out+="$line"$'\n'
+        fi
+    done <<< "$raw"
+    printf '%s' "$out"
+}
+
+# Extract the body (after frontmatter) from a raw markdown content.
+epic_extract_body() {
+    local raw="$1"
+    local in_fm=0 past=0 line_num=0 out=""
+    while IFS= read -r line; do
+        line=${line%$'\r'}
+        line_num=$((line_num + 1))
+        if [[ $line_num -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_fm=1
+            continue
+        elif [[ $in_fm -eq 1 ]] && [[ "$line" == "---" ]]; then
+            in_fm=0
+            past=1
+            continue
+        elif [[ $past -eq 1 ]]; then
+            out+="$line"$'\n'
+        fi
+    done <<< "$raw"
+    printf '%s' "$out"
+}
+
+# Write an epic file with given frontmatter values + body.
+# Usage: write_epic_file <path> <slug> <title> <branch> <status> <created_at> \
+#                       [<closed_at>] [<cancelled_at>] [<cancel_reason>] [<started_at>]
+# Empty string = unset (rendered as null). Body comes from $EPIC_BODY (caller sets).
+write_epic_file() {
+    local path="$1" slug="$2" title="$3" branch="$4" status="$5" created_at="$6"
+    local closed_at="${7:-}" cancelled_at="${8:-}" cancel_reason="${9:-}" started_at="${10:-}"
+    local body="${EPIC_BODY:-}"
+
+    {
+        echo "---"
+        echo "version: 1"
+        echo "epic_id: $slug"
+        # title — quote it for safety
+        echo "title: \"$(printf '%s' "$title" | sed 's/"/\\"/g')\""
+        echo "status: $status"
+        echo "branch: $branch"
+        echo "created_at: $created_at"
+        if [[ -n "$started_at" ]]; then echo "started_at: $started_at"; else echo "started_at: null"; fi
+        if [[ -n "$closed_at" ]]; then echo "closed_at: $closed_at"; else echo "closed_at: null"; fi
+        if [[ -n "$cancelled_at" ]]; then echo "cancelled_at: $cancelled_at"; else echo "cancelled_at: null"; fi
+        if [[ -n "$cancel_reason" ]]; then
+            echo "cancel_reason: \"$(printf '%s' "$cancel_reason" | sed 's/"/\\"/g')\""
+        else
+            echo "cancel_reason: null"
+        fi
+        echo "---"
+        echo ""
+        printf '%s' "$body"
+    } > "$path"
+}
+
+# Default epic body template.
+epic_default_body() {
+    local title="$1"
+    cat << EOF
+# ${title}
+
+## Outcome
+
+(when this epic completes, what new capability exists?)
+
+## Problem
+
+(what problem does this directly solve?)
+
+## Scope
+
+(concrete deliverables — granular enough that "is X in scope" is unambiguous)
+
+## Non-goals
+
+(what we are deliberately NOT doing — name the AI-temptations to drift into)
+
+## Exit Criteria
+
+(when these are true, close the epic. all linked tickets done is necessary but not sufficient)
+
+## Tickets
+
+(filled as tickets are cut)
+EOF
+}
+
+# Scan for tickets linked to this epic. Searches working tree (tickets/*.md and
+# tickets/done/**/*.md) plus the epic branch (when given) and emits one line
+# per match: "<status>|<location>|<path>" where status is open/closed and
+# location is "working tree" or "<branch>".
+# Usage: epic_find_linked_tickets <slug> [<epic-branch>]
+epic_find_linked_tickets() {
+    local slug="$1" epic_branch="${2:-}"
+    local tickets_dir="tickets"
+
+    # Working tree: enumerate BOTH layouts.
+    #   legacy: tickets/<name>.md, tickets/done/<name>.md
+    #   new:    tickets/<name>/ticket.md, tickets/done/<name>/ticket.md
+    local f
+    if [[ -d "$tickets_dir" ]]; then
+        for f in \
+            "$tickets_dir"/*.md \
+            "$tickets_dir"/*/ticket.md; do
+            [[ -f "$f" ]] || continue
+            local base="${f##*/}"
+            [[ "$base" == "README.md" ]] && continue
+            local fm
+            fm=$(extract_yaml_frontmatter "$f" 2>/dev/null) || continue
+            local eid
+            eid=$(get_yaml_field "$fm" "epic_id") || true
+            if [[ "$eid" == "$slug" ]]; then
+                echo "open|working tree|$f"
+            fi
+        done
+        if [[ -d "$tickets_dir/done" ]]; then
+            for f in \
+                "$tickets_dir"/done/*.md \
+                "$tickets_dir"/done/*/ticket.md; do
+                [[ -f "$f" ]] || continue
+                local fm
+                fm=$(extract_yaml_frontmatter "$f" 2>/dev/null) || continue
+                local eid
+                eid=$(get_yaml_field "$fm" "epic_id") || true
+                if [[ "$eid" == "$slug" ]]; then
+                    echo "closed|working tree|$f"
+                fi
+            done
+        fi
+    fi
+
+    # Epic branch (if provided): scan tickets/ for both layouts.
+    if [[ -n "$epic_branch" ]]; then
+        local path
+        while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            [[ "$path" == "tickets/done/"* ]] && continue
+            [[ "$path" == "tickets/README.md" ]] && continue
+            # Only accept legacy top-level .md OR new-format */ticket.md
+            case "$path" in
+                tickets/*/ticket.md) ;;
+                tickets/*.md) ;;
+                *) continue ;;
+            esac
+            local content
+            content=$(git show "${epic_branch}:${path}" 2>/dev/null) || continue
+            local fm
+            fm=$(epic_extract_frontmatter "$content")
+            local eid
+            eid=$(get_yaml_field "$fm" "epic_id") || true
+            if [[ "$eid" == "$slug" ]]; then
+                if [[ ! -f "$path" ]]; then
+                    echo "open|${epic_branch}|${path}"
+                fi
+            fi
+        done < <(git ls-tree -r --name-only "$epic_branch" -- "$tickets_dir" 2>/dev/null | grep -E '\.md$' || true)
+    fi
+}
+
+# Command: epic new <slug> [opts]
+cmd_epic_new() {
+    local slug=""
+    local title=""
+    local branch=""
+    local main_direct=false
+    local from_ref="main"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --title)
+                title="$2"; shift 2 ;;
+            --branch)
+                branch="$2"; shift 2 ;;
+            --main-direct)
+                main_direct=true; shift ;;
+            --from-ref)
+                from_ref="$2"; shift 2 ;;
+            --*)
+                echo "Error: Unknown option: $1" >&2
+                return 1 ;;
+            *)
+                if [[ -z "$slug" ]]; then
+                    slug="$1"
+                else
+                    echo "Error: Unexpected argument: $1" >&2
+                    return 1
+                fi
+                shift ;;
+        esac
+    done
+
+    if [[ -z "$slug" ]]; then
+        echo "Error: epic slug required" >&2
+        echo "Usage: $SCRIPT_COMMAND epic new <slug> [--title <t>] [--branch epic/<slug>|--main-direct] [--from-ref <ref>]" >&2
+        return 3
+    fi
+
+    check_git_repo || return 1
+    validate_epic_slug "$slug" || return 3
+
+    # Resolve branch policy
+    if [[ "$main_direct" == "true" ]]; then
+        if [[ -n "$branch" ]]; then
+            echo "Error: --branch and --main-direct are mutually exclusive" >&2
+            return 1
+        fi
+        branch="main"
+    elif [[ -z "$branch" ]]; then
+        branch="epic/${slug}"
+    fi
+
+    [[ -z "$title" ]] && title="$slug"
+
+    # Verify epic file does NOT exist on main
+    if git show "main:epics/${slug}.md" >/dev/null 2>&1; then
+        echo "Error: Epic '$slug' already exists on main (epics/${slug}.md)" >&2
+        return 4
+    fi
+    if git show "main:epics/done/${slug}/index.md" >/dev/null 2>&1; then
+        echo "Error: Epic '$slug' already exists at epics/done/${slug}/index.md (closed/cancelled)" >&2
+        return 4
+    fi
+
+    # If using an epic branch, verify it does NOT exist
+    if [[ "$branch" != "main" ]]; then
+        if git rev-parse --verify "refs/heads/${branch}" >/dev/null 2>&1; then
+            echo "Error: Branch '$branch' already exists" >&2
+            return 5
+        fi
+    fi
+
+    # Verify working tree clean
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        echo "Error: Working tree has uncommitted changes; commit or stash first" >&2
+        return 6
+    fi
+
+    local original_branch
+    original_branch=$(get_current_branch)
+
+    # Switch to the right branch
+    if [[ "$branch" == "main" ]]; then
+        if [[ "$original_branch" != "main" ]]; then
+            run_git_command "git switch main" || return 1
+        fi
+    else
+        run_git_command "git switch -c $branch $from_ref" || return 1
+    fi
+
+    # Write the epic file
+    local epic_dir="epics"
+    [[ -d "$epic_dir" ]] || mkdir -p "$epic_dir"
+    local epic_file="${epic_dir}/${slug}.md"
+    local now
+    now=$(get_utc_timestamp)
+
+    EPIC_BODY="$(epic_default_body "$title")"
+    write_epic_file "$epic_file" "$slug" "$title" "$branch" "open" "$now"
+
+    run_git_command "git add $epic_file" || {
+        # Rollback
+        rm -f "$epic_file"
+        if [[ "$branch" != "main" ]]; then
+            run_git_command "git switch $original_branch" 2>/dev/null
+            run_git_command "git branch -D $branch" 2>/dev/null
+        fi
+        return 1
+    }
+    run_git_command "git commit -m \"[epic/new] Create epic ${slug}\"" || {
+        rm -f "$epic_file"
+        if [[ "$branch" != "main" ]]; then
+            run_git_command "git switch $original_branch" 2>/dev/null
+            run_git_command "git branch -D $branch" 2>/dev/null
+        fi
+        return 1
+    }
+
+    echo "Epic ${slug} created."
+    echo "  branch: ${branch}"
+    echo "  file:   ${epic_file}"
+    echo "Next: $SCRIPT_COMMAND new <ticket-slug> --epic ${slug}"
+}
+
+# Command: epic close <slug> [opts]
+cmd_epic_close() {
+    _cmd_epic_close_or_cancel "close" "$@"
+}
+
+# Command: epic cancel <slug> --reason <text> [opts]
+cmd_epic_cancel() {
+    _cmd_epic_close_or_cancel "cancel" "$@"
+}
+
+# Shared close/cancel implementation.
+_cmd_epic_close_or_cancel() {
+    local mode="$1"; shift
+    local slug=""
+    local dry_run=false
+    local no_push=false
+    local no_delete_remote=false
+    local force=false
+    local reason=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run|-n) dry_run=true; shift ;;
+            --no-push) no_push=true; shift ;;
+            --no-delete-remote) no_delete_remote=true; shift ;;
+            --force|-f) force=true; shift ;;
+            --reason) reason="$2"; shift 2 ;;
+            --*) echo "Error: Unknown option: $1" >&2; return 1 ;;
+            *)
+                if [[ -z "$slug" ]]; then slug="$1"; else echo "Error: Unexpected argument: $1" >&2; return 1; fi
+                shift ;;
+        esac
+    done
+
+    if [[ -z "$slug" ]]; then
+        echo "Error: epic slug required" >&2
+        return 1
+    fi
+    if [[ "$mode" == "cancel" ]] && [[ -z "$reason" ]]; then
+        echo "Error: --reason required for cancel" >&2
+        return 1
+    fi
+
+    check_git_repo || return 1
+
+    if ! resolve_epic "$slug"; then
+        echo "Error: Epic '$slug' not found" >&2
+        return 1
+    fi
+
+    local epic_fm epic_body
+    epic_fm=$(epic_extract_frontmatter "$EPIC_RAW")
+    epic_body=$(epic_extract_body "$EPIC_RAW")
+    local epic_branch
+    epic_branch=$(get_yaml_field "$epic_fm" "branch")
+    [[ -z "$epic_branch" ]] && epic_branch="main"
+
+    local push_label="push to origin"; [[ "$no_push" == "true" ]] && push_label="skip"
+    local delete_label="delete after merge"
+    if [[ "$no_push" == "true" ]] || [[ "$no_delete_remote" == "true" ]]; then delete_label="skip"; fi
+
+    echo "Epic: $slug"
+    echo "Branch policy: $epic_branch"
+    echo "Mode: $mode"
+    echo "Push: $push_label"
+    echo "Remote branch delete: $delete_label"
+    echo "note: Epic file resolved via git show ${EPIC_SOURCE_REF}:${EPIC_PATH}"
+
+    # ---- Preflight ----
+    local blockers=()
+    local closed_at cancelled_at
+    closed_at=$(get_yaml_field "$epic_fm" "closed_at"); [[ "$closed_at" == "null" ]] && closed_at=""
+    cancelled_at=$(get_yaml_field "$epic_fm" "cancelled_at"); [[ "$cancelled_at" == "null" ]] && cancelled_at=""
+
+    if [[ "$mode" == "close" ]] && [[ -n "$closed_at" ]]; then
+        blockers+=("Epic is already closed (closed_at: $closed_at)")
+    fi
+    if [[ "$mode" == "cancel" ]] && [[ -n "$cancelled_at" ]]; then
+        blockers+=("Epic is already cancelled (cancelled_at: $cancelled_at)")
+    fi
+
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        blockers+=("Working tree is dirty (uncommitted changes)")
+    fi
+
+    if [[ "$epic_branch" != "main" ]]; then
+        if ! git rev-parse --verify "refs/heads/${epic_branch}" >/dev/null 2>&1; then
+            blockers+=("Epic branch '${epic_branch}' does not exist locally")
+        fi
+    fi
+
+    # Open linked tickets
+    local linked_open=()
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local status="${line%%|*}"
+        if [[ "$status" == "open" ]]; then
+            linked_open+=("$line")
+        fi
+    done < <(epic_find_linked_tickets "$slug" "$epic_branch")
+    if [[ ${#linked_open[@]} -gt 0 ]]; then
+        local msg="Epic still has ${#linked_open[@]} open ticket(s) linked to it:"
+        local L
+        for L in "${linked_open[@]}"; do
+            local loc="${L#*|}"; loc="${loc%|*}"
+            local p="${L##*|}"
+            msg+=$'\n'"    ${p} (${loc})"
+        done
+        blockers+=("$msg")
+    fi
+
+    if [[ ${#blockers[@]} -gt 0 ]] && [[ "$force" != "true" ]]; then
+        echo "Preflight: BLOCKED"
+        local b
+        for b in "${blockers[@]}"; do
+            # Print first line with arrow, indent subsequent lines
+            local first_line="${b%%$'\n'*}"
+            echo "  ✗ $first_line"
+            if [[ "$b" == *$'\n'* ]]; then
+                echo "${b#*$'\n'}"
+            fi
+        done
+        echo "error: Preflight failed for epic $slug. Resolve the blockers above, or pass --force." >&2
+        return 2
+    fi
+
+    if [[ ${#blockers[@]} -eq 0 ]]; then
+        echo "Preflight: OK"
+    else
+        echo "Preflight: BLOCKED (proceeding due to --force)"
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "Dry-run: no changes were made."
+        return 0
+    fi
+
+    # ---- Mutation ----
+    local now
+    now=$(get_utc_timestamp)
+
+    if [[ "$mode" == "close" ]]; then
+        if [[ "$epic_branch" == "main" ]]; then
+            _epic_close_main_direct "$slug" "$epic_fm" "$epic_body" "$now" "$no_push" || return 3
+        else
+            _epic_close_epic_branch "$slug" "$epic_fm" "$epic_body" "$epic_branch" "$now" "$no_push" "$no_delete_remote" || return 3
+        fi
+    else
+        if [[ "$epic_branch" == "main" ]]; then
+            _epic_cancel_main_direct "$slug" "$epic_fm" "$epic_body" "$now" "$reason" "$no_push" || return 3
+        else
+            _epic_cancel_epic_branch "$slug" "$epic_fm" "$epic_body" "$epic_branch" "$now" "$reason" "$no_push" "$no_delete_remote" || return 3
+        fi
+    fi
+}
+
+# Resolve all unmerged paths after `git merge --squash -X theirs <epic-branch>`.
+# For each unmerged path: take the epic-branch version if it exists there,
+# otherwise drop the file. Returns 0 on success, 1 if residuals remain.
+_epic_resolve_squash_residuals() {
+    local epic_branch="$1"
+    local path
+    while IFS= read -r path; do
+        [[ -z "$path" ]] && continue
+        if git cat-file -e "${epic_branch}:${path}" 2>/dev/null; then
+            git checkout --theirs -- "$path" || return 1
+            git add -- "$path" || return 1
+        else
+            git rm -f -- "$path" || return 1
+        fi
+    done < <(git diff --name-only --diff-filter=U 2>/dev/null)
+    # Verify clean
+    if [[ -n "$(git diff --name-only --diff-filter=U 2>/dev/null)" ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Close, epic-branch case.
+_epic_close_epic_branch() {
+    local slug="$1" epic_fm="$2" epic_body="$3" epic_branch="$4" now="$5" no_push="$6" no_delete_remote="$7"
+
+    run_git_command "git switch $epic_branch" || return 1
+
+    local done_dir="epics/done/${slug}"
+    mkdir -p "$done_dir"
+
+    local source_path="epics/${slug}.md"
+    local target_path="${done_dir}/index.md"
+
+    if [[ -f "$source_path" ]]; then
+        run_git_command "git mv $source_path $target_path" || return 1
+    fi
+
+    # Rewrite frontmatter on target
+    local title branch_field created_at started_at
+    title=$(get_yaml_field "$epic_fm" "title")
+    branch_field=$(get_yaml_field "$epic_fm" "branch")
+    created_at=$(get_yaml_field "$epic_fm" "created_at")
+    started_at=$(get_yaml_field "$epic_fm" "started_at"); [[ "$started_at" == "null" ]] && started_at=""
+    EPIC_BODY="$epic_body"
+    write_epic_file "$target_path" "$slug" "$title" "$branch_field" "closed" "$created_at" "$now" "" "" "$started_at"
+
+    run_git_command "git add -A epics/" || return 1
+    run_git_command "git commit -m \"[epic/close] Close epic ${slug}\"" || return 1
+
+    run_git_command "git switch main" || return 1
+
+    # Squash merge with theirs preference; squash with conflicts returns nonzero
+    # but leaves the index in a recoverable state.
+    git merge --squash -X theirs "$epic_branch" 2>&1 | grep -v '^$' >&2 || true
+
+    if ! _epic_resolve_squash_residuals "$epic_branch"; then
+        echo "error: Squash merge has unresolved conflicts for epic '${slug}'" >&2
+        return 1
+    fi
+
+    run_git_command "git commit -m \"[epic/close] Close epic ${slug}\"" || return 1
+
+    if [[ "$no_push" != "true" ]]; then
+        run_git_command "git push origin main" || echo "Warning: failed to push main" >&2
+    fi
+
+    run_git_command "git branch -D $epic_branch" || echo "Warning: failed to delete local branch $epic_branch" >&2
+
+    if [[ "$no_push" != "true" ]] && [[ "$no_delete_remote" != "true" ]]; then
+        if git ls-remote --heads origin "$epic_branch" 2>/dev/null | grep -q "$epic_branch"; then
+            run_git_command "git push origin --delete $epic_branch" || echo "Warning: failed to delete remote branch" >&2
+        fi
+    fi
+
+    echo "Epic ${slug} closed. main contains the squash merge; ${epic_branch} branch deleted."
+}
+
+# Close, main-direct case.
+_epic_close_main_direct() {
+    local slug="$1" epic_fm="$2" epic_body="$3" now="$4" no_push="$5"
+
+    run_git_command "git switch main" || return 1
+
+    local done_dir="epics/done/${slug}"
+    mkdir -p "$done_dir"
+    local source_path="epics/${slug}.md"
+    local target_path="${done_dir}/index.md"
+    if [[ -f "$source_path" ]]; then
+        run_git_command "git mv $source_path $target_path" || return 1
+    fi
+
+    local title branch_field created_at started_at
+    title=$(get_yaml_field "$epic_fm" "title")
+    branch_field=$(get_yaml_field "$epic_fm" "branch")
+    created_at=$(get_yaml_field "$epic_fm" "created_at")
+    started_at=$(get_yaml_field "$epic_fm" "started_at"); [[ "$started_at" == "null" ]] && started_at=""
+    EPIC_BODY="$epic_body"
+    write_epic_file "$target_path" "$slug" "$title" "$branch_field" "closed" "$created_at" "$now" "" "" "$started_at"
+
+    run_git_command "git add -A epics/" || return 1
+    run_git_command "git commit -m \"[epic/close] Close epic ${slug}\"" || return 1
+
+    if [[ "$no_push" != "true" ]]; then
+        run_git_command "git push origin main" || echo "Warning: failed to push main" >&2
+    fi
+
+    echo "Epic ${slug} closed (main-direct)."
+}
+
+# Cancel, epic-branch case. Impl commits stay on the epic branch and are
+# intentionally NOT merged into main; only the epic body lands on main with
+# cancel metadata. Branch is then force-deleted.
+_epic_cancel_epic_branch() {
+    local slug="$1" epic_fm="$2" epic_body="$3" epic_branch="$4" now="$5" reason="$6" no_push="$7" no_delete_remote="$8"
+
+    run_git_command "git switch main" || return 1
+
+    local done_dir="epics/done/${slug}"
+    mkdir -p "$done_dir"
+    local target_path="${done_dir}/index.md"
+
+    local title branch_field created_at started_at
+    title=$(get_yaml_field "$epic_fm" "title")
+    branch_field=$(get_yaml_field "$epic_fm" "branch")
+    created_at=$(get_yaml_field "$epic_fm" "created_at")
+    started_at=$(get_yaml_field "$epic_fm" "started_at"); [[ "$started_at" == "null" ]] && started_at=""
+    EPIC_BODY="$epic_body"
+    write_epic_file "$target_path" "$slug" "$title" "$branch_field" "cancelled" "$created_at" "" "$now" "$reason" "$started_at"
+
+    # Best-effort: copy any other artefacts under epics/done/<slug>/ from the
+    # epic branch (verification.md, screenshots/, etc.)
+    local extra_path
+    while IFS= read -r extra_path; do
+        [[ -z "$extra_path" ]] && continue
+        # Skip the index.md we just authored
+        [[ "$extra_path" == "${done_dir}/index.md" ]] && continue
+        local content
+        content=$(git show "${epic_branch}:${extra_path}" 2>/dev/null) || continue
+        local target_extra="${extra_path}"
+        mkdir -p "$(dirname "$target_extra")"
+        printf '%s' "$content" > "$target_extra"
+    done < <(git ls-tree -r --name-only "$epic_branch" -- "$done_dir" 2>/dev/null || true)
+
+    run_git_command "git add -A epics/" || return 1
+    run_git_command "git commit -m \"[epic/cancel] Cancel epic ${slug}: ${reason}\"" || return 1
+
+    if [[ "$no_push" != "true" ]]; then
+        run_git_command "git push origin main" || echo "Warning: failed to push main" >&2
+    fi
+
+    run_git_command "git branch -D $epic_branch" || echo "Warning: failed to delete local branch $epic_branch" >&2
+
+    if [[ "$no_push" != "true" ]] && [[ "$no_delete_remote" != "true" ]]; then
+        if git ls-remote --heads origin "$epic_branch" 2>/dev/null | grep -q "$epic_branch"; then
+            run_git_command "git push origin --delete $epic_branch" || echo "Warning: failed to delete remote branch" >&2
+        fi
+    fi
+
+    echo "Epic ${slug} cancelled. main has cancel metadata; impl on ${epic_branch} discarded; branch deleted."
+}
+
+# Cancel, main-direct case.
+_epic_cancel_main_direct() {
+    local slug="$1" epic_fm="$2" epic_body="$3" now="$4" reason="$5" no_push="$6"
+
+    run_git_command "git switch main" || return 1
+
+    local done_dir="epics/done/${slug}"
+    mkdir -p "$done_dir"
+    local source_path="epics/${slug}.md"
+    local target_path="${done_dir}/index.md"
+    if [[ -f "$source_path" ]]; then
+        run_git_command "git mv $source_path $target_path" || return 1
+    fi
+
+    local title branch_field created_at started_at
+    title=$(get_yaml_field "$epic_fm" "title")
+    branch_field=$(get_yaml_field "$epic_fm" "branch")
+    created_at=$(get_yaml_field "$epic_fm" "created_at")
+    started_at=$(get_yaml_field "$epic_fm" "started_at"); [[ "$started_at" == "null" ]] && started_at=""
+    EPIC_BODY="$epic_body"
+    write_epic_file "$target_path" "$slug" "$title" "$branch_field" "cancelled" "$created_at" "" "$now" "$reason" "$started_at"
+
+    run_git_command "git add -A epics/" || return 1
+    run_git_command "git commit -m \"[epic/cancel] Cancel epic ${slug}: ${reason}\"" || return 1
+
+    if [[ "$no_push" != "true" ]]; then
+        run_git_command "git push origin main" || echo "Warning: failed to push main" >&2
+    fi
+
+    echo "Epic ${slug} cancelled (main-direct)."
+}
+
+# Walk all known epic locations and emit one line per epic:
+#   <origin>|<source_ref>|<path>|<slug>
+# Origins: main (open, main:epics/<slug>.md), branch (open, refs/heads/epic/*),
+#          done (closed/cancelled, main:epics/done/<slug>/index.md).
+_epic_enumerate() {
+    local seen_slugs=()
+    local seen_set="|"
+
+    # main:epics/*.md
+    local p
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        [[ "$p" != epics/*.md ]] && continue
+        [[ "$p" == epics/done/* ]] && continue
+        local slug="${p#epics/}"; slug="${slug%.md}"
+        [[ "$seen_set" == *"|main:${slug}|"* ]] && continue
+        seen_set+="main:${slug}|"
+        echo "main|main|${p}|${slug}"
+    done < <(git ls-tree -r --name-only main 2>/dev/null | grep -E '^epics/[^/]+\.md$' || true)
+
+    # refs/heads/epic/*:epics/*.md
+    local branch
+    while IFS= read -r branch; do
+        [[ -z "$branch" ]] && continue
+        local p2
+        while IFS= read -r p2; do
+            [[ -z "$p2" ]] && continue
+            [[ "$p2" != epics/*.md ]] && continue
+            [[ "$p2" == epics/done/* ]] && continue
+            local slug2="${p2#epics/}"; slug2="${slug2%.md}"
+            [[ "$seen_set" == *"|${branch}:${slug2}|"* ]] && continue
+            seen_set+="${branch}:${slug2}|"
+            echo "branch|${branch}|${p2}|${slug2}"
+        done < <(git ls-tree -r --name-only "$branch" 2>/dev/null | grep -E '^epics/[^/]+\.md$' || true)
+    done < <(git for-each-ref --format='%(refname:short)' refs/heads/epic/ 2>/dev/null)
+
+    # main:epics/done/*/index.md
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        [[ "$p" != epics/done/*/index.md ]] && continue
+        local slug3="${p#epics/done/}"; slug3="${slug3%/index.md}"
+        echo "done|main|${p}|${slug3}"
+    done < <(git ls-tree -r --name-only main 2>/dev/null | grep -E '^epics/done/[^/]+/index\.md$' || true)
+}
+
+# Command: epic list [--status <s>] [--json]
+cmd_epic_list() {
+    local status_filter=""
+    local as_json=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status) status_filter="$2"; shift 2 ;;
+            --json) as_json=true; shift ;;
+            --*) echo "Error: Unknown option: $1" >&2; return 1 ;;
+            *) echo "Error: Unexpected argument: $1" >&2; return 1 ;;
+        esac
+    done
+    check_git_repo || return 1
+
+    local rows=()
+    local entry
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        local origin="${entry%%|*}"; local rest="${entry#*|}"
+        local source_ref="${rest%%|*}"; rest="${rest#*|}"
+        local path="${rest%%|*}"; local slug="${rest##*|}"
+        local content
+        content=$(git show "${source_ref}:${path}" 2>/dev/null) || continue
+        local fm
+        fm=$(epic_extract_frontmatter "$content")
+        local title status branch created_at closed_at cancelled_at cancel_reason
+        title=$(get_yaml_field "$fm" "title")
+        status=$(get_yaml_field "$fm" "status")
+        branch=$(get_yaml_field "$fm" "branch")
+        created_at=$(get_yaml_field "$fm" "created_at")
+        closed_at=$(get_yaml_field "$fm" "closed_at")
+        cancelled_at=$(get_yaml_field "$fm" "cancelled_at")
+        cancel_reason=$(get_yaml_field "$fm" "cancel_reason")
+        [[ "$closed_at" == "null" ]] && closed_at=""
+        [[ "$cancelled_at" == "null" ]] && cancelled_at=""
+        [[ "$cancel_reason" == "null" ]] && cancel_reason=""
+
+        if [[ -n "$status_filter" ]] && [[ "$status" != "$status_filter" ]]; then
+            continue
+        fi
+
+        # Count linked tickets (working tree + epic branch if applicable)
+        local total=0 open=0 closed=0
+        local epic_b=""
+        if [[ "$branch" != "main" ]] && git rev-parse --verify "refs/heads/${branch}" >/dev/null 2>&1; then
+            epic_b="$branch"
+        fi
+        local L
+        while IFS= read -r L; do
+            [[ -z "$L" ]] && continue
+            total=$((total + 1))
+            if [[ "${L%%|*}" == "open" ]]; then
+                open=$((open + 1))
+            else
+                closed=$((closed + 1))
+            fi
+        done < <(epic_find_linked_tickets "$slug" "$epic_b")
+
+        rows+=("${slug}|${title}|${status}|${branch}|${created_at}|${closed_at}|${cancelled_at}|${cancel_reason}|${total}|${open}|${closed}")
+    done < <(_epic_enumerate)
+
+    if [[ "$as_json" == "true" ]]; then
+        printf '['
+        local i=0
+        local row
+        for row in ${rows[@]+"${rows[@]}"}; do
+            [[ $i -gt 0 ]] && printf ','
+            i=$((i + 1))
+            local IFS='|'
+            local arr=($row)
+            local slug="${arr[0]}" title="${arr[1]}" status="${arr[2]}" branch="${arr[3]}"
+            local created_at="${arr[4]}" closed_at="${arr[5]}" cancelled_at="${arr[6]}" cancel_reason="${arr[7]}"
+            local total="${arr[8]}" open_c="${arr[9]}" closed_c="${arr[10]}"
+            printf '{"epic_id":"%s","title":"%s","status":"%s","branch":"%s","created_at":"%s",' \
+                "$(json_escape "$slug")" "$(json_escape "$title")" "$(json_escape "$status")" \
+                "$(json_escape "$branch")" "$(json_escape "$created_at")"
+            if [[ -n "$closed_at" ]]; then printf '"closed_at":"%s",' "$(json_escape "$closed_at")"; else printf '"closed_at":null,'; fi
+            if [[ -n "$cancelled_at" ]]; then printf '"cancelled_at":"%s",' "$(json_escape "$cancelled_at")"; else printf '"cancelled_at":null,'; fi
+            if [[ -n "$cancel_reason" ]]; then printf '"cancel_reason":"%s",' "$(json_escape "$cancel_reason")"; else printf '"cancel_reason":null,'; fi
+            printf '"ticket_count":%s,"open_ticket_count":%s,"closed_ticket_count":%s}' "$total" "$open_c" "$closed_c"
+        done
+        printf ']\n'
+    else
+        printf '%-14s %-10s %-22s %5s %7s  %s\n' "SLUG" "STATUS" "BRANCH" "OPEN" "CLOSED" "TITLE"
+        local row
+        for row in ${rows[@]+"${rows[@]}"}; do
+            local IFS='|'
+            local arr=($row)
+            printf '%-14s %-10s %-22s %5s %7s  %s\n' \
+                "${arr[0]}" "${arr[2]}" "${arr[3]}" "${arr[9]}" "${arr[10]}" "${arr[1]}"
+        done
+    fi
+}
+
+# Command: epic show <slug> [--json]
+cmd_epic_show() {
+    local slug=""
+    local as_json=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) as_json=true; shift ;;
+            --*) echo "Error: Unknown option: $1" >&2; return 1 ;;
+            *)
+                if [[ -z "$slug" ]]; then slug="$1"; else echo "Error: Unexpected argument: $1" >&2; return 1; fi
+                shift ;;
+        esac
+    done
+    if [[ -z "$slug" ]]; then
+        echo "Error: epic slug required" >&2
+        return 1
+    fi
+    check_git_repo || return 1
+    if ! resolve_epic "$slug"; then
+        echo "Error: Epic '$slug' not found" >&2
+        return 1
+    fi
+
+    local fm body
+    fm=$(epic_extract_frontmatter "$EPIC_RAW")
+    body=$(epic_extract_body "$EPIC_RAW")
+
+    local title status branch created_at closed_at cancelled_at cancel_reason started_at
+    title=$(get_yaml_field "$fm" "title")
+    status=$(get_yaml_field "$fm" "status")
+    branch=$(get_yaml_field "$fm" "branch")
+    created_at=$(get_yaml_field "$fm" "created_at")
+    closed_at=$(get_yaml_field "$fm" "closed_at"); [[ "$closed_at" == "null" ]] && closed_at=""
+    cancelled_at=$(get_yaml_field "$fm" "cancelled_at"); [[ "$cancelled_at" == "null" ]] && cancelled_at=""
+    cancel_reason=$(get_yaml_field "$fm" "cancel_reason"); [[ "$cancel_reason" == "null" ]] && cancel_reason=""
+    started_at=$(get_yaml_field "$fm" "started_at"); [[ "$started_at" == "null" ]] && started_at=""
+
+    # Linked tickets
+    local epic_b=""
+    if [[ "$branch" != "main" ]] && git rev-parse --verify "refs/heads/${branch}" >/dev/null 2>&1; then
+        epic_b="$branch"
+    fi
+    local linked=()
+    local L
+    while IFS= read -r L; do
+        [[ -z "$L" ]] && continue
+        linked+=("$L")
+    done < <(epic_find_linked_tickets "$slug" "$epic_b")
+
+    # Branch state
+    local has_branch_state=false head_sha="" ahead=0 behind=0
+    if [[ -n "$epic_b" ]]; then
+        has_branch_state=true
+        head_sha=$(git rev-parse --short "$epic_b" 2>/dev/null || echo "")
+        local counts
+        counts=$(git rev-list --left-right --count "main...${epic_b}" 2>/dev/null || echo "0	0")
+        behind="${counts%%	*}"
+        ahead="${counts##*	}"
+    fi
+
+    if [[ "$as_json" == "true" ]]; then
+        printf '{'
+        printf '"epic_id":"%s",' "$(json_escape "$slug")"
+        printf '"title":"%s",' "$(json_escape "$title")"
+        printf '"status":"%s",' "$(json_escape "$status")"
+        printf '"branch":"%s",' "$(json_escape "$branch")"
+        printf '"created_at":"%s",' "$(json_escape "$created_at")"
+        if [[ -n "$closed_at" ]]; then printf '"closed_at":"%s",' "$(json_escape "$closed_at")"; else printf '"closed_at":null,'; fi
+        if [[ -n "$cancelled_at" ]]; then printf '"cancelled_at":"%s",' "$(json_escape "$cancelled_at")"; else printf '"cancelled_at":null,'; fi
+        if [[ -n "$cancel_reason" ]]; then printf '"cancel_reason":"%s",' "$(json_escape "$cancel_reason")"; else printf '"cancel_reason":null,'; fi
+
+        # epic_frontmatter (object)
+        printf '"epic_frontmatter":{'
+        local k v first=1
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            if [[ "$line" =~ ^([a-zA-Z_][a-zA-Z0-9_]*):[[:space:]]*(.*)$ ]]; then
+                k="${BASH_REMATCH[1]}"
+                v="${BASH_REMATCH[2]}"
+                # Strip trailing inline comment
+                if [[ "$v" =~ ^(.*[^[:space:]])[[:space:]]+#.*$ ]]; then v="${BASH_REMATCH[1]}"; fi
+                # Trim trailing whitespace
+                v="${v%"${v##*[![:space:]]}"}"
+                # Strip surrounding quotes
+                if [[ "$v" =~ ^\"(.*)\"[[:space:]]*$ ]]; then v="${BASH_REMATCH[1]}"; fi
+                if [[ $first -eq 0 ]]; then printf ','; fi
+                first=0
+                if [[ "$v" == "null" ]]; then
+                    printf '"%s":null' "$(json_escape "$k")"
+                elif [[ "$v" =~ ^-?[0-9]+$ ]]; then
+                    printf '"%s":%s' "$(json_escape "$k")" "$v"
+                else
+                    printf '"%s":"%s"' "$(json_escape "$k")" "$(json_escape "$v")"
+                fi
+            fi
+        done <<< "$fm"
+        printf '},'
+
+        printf '"epic_body":"%s",' "$(json_escape "$body")"
+
+        # linked_tickets array
+        printf '"linked_tickets":['
+        local i=0
+        for L in ${linked[@]+"${linked[@]}"}; do
+            local lstatus="${L%%|*}"
+            local lloc="${L#*|}"; lloc="${lloc%|*}"
+            local lpath="${L##*|}"
+            local lcontent="" lfm=""
+            if [[ "$lloc" == "working tree" ]]; then
+                lcontent=$(cat "$lpath" 2>/dev/null || echo "")
+            else
+                lcontent=$(git show "${lloc}:${lpath}" 2>/dev/null || echo "")
+            fi
+            lfm=$(epic_extract_frontmatter "$lcontent")
+            # Derive slug from path: legacy "<name>.md" → <name>; new-format
+            # "<name>/ticket.md" → parent dir name.
+            local lslug
+            if [[ "${lpath##*/}" == "ticket.md" ]]; then
+                local _lp="${lpath%/*}"; lslug="${_lp##*/}"
+            else
+                lslug="${lpath##*/}"; lslug="${lslug%.md}"
+            fi
+            local ltitle ldesc lbase leid
+            ltitle=$(get_yaml_field "$lfm" "title"); [[ -z "$ltitle" ]] && ltitle="$lslug"
+            ldesc=$(get_yaml_field "$lfm" "description")
+            lbase=$(get_yaml_field "$lfm" "base_branch")
+            leid=$(get_yaml_field "$lfm" "epic_id")
+            local lstatus_norm="open"
+            if [[ "$lpath" == */done/* ]]; then lstatus_norm="done"; fi
+            [[ $i -gt 0 ]] && printf ','
+            i=$((i + 1))
+            printf '{"slug":"%s","title":"%s","status":"%s","epic_id":"%s","base_branch":"%s","file_location":"%s"}' \
+                "$(json_escape "$lslug")" "$(json_escape "$ltitle")" "$(json_escape "$lstatus_norm")" \
+                "$(json_escape "$leid")" "$(json_escape "$lbase")" "$(json_escape "$lpath")"
+        done
+        printf '],'
+
+        # branch_state
+        if [[ "$has_branch_state" == "true" ]]; then
+            printf '"branch_state":{"head_sha":"%s","ahead_of_main":%s,"behind_main":%s},' \
+                "$(json_escape "$head_sha")" "$ahead" "$behind"
+        else
+            printf '"branch_state":null,'
+        fi
+
+        # preflight summary (just blocker check for show; not a full dry-run)
+        local blockers_json=""
+        if [[ "$status" == "open" ]]; then
+            local n=0
+            for L in ${linked[@]+"${linked[@]}"}; do
+                if [[ "${L%%|*}" == "open" ]]; then n=$((n + 1)); fi
+            done
+            if [[ $n -gt 0 ]]; then
+                blockers_json="\"Epic still has $n open ticket(s) linked to it\""
+            fi
+        fi
+        if [[ -n "$blockers_json" ]]; then
+            printf '"preflight":{"ok":false,"blockers":[%s]}' "$blockers_json"
+        else
+            printf '"preflight":{"ok":true,"blockers":[]}'
+        fi
+
+        printf '}\n'
+    else
+        echo "Epic: $slug"
+        echo "  Title:     $title"
+        echo "  Status:    $status"
+        echo "  Branch:    $branch"
+        echo "  Created:   $created_at"
+        [[ -n "$started_at" ]] && echo "  Started:   $started_at"
+        [[ -n "$closed_at" ]] && echo "  Closed:    $closed_at"
+        [[ -n "$cancelled_at" ]] && echo "  Cancelled: $cancelled_at"
+        [[ -n "$cancel_reason" ]] && echo "  Reason:    $cancel_reason"
+        echo ""
+        echo "Linked tickets: ${#linked[@]}"
+        for L in ${linked[@]+"${linked[@]}"}; do
+            local s="${L%%|*}" loc="${L#*|}"; loc="${loc%|*}"; local p="${L##*|}"
+            echo "  [$s] $p ($loc)"
+        done
+        echo ""
+        echo "--- body ---"
+        printf '%s' "$body"
+    fi
+}
+
+# Dispatcher: epic <action> [args...]
+cmd_epic() {
+    local action="${1:-}"; shift || true
+    case "$action" in
+        new) cmd_epic_new "$@" ;;
+        close) cmd_epic_close "$@" ;;
+        cancel) cmd_epic_cancel "$@" ;;
+        list) cmd_epic_list "$@" ;;
+        show) cmd_epic_show "$@" ;;
+        ""|help|--help|-h)
+            cat << EOF
+Usage: $SCRIPT_COMMAND epic <action> [args]
+
+Actions:
+  new <slug> [--title <t>] [--branch epic/<slug>|--main-direct] [--from-ref <ref>]
+      Create a new epic.
+  close <slug> [--dry-run|-n] [--no-push] [--no-delete-remote] [--force|-f]
+      Close an epic. Squash-merges epic branch into main (or edits in place
+      for main-direct epics) and moves the file to epics/done/<slug>/index.md.
+  cancel <slug> --reason "<text>" [--dry-run|-n] [--no-push] [--no-delete-remote] [--force|-f]
+      Cancel an epic. Discards impl commits on the epic branch; only the epic
+      body lands on main with cancel metadata.
+  list [--status open|closed|cancelled] [--json]
+      List epics.
+  show <slug> [--json]
+      Show one epic with linked tickets and branch state.
+
+See gist 09b482ac for the full feature spec.
+EOF
+            ;;
+        *)
+            echo "Error: Unknown epic action: $action" >&2
+            echo "Run '$SCRIPT_COMMAND epic help' for usage" >&2
+            return 1 ;;
+    esac
+}
+
+# Main command dispatcher
+main() {
+    case "${1:-}" in
+        init)
+            cmd_init
+            ;;
+        new)
+            shift
+            if [[ -z "${1:-}" ]]; then
+                echo "Error: slug required" >&2
+                echo "Usage: $SCRIPT_COMMAND new <slug> [--epic <epic-slug>]" >&2
+                exit 1
+            fi
+            cmd_new "$@"
+            ;;
+        epic)
+            shift
+            cmd_epic "$@"
+            ;;
+        list)
+            shift
+            cmd_list "$@"
+            ;;
+        start)
+            shift
+            cmd_start "$@"
+            ;;
+        restore)
+            cmd_restore
+            ;;
+        check)
+            shift
+            cmd_check "$@"
+            ;;
+        close)
+            shift
+            cmd_close "$@"
+            ;;
+        cancel)
+            shift
+            cmd_cancel "$@"
+            ;;
+        selfupdate)
+            cmd_selfupdate
+            ;;
+        version|--version|-v)
+            cmd_version
+            ;;
+        prompt)
+            cmd_prompt
+            ;;
+        help|--help|-h)
+            show_usage
+            ;;
+        "")
+            show_usage
+            ;;
+        *)
+            echo "Error: Unknown command: $1" >&2
+            echo "Run '$SCRIPT_COMMAND help' for usage information" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
