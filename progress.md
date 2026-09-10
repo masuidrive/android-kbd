@@ -29,3 +29,4 @@
 [2026/09/11 08:00] ユーザー承認後、Hanger Sitesへ所有者限定・1週間期限の新規サイトを確保して完全ZIPを送信した。確定時にAPKの展開後サイズ34,645,297 bytesが1ファイル上限20,971,520 bytesを超えるため拒否された。不完全な新規サイトは削除待ちへ移し、元の参照サイトは変更していない。ページ内のAPK導線を欠落させずに公開するには、Sites外の配布先またはファイル上限の変更が必要。
 [2026/09/11 08:06] APKを単体ZIP（19,859,255 bytes）で配布するようページと導入手順を修正し、Hanger Sitesへ所有者限定・1週間期限で公開した。URLは https://amykwzak.aboutme.style/ 、site IDはf2cd5fc5-71db-416d-b9e7-b2da21f96279、期限は2026-09-18 08:02 JST。公開9ファイルのSHA-256はローカルmanifestと全件一致し、ZIP内APKも最終APK SHA-256 87ccb6734b22b6bb940995c169fcc4c36457fd95f8c583420ae84ade0e554d0bと一致した。
 [2026/09/11 08:07] 公開サイトを実ブラウザのmobile 412px幅で確認。製品紹介・マニュアルに横overflowなし、画像3点の読込とナビゲーション、操作デモのq入力と状態表示が成功した。
+[2026/09/11 08:22] GitHubに非公開リポジトリ https://github.com/masuidrive/android-kbd を新規作成し、完成履歴5351555をfeatures/260910-163036-implement-native-imeへpushした。
