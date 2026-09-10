@@ -1,0 +1,63 @@
+package com.masuidrive.gestureime.keyboard
+
+enum class KeyboardMode(val displayName: String) {
+    KANA("日本語"), NUMBERS("テンキー"), CURSOR("カーソル"), QWERTY("QWERTY"), SYMBOLS("記号")
+}
+
+enum class Direction { CENTER, LEFT, UP, RIGHT, DOWN }
+enum class Modifier { CTRL, ALT }
+enum class KeyKind { CHARACTER, KANA, MODE, LAYER_SWITCH, MODIFIER, BACKSPACE, SPACE, ENTER, CURSOR, ACCENT, EMPTY }
+enum class CursorBoundary { START, END }
+
+data class FlickValue(val label: String, val action: KeyAction)
+
+data class KeySpec(
+    val id: String,
+    val kind: KeyKind,
+    val center: FlickValue?,
+    val left: FlickValue? = null,
+    val up: FlickValue? = null,
+    val right: FlickValue? = null,
+    val down: FlickValue? = null,
+    val widthUnits: Float = 1f,
+    val rowSpan: Int = 1,
+    val dark: Boolean = false,
+) {
+    fun value(direction: Direction): FlickValue? = when (direction) {
+        Direction.CENTER -> center
+        Direction.LEFT -> left
+        Direction.UP -> up
+        Direction.RIGHT -> right
+        Direction.DOWN -> down
+    }
+}
+
+data class KeyboardRow(val keys: List<KeySpec>)
+data class KeyboardLayout(val mode: KeyboardMode, val rows: List<KeyboardRow>)
+
+sealed interface KeyAction {
+    data class CommitText(val text: String) : KeyAction
+    data class KanaInput(val reading: String) : KeyAction
+    data class ModifiedKey(val label: String, val modifier: Modifier) : KeyAction
+    data class MoveCursor(val direction: Direction, val units: Int = 1) : KeyAction
+    data class MoveToBoundary(val boundary: CursorBoundary) : KeyAction
+    data class SwitchLayer(val target: KeyboardMode) : KeyAction
+    data class SetModifier(val modifier: Modifier?) : KeyAction
+    data object TransformKana : KeyAction
+    data class SelectCandidate(val index: Int) : KeyAction
+    data object CycleCandidate : KeyAction
+    data class Backspace(val repeat: Boolean = false) : KeyAction
+    data object Enter : KeyAction
+    data object Paste : KeyAction
+}
+
+fun interface KeyboardActionSink {
+    fun onKeyAction(action: KeyAction)
+}
+
+data class KeyboardUiState(
+    val mode: KeyboardMode = KeyboardMode.QWERTY,
+    val pendingModifier: Modifier? = null,
+    val candidates: List<String> = emptyList(),
+    val selectedCandidateIndex: Int = -1,
+)

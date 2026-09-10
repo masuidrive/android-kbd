@@ -1,0 +1,108 @@
+package com.masuidrive.gestureime.keyboard
+
+object KeyboardLayouts {
+    val all: Map<KeyboardMode, KeyboardLayout> = KeyboardMode.entries.associateWith(::layout)
+
+    fun layout(mode: KeyboardMode): KeyboardLayout = when (mode) {
+        KeyboardMode.QWERTY -> qwerty()
+        KeyboardMode.SYMBOLS -> symbols()
+        KeyboardMode.KANA -> kana()
+        KeyboardMode.NUMBERS -> numbers()
+        KeyboardMode.CURSOR -> cursor()
+    }
+
+    private fun text(label: String, secondary: String? = null, kind: KeyKind = KeyKind.CHARACTER) =
+        KeySpec("key-$label", kind, FlickValue(label, KeyAction.CommitText(label)),
+            up = if (label.length == 1 && label[0].isLetter()) FlickValue(label.uppercase(), KeyAction.CommitText(label.uppercase())) else null,
+            down = secondary?.let { FlickValue(it, KeyAction.CommitText(it)) })
+
+    private fun qwerty(): KeyboardLayout = KeyboardLayout(KeyboardMode.QWERTY, listOf(
+        KeyboardRow("qwertyuiop".mapIndexed { i, c -> text(c.toString(), "1234567890"[i].toString()) }),
+        KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + backspace()),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), text(".", "?"))),
+        KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 2f), space(width = 6f), enter(width = 2f)))
+    ))
+
+    private fun symbols(): KeyboardLayout = KeyboardLayout(KeyboardMode.SYMBOLS, listOf(
+        KeyboardRow("1234567890".map { text(it.toString()) }),
+        KeyboardRow(listOf(modifier(), text("^"), text("_"), text("\\"), text("|"), text("~"), text("{"), text("}"), text("["), text("]"), backspace())),
+        KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), text("`"), text("\""), text("!"), text("?"), text(";"), text(":"), text("<"), text(">"), text("/"))),
+        KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 2f), space(width = 6f), enter(width = 2f)))
+    ))
+
+    private fun kana(): KeyboardLayout = KeyboardLayout(KeyboardMode.KANA, listOf(
+        KeyboardRow(listOf(cursorPad(), kana("あ", "い", "う", "え", "お"), kana("か", "き", "く", "け", "こ"), kana("さ", "し", "す", "せ", "そ"), backspace(1f))),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space())),
+        KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), kana("ま", "み", "む", "め", "も"), kana("や", "（", "ゆ", "）", "よ"), kana("ら", "り", "る", "れ", "ろ"), enter(rowSpan = 2))),
+        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), accent(), kana("わ", "を", "ん", "ー", "〜"), punct()))
+    ))
+
+    private fun numbers(): KeyboardLayout = KeyboardLayout(KeyboardMode.NUMBERS, listOf(
+        KeyboardRow(listOf(cursorPad(), text("1"), text("2"), text("3"), backspace(1f))),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), text("4"), text("5"), text("6"), space())),
+        KeyboardRow(listOf(modeKey("あん", KeyboardMode.KANA), text("7"), text("8"), text("9"), enter(rowSpan = 2))),
+        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
+    ))
+
+    private fun cursor(): KeyboardLayout = KeyboardLayout(KeyboardMode.CURSOR, listOf(
+        KeyboardRow(listOf(modeKey("あん", KeyboardMode.KANA), empty(), empty(), empty(), backspace(1f))),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), boundary("先頭", CursorBoundary.START), cursor(Direction.UP), boundary("末尾", CursorBoundary.END), empty())),
+        KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), cursor(Direction.LEFT), space(), cursor(Direction.RIGHT), enter(rowSpan = 2))),
+        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(), cursor(Direction.DOWN), empty()))
+    ))
+
+    private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
+        "kana-$center", KeyKind.KANA, kanaValue(center), kanaValue(left), kanaValue(up), kanaValue(right), kanaValue(down)
+    )
+
+    private fun kanaValue(label: String) = FlickValue(label, KeyAction.KanaInput(label))
+    private fun fiveWay(center: String, left: String, up: String, right: String, down: String) = KeySpec(
+        "five-$center", KeyKind.CHARACTER, value(center), value(left), value(up), value(right), value(down)
+    )
+    private fun value(label: String) = FlickValue(label, KeyAction.CommitText(label))
+
+    private fun modifier() = KeySpec("modifier", KeyKind.MODIFIER, null,
+        up = FlickValue("A", KeyAction.SetModifier(Modifier.ALT)),
+        down = FlickValue("C", KeyAction.SetModifier(Modifier.CTRL)), widthUnits = .5f, dark = true)
+
+    private fun backspace(width: Float = .5f) = KeySpec("backspace", KeyKind.BACKSPACE,
+        if (width >= 1f) FlickValue("⌫", KeyAction.Backspace()) else null,
+        down = if (width < 1f) FlickValue("BS", KeyAction.Backspace()) else null, widthUnits = width)
+
+    private fun accent() = KeySpec("accent", KeyKind.ACCENT, FlickValue("小゛゜", KeyAction.TransformKana), dark = true)
+
+    private fun punct() = KeySpec("punct", KeyKind.KANA, kanaValue("、"), left = kanaValue("。"),
+        up = kanaValue("？"), right = kanaValue("！"))
+
+    private fun empty() = KeySpec("empty", KeyKind.EMPTY, null)
+
+    private fun boundary(label: String, boundary: CursorBoundary) = KeySpec("boundary-$boundary", KeyKind.CURSOR,
+        FlickValue(label, KeyAction.MoveToBoundary(boundary)))
+
+    private fun cursor(direction: Direction) = KeySpec("cursor-$direction", KeyKind.CURSOR,
+        FlickValue(arrow(direction), KeyAction.MoveCursor(direction)))
+
+    private fun cursorPad() = modeKey("↔", KeyboardMode.CURSOR)
+
+    private fun space(width: Float = 1f) = KeySpec("space", KeyKind.SPACE,
+        FlickValue("Space", KeyAction.CommitText(" ")),
+        left = FlickValue("←", KeyAction.MoveCursor(Direction.LEFT)), up = FlickValue("↑", KeyAction.MoveCursor(Direction.UP)),
+        right = FlickValue("→", KeyAction.MoveCursor(Direction.RIGHT)), down = FlickValue("↓", KeyAction.MoveCursor(Direction.DOWN)), widthUnits = width)
+
+    private fun enter(rowSpan: Int = 1, width: Float = 1f) = KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),
+        down = FlickValue("paste", KeyAction.Paste), widthUnits = width, rowSpan = rowSpan)
+
+    private fun modeKey(label: String, tap: KeyboardMode) = KeySpec("mode-$label", KeyKind.MODE,
+        FlickValue(label, KeyAction.SwitchLayer(tap)), dark = true)
+
+    private fun layerKey(label: String, tap: KeyboardMode, width: Float = 1f) = KeySpec("layer-$label", KeyKind.LAYER_SWITCH,
+        FlickValue(label, KeyAction.SwitchLayer(tap)),
+        left = FlickValue(KeyboardMode.SYMBOLS.displayName, KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)),
+        up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
+        right = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
+        down = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)), widthUnits = width, dark = true)
+
+    private fun arrow(direction: Direction) = when (direction) {
+        Direction.LEFT -> "←"; Direction.UP -> "↑"; Direction.RIGHT -> "→"; Direction.DOWN -> "↓"; Direction.CENTER -> "•"
+    }
+}
