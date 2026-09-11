@@ -100,6 +100,7 @@
   #ios-keyboard-demo .english .key-row:nth-child(2) .key { flex:0 0 10%; }
   #ios-keyboard-demo .english .key-row:nth-child(2) .modifier-gesture,
   #ios-keyboard-demo .english .key-row:nth-child(2) .flick-backspace { flex-basis:5%; }
+  #ios-keyboard-demo .english .flick-backspace .key-face { font-size:13px; }
   #ios-keyboard-demo .key.has-flick .key-face { position:relative; overflow:hidden; padding-top:10px; }
   #ios-keyboard-demo .key .key-main { transition:transform .09s ease,opacity .09s ease; }
   #ios-keyboard-demo .key.letter-layer-toggle .key-face { position:relative; }
@@ -471,7 +472,7 @@
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
-    const transform=id==='modifier'?['小','濁','小','半','']:null;
+    const transform=id==='modifier'?['小','゛','小','゜','']:null;
     const flick=transform||Array.isArray(value)?(transform||value):null;
     const toggle=layerToggleLabels[id];
     const text=options.text?value:null;
@@ -480,9 +481,9 @@
       flick,
       transformActions:transform?['cycle','dakuten','small','handakuten',null]:null,
       text,
-      hint:options.hint??null,
+      hint:converting?null:id==='return'?'paste':options.hint??null,
       ghost:toggle?.ghost??null,
-      navigation:converting?conversionNavigation:options.layerSwitch?layerNavigation:null,
+      navigation:converting?conversionNavigation:id==='return'?pasteNavigation:options.layerSwitch?layerNavigation:null,
       preview:flick||text?'press':null,
       visual:options.visual??null,
       special:index===0||index===4,
@@ -508,7 +509,7 @@
     return [
       textKeys('1234567890'),
       [modifierGesture(),...textKeys('^_\\|~{}[]'),flickBackspace()],
-      [makeKey('symbols','A',{special:true,ghost:'Z'}),...textKeys('`"!?;:<>/')],
+      [makeKey('symbols','A',{special:true,ghost:'Z'}),makeKey('escape','ESC'),...textKeys('"!?;:<>/')],
       englishBottomRow()
     ];
   }
@@ -536,6 +537,7 @@
       down:'カーソルを下の行へ',
       home:'文章の先頭へ',
       end:'文章の末尾へ',
+      escape:'ESC',
       cursor:'カーソルレイヤーへ切り替える',
       space:'Space。フリックでカーソル移動',
       return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
