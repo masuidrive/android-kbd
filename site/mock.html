@@ -141,10 +141,10 @@
   #ios-keyboard-demo .voice-card { width:min(100%,520px); padding:22px; border:1px solid var(--ik-line); border-radius:14px; background:var(--ik-paper); }
   #ios-keyboard-demo .voice-state { margin:0 0 8px; color:var(--ik-blue); font-size:12px; font-weight:650; letter-spacing:.05em; }
   #ios-keyboard-demo .voice-partial { min-height:3.4em; margin:0; font-size:clamp(18px,4vw,25px); line-height:1.7; overflow-wrap:anywhere; }
+  #ios-keyboard-demo .voice-results { display:grid; gap:8px; margin-top:16px; }
+  #ios-keyboard-demo .voice-results button { min-height:42px; padding:8px 12px; border:1px solid var(--ik-line); border-radius:9px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; text-align:left; }
   #ios-keyboard-demo .voice-actions { display:flex; justify-content:center; gap:10px; margin-top:18px; }
   #ios-keyboard-demo .voice-actions button { min-width:110px; min-height:42px; padding:8px 16px; border:1px solid var(--ik-line); border-radius:9px; background:var(--ik-key); font-size:15px; }
-  #ios-keyboard-demo .voice-actions .voice-send:not(:disabled) { border-color:var(--ik-blue); background:var(--ik-active); color:var(--ik-blue); }
-  #ios-keyboard-demo .voice-actions button:disabled { cursor:default; opacity:.45; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -384,9 +384,9 @@
     language=previous.language;layer=previous.layer;
     announce(canceled?'音声入力を取り消し':'音声入力を終了');render(true);
   }
-  function sendVoiceDemo() {
+  function commitVoiceCandidate(index) {
     if(!voiceDemo.active||voiceDemo.phase!=='ready'||voiceDemo.committed)return;
-    const text=voiceDemo.candidates[voiceDemo.index];if(!text)return;
+    const text=voiceDemo.candidates[index];if(!text)return;
     voiceDemo.committed=true;clearVoiceTimers();
     const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
     Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
@@ -398,13 +398,8 @@
   }
   function renderCandidates() {
     candidateBar.replaceChildren();
-    if(voiceDemo.active&&voiceDemo.phase==='ready') {
-      candidateBar.hidden=false;
-      voiceDemo.candidates.forEach((candidate,index)=>{const button=document.createElement('button');button.type='button';button.dataset.voiceCandidate=String(index);button.setAttribute('role','option');button.setAttribute('aria-selected',String(index===voiceDemo.index));button.textContent=candidate;candidateBar.append(button);});
-      resetCandidateScrollIfChanged('voice\0'+voiceDemo.candidates.join('\0'));return;
-    }
     if(voiceDemo.active) {
-      candidateBar.hidden=true;resetCandidateScrollIfChanged('voice-listening');return;
+      candidateBar.hidden=true;resetCandidateScrollIfChanged('voice');return;
     }
     if(language==='kana'&&layer==='letters'&&composition.reading) {
       candidateBar.hidden=false;
@@ -760,10 +755,14 @@
       const card=document.createElement('div');card.className='voice-card';
       const state=document.createElement('p');state.className='voice-state';state.textContent=voiceDemo.phase==='ready'?'認識結果':'認識中';
       const partial=document.createElement('p');partial.className='voice-partial';partial.setAttribute('role','status');partial.setAttribute('aria-live','polite');partial.textContent=voiceDemo.partial;
+      if(voiceDemo.phase==='ready') {
+        const results=document.createElement('div');results.className='voice-results';results.setAttribute('aria-label','音声認識候補');
+        voiceDemo.candidates.forEach((candidate,index)=>{const button=document.createElement('button');button.type='button';button.dataset.voiceCandidate=String(index);button.textContent=candidate;results.append(button);});
+        card.append(state,partial,results);
+      } else card.append(state,partial);
       const actions=document.createElement('div');actions.className='voice-actions';
       const cancel=document.createElement('button');cancel.type='button';cancel.dataset.voiceCancel='';cancel.textContent='キャンセル';
-      const send=document.createElement('button');send.type='button';send.className='voice-send';send.dataset.voiceSend='';send.textContent='送信';send.disabled=voiceDemo.phase!=='ready';
-      actions.append(cancel,send);card.append(state,partial,actions);panel.append(card);keys.append(panel);return;
+      actions.append(cancel);card.append(actions);panel.append(card);keys.append(panel);return;
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
@@ -928,10 +927,8 @@
   root.addEventListener('click',e=>{
     const voiceCancel=e.target.closest('button[data-voice-cancel]');
     if(voiceCancel) {leaveVoiceDemo(true);return;}
-    const voiceSend=e.target.closest('button[data-voice-send]');
-    if(voiceSend) {sendVoiceDemo();return;}
     const voiceCandidate=e.target.closest('button[data-voice-candidate]');
-    if(voiceCandidate&&voiceDemo.active&&voiceDemo.phase==='ready') {voiceDemo.index=Number(voiceCandidate.dataset.voiceCandidate);voiceDemo.partial=voiceDemo.candidates[voiceDemo.index];render();announce('音声候補を選択：'+voiceDemo.partial);return;}
+    if(voiceCandidate) {commitVoiceCandidate(Number(voiceCandidate.dataset.voiceCandidate));return;}
     const slashCandidate=e.target.closest('button[data-slash-candidate]');
     if(slashCandidate) {replaceSlashCommand(slashCandidate.dataset.slashCandidate);return;}
     const englishCandidate=e.target.closest('button[data-english-candidate]');
