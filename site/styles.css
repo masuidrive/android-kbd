@@ -116,6 +116,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
   .toc ol { columns: 2; }
 }
 @media (max-width: 520px) {
+  .hero-demo { scroll-margin-top:96px; }
   .nav-inner { min-height: 56px; padding: .45rem 0; flex-wrap: wrap; gap: .35rem 1rem; }
   .nav-links { flex: 1 1 100%; justify-content: space-between; gap: .55rem; font-size: .75rem; }
   .nav-links .download { padding: .3rem .65rem; }

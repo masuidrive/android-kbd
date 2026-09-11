@@ -934,7 +934,7 @@
       else applyModified(e.key,pendingModifier,e.shiftKey);
       render();return;
     }
-    if(e.key==='Escape'){cancelAll();action('hide');}
+    if(e.key==='Escape')cancelAll();
     lastSpace=-Infinity;
   });
   root.addEventListener('keydown',e=>{
