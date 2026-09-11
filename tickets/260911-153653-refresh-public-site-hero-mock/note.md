@@ -45,6 +45,8 @@
 - `1fa58ee`: 一般Android向けの製品位置づけをREADME、product brief、technical referenceへ反映。
 - `ee46193`: 既存mockをトップへ埋め込み、初期文、テーマ同期、表示幅自動選択と切替、Dual Flickを追加。
 - `bdfa41c`: 操作demoをmain先頭へ移し、「QWERTYも、Flickで。」へコピーを調整。旧テーマ静止画セクションを削除。
+- `2f0e9c8`: 上部表示を`masuidrive-kbd`へ揃え、Light入力面を薄いgrayへ変更。mock最下段帯を削除し、サイト内操作リンクを先頭demoへ接続。
+- `03293a6`: 削除済hide参照とmobile anchor位置を修正し、390pxで固定nav下へ10px以上の余白を確保。
 - 初期表示は保存状態ではなく実viewport幅で決め、600px未満をMobile、600px以上をTabletとした。操作後の切替は明示ボタンを優先する。
 - `scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/apkの2群がPASS。
 
@@ -63,6 +65,7 @@
 |---|---|---|---|---|---|
 | 1 | 独立review | - | Critical/Major/Minorなし | 採用findingなし | 390x844と840x900の実ブラウザ操作、コード差分、独立demoを確認 |
 | 2 | scope | Major候補 | manualのLight/Dark手順も削除する案 | 非採用 | ユーザ指定はトップの「明るい場所でも、暗い場所でも。」節。manualはAndroid設定への追従手順として必要 |
+| 3 | cleanup/responsive | Minor | Escapeの旧hide参照と390px anchor隠れ | 修正 | `03293a6`後の限定再reviewでfindingなし |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
