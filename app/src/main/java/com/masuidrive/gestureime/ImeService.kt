@@ -17,6 +17,10 @@ import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.keyboard.VoiceHoldSink
+import com.masuidrive.gestureime.suggestion.BundledEnglishSuggestionEngine
+import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
+import com.masuidrive.gestureime.ui.CandidateUiEvent
+import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoiceUiAction
 import com.masuidrive.gestureime.ui.VoiceUiEvent
@@ -39,6 +43,12 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private val productionConversionEngine: ConversionEngine by lazy { MozcConversionEngine(applicationContext) }
     private var testConversionEngine: ConversionEngine? = null
     private val conversionEngine: ConversionEngine get() = testConversionEngine ?: productionConversionEngine
+    private val productionEnglishSuggestionEngine: EnglishSuggestionEngine by lazy {
+        BundledEnglishSuggestionEngine(applicationContext)
+    }
+    private var testEnglishSuggestionEngine: EnglishSuggestionEngine? = null
+    private val englishSuggestionEngine: EnglishSuggestionEngine
+        get() = testEnglishSuggestionEngine ?: productionEnglishSuggestionEngine
     private lateinit var textController: TextInputController
     private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
@@ -48,6 +58,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var candidates = emptyList<String>()
     private var selectedCandidate = -1
     private var conversionPreview: String? = null
+    private var candidateSource = CandidateSource.NONE
+    private var englishBuffer = ""
+    private var englishGeneration = 0L
+    private var keyboardMode = KeyboardMode.QWERTY
+    private var candidateUiToken = 0L
     private var voiceUiToken = 0L
     private var latestVoiceUnavailableMessage: String? = null
     private var voiceHoldRequestId: Long? = null
@@ -72,13 +87,14 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
-            it.setMode(ImePreferences.getLastKeyboardMode(this))
+            keyboardMode = ImePreferences.getLastKeyboardMode(this)
+            it.setMode(keyboardMode)
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             it.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
             keyboardView = it
         }
         val strip = CandidateStripView(this).also {
-            it.setOnCandidateSelected { index -> onKeyAction(KeyAction.SelectCandidate(index)) }
+            it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnVoiceActionListener(::onVoiceAction)
             candidateStrip = it
             setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
@@ -92,6 +108,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         cancelVoiceHold()
+        finishEnglishRaw()
         setVoiceUi(VoiceUiState.Hidden)
         keyboardView?.cancelActiveGestures()
         super.onFinishInputView(finishingInput)
@@ -109,18 +126,21 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         editorSession.advance()
         cancelVoiceHold()
         invalidateConversion(clearComposing = false)
+        invalidateEnglish(clearComposing = false)
         textController.beginInput(attribute)
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
-        keyboardView?.setMode(ImePreferences.getLastKeyboardMode(this))
+        keyboardMode = ImePreferences.getLastKeyboardMode(this)
+        keyboardView?.setMode(keyboardMode)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
     }
 
     override fun onFinishInput() {
-        editorSession.advance()
         cancelVoiceHold()
+        finishEnglishRaw()
+        editorSession.advance()
         invalidateConversion(clearComposing = false)
         keyboardView?.cancelActiveGestures()
         textController.finishComposition()
@@ -140,23 +160,24 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             invalidateConversion(clearComposing = false)
             textController.abandonComposition()
         }
+        if (englishBuffer.isNotEmpty() && (
+                candidatesStart < 0 || newSelStart != newSelEnd || newSelEnd != candidatesEnd
+            )
+        ) {
+            invalidateEnglish(clearComposing = false)
+            textController.abandonComposition()
+        }
     }
 
     override fun onKeyAction(action: KeyAction) {
         cancelVoiceHold()
         if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
-        if (action is KeyAction.SwitchLayer) {
-            ImePreferences.setLastKeyboardMode(this, action.target)
-            keyboardView?.setMode(action.target)
-            return
-        }
-        if (action is KeyAction.SetModifier) return
         val queuedForEditor = editorSession.capture()
-        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) candidates.toList() else null
+        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) candidateSnapshot() else null
         serviceScope.launch {
             actionMutex.withLock {
                 if (!editorSession.isCurrent(queuedForEditor)) return@withLock
-                if (queuedCandidateSnapshot != null && queuedCandidateSnapshot != candidates) return@withLock
+                if (queuedCandidateSnapshot != null && queuedCandidateSnapshot != candidateSnapshot()) return@withLock
                 runCatching { processInputAction(action, queuedForEditor) }
                     .onFailure {
                         clearCandidateState()
@@ -164,6 +185,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                     }
             }
         }
+    }
+
+    private fun onCandidateSelected(event: CandidateUiEvent) {
+        if (event.token != candidateUiToken) return
+        onKeyAction(KeyAction.SelectCandidate(event.index))
     }
 
     override fun onVoiceHold(event: VoiceHoldEvent) {
@@ -177,6 +203,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 serviceScope.launch {
                     actionMutex.withLock {
                         if (voiceHoldRequestId != event.requestId || !editorSession.isCurrent(token)) return@withLock
+                        finishEnglishRaw()
                         resetConversion(clearComposing = false)
                         if (voiceHoldRequestId == event.requestId && editorSession.isCurrent(token)) voiceController.start(token)
                     }
@@ -204,27 +231,40 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
         when (action) {
             is KeyAction.CommitText -> {
-                if (action.text == " " && reading.isNotEmpty()) cycleCandidate()
+                if (shouldBufferEnglish(action.text)) appendEnglish(action.text, editorToken)
+                else if (action.text == " " && reading.isNotEmpty()) cycleCandidate()
                 else {
+                    finishEnglishRaw()
                     resetConversion(clearComposing = false)
                     editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }
                 }
             }
             is KeyAction.KanaInput -> {
+                finishEnglishRaw()
                 restoreReadingPreview()
                 updateReading(textController.appendComposing(action.reading))
             }
             is KeyAction.TransformKana -> {
+                finishEnglishRaw()
                 restoreReadingPreview()
                 updateReading(textController.transformKana(action.transform))
             }
             is KeyAction.Backspace -> {
+                if (englishBuffer.isNotEmpty()) {
+                    val remaining = textController.backspace()
+                    englishBuffer = remaining
+                    if (remaining.isEmpty()) invalidateEnglish(clearComposing = false)
+                    else requestEnglishSuggestions(remaining, editorToken)
+                    return
+                }
                 restoreReadingPreview()
                 val remaining = textController.backspace()
                 if (reading.isNotEmpty()) updateReading(remaining)
             }
             KeyAction.Enter -> {
-                if (reading.isNotEmpty()) {
+                if (englishBuffer.isNotEmpty()) {
+                    finishEnglishRaw()
+                } else if (reading.isNotEmpty()) {
                     if (candidates.isEmpty()) {
                         val generation = ++conversionGeneration
                         val state = conversionEngine.nextCandidate()
@@ -239,36 +279,136 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 } else textController.enter()
             }
             KeyAction.Paste -> {
+                finishEnglishRaw()
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.paste() }
             }
             KeyAction.Escape -> {
+                finishEnglishRaw()
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.escape() }
             }
-            KeyAction.CommitConversion -> commitDisplayedConversion()
-            KeyAction.CommitWithoutConversion -> showConversionPreview(reading)
-            KeyAction.ConvertToKatakana -> showConversionPreview(reading.toKatakana())
+            KeyAction.CommitConversion -> {
+                finishEnglishRaw()
+                commitDisplayedConversion()
+            }
+            KeyAction.CommitWithoutConversion -> {
+                finishEnglishRaw()
+                showConversionPreview(reading)
+            }
+            KeyAction.ConvertToKatakana -> {
+                finishEnglishRaw()
+                showConversionPreview(reading.toKatakana())
+            }
             is KeyAction.MoveCursor -> {
+                finishEnglishRaw()
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.moveCursor(action.direction, action.units) }
             }
             is KeyAction.MoveToBoundary -> {
+                finishEnglishRaw()
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.moveToBoundary(action.boundary) }
             }
             is KeyAction.ModifiedKey -> {
+                finishEnglishRaw()
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) {
                     textController.sendModifiedKey(action.label, action.modifier)
                 }
             }
-            is KeyAction.SwitchLayer -> Unit
-            is KeyAction.SelectCandidate -> commitCandidate(action.index)
+            is KeyAction.SwitchLayer -> {
+                finishEnglishRaw()
+                ImePreferences.setLastKeyboardMode(this, action.target)
+                keyboardMode = action.target
+                keyboardView?.setMode(action.target)
+            }
+            is KeyAction.SelectCandidate -> {
+                if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
+                else commitCandidate(action.index)
+            }
             KeyAction.CycleCandidate -> cycleCandidate()
-            is KeyAction.SetModifier -> Unit
+            is KeyAction.SetModifier -> finishEnglishRaw()
         }
     }
+
+    private fun shouldBufferEnglish(text: String): Boolean =
+        ImePreferences.isEnglishSuggestionsEnabled(this) &&
+            !textController.isPrivateField &&
+            text.length == 1 && text[0].isAsciiLetterOrDigit() &&
+            englishBuffer.length < MAX_ENGLISH_BUFFER
+
+    private fun appendEnglish(text: String, editorToken: Long) {
+        if (reading.isNotEmpty()) {
+            textController.finishComposition()
+            clearCandidateState()
+        }
+        englishBuffer = textController.appendComposing(text)
+        candidateSource = CandidateSource.ENGLISH
+        requestEnglishSuggestions(englishBuffer, editorToken)
+    }
+
+    private fun requestEnglishSuggestions(prefix: String, editorToken: Long) {
+        val generation = ++englishGeneration
+        candidateSource = CandidateSource.ENGLISH
+        candidates = emptyList()
+        selectedCandidate = -1
+        showCandidateState()
+        serviceScope.launch {
+            val suggestions = runCatching { englishSuggestionEngine.suggest(prefix, MAX_ENGLISH_CANDIDATES) }
+                .getOrDefault(emptyList())
+            actionMutex.withLock {
+                if (!editorSession.isCurrent(editorToken) || textController.isPrivateField ||
+                    generation != englishGeneration || englishBuffer != prefix ||
+                    candidateSource != CandidateSource.ENGLISH
+                ) return@withLock
+                candidates = suggestions.take(MAX_ENGLISH_CANDIDATES)
+                selectedCandidate = -1
+                showCandidateState()
+            }
+        }
+    }
+
+    private fun commitEnglishCandidate(index: Int) {
+        if (index !in candidates.indices || candidateSource != CandidateSource.ENGLISH) return
+        textController.commitCandidate(candidates[index])
+        invalidateEnglish(clearComposing = false)
+    }
+
+    private fun finishEnglishRaw() {
+        if (englishBuffer.isEmpty()) return
+        textController.finishComposition()
+        invalidateEnglish(clearComposing = false)
+    }
+
+    private fun invalidateEnglish(clearComposing: Boolean) {
+        englishGeneration++
+        englishBuffer = ""
+        if (clearComposing) textController.cancelComposition()
+        if (candidateSource == CandidateSource.ENGLISH) {
+            candidateSource = CandidateSource.NONE
+            candidates = emptyList()
+            selectedCandidate = -1
+            showCandidateState()
+        }
+    }
+
+    private fun showCandidateState() {
+        showCandidateStrip(candidates, selectedCandidate)
+        keyboardView?.setCandidates(candidates, selectedCandidate)
+    }
+
+    private fun showCandidateStrip(values: List<String>, selectedIndex: Int) {
+        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex))
+    }
+
+    private fun candidateSnapshot() = CandidateSnapshot(
+        source = candidateSource,
+        candidates = candidates,
+        conversionGeneration = conversionGeneration,
+        englishGeneration = englishGeneration,
+        englishBuffer = englishBuffer,
+    )
 
     private suspend fun updateReading(newReading: String) {
         conversionPreview = null
@@ -319,7 +459,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         if (reading.isEmpty()) return
         conversionPreview = value
         textController.replaceComposing(value)
-        candidateStrip?.showCandidates(emptyList(), -1)
+        showCandidateStrip(emptyList(), -1)
         keyboardView?.setCandidates(emptyList(), -1)
     }
 
@@ -330,9 +470,10 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private fun applyConversion(state: ConversionState) {
+        candidateSource = CandidateSource.JAPANESE
         candidates = state.candidates.map { it.value }
         selectedCandidate = state.selectedIndex
-        candidateStrip?.showCandidates(candidates, selectedCandidate)
+        showCandidateStrip(candidates, selectedCandidate)
         keyboardView?.setCandidates(candidates, selectedCandidate)
         keyboardView?.setConversionActive(reading.isNotEmpty())
     }
@@ -356,11 +497,14 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private fun clearCandidateState() {
+        englishGeneration++
+        englishBuffer = ""
         reading = ""
         candidates = emptyList()
         selectedCandidate = -1
         conversionPreview = null
-        candidateStrip?.showCandidates(emptyList(), -1)
+        candidateSource = CandidateSource.NONE
+        showCandidateStrip(emptyList(), -1)
         keyboardView?.setCandidates(emptyList(), -1)
         keyboardView?.setConversionActive(false)
     }
@@ -443,12 +587,29 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         voice: VoiceRecognitionController,
         text: TextInputController,
         conversion: ConversionEngine,
+        english: EnglishSuggestionEngine? = null,
     ) {
         voiceController = voice
         textController = text
         testConversionEngine = conversion
+        testEnglishSuggestionEngine = english
     }
 }
+
+private enum class CandidateSource { NONE, JAPANESE, ENGLISH }
+
+private data class CandidateSnapshot(
+    val source: CandidateSource,
+    val candidates: List<String>,
+    val conversionGeneration: Long,
+    val englishGeneration: Long,
+    val englishBuffer: String,
+)
+
+private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'
+
+private const val MAX_ENGLISH_BUFFER = 64
+private const val MAX_ENGLISH_CANDIDATES = 5
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
