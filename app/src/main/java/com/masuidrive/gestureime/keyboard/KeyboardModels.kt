@@ -44,6 +44,10 @@ sealed interface KeyAction {
     data class SwitchLayer(val target: KeyboardMode) : KeyAction
     data class SetModifier(val modifier: Modifier?) : KeyAction
     data object TransformKana : KeyAction
+    data object Escape : KeyAction
+    data object CommitConversion : KeyAction
+    data object CommitWithoutConversion : KeyAction
+    data object ConvertToKatakana : KeyAction
     data class SelectCandidate(val index: Int) : KeyAction
     data object CycleCandidate : KeyAction
     data class Backspace(val repeat: Boolean = false) : KeyAction
@@ -60,4 +64,6 @@ data class KeyboardUiState(
     val pendingModifier: Modifier? = null,
     val candidates: List<String> = emptyList(),
     val selectedCandidateIndex: Int = -1,
+    val conversionActive: Boolean = false,
+    val dualFlickEnabled: Boolean = false,
 )

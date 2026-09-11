@@ -27,7 +27,7 @@ class KeyboardView @JvmOverloads constructor(
         const val ACCENT_DELAY_MS = 450L
         const val DELETE_REPEAT_DELAY_MS = 420L
         const val DELETE_REPEAT_INTERVAL_MS = 65L
-        private const val DIM_ALPHA = .42f
+        const val DUAL_FLICK_MIN_WIDTH_DP = 600f
         private const val ACTION_FLICK_LEFT = 0x01020001
         private const val ACTION_FLICK_UP = 0x01020002
         private const val ACTION_FLICK_RIGHT = 0x01020003
@@ -83,6 +83,27 @@ class KeyboardView @JvmOverloads constructor(
         invalidate()
     }
 
+    fun setConversionActive(active: Boolean) {
+        if (state.conversionActive == active) return
+        state = state.copy(conversionActive = active)
+        accessibilityHelper.invalidateRoot()
+        invalidate()
+    }
+
+    fun setDualFlickEnabled(enabled: Boolean) {
+        if (state.dualFlickEnabled == enabled) return
+        cancelActiveGestures()
+        state = state.copy(dualFlickEnabled = enabled)
+        rebuildLayout()
+    }
+
+    private fun rebuildLayout() {
+        if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
+        requestLayout()
+        accessibilityHelper.invalidateRoot()
+        invalidate()
+    }
+
     fun cancelActiveGestures() {
         timers.values.forEach(::removeCallbacks)
         timers.clear()
@@ -120,20 +141,18 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val rowHeight = dp(if (width / density >= 600f) 54f else 45f)
-        val wanted = (rowHeight * 4 + paddingTop + paddingBottom).toInt()
+        val wanted = (dp(rowPitchDp()) * 4 + paddingTop + paddingBottom).toInt()
         setMeasuredDimension(width, resolveSize(wanted, heightMeasureSpec))
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawColor(Color.rgb(28, 29, 33))
+        canvas.drawColor(Color.rgb(41, 41, 44))
         buildHitTargets(paddingTop.toFloat())
-        val popupOwner = active.entries.firstOrNull { (_, hit) -> hit.spec.kind == KeyKind.KANA }?.key
+        val popupOwner = active.entries.firstOrNull { (_, hit) -> hit.spec.kind == KeyKind.KANA || hit.spec.kind == KeyKind.ACCENT }?.key
         hitTargets.forEach { target ->
             if (target.spec.kind == KeyKind.EMPTY) return@forEach
-            val alpha = if (popupOwner != null && active[popupOwner] != target) DIM_ALPHA else 1f
-            drawKey(canvas, target, alpha, active.entries.firstOrNull { it.value == target }?.key)
+            drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
         }
         if (popupOwner != null) active[popupOwner]?.let { drawPopup(canvas, it, directions[popupOwner] ?: Direction.CENTER) }
         accentActive.firstOrNull()?.let { id -> active[id]?.let { drawAccentPopup(canvas, it, accentSelected[id] ?: 0) } }
@@ -141,71 +160,95 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun buildHitTargets(top: Float) {
         hitTargets.clear()
-        val rows = KeyboardLayouts.layout(state.mode).rows
-        val rowHeight = (height - top - paddingBottom) / 4f
-        val layoutUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
+        val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
+        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
+        val rowPitch = (height - top - paddingBottom) / 4f
+        val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 10f else 6f)
         rows.forEachIndexed { rowIndex, row ->
+            val layoutUnits = row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
             val unit = (width - paddingLeft - paddingRight) / layoutUnits
             var x = paddingLeft.toFloat()
             row.keys.forEach { key ->
                 val right = x + unit * key.widthUnits
-                val bottom = min(height - paddingBottom.toFloat(), top + rowHeight * (rowIndex + key.rowSpan))
-                hitTargets += HitTarget(key, RectF(x + dp(2f), top + rowHeight * rowIndex + dp(2f), right - dp(2f), bottom - dp(2f)))
+                val keyTop = top + rowPitch * rowIndex
+                val bottom = min(height - paddingBottom.toFloat(), keyTop + rowPitch * key.rowSpan - rowGap)
+                hitTargets += HitTarget(key, RectF(x + dp(3f), keyTop, right - dp(3f), bottom))
                 x = right
             }
         }
     }
 
-    private fun drawKey(canvas: Canvas, target: HitTarget, alpha: Float, pointerId: Int?) {
+    private fun rowPitchDp() = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 55f else 57f
+
+    private fun drawKey(canvas: Canvas, target: HitTarget, pointerId: Int?) {
         val selected = pointerId != null
-        keyPaint.color = when { selected -> Color.rgb(55, 108, 210); target.spec.dark -> Color.rgb(42, 43, 49); else -> Color.rgb(72, 74, 82) }
-        keyPaint.alpha = (255 * alpha).toInt()
-        canvas.drawRoundRect(target.bounds, dp(6f), dp(6f), keyPaint)
-        textPaint.color = Color.rgb(244, 244, 246)
-        textPaint.alpha = (255 * alpha).toInt()
-        textPaint.textSize = sp(22f)
+        val modifierActive = target.spec.kind == KeyKind.MODIFIER && state.pendingModifier != null
+        keyPaint.color = when { selected || modifierActive -> Color.rgb(168, 206, 255); target.spec.dark -> Color.rgb(48, 48, 52); else -> Color.rgb(65, 65, 68) }
+        keyPaint.alpha = 255
+        canvas.drawRoundRect(target.bounds, dp(5f), dp(5f), keyPaint)
+        textPaint.color = if (selected || modifierActive) Color.rgb(16, 40, 68) else Color.rgb(244, 244, 246)
+        textPaint.alpha = 255
+        textPaint.textSize = sp(mainTextSize(target.spec))
         val direction = pointerId?.let { directions[it] } ?: Direction.CENTER
         val spec = target.spec
         val label = when {
             spec.kind == KeyKind.MODIFIER && state.pendingModifier != null -> if (state.pendingModifier == Modifier.ALT) "A" else "C"
+            spec.kind == KeyKind.BACKSPACE && spec.center != null -> spec.center.label
             selected && direction != Direction.CENTER -> spec.value(direction)?.label
             else -> spec.center?.label ?: modifierLabel(spec)
         } ?: ""
         val centerY = target.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2
         val animatedEnglish = selected && spec.kind == KeyKind.CHARACTER && (direction == Direction.UP || direction == Direction.DOWN)
-        val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && !selected
+        val animatedSpecial = selected && direction != Direction.CENTER && spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE, KeyKind.MODIFIER)
+        val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
         if (spec.id == "mode-↔" && !selected) {
             drawCursorCross(canvas, target.bounds)
         } else if (idleModifier) {
-            textPaint.textSize = sp(12f)
-            canvas.drawText("C", target.bounds.centerX(), target.bounds.centerY() - dp(4f), textPaint)
-            canvas.drawText("A", target.bounds.centerX(), target.bounds.centerY() + dp(12f), textPaint)
-        } else if (!animatedEnglish) {
+            textPaint.textSize = sp(10f)
+            canvas.drawText("C", target.bounds.centerX(), target.bounds.top + dp(13f), textPaint)
+            canvas.drawText("A", target.bounds.centerX(), target.bounds.bottom - dp(6f), textPaint)
+        } else if (!animatedEnglish && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, centerY, !selected && direction == Direction.CENTER)
         }
         val secondary = when {
-            spec.kind == KeyKind.ENTER -> "paste"
+            spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
             spec.kind == KeyKind.CHARACTER -> spec.down?.label
             else -> null
         }
         if (animatedEnglish && direction == Direction.DOWN && secondary != null) {
             textPaint.textSize = sp(12f) * (1f + .7f * animationProgress)
-            textPaint.color = Color.rgb(244, 244, 246)
+            textPaint.color = Color.rgb(16, 40, 68)
             canvas.drawText(secondary, target.bounds.centerX(), target.bounds.top + dp(14f + 13f * animationProgress), textPaint)
             textPaint.textSize = sp(22f)
-            textPaint.alpha = (255 * alpha * (1f - animationProgress)).toInt()
+            textPaint.alpha = (255 * (1f - animationProgress)).toInt()
             canvas.drawText(spec.center?.label.orEmpty(), target.bounds.centerX(), centerY + dp(22f) * animationProgress, textPaint)
         } else if (animatedEnglish && direction == Direction.UP) {
             textPaint.textSize = sp(22f)
-            textPaint.color = Color.rgb(244, 244, 246)
+            textPaint.color = Color.rgb(16, 40, 68)
             canvas.drawText(label, target.bounds.centerX(), centerY - dp(3f) * animationProgress, textPaint)
+        } else if (animatedSpecial) {
+            textPaint.textSize = sp(11f) * (1f + .7f * animationProgress)
+            textPaint.color = Color.rgb(16, 40, 68)
+            drawFittedText(canvas, label, target.bounds.centerX(), centerY, target.bounds.width() - dp(8f))
         } else if (!selected && secondary != null) {
-            textPaint.textSize = sp(12f)
+            textPaint.textSize = sp(secondaryTextSize(spec))
             textPaint.color = Color.rgb(190, 192, 200)
             canvas.drawText(secondary, target.bounds.centerX(), target.bounds.top + dp(14f), textPaint)
         }
     }
+
+    private fun mainTextSize(spec: KeySpec) = when {
+        spec.kind == KeyKind.ENTER -> 15f
+        spec.kind in setOf(KeyKind.SPACE, KeyKind.MODE, KeyKind.LAYER_SWITCH) -> 16f
+        spec.kind == KeyKind.MODIFIER || spec.kind == KeyKind.ACCENT -> 18f
+        spec.kind == KeyKind.CURSOR -> 18f
+        state.mode == KeyboardMode.QWERTY && (spec.up != null || spec.down != null) -> 22f
+        state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 24f
+        else -> 25f
+    }
+
+    private fun secondaryTextSize(spec: KeySpec) = if (spec.kind == KeyKind.CHARACTER) 11f else 10f
 
     private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "C/A" else ""
 
@@ -365,6 +408,7 @@ class KeyboardView @JvmOverloads constructor(
             (hit.spec.kind == KeyKind.CHARACTER && (hit.spec.up != null || hit.spec.down != null))
         interpreter.start(id, event.getX(index) / density, event.getY(index) / density,
             trackpad = hit.spec.kind == KeyKind.SPACE, verticalOnly = verticalOnly)
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         if (hit.spec.kind == KeyKind.CHARACTER || (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null)) {
             scheduleTimer(id, hit, Direction.CENTER)
         }
@@ -387,13 +431,15 @@ class KeyboardView @JvmOverloads constructor(
                 if (directions[id] != update.direction) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 directions[id] = update.direction
                 cancelTimer(id)
-                if (active[id]?.spec?.kind == KeyKind.BACKSPACE && update.direction == Direction.DOWN) {
+                if (active[id]?.spec?.down?.action is KeyAction.Backspace && update.direction == Direction.DOWN) {
                     active[id]?.let { scheduleTimer(id, it, Direction.DOWN) }
                 }
                 animateLabels()
             }
             is GestureUpdate.CursorDelta -> {
                 cursorMoved += id
+                if (directions[id] != update.direction) animateLabels()
+                directions[id] = update.direction
                 actionSink?.onKeyAction(KeyAction.MoveCursor(update.direction, update.units))
                 performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }

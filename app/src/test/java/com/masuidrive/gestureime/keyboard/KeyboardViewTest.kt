@@ -2,6 +2,7 @@ package com.masuidrive.gestureime.keyboard
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Rect
 import android.content.res.Configuration
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -23,30 +24,30 @@ class KeyboardViewTest {
     @Before fun setUp() {
         view = KeyboardView(RuntimeEnvironment.getApplication()).apply {
             actionSink = KeyboardActionSink { actions += it }
-            measure(exact(400), exact(180))
-            layout(0, 0, 400, 180)
-            draw(Canvas(Bitmap.createBitmap(400, 180, Bitmap.Config.ARGB_8888)))
+            measure(exact(400), exact(220))
+            layout(0, 0, 400, 220)
+            draw(Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888)))
         }
     }
 
     @Test fun `space tap commits one space`() {
-        touch(MotionEvent.ACTION_DOWN, 200f, 157f)
-        touch(MotionEvent.ACTION_UP, 200f, 157f, 10)
+        touch(MotionEvent.ACTION_DOWN, 200f, 190f)
+        touch(MotionEvent.ACTION_UP, 200f, 190f, 10)
         assertEquals(listOf(KeyAction.CommitText(" ")), actions)
     }
 
     @Test fun `space cursor gesture does not also commit space on release`() {
-        touch(MotionEvent.ACTION_DOWN, 200f, 157f)
-        touch(MotionEvent.ACTION_MOVE, 216f, 158f, 10)
-        touch(MotionEvent.ACTION_MOVE, 208f, 170f, 20)
-        touch(MotionEvent.ACTION_UP, 208f, 170f, 30)
+        touch(MotionEvent.ACTION_DOWN, 200f, 190f)
+        touch(MotionEvent.ACTION_MOVE, 216f, 191f, 10)
+        touch(MotionEvent.ACTION_MOVE, 208f, 203f, 20)
+        touch(MotionEvent.ACTION_UP, 208f, 203f, 30)
         assertEquals(listOf(KeyAction.MoveCursor(Direction.RIGHT, 2), KeyAction.MoveCursor(Direction.LEFT, 1)), actions)
         assertTrue(actions.none { it == KeyAction.CommitText(" ") })
     }
 
     @Test fun `cancel emits no input and clears active pointer`() {
-        touch(MotionEvent.ACTION_DOWN, 200f, 157f)
-        touch(MotionEvent.ACTION_CANCEL, 200f, 157f, 10)
+        touch(MotionEvent.ACTION_DOWN, 200f, 190f)
+        touch(MotionEvent.ACTION_CANCEL, 200f, 190f, 10)
         assertTrue(actions.isEmpty())
     }
 
@@ -59,7 +60,7 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null)), actions)
     }
 
-    @Test fun `backspace tap and up are inert while down deletes`() {
+    @Test fun `backspace tap deletes down escapes and other directions are inert`() {
         touch(MotionEvent.ACTION_DOWN, 390f, 67f)
         touch(MotionEvent.ACTION_UP, 390f, 67f, 5)
         touch(MotionEvent.ACTION_DOWN, 390f, 67f, 10)
@@ -68,7 +69,7 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_DOWN, 390f, 67f, 30)
         touch(MotionEvent.ACTION_MOVE, 390f, 90f, 40)
         touch(MotionEvent.ACTION_UP, 390f, 90f, 45)
-        assertEquals(listOf(KeyAction.Backspace()), actions)
+        assertEquals(listOf(KeyAction.Backspace(), KeyAction.Escape), actions)
     }
 
     @Test fun `accessibility exposes individual keys and activates focused key`() {
@@ -90,16 +91,91 @@ class KeyboardViewTest {
         assertTrue("font scale 2.0 must not expand labels beyond their key bounds", normal.sameAs(accessibility))
     }
 
+    @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
+        view.setMode(KeyboardMode.KANA)
+        view.setDualFlickEnabled(true)
+        assertEquals(19, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
+
+        view.measure(exact(599), exact(228))
+        view.layout(0, 0, 599, 228)
+        assertEquals(19, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
+
+        view.measure(exact(600), exact(228))
+        view.layout(0, 0, 600, 228)
+        view.draw(Canvas(Bitmap.createBitmap(600, 228, Bitmap.Config.ARGB_8888)))
+        assertEquals(31, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
+    }
+
+    @Test fun `qwerty geometry matches css gaps heights and bottom row proportions`() {
+        view.measure(exact(412), exact(220))
+        view.layout(0, 0, 412, 220)
+        val provider = view.accessibilityNodeProvider
+        fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
+        val q = bounds(0)
+        val w = bounds(1)
+        assertEquals(45, q.height())
+        assertEquals(6, w.left - q.right)
+        assertEquals(10, bounds(10).top - q.bottom)
+        val mode = bounds(31).width() + 6
+        val space = bounds(32).width() + 6
+        val enter = bounds(33).width() + 6
+        val total = mode + space + enter
+        assertEquals(.19f, mode.toFloat() / total, .01f)
+        assertEquals(.55f, space.toFloat() / total, .01f)
+        assertEquals(.26f, enter.toFloat() / total, .01f)
+    }
+
+    @Test fun `kana popup leaves surrounding key backgrounds undimmed`() {
+        view.setMode(KeyboardMode.KANA)
+        view.measure(exact(400), exact(228))
+        view.layout(0, 0, 400, 228)
+        fun render() = Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888).also { view.draw(Canvas(it)) }
+        val idle = render()
+        touch(MotionEvent.ACTION_DOWN, 120f, 20f)
+        val popup = render()
+        assertEquals(idle.getPixel(250, 200), popup.getPixel(250, 200))
+    }
+
+    @Test fun `simultaneous dual kana pointers dispatch in pointer up order`() {
+        view.setMode(KeyboardMode.KANA)
+        view.setDualFlickEnabled(true)
+        view.measure(exact(840), exact(220))
+        view.layout(0, 0, 840, 220)
+        view.draw(Canvas(Bitmap.createBitmap(840, 220, Bitmap.Config.ARGB_8888)))
+        view.actionSink = KeyboardActionSink { action ->
+            actions += action
+            if (action is KeyAction.KanaInput) view.setConversionActive(true)
+        }
+
+        multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to (150f to 20f)))
+        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+            listOf(0 to (150f to 20f), 1 to (470f to 20f)))
+        multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+            listOf(0 to (150f to 20f), 1 to (470f to 20f)))
+        multiTouch(MotionEvent.ACTION_UP, listOf(0 to (150f to 20f)))
+
+        assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.KanaInput("あ")), actions)
+    }
+
     private fun renderAtFontScale(fontScale: Float): Bitmap {
         val base = RuntimeEnvironment.getApplication()
         val configuration = Configuration(base.resources.configuration).apply { this.fontScale = fontScale }
         val context = base.createConfigurationContext(configuration)
-        return Bitmap.createBitmap(400, 180, Bitmap.Config.ARGB_8888).also { bitmap ->
+        return Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888).also { bitmap ->
             KeyboardView(context).apply {
-                measure(exact(400), exact(180))
-                layout(0, 0, 400, 180)
+                measure(exact(400), exact(220))
+                layout(0, 0, 400, 220)
                 draw(Canvas(bitmap))
             }
+        }
+    }
+
+    private fun multiTouch(action: Int, pointers: List<Pair<Int, Pair<Float, Float>>>) {
+        val properties = pointers.map { (id, _) -> MotionEvent.PointerProperties().apply { this.id = id } }.toTypedArray()
+        val coordinates = pointers.map { (_, point) -> MotionEvent.PointerCoords().apply { x = point.first; y = point.second } }.toTypedArray()
+        MotionEvent.obtain(0, 0, action, pointers.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, 0, 0).also {
+            view.onTouchEvent(it)
+            it.recycle()
         }
     }
 

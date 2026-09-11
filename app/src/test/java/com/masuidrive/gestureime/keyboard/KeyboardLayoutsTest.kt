@@ -33,8 +33,8 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.SetModifier(Modifier.ALT), modifier.up?.action)
         assertEquals(KeyAction.SetModifier(Modifier.CTRL), modifier.down?.action)
         val backspace = qwerty.single { it.kind == KeyKind.BACKSPACE }
-        assertNull(backspace.center); assertNull(backspace.up)
-        assertTrue(backspace.down?.action is KeyAction.Backspace)
+        assertTrue(backspace.center?.action is KeyAction.Backspace); assertNull(backspace.up)
+        assertEquals(KeyAction.Escape, backspace.down?.action)
     }
 
     @Test fun `kana directions cover every specified kana input`() {
@@ -61,6 +61,7 @@ class KeyboardLayoutsTest {
         keys(KeyboardMode.SYMBOLS).filter { it.kind == KeyKind.CHARACTER }.flatMap { Direction.entries.mapNotNull(it::value) }
             .forEach { value -> assertTrue(value.label.all { it.code in 0..127 }) }
         assertFalse(keys(KeyboardMode.SYMBOLS).isEmpty())
+        assertEquals(KeyAction.Escape, keys(KeyboardMode.SYMBOLS).single { it.id == "escape" }.center?.action)
     }
 
     @Test fun `number minus key exposes its five specified ASCII values`() {
@@ -74,6 +75,26 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.MoveToBoundary(CursorBoundary.END), rows[1].keys[3].center?.action)
         assertEquals(KeyKind.SPACE, rows[2].keys[2].kind)
         assertEquals(2, rows[2].keys[4].rowSpan)
+    }
+
+    @Test fun `dual kana duplicates only the central twelve keys`() {
+        val single = KeyboardLayouts.layout(KeyboardMode.KANA).rows
+        val dual = KeyboardLayouts.layout(KeyboardMode.KANA, dualKana = true).rows
+        dual.indices.forEach { row ->
+            assertEquals(single[row].keys.first(), dual[row].keys.first())
+            assertEquals(single[row].keys.drop(1).take(3), dual[row].keys.slice(1..3))
+            assertEquals(single[row].keys.drop(1).take(3), dual[row].keys.slice(4..6))
+            assertEquals(single[row].keys.drop(4), dual[row].keys.drop(7))
+        }
+    }
+
+    @Test fun `active conversion enter has only explicit conversion choices`() {
+        val enter = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true).rows[2].keys.last()
+        assertEquals("確定", enter.center?.label)
+        assertEquals(KeyAction.CommitConversion, enter.center?.action)
+        assertEquals(KeyAction.CommitWithoutConversion, enter.up?.action)
+        assertEquals(KeyAction.ConvertToKatakana, enter.left?.action)
+        assertNull(enter.right); assertNull(enter.down)
     }
 
     private fun keys(mode: KeyboardMode) = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
