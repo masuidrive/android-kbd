@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: default
+base_branch: features/260910-233809-fix-keyboard-interaction-details
 description: "広幅画面で日本語12キーを左右に複製するDual Flick設定を追加する"
 created_at: "2026-09-11T00:07:06Z"
 started_at: null
@@ -32,7 +32,7 @@ AI-1〜AI-4と矛盾しない。端末内処理、同じ変換インターフェ
 
 ### Out-of-scope
 - 数字モードの3×4複製、狭幅での強制Dual Flick、ユーザーが指定していない候補・編集キーの複製。
-- この起票時点での実装、設定追加、幅probe、デバッグ、既存ticketのclose。
+- 音声入力と、Dual Flickに因果のない既存IME機能の変更。
 
 ---
 Work notes: `note.md`
