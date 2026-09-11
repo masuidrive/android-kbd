@@ -41,6 +41,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 12. レイヤー切替は全レイヤーで左=記号、上=日本語、右=QWERTY、下=テンキーとする。候補欄の背景は候補の有無によらずkeyboard背景`#29292c`に固定し、選択候補のaccentは維持する。（2026-09-11 / 260911-022705）
 13. 英数字候補は既定OFFかつprivate欄では無効とする。ON時はASCII英数字を最大64文字のcompositionとして保持し、英字だけのprefixを固定端末内辞書へ照会する。候補tapは描画token、候補source、editor session、生成世代、prefixが一致した時だけ置換確定する。Space/Enterおよびlayer・modifier・cursor・paste・voice・IME hideはraw確定境界とし、editor切替時は旧bufferを新editorへ渡さない。（2026-09-11 / 260911-003916）
 14. QWERTY文字キーの下swipeでは補助labelのvisual centerを実key高の中央へ90msで移動する。保存済みlabel Y調整は選択終端から差し引き、狭幅/広幅とも中央を維持する。QWERTY以外とEnter/Pasteの下swipeは従来の13dp transitionを維持する。（2026-09-11 / 260911-055701-center-qwerty-down-swipe-label）
+15. 日本語変換候補と英字補完候補は共通faceを使い、高さ34dp、最小幅82dp、左右padding 14dp、gap 5dp、radius 7dp、1dp下影、HTML 15px相当の固定15dp文字で描画する。候補欄全高50dpは上8dp・左右3dp・下8dpを含み、Light/Darkの通常/選択色はHTML key/selected paletteへ一致させる。（2026-09-11 / 260911-062719-align-candidate-ui-with-html）
 
 ## 実装の注意・地雷
 
