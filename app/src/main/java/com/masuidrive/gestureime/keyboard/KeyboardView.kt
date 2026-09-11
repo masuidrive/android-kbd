@@ -527,7 +527,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun describe(spec: KeySpec): String = Direction.entries.mapNotNull { direction ->
-        spec.value(direction)?.label?.let { label ->
+        spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.label?.let { label ->
             when (direction) {
                 else -> "${directionLabel(direction)} $label"
             }
@@ -560,7 +560,9 @@ class KeyboardView @JvmOverloads constructor(
                 ACTION_FLICK_DOWN to Direction.DOWN,
             ).forEach { (id, direction) ->
                 target.spec.value(direction)?.let {
-                    node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, "${directionLabel(direction)} ${it.label}"))
+                    if (it.action != KeyAction.VoiceHold) {
+                        node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, "${directionLabel(direction)} ${it.label}"))
+                    }
                 }
             }
         }
@@ -576,7 +578,9 @@ class KeyboardView @JvmOverloads constructor(
                 ACTION_FLICK_DOWN -> Direction.DOWN
                 else -> return false
             }
-            if (target.spec.value(direction) == null && !(target.spec.kind == KeyKind.MODIFIER && direction == Direction.CENTER)) return false
+            val selected = target.spec.value(direction)
+            if (selected?.action == KeyAction.VoiceHold) return false
+            if (selected == null && !(target.spec.kind == KeyKind.MODIFIER && direction == Direction.CENTER)) return false
             dispatch(target.spec, direction)
             sendEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_CLICKED)
             invalidateVirtualView(virtualViewId)

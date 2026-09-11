@@ -198,6 +198,18 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
+    @Test fun `accessibility does not advertise an unexecutable voice hold flick`() {
+        val events = mutableListOf<VoiceHoldEvent>()
+        view.voiceHoldSink = VoiceHoldSink(events::add)
+        val provider = view.accessibilityNodeProvider
+        val layer = requireNotNull(provider.createAccessibilityNodeInfo(31))
+
+        assertFalse(layer.contentDescription.toString().contains("音声"))
+        assertFalse(provider.performAction(31, 0x01020001, null))
+        assertTrue(events.isEmpty())
+        assertTrue(actions.isEmpty())
+    }
+
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `direction before hold and second pointer cancel voice arming`() {
         val events = mutableListOf<VoiceHoldEvent>()
         view.voiceHoldSink = VoiceHoldSink(events::add)
