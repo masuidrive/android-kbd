@@ -24,7 +24,7 @@
       <label class="editor-label" for="ios-typing-area">入力を試す<span class="count">0 文字</span></label>
       <textarea id="ios-typing-area" aria-label="入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに入力されます" rows="4"></textarea>
     </div>
-    <div class="feedback" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
+    <div class="sr-status" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
     <div class="keyboard" role="group" aria-label="画面キーボード">
       <div class="candidate-bar" role="listbox" aria-label="入力候補" hidden></div>
       <div class="keys"></div>
@@ -57,13 +57,13 @@
   #ios-keyboard-demo .editor-label { display:flex; justify-content:space-between; font-size:11px; color:var(--ik-muted); margin-bottom:10px; }
   #ios-keyboard-demo textarea { display:block; width:100%; height:124px; min-height:124px; resize:vertical; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
   #ios-keyboard-demo textarea::placeholder { color:var(--ik-muted); opacity:.65; }
-  #ios-keyboard-demo .feedback { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:8px 16px; font-size:11px; border-top:1px solid var(--ik-line); gap:8px; }
+  #ios-keyboard-demo .sr-status { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
   #ios-keyboard-demo .last-input { color:var(--ik-blue); }
   #ios-keyboard-demo .keyboard { background:var(--ik-bg); position:relative; padding:8px 3px 0; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   #ios-keyboard-demo .candidate-bar { display:flex; align-items:center; gap:5px; height:42px; padding:0 3px 8px; overflow-x:auto; scrollbar-width:none; }
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
-  #ios-keyboard-demo .candidate-bar[hidden] { display:none; }
+  #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
   #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .keys { position:relative; }
@@ -137,6 +137,14 @@
   #ios-keyboard-demo .home-indicator { width:118px; height:4px; background:var(--ik-ink); border-radius:4px; margin:6px auto 0; transform:translateY(-3px); opacity:.85; }
   #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 47px; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
+  #ios-keyboard-demo .voice-layer { display:grid; place-items:center; min-height:210px; padding:24px 16px; text-align:center; }
+  #ios-keyboard-demo .voice-card { width:min(100%,520px); padding:22px; border:1px solid var(--ik-line); border-radius:14px; background:var(--ik-paper); }
+  #ios-keyboard-demo .voice-state { margin:0 0 8px; color:var(--ik-blue); font-size:12px; font-weight:650; letter-spacing:.05em; }
+  #ios-keyboard-demo .voice-partial { min-height:3.4em; margin:0; font-size:clamp(18px,4vw,25px); line-height:1.7; overflow-wrap:anywhere; }
+  #ios-keyboard-demo .voice-actions { display:flex; justify-content:center; gap:10px; margin-top:18px; }
+  #ios-keyboard-demo .voice-actions button { min-width:110px; min-height:42px; padding:8px 16px; border:1px solid var(--ik-line); border-radius:9px; background:var(--ik-key); font-size:15px; }
+  #ios-keyboard-demo .voice-actions .voice-send:not(:disabled) { border-color:var(--ik-blue); background:var(--ik-active); color:var(--ik-blue); }
+  #ios-keyboard-demo .voice-actions button:disabled { cursor:default; opacity:.45; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -277,7 +285,7 @@
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
-  const voiceDemo={active:false,partial:'',timer:null};
+  const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
   let renderedCandidateContentKey=null;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
@@ -355,26 +363,48 @@
     editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));announce('コマンドを確定：'+candidate);render();
   }
+  function clearVoiceTimers() {voiceDemo.timers.forEach(clearTimeout);voiceDemo.timers=[];}
   function beginVoiceDemo(p) {
     if(voiceDemo.active)return;
-    p.voiceTriggered=true;voiceDemo.active=true;voiceDemo.partial='音声を聞いています';
-    navigator.vibrate?.([35,45,35]);announce('音声入力を開始');renderCandidates();
-    voiceDemo.timer=setTimeout(()=>{voiceDemo.partial='こんにちは、音声入力の途中です';renderCandidates();announce('認識途中：'+voiceDemo.partial);},500);
+    p.voiceTriggered=true;
+    Object.assign(voiceDemo,{active:true,phase:'listening',partial:'聞き取っています…',candidates:[],index:0,returnState:{language,layer},committed:false});
+    navigator.vibrate?.([35,45,35]);announce('模擬音声認識を開始');
+    voiceDemo.timers=[
+      setTimeout(()=>{voiceDemo.partial='こんにちは';render(true);announce('認識途中：こんにちは');},450),
+      setTimeout(()=>{voiceDemo.partial='こんにちは、音声入力を';render(true);announce('認識途中：'+voiceDemo.partial);},950),
+      setTimeout(()=>{voiceDemo.phase='ready';voiceDemo.partial='こんにちは、音声入力を試しています';voiceDemo.candidates=['こんにちは、音声入力を試しています','こんにちは。音声入力を試しています','音声入力を試しています'];voiceDemo.index=0;render(true);announce('認識結果を選べます');},1500)
+    ];
+    render(true);
   }
-  function finishVoiceDemo(canceled=false) {
-    clearTimeout(voiceDemo.timer);
-    const finalText=voiceDemo.partial==='音声を聞いています'?'こんにちは':voiceDemo.partial.replace('、音声入力の途中です','');
-    voiceDemo.active=false;voiceDemo.partial='';renderCandidates();
-    if(canceled){announce('音声入力を取り消し');return;}
-    insert(finalText);announce('音声入力：'+finalText);
+  function leaveVoiceDemo(canceled) {
+    if(!voiceDemo.active)return;
+    clearVoiceTimers();
+    const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
+    language=previous.language;layer=previous.layer;
+    announce(canceled?'音声入力を取り消し':'音声入力を終了');render(true);
+  }
+  function sendVoiceDemo() {
+    if(!voiceDemo.active||voiceDemo.phase!=='ready'||voiceDemo.committed)return;
+    const text=voiceDemo.candidates[voiceDemo.index];if(!text)return;
+    voiceDemo.committed=true;clearVoiceTimers();
+    const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
+    language=previous.language;layer=previous.layer;
+    preserveComposition=true;
+    editor.focus({preventScroll:true});editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;clearComposition();
+    announce('音声入力：'+text);render();
   }
   function renderCandidates() {
     candidateBar.replaceChildren();
-    if(voiceDemo.active) {
+    if(voiceDemo.active&&voiceDemo.phase==='ready') {
       candidateBar.hidden=false;
-      const partial=document.createElement('button');partial.type='button';partial.disabled=true;partial.textContent=voiceDemo.partial;
-      const cancel=document.createElement('button');cancel.type='button';cancel.dataset.voiceCancel='';cancel.textContent='取消';
-      candidateBar.append(partial,cancel);resetCandidateScrollIfChanged('voice\0'+voiceDemo.partial);return;
+      voiceDemo.candidates.forEach((candidate,index)=>{const button=document.createElement('button');button.type='button';button.dataset.voiceCandidate=String(index);button.setAttribute('role','option');button.setAttribute('aria-selected',String(index===voiceDemo.index));button.textContent=candidate;candidateBar.append(button);});
+      resetCandidateScrollIfChanged('voice\0'+voiceDemo.candidates.join('\0'));return;
+    }
+    if(voiceDemo.active) {
+      candidateBar.hidden=true;resetCandidateScrollIfChanged('voice-listening');return;
     }
     if(language==='kana'&&layer==='letters'&&composition.reading) {
       candidateBar.hidden=false;
@@ -510,7 +540,7 @@
     else if(id==='modifier')modify();
     else if(id==='escape')announce('ESC');
     else if(id==='ctrl-j')applyModified('j','Control');
-    else if(id==='voice')announce('左へフリックしたまま話します');
+    else if(id==='voice')announce('音声入力面を開きます');
     else if(id==='raw-conversion'&&composition.reading) {replaceComposition(composition.candidates.indexOf(composition.reading),true);}
     else if(id==='katakana-conversion'&&composition.reading) {
       const katakana=composition.reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
@@ -606,7 +636,7 @@
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
-    const layerDirections='左フリックを保持して音声入力、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
+    const layerDirections='左フリックで音声入力面、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
     const names={
       backspace:'削除',
       'flick-backspace':'タップで削除、下フリックでESC',
@@ -724,6 +754,17 @@
     return button;
   }
   function renderKeys() {
+    if(voiceDemo.active) {
+      keyMap=new Map();keys.replaceChildren();keys.className='keys voice';
+      const panel=document.createElement('section');panel.className='voice-layer';panel.setAttribute('aria-label','模擬音声入力');
+      const card=document.createElement('div');card.className='voice-card';
+      const state=document.createElement('p');state.className='voice-state';state.textContent=voiceDemo.phase==='ready'?'認識結果':'認識中';
+      const partial=document.createElement('p');partial.className='voice-partial';partial.setAttribute('role','status');partial.setAttribute('aria-live','polite');partial.textContent=voiceDemo.partial;
+      const actions=document.createElement('div');actions.className='voice-actions';
+      const cancel=document.createElement('button');cancel.type='button';cancel.dataset.voiceCancel='';cancel.textContent='キャンセル';
+      const send=document.createElement('button');send.type='button';send.className='voice-send';send.dataset.voiceSend='';send.textContent='送信';send.disabled=voiceDemo.phase!=='ready';
+      actions.append(cancel,send);card.append(state,partial,actions);panel.append(card);keys.append(panel);return;
+    }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
@@ -731,9 +772,9 @@
   function render(force=false) {
     if(active.size&&!force)return;
     renderCandidates();renderKeys();
-    $('.mode-label').textContent=language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
+    $('.mode-label').textContent=voiceDemo.active?'音声入力':language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
     if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
-    $('.language').textContent=language==='kana'?'日本語':'QWERTY';
+    $('.language').textContent=voiceDemo.active?'模擬認識':language==='kana'?'日本語':'QWERTY';
     const languageButton=$('.keyboard-bottom [data-key="globe"]');
     languageButton.textContent=language==='kana'?'':'あ';languageButton.style.visibility=language==='kana'?'hidden':'visible';languageButton.disabled=language==='kana';
     languageButton.setAttribute('aria-label',language==='kana'?'QWERTYへ切り替える':'日本語へ切り替える');
@@ -775,12 +816,12 @@
   function clearTimers(p) { clearTimeout(p.timer);clearInterval(p.repeat); }
   function cancelAll() {
     for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');}
-    active.clear();if(voiceDemo.active)finishVoiceDemo(true);pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    active.clear();if(voiceDemo.active)leaveVoiceDemo(true);pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
   }
   function cancelGestures() {
     for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');}
-    active.clear();if(voiceDemo.active)finishVoiceDemo(true);popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    active.clear();popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
   }
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
@@ -866,7 +907,7 @@
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
     if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
-    if(p.voiceTriggered)finishVoiceDemo(canceled);
+    if(p.voiceTriggered) { /* The dedicated voice layer owns completion. */ }
     else if(!canceled&&!p.trackpad) {
       if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
@@ -886,7 +927,11 @@
   keyboard.addEventListener('lostpointercapture',e=>finish(e,true));
   root.addEventListener('click',e=>{
     const voiceCancel=e.target.closest('button[data-voice-cancel]');
-    if(voiceCancel) {finishVoiceDemo(true);render();return;}
+    if(voiceCancel) {leaveVoiceDemo(true);return;}
+    const voiceSend=e.target.closest('button[data-voice-send]');
+    if(voiceSend) {sendVoiceDemo();return;}
+    const voiceCandidate=e.target.closest('button[data-voice-candidate]');
+    if(voiceCandidate&&voiceDemo.active&&voiceDemo.phase==='ready') {voiceDemo.index=Number(voiceCandidate.dataset.voiceCandidate);voiceDemo.partial=voiceDemo.candidates[voiceDemo.index];render();announce('音声候補を選択：'+voiceDemo.partial);return;}
     const slashCandidate=e.target.closest('button[data-slash-candidate]');
     if(slashCandidate) {replaceSlashCommand(slashCandidate.dataset.slashCandidate);return;}
     const englishCandidate=e.target.closest('button[data-english-candidate]');
