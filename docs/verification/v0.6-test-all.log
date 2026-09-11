@@ -1,0 +1,34 @@
+========================================
+  fast-checks
+========================================
+fast-checks: 5 checks passed (623 ms)
+
+========================================
+  android unit, lint, apk
+========================================
+
+
+<======-------> 50% CONFIGURING [45ms]> :app
+<===========--> 89% EXECUTING [149ms]> :app:compileDebugUnitTestKotlin> :app:lintAnalyzeDebugUnitTest<===========--> 89% EXECUTING [249ms]<===========--> 89% EXECUTING [345ms]
+> Task :app:compileDebugUnitTestKotlin
+w: file:///Users/masuidrive/Develop/personal/android-kbd/app/src/test/java/com/masuidrive/gestureime/ImeServiceVoiceHoldTest.kt:49:168 The corresponding parameter in the supertype 'VoiceRecognizer' is named 'callback'. This may cause problems when calling this function with named arguments.
+
+
+
+<============-> 93% EXECUTING [449ms]> :app:testDebugUnitTest > 0 tests completed> :app:lintAnalyzeDebugUnitTest<============-> 93% EXECUTING [545ms]
+<============-> 93% EXECUTING [649ms]> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.ImePreferen<============-> 93% EXECUTING [743ms]<============-> 93% EXECUTING [842ms]<============-> 93% EXECUTING [949ms]<============-> 93% EXECUTING [1s]<============-> 95% EXECUTING [1s]> IDLE<============-> 95% EXECUTING [2s]> :app:testDebugUnitTest > 4 tests completed> :app:testDebugUnitTest > 6 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.ImeServiceE<============-> 95% EXECUTING [3s]> :app:testDebugUnitTest > 9 tests completed> :app:testDebugUnitTest > 13 tests completed> :app:testDebugUnitTest > 15 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.ImeServiceV> :app:testDebugUnitTest > 21 tests completed> :app:testDebugUnitTest > 23 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.QwertyLabel> :app:testDebugUnitTest > 24 tests completed<============-> 95% EXECUTING [4s]> :app:testDebugUnitTest > 33 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.TextInputCo> :app:testDebugUnitTest > 61 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive...keyboard.KeyboardPop> :app:testDebugUnitTest > 65 tests completed> :app:testDebugUnitTest > 66 tests completed<============-> 95% EXECUTING [5s]<============-> 95% EXECUTING [6s]> :app:testDebugUnitTest > 70 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.keyboard.Ke> :app:testDebugUnitTest > 75 tests completed> :app:testDebugUnitTest > 81 tests completed> :app:testDebugUnitTest > 89 tests completed> :app:testDebugUnitTest > 98 tests completed> IDLE<============-> 95% EXECUTING [7s]> :app:testDebugUnitTest > 107 tests completed> :app:testDebugUnitTest > Executing test com.masuidrive.gestureime.ui.Candidat> :app:testDebugUnitTest > 121 tests completed> IDLE> :app:testDebugUnitTest
+BUILD SUCCESSFUL in 7s
+55 actionable tasks: 7 executed, 48 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.0.0/userguide/configuration_cache_enabling.html
+
+
+
+
+<-------------> 0% WAITING> :app:testDebugUnitTest> IDLE> IDLE
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+
+Passed: 2 / 2

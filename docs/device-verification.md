@@ -147,3 +147,16 @@ The final APK at revision `563423f` is 34,859,489 bytes with SHA-256 `fed641ca9f
 At 412dp, QWERTY, Kana, Numbers, Symbols and Cursor screenshots were opened and matched their filenames. Kana candidates used the same `#29292c` strip background as the empty state while retaining the selected-candidate accent. At 840dp, QWERTY and the two-copy Dual Kana layout fit without overlap. The fixed popup path was exercised on the API 36.1 AVD: an up flick on `あ` displayed all five tiles with `う` selected, release inserted one `う`, and the window dismissed. Its corrected window frame was `[111,1589][541,2027]`; the earlier faulty build placed it at y=3176..3614.
 
 Symbols persisted after hiding and reopening the IME and after focusing the second editor; the stored layer was then restored to QWERTY. The emulator was finally restored to physical 1080 × 2400 px, 420 dpi, font scale 1.0, light mode, Dual Flick OFF, terminal mode OFF, QWERTY, and Gesture IME selected. `native-kana-popup-412.png` and `native-qwerty-412-wip.png` were invalid intermediate captures (popup absent / IME absent) and are excluded from evidence.
+
+## v0.6 English suggestions on API 36.1
+
+The final APK SHA `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be3ca` was installed on `emulator-5556`. All values below were fixed QA input entered through the native keyboard.
+
+- With the setting ON, `pro` remained composing and displayed `problem`, `probably`, `program`, and `process`. Tapping the first rendered candidate changed a fresh empty editor to exactly `problem`; `docs/verification/v0.6-candidate-tap.xml` preserves that value. An earlier `proproblem` observation mixed a Gboard-entered raw `pro` with a second Gesture IME prefix and was discarded as invalid evidence.
+- `hi` followed by Enter produced exactly `hi`, without a newline. `hi` followed by Space produced `hi `.
+- ASCII digits entered from the Symbols number row stayed raw, showed no dictionary candidates, and Enter added no newline.
+- Switching an English prefix to Kana removed English candidates and preserved the raw prefix.
+- The private editor hid the candidate strip while direct input continued.
+- Airplane mode still produced the same bundled candidates for `pro`; airplane mode was then disabled.
+
+After verification, Dual Flick, terminal cursor, and English suggestions were OFF. The display remained 1080 × 2400 px at 420 dpi, QWERTY was restored as the last layer, and Gesture IME remained selected.

@@ -54,3 +54,11 @@ Revision `7fec052b04372f25bb9d107628e3442cce504496` was verified on 2026-09-11 J
 The production APK is `app/build/outputs/apk/debug/app-debug.apk`, SHA-256 `8f6604d5bc433727a6bf421923c3f7557cfdb6b52d0119d94ee3b62c94246457`. It is version code 4 / version name 0.4.0 and is signed with the Android debug certificate whose SHA-256 digest is `b56a8bf1af87f450f392e11785a58a8e70ec2814c656ea47c25d7e36faf0c015`.
 
 The connected suite ran against this final production revision and reports 7 tests with no failures, errors, or skips. Its console output is preserved at `docs/verification/v0.4-connected.log`.
+
+## v0.6 offline English suggestion verification
+
+Revision `17e0b4d` contains the reviewed production implementation at `b145c7e` plus test, documentation, and packaging commits. `scripts/test-all.sh` passed 5 fast checks, 121 unit tests, Android lint, and APK assembly. `ANDROID_SERIAL=emulator-5556 ./gradlew :app:connectedDebugAndroidTest` passed 7 tests on the API 36.1 AVD. Unit and connected JUnit records reported zero failures, errors, and skips.
+
+The version code 6 / version name 0.6.0 APK is 34,965,858 bytes with SHA-256 `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be3ca`. The bundled 28,001-word asset is 225,007 bytes with SHA-256 `eb5e60159b5860301a5d581364ff8f4cc9319472905f20cc3fef4ecc85150346`.
+
+Raw evidence is preserved in `docs/verification/v0.6-test-all.log`, `docs/verification/v0.6-connected.log`, and `docs/verification/v0.6-candidate-tap.xml`. Generated reports are under `app/build/test-results/testDebugUnitTest/`, `app/build/outputs/androidTest-results/connected/debug/`, and `app/build/reports/lint-results-debug.html`.

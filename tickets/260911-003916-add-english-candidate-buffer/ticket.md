@@ -35,8 +35,7 @@ AI-1〜AI-4と矛盾しない。既存のInputConnection経由入力と端末内
 ### Out-of-scope
 - 日本語Mozc変換の候補・確定規則の変更。
 - ネットワーク候補、クラウド辞書、入力履歴・個人学習・同期。
-- 音声入力ticketの実装、および調整・Dual Flick・APK公開の残作業への変更。
-- v0.5 visual fidelityと、その公開後に行うDual Flick公開demo更新。
+- 音声入力、visual fidelity、Dual Flick公開demoの既存仕様変更。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 

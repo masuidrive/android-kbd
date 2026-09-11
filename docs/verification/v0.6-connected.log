@@ -1,0 +1,8 @@
+Command: ANDROID_SERIAL=emulator-5556 ./gradlew :app:connectedDebugAndroidTest
+Device: Popup_API_36_1(AVD) - 16
+Starting 7 tests on Popup_API_36_1(AVD) - 16
+Finished 7 tests on Popup_API_36_1(AVD) - 16
+BUILD SUCCESSFUL in 7s
+64 actionable tasks: 2 executed, 62 up-to-date
+JUnit: tests=7 failures=0 errors=0 skipped=0
+Raw XML: app/build/outputs/androidTest-results/connected/debug/TEST-Popup_API_36_1(AVD) - 16-_app-.xml

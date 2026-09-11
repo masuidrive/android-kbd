@@ -22,7 +22,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 - `keyboard/KeyboardView` は5レイヤーをCanvas描画し、入力意図を `KeyAction` として通知する。Editorの変更は行わない。
 - `TextInputController` がcomposing、確定、削除、カーソル、Editor action、clipboardを一元化する。
 - `conversion/ConversionEngine` はsuspend APIでMozc JNIを隠蔽する。JNI呼出しは単一dispatcher上で直列化する。
-- `CandidateStripView` はキーボードの兄弟Viewであり、候補選択をindexでServiceへ戻す。
+- `CandidateStripView` はキーボードの兄弟Viewであり、候補選択を描画tokenとindexの組でServiceへ戻す。
 - Mozcの共有ライブラリ、辞書、protobuf jarをAPKへ同梱するため、変換時にネットワークを必要としない。
 
 ## Design decisions
@@ -39,6 +39,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 10. 音声入力は左下レイヤーキーの単一pointerによる1秒holdだけで開始する。認識ready後に指を離すと最終結果を現在Editorへ自動確定し、候補欄からのStart/Stop/Confirm操作やpreview確定は提供しない。hold generationとeditor sessionを検証し、短tap/flick、入力欄切替、IME非表示、取消、通常キー入力後の古い結果を破棄する。（2026-09-11 / 260911-014049）
 11. native描画の既定値は保存済み正本HTMLのdark themeを基準にし、文字倍率はキー境界内へfitする。QWERTYの5群調整値は新しい既定値からの相対scale/X/Yとして維持する。popupは候補欄の高さを変えず、非focus・非touchのoverlayで上端キーから画面内へ表示する。（2026-09-11 / 260911-022705）
 12. レイヤー切替は全レイヤーで左=記号、上=日本語、右=QWERTY、下=テンキーとする。候補欄の背景は候補の有無によらずkeyboard背景`#29292c`に固定し、選択候補のaccentは維持する。（2026-09-11 / 260911-022705）
+13. 英数字候補は既定OFFかつprivate欄では無効とする。ON時はASCII英数字を最大64文字のcompositionとして保持し、英字だけのprefixを固定端末内辞書へ照会する。候補tapは描画token、候補source、editor session、生成世代、prefixが一致した時だけ置換確定する。Space/Enterおよびlayer・modifier・cursor・paste・voice・IME hideはraw確定境界とし、editor切替時は旧bufferを新editorへ渡さない。（2026-09-11 / 260911-003916）
 
 ## 実装の注意・地雷
 
