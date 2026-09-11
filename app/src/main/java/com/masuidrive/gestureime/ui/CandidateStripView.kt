@@ -23,9 +23,9 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     private val voiceControls = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     private var candidates = emptyList<String>()
     private var selectedCandidateIndex = -1
-    private var voiceState: VoiceUiState = VoiceUiState.Hidden
+    private var voiceSnapshot = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var onCandidateSelected: ((Int) -> Unit)? = null
-    private var onVoiceAction: ((VoiceUiAction) -> Unit)? = null
+    private var onVoiceAction: ((VoiceUiEvent) -> Unit)? = null
 
     init {
         orientation = HORIZONTAL
@@ -39,7 +39,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     fun setOnCandidateSelected(listener: (Int) -> Unit) { onCandidateSelected = listener }
-    fun setOnVoiceActionListener(listener: (VoiceUiAction) -> Unit) { onVoiceAction = listener }
+    fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
     fun showCandidates(candidates: List<String>, selectedIndex: Int) {
         this.candidates = candidates
@@ -53,32 +53,33 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         renderCandidateMessage(message)
     }
 
-    fun setVoiceState(state: VoiceUiState) { voiceState = state; render() }
+    fun setVoiceState(snapshot: VoiceUiSnapshot) { voiceSnapshot = snapshot; render() }
 
     private fun render() {
         candidateRow.removeAllViews()
         voiceControls.removeAllViews()
-        voiceControls.visibility = if (voiceState == VoiceUiState.Hidden) View.GONE else View.VISIBLE
-        when (val state = voiceState) {
+        val snapshot = voiceSnapshot
+        voiceControls.visibility = if (snapshot.state == VoiceUiState.Hidden) View.GONE else View.VISIBLE
+        when (val state = snapshot.state) {
             VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
             VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("停止", "音声入力を停止", VoiceUiAction.Stop) }
             VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("処理中", "音声を認識しています", null); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
             is VoiceUiState.Preview -> {
                 renderCandidateMessage(state.text, "認識結果: ${state.text}")
-                addVoiceButton("確定", "認識結果を確定", VoiceUiAction.Confirm)
-                addVoiceButton("取消", "認識結果を取り消す", VoiceUiAction.Cancel)
+                addVoiceButton("確定", "認識結果を確定", VoiceUiAction.Confirm, snapshot.sessionToken)
+                addVoiceButton("取消", "認識結果を取り消す", VoiceUiAction.Cancel, snapshot.sessionToken)
             }
             is VoiceUiState.Unavailable -> {
                 renderCandidates()
-                addVoiceButton("非対応", "音声入力を利用できない理由を表示。${state.message}", VoiceUiAction.ExplainUnavailable)
+                addVoiceButton("非対応", "音声入力を利用できない理由を表示。${state.message}", VoiceUiAction.ExplainUnavailable, snapshot.sessionToken)
             }
             VoiceUiState.PermissionRequired -> {
                 renderCandidates()
-                addVoiceButton("許可", "マイクの使用を許可", VoiceUiAction.RequestPermission)
+                addVoiceButton("許可", "マイクの使用を許可", VoiceUiAction.RequestPermission, snapshot.sessionToken)
             }
         }
-        if (voiceState == VoiceUiState.Idle) addVoiceButton("音声", "音声入力を開始", VoiceUiAction.Start)
-        if (voiceState == VoiceUiState.Recording) addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel)
+        if (snapshot.state == VoiceUiState.Idle) addVoiceButton("音声", "音声入力を開始", VoiceUiAction.Start, snapshot.sessionToken)
+        if (snapshot.state == VoiceUiState.Recording) addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel, snapshot.sessionToken)
     }
 
     private fun renderCandidates() {
@@ -100,12 +101,12 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         candidateScroll.post { candidateScroll.scrollTo(0, 0) }
     }
 
-    private fun addVoiceButton(text: String, description: String, action: VoiceUiAction?) {
+    private fun addVoiceButton(text: String, description: String, action: VoiceUiAction?, sessionToken: Long = voiceSnapshot.sessionToken) {
         voiceControls.addView(label(text, action != null).apply {
             contentDescription = description
             isEnabled = action != null; isClickable = action != null; isFocusable = true
             setPadding(dp(12), dp(6), dp(12), dp(6))
-            if (action != null) setOnClickListener { onVoiceAction?.invoke(action) }
+            if (action != null) setOnClickListener { onVoiceAction?.invoke(VoiceUiEvent(sessionToken, action)) }
         })
     }
 

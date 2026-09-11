@@ -11,3 +11,7 @@ sealed interface VoiceUiState {
 }
 
 enum class VoiceUiAction { Start, Stop, Confirm, Cancel, RequestPermission, ExplainUnavailable }
+
+data class VoiceUiSnapshot(val sessionToken: Long, val state: VoiceUiState)
+
+data class VoiceUiEvent(val sessionToken: Long, val action: VoiceUiAction)
