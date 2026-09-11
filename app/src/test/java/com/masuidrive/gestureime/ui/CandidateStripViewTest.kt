@@ -95,7 +95,7 @@ class CandidateStripViewTest {
         val view = view()
         view.showCandidates(CandidateUiSnapshot(24, listOf("未選択", "選択"), 1))
 
-        assertEquals(Color.rgb(211, 213, 219), (view.textView("未選択").background as ColorDrawable).color)
+        assertEquals(Color.WHITE, (view.textView("未選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(23, 78, 166), (view.textView("選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
     }
@@ -107,6 +107,22 @@ class CandidateStripViewTest {
         assertEquals(Color.rgb(41, 41, 44), (view.textView("未選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(97, 210, 255), (view.textView("選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
+    }
+
+    @Test fun configurationChangeRepaintsCandidatesAndKeepsTheirRenderedToken() {
+        RuntimeEnvironment.setQualifiers("notnight")
+        val view = view()
+        val events = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(events::add)
+        view.showCandidates(CandidateUiSnapshot(26, listOf("候補"), 0))
+        assertEquals(Color.rgb(23, 78, 166), (view.textView("候補").background as ColorDrawable).color)
+
+        RuntimeEnvironment.setQualifiers("night")
+        view.dispatchConfigurationChanged(view.resources.configuration)
+        view.textView("候補").performClick()
+
+        assertEquals(Color.rgb(97, 210, 255), (view.textView("候補").background as ColorDrawable).color)
+        assertEquals(listOf(CandidateUiEvent(26, 0)), events)
     }
 
     @Test fun detachedCandidateKeepsItsRenderedToken() {

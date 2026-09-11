@@ -25,6 +25,9 @@
 - [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] ユーザ追加依頼: レイヤーキー左スワイプを音声入力へ変更するticket `260911-055701-assign-layer-left-swipe-to-voice` を作成
+- [x] ユーザ追加依頼: 最大6件の`/`候補を設定するticket `260911-055701-configure-slash-command-candidates` を作成
+- [x] ユーザ追加依頼: QWERTY下スワイプ補助ラベルを縦中央へ動かすticket `260911-055701-center-qwerty-down-swipe-label` を作成
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -82,7 +85,10 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | HTML candidate palette | Major | Lightの未選択候補が正本の白ではなくstrip背景色 | 採用・修正 | `candidate_background`を追加しLightは`#fff`、AC 2に従いDarkは既存`#29292c`を保持 |
+| 2 | theme transition test | Minor | 表示済み候補とpopupのruntime切替テストがない | 採用・修正 | 同一Viewへqualifier変更をdispatchし、候補tokenとpopup再描画を検証 |
+
+- 修正後対象test: CandidateStripViewTest / KeyboardPopupControllerTest → BUILD SUCCESSFUL。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

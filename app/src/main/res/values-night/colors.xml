@@ -16,4 +16,5 @@
     <color name="keyboard_popup_shadow">#88000000</color>
     <color name="candidate_selected">#61D2FF</color>
     <color name="candidate_selected_text">#001923</color>
+    <color name="candidate_background">#29292C</color>
 </resources>

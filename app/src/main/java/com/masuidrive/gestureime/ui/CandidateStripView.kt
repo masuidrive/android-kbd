@@ -122,7 +122,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         gravity = Gravity.CENTER
         setPadding(dp(18), dp(6), dp(18), dp(6))
         setTextColor(context.getColor(if (selected) R.color.candidate_selected_text else R.color.keyboard_text))
-        setBackgroundColor(context.getColor(if (selected) R.color.candidate_selected else R.color.keyboard_background))
+        setBackgroundColor(context.getColor(if (selected) R.color.candidate_selected else R.color.candidate_background))
         setTypeface(typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
         maxLines = 1
     }
