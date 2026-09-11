@@ -63,6 +63,7 @@
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
   #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar button.voice-candidate { max-width:100%; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:15px; padding-block:2px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .keys { position:relative; }
   #ios-keyboard-demo .key-row { display:flex; justify-content:center; height:45px; margin-bottom:10px; gap:0; }
@@ -402,7 +403,7 @@
       const values=voiceDemo.phase==='ready'?voiceDemo.candidates:(voiceDemo.partial&&voiceDemo.partial!=='聞き取っています…'?[voiceDemo.partial]:[]);
       candidateBar.hidden=!values.length;
       values.forEach((candidate,index)=>{
-        const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;
+        const button=document.createElement('button');button.type='button';button.className='voice-candidate';button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;
         if(voiceDemo.phase==='ready')button.dataset.voiceCandidate=String(index);
         else {button.tabIndex=-1;button.setAttribute('aria-disabled','true');button.setAttribute('aria-label','認識途中: '+candidate);}
         candidateBar.append(button);

@@ -24,6 +24,7 @@ import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
 import com.masuidrive.gestureime.ui.CandidateUiEvent
 import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
+import com.masuidrive.gestureime.ui.CandidatePresentation
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoiceUiAction
 import com.masuidrive.gestureime.ui.VoiceUiEvent
@@ -527,8 +528,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         keyboardView?.setCandidates(candidates, selectedCandidate)
     }
 
-    private fun showCandidateStrip(values: List<String>, selectedIndex: Int, selectable: Boolean = true) {
-        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable))
+    private fun showCandidateStrip(
+        values: List<String>,
+        selectedIndex: Int,
+        selectable: Boolean = true,
+        presentation: CandidatePresentation = CandidatePresentation.SINGLE_LINE,
+    ) {
+        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable, presentation))
     }
 
     private fun candidateSnapshot() = CandidateSnapshot(
@@ -671,12 +677,12 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = listOf(state.text)
-                    showCandidateStrip(candidates, -1, selectable = false)
+                    showCandidateStrip(candidates, -1, selectable = false, presentation = CandidatePresentation.VOICE)
                 }
                 is VoiceBackendState.Preview -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = state.candidates
-                    showCandidateStrip(candidates, -1)
+                    showCandidateStrip(candidates, -1, presentation = CandidatePresentation.VOICE)
                 }
                 else -> {
                     candidateSource = CandidateSource.NONE

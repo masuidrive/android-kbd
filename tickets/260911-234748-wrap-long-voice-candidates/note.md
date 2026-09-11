@@ -47,6 +47,13 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+2026-09-12:
+- 仮定確認: 候補欄は固定50dp、上下paddingを除くfaceは34dpだった。音声だけ13sp・15dp line-height相当、font paddingなし、最大2行とし、通常候補の15sp/1行を変更しない。
+- `CandidatePresentation`で音声表示を型として伝達し、途中結果と最終候補だけ可視幅以下・最大2行・末尾省略にした。選択可否は既存の`selectable`を維持する。
+- ブラウザmockも`.voice-candidate`だけ同じ固定34px face内で2行clampし、通常候補CSSを維持した。
+- 重複検出 skip: `similarity-generic` が環境に未導入。
+- focused Robolectric PASS。Chrome実DOMでTabletの音声候補face高34px/white-space normal、Mobile phone 412pxでscrollWidth=clientWidth=412を確認。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -65,6 +72,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+決定20へ音声候補だけの最大2行・末尾省略と、通常候補の1行維持を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

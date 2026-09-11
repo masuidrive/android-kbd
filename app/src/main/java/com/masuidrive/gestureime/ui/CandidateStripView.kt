@@ -3,6 +3,7 @@ package com.masuidrive.gestureime.ui
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Typeface
+import android.text.TextUtils
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
@@ -36,6 +37,9 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         applyThemeColors()
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        candidateScroll.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) constrainVoiceCandidateWidths()
+        }
         render()
     }
 
@@ -96,6 +100,13 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         val snapshot = candidateSnapshot
         snapshot.candidates.forEachIndexed { index, candidate ->
             candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
+                if (snapshot.presentation == CandidatePresentation.VOICE) {
+                    maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END
+                    includeFontPadding = false
+                    setTextSize(TypedValue.COMPLEX_UNIT_PX, 13f * resources.displayMetrics.density)
+                    maxWidth = visibleCandidateWidth()
+                }
                 isEnabled = snapshot.selectable
                 isClickable = snapshot.selectable
                 isFocusable = snapshot.selectable
@@ -109,6 +120,16 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
             }, candidateLayout(hasLeadingGap = index > 0))
         }
     }
+
+    private fun constrainVoiceCandidateWidths() {
+        if (candidateSnapshot.presentation != CandidatePresentation.VOICE) return
+        val width = visibleCandidateWidth()
+        repeat(candidateRow.childCount) { (candidateRow.getChildAt(it) as TextView).maxWidth = width }
+        candidateRow.requestLayout()
+    }
+
+    private fun visibleCandidateWidth(): Int =
+        candidateScroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - paddingLeft - paddingRight)
 
     private fun renderCandidateMessage(message: String, description: String = message) {
         candidateRow.removeAllViews()

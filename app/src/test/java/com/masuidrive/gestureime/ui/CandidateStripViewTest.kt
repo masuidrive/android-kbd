@@ -58,6 +58,33 @@ class CandidateStripViewTest {
         assertEquals(listOf(CandidateUiEvent(42, 0)), events)
     }
 
+    @Test fun voiceCandidatesWrapAtTwoLinesWithinTheVisibleStripWhileNormalCandidatesStaySingleLine() {
+        val view = view()
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(180, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY),
+        )
+        view.layout(0, 0, 180, 50)
+
+        view.showCandidates(CandidateUiSnapshot(
+            43,
+            listOf("これは候補欄より十分に長い音声認識結果なので二行で表示されます"),
+            presentation = CandidatePresentation.VOICE,
+        ))
+        shadowOf(Looper.getMainLooper()).idle()
+        val voice = view.textView("これは候補欄より十分に長い音声認識結果なので二行で表示されます")
+        assertEquals(2, voice.maxLines)
+        assertEquals(android.text.TextUtils.TruncateAt.END, voice.ellipsize)
+        assertTrue(voice.maxWidth <= 174)
+        assertEquals(50, view.measuredHeight)
+
+        view.showCandidates(CandidateUiSnapshot(44, listOf("通常候補は従来どおり一行表示")))
+        val normal = view.textView("通常候補は従来どおり一行表示")
+        assertEquals(1, normal.maxLines)
+        assertEquals(null, normal.ellipsize)
+        assertEquals(50, view.measuredHeight)
+    }
+
     @Test fun recordingAndRecognizingKeepTheCandidateAreaEmptyWithoutLegacyControls() {
         val view = view()
         view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording))
