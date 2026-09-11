@@ -13,18 +13,19 @@
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [ ] v0.5 APK公開後、英数字候補v0.6より前に、公開demoをDual Flick対応の入力欄＋keyboard中心・可変幅表示へ更新する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -39,7 +40,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（412/840dp、font scale 1.0/1.3/2.0、5layer、popup座標、候補背景、last-layer復元を実AVDで確認）
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -68,6 +69,12 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
+| 1 | PopupWindow座標 | Major | `getLocationOnScreen`の絶対YをIME window内の`showAtLocation`へそのまま渡し、IME originを二重加算してpopupが画面外に出る | 採用・解消 | API 36.1実IMEで修正前frame y=3176..3614を確認。`d32e7c1`/`c4f3bf3`でwindow内座標へ補正後、frame `[111,1589][541,2027]`、5tile表示、上`う`選択、releaseで1文字入力、dismissを確認した。 |
+
+### PDH-review-2
+
+- 最終revision `563423f`の独立限定reviewはCritical/Majorなし。last-layer、4方向、held Enter中の他pointer維持、複合label、CandidateStripを確認した。Popup座標修正はrootのdiff reviewと上記実端末before/afterで確認した。
+- `scripts/test-all.sh`はfast-check、unit 106件、lint、APK buildに成功。connected 7件も失敗・error・skip 0。APK SHA-256は`fed641ca9f948d856fb00fdb257d8c2d5fe207ca3085016cf4fd4bdf8379acb5`。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

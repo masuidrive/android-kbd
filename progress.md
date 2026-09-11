@@ -72,3 +72,6 @@
 [2026/09/11 12:12] 412dpの正本HTMLをdark modeで追加撮影し、key face・下影・主副label・Enter/Pasteの色比較基準を保存した。画面設定はlight、1080x2400/420dpiへ復元した。
 [2026/09/11 12:17] v0.5描画初稿のKotlin compileは成功したが、fidelity完了とは扱っていない。独立確認で検出したpopup上端clampは`f5abeab`で修正し、Popup対象テスト7件は成功。KeyboardViewは全mode Enter経路の残り1件を切り分けて修正中のため、全suiteと端末QAは未実施。
 [2026/09/11 12:38] 最後に使ったレイヤーを次回IME表示で引き継ぐ追加指定を反映。実際のSwitchLayer時に5種のKeyboardModeだけを保存し、設定なし・不正型・不正値はQWERTYへfallbackする。IME View再作成後の復元を含むfocused testは成功した。
+[2026/09/11 12:44] API 36実IMEの正しいraw座標で、かな上swipeは「う」選択・候補表示まで発火する一方、5tile popupが表示されない実欠陥を再現した。dumpsysのPopup frameはy=3176..3614と画面外で、IME window origin=1587の二重加算と一致した。先の縮小view座標をADBに使った無効な観測と分け、window内座標へ補正する`d32e7c1`の修正後端末proofを継続中。
+[2026/09/11 13:02] v0.5 APK公開後、英数字候補v0.6より前に公開demoを更新する追加指定を受領。Dual Flickに対応し、スマホ縦長frameを外して入力欄とkeyboardを中心に可変幅で示す。現在のv0.5最終QA・APK公開を優先し、demo実装はその後に行う。
+[2026/09/11 13:15] v0.5最終revision 563423fでfast-check・unit 106件・lint・APK build、connected 7件が全て成功し、独立限定reviewはCritical/Majorなし。APKは34,859,489 bytes、SHA-256 fed641ca9f948d856fb00fdb257d8c2d5fe207ca3085016cf4fd4bdf8379acb5。API 36.1 AVDで412dp全5layer、候補背景固定、popup before/after、840dp QWERTY/Dualかな、412/840×font scale 1.0/1.3/2.0、last-layerのhide/reopen・別editor復元を確認した。端末は1080×2400、420dpi、font 1.0、light、Dual OFF、terminal OFF、QWERTY、Gesture IME選択へ復元した。

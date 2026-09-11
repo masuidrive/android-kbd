@@ -128,3 +128,22 @@ v0.3 evidence:
 - The QWERTY adjustment screen rendered the real `KeyboardView` at its 412 and 840 preview widths. Changing the primary-letter scale from 1.00 to 1.17 updated the preview immediately. Leaving and reopening the Activity retained 1.17; “初期値に戻して保存” restored 1.00. Evidence is under `docs/screenshots/v0.4/`.
 - With terminal-compatible cursor mode enabled, Android Chrome and the local xterm.js fixture received Home (`keyCode=36`, `ESC[H`) and End (`keyCode=35`, `ESC[F`). A Space left gesture followed by `x` changed `insert-here` to `inxsert-here`, proving an interior terminal-cursor insertion. Up, down, left, and right key-pair generation is covered by unit tests; all four were not separately retained as Android browser screenshots. This mode remains default OFF and must be restored OFF after the probe.
 - `docs/screenshots/v0.4-xterm-all-cursor-log.png` is the retained Home/End terminal log. Its filename reflects the intended probe set; it is not evidence that every direction was observed on screen.
+
+## v0.5 visual fidelity verification
+
+The Android Chrome reference captures use the same API 36 AVD and display density as the native captures. DOM geometry remains the numeric source of truth; Android captures are used to compare platform-font baselines, shadows, and visible spacing. The preserved HTML Kana height is 51px and is intentionally superseded by the later requirement that native Kana and QWERTY key heights match.
+
+| Width | Font scale | Reference/native evidence | Result |
+|---|---:|---|---|
+| 412dp | 1.0 | `v0.5/html-qwerty-412-dark.png`, `v0.5/native-qwerty-412.png` | Key faces, shadows, labels, BS and navigation-bar inset visible without clipping. |
+| 412dp | 1.3 | `v0.5/native-qwerty-412-font130.png` | All glyphs remained inside their key faces. |
+| 412dp | 2.0 | `v0.5/native-qwerty-412-font200.png` | All glyphs remained inside their key faces; Android font scaling makes primary/secondary glyphs visually dense. |
+| 840dp | 1.0 | `v0.5/html-qwerty-840.png`, `v0.5/native-qwerty-840.png` | Wide QWERTY fit without clipping. |
+| 840dp | 1.3 | `v0.5/native-qwerty-840-font130.png` | All glyphs remained inside their key faces. |
+| 840dp | 2.0 | `v0.5/native-qwerty-840-font200.png` | All glyphs remained inside their key faces. |
+
+The final APK at revision `563423f` is 34,859,489 bytes with SHA-256 `fed641ca9f948d856fb00fdb257d8c2d5fe207ca3085016cf4fd4bdf8379acb5`. The local suite reported 106 unit tests and 7 connected tests, with zero failures, errors, or skips; raw logs are `docs/verification/v0.5-test-all.log` and `docs/verification/v0.5-connected.log`.
+
+At 412dp, QWERTY, Kana, Numbers, Symbols and Cursor screenshots were opened and matched their filenames. Kana candidates used the same `#29292c` strip background as the empty state while retaining the selected-candidate accent. At 840dp, QWERTY and the two-copy Dual Kana layout fit without overlap. The fixed popup path was exercised on the API 36.1 AVD: an up flick on `あ` displayed all five tiles with `う` selected, release inserted one `う`, and the window dismissed. Its corrected window frame was `[111,1589][541,2027]`; the earlier faulty build placed it at y=3176..3614.
+
+Symbols persisted after hiding and reopening the IME and after focusing the second editor; the stored layer was then restored to QWERTY. The emulator was finally restored to physical 1080 × 2400 px, 420 dpi, font scale 1.0, light mode, Dual Flick OFF, terminal mode OFF, QWERTY, and Gesture IME selected. `native-kana-popup-412.png` and `native-qwerty-412-wip.png` were invalid intermediate captures (popup absent / IME absent) and are excluded from evidence.
