@@ -83,3 +83,4 @@
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 
 - v0.5新siteへの外部送信はユーザー承認待ちだが、demoは既存公開URLの更新として依頼済みでローカル実装に物理的依存はないため、ticketを開始して作業を継続する。
+- demoは旧HTML挙動をそのまま維持せず、最新native公開仕様へ同期する。背景dim、空候補placeholder、空BS/旧swipe削除、Enter navigation元bug、旧layer方向は採用しない。BS`⌫`、小label、変換中確定/無変換/カタカナ、Enter/Paste animation、last-layer、右QWERTY/下テンキーを検証対象にする。

@@ -35,6 +35,7 @@ canceled_at: null # Do not modify manually
 - [ ] AC 2: デモの表示幅が利用可能幅に応じて変わり、狭幅では単一かな配列、広幅では左右のDual Flickかな配列を操作でき、左右それぞれのpointer releaseによる入力が同じ入力欄へ保持される。
 - [ ] AC 3: QWERTYを含む既存の入力・レイヤー切替デモが引き続き操作できる。
 - [ ] AC 4: 公開サイトの製品紹介・マニュアル・ダウンロード導線を壊さず、モバイル幅で横overflowが発生しない。
+- [ ] AC 5: デモのキー表示と操作が公開済みnative仕様（フリック中の背景減光なし、空候補placeholderなし、QWERTY BS=`⌫`のtap削除・下ESC、かな変換中Enter=`確定`の上無変換・左カタカナ、Enter/Paste animation、layer復元、右QWERTY・下テンキー）と一致する。
 
 ### Architectural Invariants check
 AI-1〜AI-4と矛盾しない。デモの固定テスト入力はブラウザ内だけで処理し、外部へ送信しない。Android IME本体とは独立した説明用UIに留める。
@@ -46,6 +47,8 @@ AI-1〜AI-4と矛盾しない。デモの固定テスト入力はブラウザ内
 - Dual表示は実装済みnativeの境界と中央12キー2組・周辺キー1組という構造に合わせる。
 - 左右の12キーはそれぞれpointerを追跡し、交互入力と同時押下後の各releaseを同じ模擬入力欄へ反映する。
 - 固定のスマートフォンframeではなく、入力欄とキーボードを中心とする可変幅コンテナを使う。
+- 日本語変換キーは表示を`小`だけにする。変換中Enterは`確定`で補助labelを出さず、上で読みの無変換、左でカタカナをpreviewする。
+- 音声はブラウザmockから録音せず、非対応であることを明示する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
