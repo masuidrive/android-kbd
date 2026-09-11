@@ -34,7 +34,7 @@ class ImeServiceEnglishSuggestionTest {
         harness.key("h")
         harness.key("e")
         harness.idle()
-        harness.service.onKeyAction(KeyAction.SelectCandidate(0))
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: hello" }!!.performClick()
         harness.idle()
 
         assertEquals("hello", harness.input.visibleText)
