@@ -180,7 +180,7 @@
     english:{main:'A',ghost:'Z'},
     symbols:{main:'#',ghost:'!'}
   };
-  const layerNavigation = {left:{label:'記号',action:'symbol-layer'},up:{label:'日本語',action:'kana'},right:{label:'テンキー',action:'kana-numbers'},down:{label:'QWERTY',action:'english'}};
+  const layerNavigation = {left:{label:'記号',action:'symbol-layer'},up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
   const pasteNavigation = {down:{label:'paste',action:'paste'}};
   const repeatKeys = ['backspace','left','right','up','down'];
   const accents = {a:'àáâäæãåā',e:'èéêëēėę',i:'îïíīįì',o:'ôöòóœøōõ',u:'ûüùúū',c:'çćč',n:'ñń',s:'ßśš',y:'ÿ'};
@@ -487,7 +487,7 @@
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
-    const layerDirections='左フリックで記号、上フリックで日本語、右フリックでテンキー、下フリックでQWERTY';
+    const layerDirections='左フリックで記号、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
     const names={
       backspace:'削除',
       'flick-backspace':'下フリックで削除、タップと上フリックは無効',
