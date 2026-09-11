@@ -97,3 +97,5 @@
 [2026/09/11 15:23] QWERTY下swipe補助labelの終端を実key高から算出し、45dp/52dpの双方で文字visual centerがkey中央へ一致するよう修正。戻りanimation、上swipe、Enter/Pasteは既存testを維持し、fast-check 5件、全unit、lint、APK buildが成功。独立reviewへ進む。
 [2026/09/11 15:28] 下swipe中央化の独立reviewで、ユーザー調整Y±8dpによる終端ずれと、rowSpan Enter/Pasteへ動的移動量が漏れるMajor 2件を検出。QWERTY文字キーだけ中央を強制し、全5layer Enter/Pasteは従来13dpを維持。直接cancel復帰も含むKeyboardView test 31件が成功した。
 [2026/09/11 15:29] 日本語変換候補・英字補完候補がHTML正本の候補faceと一致しない追加指摘を受領。native共通CandidateStripViewと`demo.html`内の`mock.html`を、高さ34/最小幅82/左右14/間隔5/角丸7/下影1、Light/Dark選択色へ揃えるticket `260911-062719-align-candidate-ui-with-html`を起票した。
+[2026/09/11 15:31] QWERTYとかなはキー面高が外45dp/内52dpで一致する一方、縦gapが10dp対6dpのため4行全体で16dp差が出ると確認。ユーザー補足に従い、かな・Dual Flickの縦gapをQWERTYの10dpへ揃えるticket `260911-063048-unify-four-row-keyboard-heights`を起票した。
+[2026/09/11 15:39] アプリ入力時にIME上部の空きが過大になりキー群が下へずれることがある実画面報告を受領。添付画像を`docs/verification/intermittent-keyboard-vertical-offset.jpg`へ保存し、保存layer復元・候補欄固定高・KeyboardView再計測・bottom inset順を通常起動/hide-show/入力欄切替/候補状態別に再現するticket `260911-063912-fix-intermittent-keyboard-vertical-offset`を起票した。
