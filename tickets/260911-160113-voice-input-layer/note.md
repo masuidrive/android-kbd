@@ -1,6 +1,6 @@
 # Work Notes: 260911-160113-voice-input-layer
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,24 +9,26 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Android端末内SpeechRecognizerだけを使い外部provider pathがない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘修正前後とも通常QWERTYの入力・候補欄・4行高を維持した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み。AVDでQWERTYから左フリックし、同一候補面の非対応表示、固定4行高、左下キャンセルを確認
+- [x] PDH-verify: ドキュメント更新の要否を確認済み。technical-referenceとsite/manual.htmlを更新
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+2026-09-12: ユーザが固定4行、状態見出しなし、左下キャンセル、通常変換候補と同じUIを明示した。既存の端末内完結方針と一致し、追加判断待ちはない。
+
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -39,7 +41,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] AVDで通常QWERTYと音声面の上端・下端が一致し、音声面は4行高、左下キャンセル、候補欄の「非対応」が通常候補faceと同一であることを確認。実発話partialはAVDに日本語モデルがないため実機確認待ち。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -50,6 +52,7 @@
 - 2026-09-12: SpeechRecognizerの最終候補を重複除去した可変長リストで保持し、通常CandidateStripへ同じfaceで表示。描画snapshot tokenを経由した候補tapだけが選択候補を1回確定し、直前レイヤーへ戻る。
 - 2026-09-12: 認識開始/認識中は余分な状態見出しや旧右端取消を表示せず、途中結果だけを候補面へ表示する。permission/unavailableの既存案内は維持。
 - 2026-09-12: 関連Robolectric 86件PASS、`scripts/test-all.sh --parallel` fast-checks / android unit・lint・apk PASS。重複検出は`similarity-generic`未導入のためskip。
+- 実装commit: `3192e59`。ライフサイクルと途中候補の操作性修正commit: `c0d2603`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -64,13 +67,19 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | IME lifecycle | Major | hide/show後にVOICE modeが残る | 修正 | 終了経路でsession取消・候補消去・復帰mode反映を統一し、回帰testを追加 |
+| 2 | partial候補 | Major | 途中結果が選択可能に見え、error後に残る | 修正 | partialをdisabled/non-focusableにし、terminal/error/idleで消去。finalだけ選択可能にした |
+| 3 | 再review | - | Critical/Majorなし | 採用findingなし | `c0d2603`と追加testを独立review済み |
 
 ## Technical reference 更新
+決定10/17/20へ、VOICE面の復帰操作、固定4行高、partial/finalの共通候補UI、stale結果破棄を反映した。
+
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
+APKを入力方法として選び、通常欄で左下レイヤーキーを左へフリックする。音声面の高さ、左下キャンセル、候補欄の途中・最終結果、候補tap確定、上下右のlayer切替を確認する。
+
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->

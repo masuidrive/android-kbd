@@ -38,6 +38,7 @@
   #ios-keyboard-demo[data-theme=light] { color-scheme:light; }
   #ios-keyboard-demo[data-theme=dark] { color-scheme:dark; }
   #ios-keyboard-demo[data-embed=hero] [data-english-candidates], #ios-keyboard-demo[data-embed=hero] .device-size { display:none; }
+  #ios-keyboard-demo[data-embed=hero] .editor-wrap { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   #ios-keyboard-demo * { box-sizing:border-box; }
   #ios-keyboard-demo { --ik-key:light-dark(#fff,#414144); --ik-special:light-dark(#aeb3bd,#303034); --ik-key-muted:light-dark(#73737b,#b5b5bf); --ik-selected:light-dark(#174ea6,#a8ceff); --ik-selected-ink:light-dark(#fff,#102844); --ik-popup:light-dark(#fff,#55555a); --ik-popup-ink:light-dark(#19191b,#f4f4f6); --ik-popup-line:light-dark(#d0d2d8,#74747a); }
   #ios-keyboard-demo .device-picker { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
@@ -130,12 +131,7 @@
   #ios-keyboard-demo .english .key-row:last-child .return { flex:2; }
   #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 0; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
-  #ios-keyboard-demo .voice-layer { min-height:210px; padding:0 3px 10px; }
-  #ios-keyboard-demo .voice-cancel { display:block; width:min(132px,42%); height:45px; padding:0 12px; border:0; border-radius:5px; background:var(--ik-key); color:var(--ik-ink); box-shadow:0 1px 0 light-dark(#898c94,#141416); font-size:15px; }
-  #ios-keyboard-demo .voice-state { margin:16px 8px 5px; color:var(--ik-blue); font-size:12px; font-weight:650; letter-spacing:.05em; }
-  #ios-keyboard-demo .voice-partial { min-height:2.7em; margin:0 8px; color:var(--ik-ink); font-size:clamp(18px,4vw,25px); line-height:1.5; overflow-wrap:anywhere; }
-  #ios-keyboard-demo .voice-results { display:grid; gap:8px; width:100%; margin-top:12px; }
-  #ios-keyboard-demo .voice-results button { width:100%; min-height:45px; padding:9px 14px; border:0; border-radius:5px; background:var(--ik-key); color:var(--ik-ink); box-shadow:0 1px 0 light-dark(#898c94,#141416); font-size:15px; line-height:1.45; text-align:left; white-space:normal; }
+  #ios-keyboard-demo .voice .key.voice-cancel .key-face { font-size:13px; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -188,6 +184,7 @@
     symbols:{main:'#',ghost:'!'}
   };
   const layerNavigation = {left:{label:'音声',action:'voice'},up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
+  const voiceNavigation = {up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
   const pasteNavigation = {up:{label:'C-j',action:'ctrl-j'},down:{label:'paste',action:'paste'}};
   const conversionNavigation = {up:{label:'無変換',action:'raw-conversion'},left:{label:'カタカナ',action:'katakana-conversion'}};
   const repeatKeys = ['backspace','left','right','up','down'];
@@ -271,7 +268,11 @@
   // END KEY FLICK LOGIC
   const params=new URLSearchParams(location.search);
   const heroEmbed=params.get('embed')==='hero';
-  if(heroEmbed)root.dataset.embed='hero';
+  if(heroEmbed) {
+    root.dataset.embed='hero';
+    editor.tabIndex=-1;
+    editor.setAttribute('aria-hidden','true');
+  }
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
@@ -386,10 +387,27 @@
     editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;clearComposition();
     announce('音声入力：'+text);render();
   }
+  function leaveVoiceForLayer(actionId) {
+    if(!voiceDemo.active)return;
+    clearVoiceTimers();
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null,committed:false});
+    if(actionId==='english') {language='english';layer='letters';}
+    else if(actionId==='kana-numbers') {language='kana';layer='numbers';}
+    else {language='kana';layer='letters';}
+    pendingModifier=null;clearComposition();announce('レイヤーを切り替え');render(true);
+  }
   function renderCandidates() {
     candidateBar.replaceChildren();
     if(voiceDemo.active) {
-      candidateBar.hidden=true;resetCandidateScrollIfChanged('voice');return;
+      const values=voiceDemo.phase==='ready'?voiceDemo.candidates:(voiceDemo.partial&&voiceDemo.partial!=='聞き取っています…'?[voiceDemo.partial]:[]);
+      candidateBar.hidden=!values.length;
+      values.forEach((candidate,index)=>{
+        const button=document.createElement('button');button.type='button';button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;
+        if(voiceDemo.phase==='ready')button.dataset.voiceCandidate=String(index);
+        else {button.tabIndex=-1;button.setAttribute('aria-disabled','true');button.setAttribute('aria-label','認識途中: '+candidate);}
+        candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('voice\0'+voiceDemo.phase+'\0'+values.join('\0'));return;
     }
     if(language==='kana'&&layer==='letters'&&composition.reading) {
       candidateBar.hidden=false;
@@ -515,6 +533,8 @@
     const next=pairs[index%2===0?index+1:index-1];editor.setSelectionRange(prev.index,end);insert(next);
   }
   function action(id,modifier=currentModifier()) {
+    if(voiceDemo.active&&id==='voice-cancel') {leaveVoiceDemo(true);return true;}
+    if(voiceDemo.active&&['kana','english','kana-numbers'].includes(id)) {leaveVoiceForLayer(id);return true;}
     const specialKeys={backspace:'Backspace',space:' ',return:'Enter',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
     if(specialKeys[id]&&applyModified(specialKeys[id],modifier)) {render();return true;}
     if(id!=='space')lastSpace=-Infinity;
@@ -736,18 +756,14 @@
   }
   function renderKeys() {
     if(voiceDemo.active) {
-      keyMap=new Map();keys.replaceChildren();keys.className='keys voice';
-      const panel=document.createElement('section');panel.className='voice-layer';panel.setAttribute('aria-label','模擬音声入力');
-      const cancel=document.createElement('button');cancel.type='button';cancel.className='voice-cancel';cancel.dataset.voiceCancel='';cancel.textContent='キャンセル';
-      const state=document.createElement('p');state.className='voice-state';state.textContent=voiceDemo.phase==='ready'?'認識結果':'認識中';
-      const partial=document.createElement('p');partial.className='voice-partial';partial.setAttribute('role','status');partial.setAttribute('aria-live','polite');partial.textContent=voiceDemo.partial;
-      panel.append(cancel,state,partial);
-      if(voiceDemo.phase==='ready') {
-        const results=document.createElement('div');results.className='voice-results';results.setAttribute('aria-label','音声認識候補');
-        voiceDemo.candidates.forEach((candidate,index)=>{const button=document.createElement('button');button.type='button';button.dataset.voiceCandidate=String(index);button.textContent=candidate;results.append(button);});
-        panel.append(results);
-      }
-      keys.append(panel);return;
+      const emptyRow=()=>[0,1,2,3,4].map(()=>makeKey(null,''));
+      const rows=[emptyRow(),emptyRow(),emptyRow(),[
+        makeKey('voice-cancel','キャンセル',{special:true,side:true,navigation:voiceNavigation,preview:'selection'}),
+        ...[1,2,3,4].map(()=>makeKey(null,''))
+      ]];
+      keyMap=new Map();keys.replaceChildren();keys.className='keys kana voice';
+      for(const row of rows) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
+      return;
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
@@ -807,7 +823,6 @@
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
   keyboard.addEventListener('pointerdown',e=>{
     const element=e.target.closest('.key');if(!element||e.button!==0)return;
-    if(voiceDemo.active){e.preventDefault();cancelAll();return;}
     e.preventDefault();editor.focus({preventScroll:true});
     const key=keyMap.get(element.dataset.key);
     if([...active.values()].some(p=>p.trackpad))return;

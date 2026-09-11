@@ -40,7 +40,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [x] left flick直後の認識中表示、1.5秒後の3候補、候補tap exact 1回確定、cancel入力不変、元layer復帰、候補欄42px維持、390/840pxの横overflow 0とiframe実高一致を測定。
+- [x] left flick後の途中結果と1.5秒後の3候補を共通候補barへ表示し、候補tap exact 1回確定、cancel入力不変、上下右layer切替を確認。Mobileは通常/音声とも270px、Tabletは通常/音声とも298px、390/840pxの横overflow 0を測定。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -51,6 +51,7 @@
 - `2f0e9c8`: Light入力面を薄いgrayへ変更し、最下段UIを削除。`masuidrive-kbd`表示とトップ内demo jumpを追加。
 - `03293a6`: 削除済hide action参照を除去し、390pxのdemo jump余白を固定navより10px以上確保。
 - `3652481`: 中央カードを廃止し、左上キャンセルと発話全体の候補を1行1件で並べるキー面へ変更。既存キーと同じ高さ・角丸・影・Light/Dark tokenへ統一。
+- 2026-09-12 user revision: 状態見出しと縦候補を撤去し、途中結果・最終候補を通常変換と同じ横候補barへ統合。4行高を維持し、左下キャンセルへ上下右のlayer flickを追加。
 - `scripts/test-all.sh --parallel`でfast-checks、Android unit/lint/apkがPASS。
 
 ## PDH-review. 品質検証結果
@@ -70,6 +71,7 @@
 | 2 | cleanup | Minor | Escapeに削除済hide action呼び出しが残る | 修正 | `03293a6`で`cancelAll()`だけへ整理。再review findingなし |
 | 3 | responsive | Minor | 390pxのanchor jumpでdemo上端がnavへ6px隠れる | 修正 | mobile scroll marginを96pxへ変更。再測定でnav下10px以上を確保 |
 | 4 | 音声面再設計 | - | Critical/Major/Minorなし | 採用findingなし | 390/840px、左上取消、候補1行1件、exact once確定、42px候補欄、Light/Dark、overflow 0を独立確認 |
+| 5 | 音声面再設計2 | - | Critical/Majorなし | 採用findingなし | 共通候補bar、固定高、左下cancel、上下右layer、Mobile/Tabletを独立確認 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -80,7 +82,7 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
-`http://127.0.0.1:4173/`の先頭mockで左下レイヤーキーを左へフリックし、途中文、カード内3候補、候補tap確定、再進入後のcancelを確認する。
+`http://127.0.0.1:4173/`の先頭mockで左下レイヤーキーを左へフリックし、共通候補barの途中文・3候補、候補tap確定、左下キャンセル、上下右のlayer切替を確認する。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
