@@ -129,7 +129,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         invalidateEnglish(clearComposing = false)
         textController.beginInput(attribute)
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
-        candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
+        candidateStrip?.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         keyboardMode = ImePreferences.getLastKeyboardMode(this)
         keyboardView?.setMode(keyboardMode)

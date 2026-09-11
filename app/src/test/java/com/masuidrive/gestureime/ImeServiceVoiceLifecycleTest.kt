@@ -1,5 +1,6 @@
 package com.masuidrive.gestureime
 
+import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -62,6 +63,35 @@ class ImeServiceVoiceLifecycleTest {
         assertEquals(emptyHeight, measuredHeight())
         strip.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
         assertEquals(emptyHeight, measuredHeight())
+        controller.destroy()
+    }
+
+    @Test
+    fun privateEditorHidesCandidateContentWithoutMovingKeyboard() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val root = service.onCreateInputView() as ViewGroup
+        val strip = root.candidateStripView()
+        val width = View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY)
+        val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+
+        root.measure(width, height)
+        val normalHeight = root.measuredHeight
+        val normalKeyboardHeight = root.keyboardView().measuredHeight
+
+        service.onStartInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }, false)
+        root.measure(width, height)
+        assertEquals(View.INVISIBLE, strip.visibility)
+        assertEquals(normalHeight, root.measuredHeight)
+        assertEquals(normalKeyboardHeight, root.keyboardView().measuredHeight)
+
+        service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+        root.measure(width, height)
+        assertEquals(View.VISIBLE, strip.visibility)
+        assertEquals(normalHeight, root.measuredHeight)
+        assertEquals(normalKeyboardHeight, root.keyboardView().measuredHeight)
         controller.destroy()
     }
 
