@@ -29,15 +29,12 @@
       <div class="candidate-bar" role="listbox" aria-label="入力候補" hidden></div>
       <div class="keys"></div>
       <div class="trackpad-status" role="status" aria-live="polite" hidden>←↓↑→</div>
-      <div class="keyboard-bottom"><button type="button" data-key="globe" aria-label="日本語に切り替える">あ</button><span class="language">QWERTY</span><button type="button" data-key="hide" aria-label="キーボードを閉じる">⌄</button></div>
-      <div class="home-indicator" aria-hidden="true"></div>
       <div class="popup" aria-hidden="true" hidden></div>
     </div>
-    <button class="reopen" type="button" data-key="show" hidden>キーボードを表示</button>
   </div>
 </div>
 <style>
-  #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
+  #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-editor:light-dark(#f3f4f7,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
   #ios-keyboard-demo[data-theme=light] { color-scheme:light; }
   #ios-keyboard-demo[data-theme=dark] { color-scheme:dark; }
   #ios-keyboard-demo[data-embed=hero] [data-english-candidates], #ios-keyboard-demo[data-embed=hero] .device-size { display:none; }
@@ -53,9 +50,9 @@
   #ios-keyboard-demo button { font-family:inherit; cursor:pointer; color:inherit; margin:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   #ios-keyboard-demo .topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 16px; }
   #ios-keyboard-demo .app-title { font-size:19px; font-weight:500; letter-spacing:-.5px; }
-  #ios-keyboard-demo .editor-wrap { height:164px; padding:14px 20px 10px; }
+  #ios-keyboard-demo .editor-wrap { height:164px; padding:14px 20px 10px; background:var(--ik-editor); }
   #ios-keyboard-demo .editor-label { display:flex; justify-content:space-between; font-size:11px; color:var(--ik-muted); margin-bottom:10px; }
-  #ios-keyboard-demo textarea { display:block; width:100%; height:124px; min-height:124px; resize:vertical; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
+  #ios-keyboard-demo textarea { display:block; width:100%; height:124px; min-height:124px; resize:vertical; background:var(--ik-editor); color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
   #ios-keyboard-demo textarea::placeholder { color:var(--ik-muted); opacity:.65; }
   #ios-keyboard-demo .sr-status { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
@@ -131,11 +128,7 @@
   #ios-keyboard-demo .english .key-row:last-child .space { flex:4.2; }
   #ios-keyboard-demo .english .space .key-face { font-size:16px; }
   #ios-keyboard-demo .english .key-row:last-child .return { flex:2; }
-  #ios-keyboard-demo .keyboard-bottom { display:flex; align-items:center; justify-content:space-between; height:40px; padding:0 12px; }
-  #ios-keyboard-demo .keyboard-bottom button { padding:0; width:44px; height:38px; border:0; background:transparent; font-size:30px; touch-action:none; }
-  #ios-keyboard-demo .language { font-size:12px; color:var(--ik-muted); }
-  #ios-keyboard-demo .home-indicator { width:118px; height:4px; background:var(--ik-ink); border-radius:4px; margin:6px auto 0; transform:translateY(-3px); opacity:.85; }
-  #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 47px; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
+  #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 0; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
   #ios-keyboard-demo .voice-layer { display:grid; place-items:center; min-height:210px; padding:24px 16px; text-align:center; }
   #ios-keyboard-demo .voice-card { width:min(100%,520px); padding:22px; border:1px solid var(--ik-line); border-radius:14px; background:var(--ik-paper); }
@@ -153,7 +146,6 @@
   #ios-keyboard-demo .popup.letter { min-width:58px; height:66px; padding:4px 10px; background:var(--ik-popup); color:var(--ik-popup-ink); border:1px solid var(--ik-popup-line); border-radius:9px 9px 5px 5px; text-align:center; font-size:40px; line-height:56px; }
   #ios-keyboard-demo .popup.accents { display:flex; background:var(--ik-popup); border:1px solid var(--ik-popup-line); border-radius:8px; padding:3px; }
   #ios-keyboard-demo .popup.accents span { position:relative; width:34px; height:48px; font-size:25px; border:0; }
-  #ios-keyboard-demo .reopen { border:0; background:var(--ik-active); color:var(--ik-blue); width:100%; min-height:48px; font-size:15px; }
   #ios-keyboard-demo[data-device=inner] .topbar, #ios-keyboard-demo[data-device=inner] .editor-wrap { padding-left:28px; padding-right:28px; }
   #ios-keyboard-demo[data-device=inner] .keyboard { padding-left:10px; padding-right:10px; }
   #ios-keyboard-demo[data-device=inner] .key-row { height:52px; }
@@ -564,10 +556,7 @@
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
     else if(id==='cursor') {clearComposition();if(layer==='cursor')layer=cursorReturnLayer;else {cursorReturnLayer=layer;layer='cursor';}}
-    else if(['english','kana','globe'].includes(id)) {
-      language=id==='globe'?(language==='kana'?'english':'kana'):id;layer='letters';pendingModifier=null;clearComposition();
-    }else if(id==='hide') { keyboard.hidden=true;$('.reopen').hidden=false;editor.blur(); }
-    else if(id==='show') { keyboard.hidden=false;$('.reopen').hidden=true;editor.focus({preventScroll:true}); }
+    else if(['english','kana'].includes(id)) {language=id;layer='letters';pendingModifier=null;clearComposition();}
     render();
   }
   // Layout data, DOM creation and runtime state are kept separate so this
@@ -654,7 +643,6 @@
       symbols:language==='kana'?'記号へ切り替える':layer==='letters'?'記号へ切り替える':'QWERTYへ戻る',
       letters:'日本語へ戻る',
       english:key.navigation?'タップでQWERTY。'+layerDirections:'QWERTYへ切り替える',
-      globe:'QWERTYへ切り替える'
     };
     if(names[key.id])return names[key.id];
     const baseLabel=key.flick?key.flick.filter(Boolean).join(' '):key.label;
@@ -773,10 +761,6 @@
     renderCandidates();renderKeys();
     $('.mode-label').textContent=voiceDemo.active?'音声入力':language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
     if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
-    $('.language').textContent=voiceDemo.active?'模擬認識':language==='kana'?'日本語':'QWERTY';
-    const languageButton=$('.keyboard-bottom [data-key="globe"]');
-    languageButton.textContent=language==='kana'?'':'あ';languageButton.style.visibility=language==='kana'?'hidden':'visible';languageButton.disabled=language==='kana';
-    languageButton.setAttribute('aria-label',language==='kana'?'QWERTYへ切り替える':'日本語へ切り替える');
     const dualButton=$('[data-dual]');
     dualButton.setAttribute('aria-pressed',String(dualEnabled));
     dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';

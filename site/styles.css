@@ -55,7 +55,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .phone-shot { position: relative; padding: .75rem; border: 1px solid var(--line); border-radius: 1.7rem; background: linear-gradient(150deg, var(--surface-2), var(--surface)); box-shadow: 0 35px 90px var(--shot-shadow); }
 .phone-shot img { width: 100%; height: 520px; object-fit: cover; object-position: center bottom; border-radius: 1.05rem; }
-.hero-demo { width:100%; min-width:600px; overflow:hidden; border:1px solid var(--line); border-radius:1.25rem; background:var(--surface); box-shadow:0 35px 90px var(--shot-shadow); }
+.hero-demo { width:100%; min-width:600px; scroll-margin-top:80px; overflow:hidden; border:1px solid var(--line); border-radius:1.25rem; background:var(--surface); box-shadow:0 35px 90px var(--shot-shadow); }
 .hero-demo-intro { display:flex; align-items:baseline; flex-wrap:wrap; gap:.35rem 1rem; padding:.9rem 1rem; border-bottom:1px solid var(--line); }
 .hero-demo-intro strong { font-size:.95rem; }
 .hero-demo-intro span { color:var(--muted); font-size:.78rem; }
