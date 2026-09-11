@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gesture IME visual frame fixture</title>
+<style>
+  :root{font-family:system-ui,sans-serif;color-scheme:dark;background:#151517;color:#f4f4f6}
+  body{margin:0;padding:16px}.toolbar{position:sticky;top:0;z-index:2;padding:12px;background:#202024;border:1px solid #444;border-radius:10px}
+  button{margin:3px;padding:8px 11px}.readout{font:12px/1.5 ui-monospace,monospace;color:#b5b5bd}
+  iframe{display:block;width:100%;height:760px;margin-top:12px;border:1px solid #444;background:#fff}
+</style>
+<div class="toolbar">
+  <strong>正本HTML frame freeze</strong>
+  <div>状態 <button data-state="idle">idle</button><button data-state="up">上: 大文字</button><button data-state="down">下: 副文字</button><button data-state="enter">Enter→Paste補正版</button></div>
+  <div>progress <button data-p="0">0</button><button data-p=".25">.25</button><button data-p=".5">.5</button><button data-p=".75">.75</button><button data-p="1">1</button></div>
+  <div class="readout">正本の90ms endpointを、線形の論理progressで停止表示する。実時間のease曲線はdynamic-reference.md参照。Enter→Pasteだけは元HTMLのclass接続漏れを補正した意図表示。<span id="status"></span></div>
+</div>
+<iframe src="../reference/mock-source.html" title="正本HTML"></iframe>
+<script>
+  const frame=document.querySelector('iframe'); let state='idle',progress=0;
+  function reset(el){el.style.transition='none';el.style.removeProperty('transform');el.style.removeProperty('opacity');el.style.removeProperty('color')}
+  function apply(){
+    const d=frame.contentDocument;if(!d)return;
+    const root=d.querySelector('#ios-keyboard-demo');root.dataset.device='cover';
+    const q=d.querySelector('.key[data-key="q"]'),enter=d.querySelector('.key[data-key="return"]');
+    const qm=q&&q.querySelector('.key-main'),qa=q&&q.querySelector('.key-alt'),em=enter&&enter.querySelector('.key-main'),eh=enter&&enter.querySelector('.key-hint');
+    [q,enter].filter(Boolean).forEach(k=>k.classList.remove('pressed','flick-selected','uppercase-selected','mode-on'));
+    [qm,qa,em,eh].filter(Boolean).forEach(reset); if(qm)qm.textContent=state==='up'?'Q':'q';
+    if(state==='up'){qm.style.transform='translateY('+(-3*progress)+'px)';qa.style.opacity=String(1-progress)}
+    else if(state==='down'){qm.style.transform='translateY('+(22*progress)+'px)';qm.style.opacity=String(1-progress);qa.style.transform='translateY('+(13*progress)+'px) scale('+(1+.7*progress)+')'}
+    else if(state==='enter'){em.style.transform='translateY('+(22*progress)+'px)';em.style.opacity=String(1-progress);eh.style.transform='translateY('+(13*progress)+'px) scale('+(1+.7*progress)+')';eh.style.color='#102844'}
+    const selected=state!=='idle'; if(selected)(state==='enter'?enter:q).classList.add('pressed');
+    if(state==='up'&&progress>0)qa.style.opacity='0';
+    if(state==='up'||state==='down'){qm.style.color='#102844';qa.style.color='#102844'}
+    document.querySelector('#status').textContent=' state='+state+' p='+progress;
+    if(q)q.scrollIntoView({block:'center'});
+  }
+  frame.addEventListener('load',apply);
+  document.querySelectorAll('[data-state]').forEach(b=>b.onclick=()=>{state=b.dataset.state;apply()});
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{progress=Number(b.dataset.p);apply()});
+</script>
+</html>
