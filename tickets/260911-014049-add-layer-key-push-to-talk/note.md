@@ -51,7 +51,8 @@
 - `37ff7f7`: UI取消をhold世代の無効化へ接続し、terminal互換カーソル設定をdefault OFFで追加。
 - `d547a23`: 1秒layer-key hold、ready時2 pulse、追加描画調整とUI回帰。
 - `8727e73`: reset待機中に通常キーが入る実経路で古い音声commitを拒否する回帰を修正。
-- 最終local検証は fast-check 5件、unit 84件、lint、APK assemblyが成功。生ログは `docs/verification/v0.4-test-all.log`。
+- `9bbef9e` / `7fec052`: 旧候補欄Start/Stop/Confirmを廃止し、音声操作をlayer-key hold専用へ統一した。
+- 最終local検証は fast-check 5件、unit 85件、lint、APK assemblyが成功。connected 7件も成功。生ログは `docs/verification/v0.4-test-all.log` と `docs/verification/v0.4-connected.log`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

@@ -49,8 +49,8 @@ Raw reports:
 
 ## v0.4 verification
 
-Revision `8727e73455ca8fd2afe8686d7644458d79ce4ebb` was verified on 2026-09-11 JST. `scripts/test-all.sh` passed 5 fast checks, 84 unit tests, Android lint, and debug APK assembly. The raw console output is preserved at `docs/verification/v0.4-test-all.log`; the 13 JUnit XML files under `app/build/test-results/testDebugUnitTest/` report 84 tests with no failures, errors, or skips.
+Revision `7fec052b04372f25bb9d107628e3442cce504496` was verified on 2026-09-11 JST. `scripts/test-all.sh` passed 5 fast checks, 85 unit tests, Android lint, and debug APK assembly. The raw console output is preserved at `docs/verification/v0.4-test-all.log`; the JUnit XML files under `app/build/test-results/testDebugUnitTest/` report 85 tests with no failures, errors, or skips.
 
-The production APK is `app/build/outputs/apk/debug/app-debug.apk`, 34,906,977 bytes, SHA-256 `6a3c05f4afa603549815a0d130bf026b5d2b06fdf0bb5c789e020561a4be6c75`. It is version code 4 / version name 0.4.0 and is signed with the Android debug certificate whose SHA-256 digest is `b56a8bf1af87f450f392e11785a58a8e70ec2814c656ea47c25d7e36faf0c015`.
+The production APK is `app/build/outputs/apk/debug/app-debug.apk`, SHA-256 `8f6604d5bc433727a6bf421923c3f7557cfdb6b52d0119d94ee3b62c94246457`. It is version code 4 / version name 0.4.0 and is signed with the Android debug certificate whose SHA-256 digest is `b56a8bf1af87f450f392e11785a58a8e70ec2814c656ea47c25d7e36faf0c015`.
 
-The last connected suite ran against the same production code before the test-only revision `8727e73`; its XML reports 7 tests and no failures, errors, or skips. The later revision changes only the voice-hold regression test and does not change the APK bytes.
+The connected suite ran against this final production revision and reports 7 tests with no failures, errors, or skips. Its console output is preserved at `docs/verification/v0.4-connected.log`.
