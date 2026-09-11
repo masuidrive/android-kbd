@@ -282,6 +282,7 @@ class KeyboardViewTest {
         assertEquals(enter.top + 12.5f, center(idleHint), .6f)
         assertEquals((255 * .7f).toInt(), idleHint.alpha)
         assertEquals(.7f / idleHint.textSize, idleHint.letterSpacing, .001f)
+        assertEquals(android.graphics.Color.rgb(244, 244, 246), idleHint.color)
         touch(MotionEvent.ACTION_DOWN, enter.centerX().toFloat(), enter.centerY().toFloat())
         touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() + 24f, 10)
         assertTrue(actions.isEmpty())
@@ -364,6 +365,33 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `conversion start discards only a held Enter and the next Enter commits`() {
+        view.setMode(KeyboardMode.KANA)
+        view.setDualFlickEnabled(true)
+        view.measure(exact(840), exact(256)); view.layout(0, 0, 840, 256)
+        val keys = KeyboardLayouts.layout(KeyboardMode.KANA, true, false).rows.flatMap { it.keys }
+        val enterId = keys.indexOfFirst { it.kind == KeyKind.ENTER }
+        val kanaId = keys.indexOfFirst { it.kind == KeyKind.KANA }
+        val enter = keyCenter(enterId)
+        val kana = keyCenter(kanaId)
+        view.actionSink = KeyboardActionSink { action ->
+            actions += action
+            if (action is KeyAction.KanaInput) view.setConversionActive(true)
+        }
+        multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to enter))
+        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to enter, 1 to kana))
+        multiTouch(MotionEvent.ACTION_MOVE, listOf(0 to (enter.first to enter.second + 24f), 1 to kana))
+        multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to enter, 1 to kana))
+        multiTouch(MotionEvent.ACTION_UP, listOf(0 to enter))
+        assertEquals(listOf(KeyAction.KanaInput("あ")), actions)
+
+        val convertingEnter = keyCenter(KeyboardLayouts.layout(KeyboardMode.KANA, true, true).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ENTER })
+        multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to convertingEnter))
+        multiTouch(MotionEvent.ACTION_UP, listOf(0 to convertingEnter))
+        assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.CommitConversion), actions)
+    }
+
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
         view.setMode(KeyboardMode.KANA)
         view.setDualFlickEnabled(true)
@@ -396,6 +424,8 @@ class KeyboardViewTest {
         assertEquals(.19f, mode.toFloat() / total, .01f)
         assertEquals(.55f, space.toFloat() / total, .01f)
         assertEquals(.26f, enter.toFloat() / total, .01f)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertTrue("half-width delete icon remains readable", canvas.draws.last { it.text == "⌫" }.textSize >= 11f)
     }
 
     @Test fun `inner width uses css outer inset and taller kana keys`() {
@@ -539,6 +569,7 @@ class KeyboardViewTest {
         val ascent: Float,
         val descent: Float,
         val letterSpacing: Float,
+        val color: Int,
     )
 
     private data class RoundDraw(val rect: android.graphics.RectF, val color: Int)
@@ -548,7 +579,7 @@ class KeyboardViewTest {
         val roundRects = mutableListOf<RoundDraw>()
 
         override fun drawText(text: String, x: Float, y: Float, paint: Paint) {
-            draws += TextDraw(text, x, y, paint.textSize, paint.alpha, paint.ascent(), paint.descent(), paint.letterSpacing)
+            draws += TextDraw(text, x, y, paint.textSize, paint.alpha, paint.ascent(), paint.descent(), paint.letterSpacing, paint.color)
             super.drawText(text, x, y, paint)
         }
 

@@ -101,6 +101,7 @@ class KeyboardView @JvmOverloads constructor(
 
     fun setConversionActive(active: Boolean) {
         if (state.conversionActive == active) return
+        this.active.filterValues { it.spec.kind == KeyKind.ENTER }.keys.toList().forEach(::discardPointer)
         state = state.copy(conversionActive = active)
         rebuildLayout()
     }
@@ -176,6 +177,22 @@ class KeyboardView @JvmOverloads constructor(
             actionSink?.onKeyAction(KeyAction.SetModifier(null))
         }
         invalidate()
+    }
+
+    private fun discardPointer(id: Int) {
+        cancelTimer(id)
+        cancelVoiceHoldArm(id)
+        labelAnimators.remove(id)?.cancel()
+        labelFrames.remove(id)
+        active.remove(id)
+        directions.remove(id)
+        cursorMoved.remove(id)
+        accentActive.remove(id)
+        accentSelected.remove(id)
+        repeated.remove(id)
+        interpreter.cancel(id)
+        dismissPopup()
+        active.keys.firstOrNull()?.let(::syncPopup)
     }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
@@ -305,7 +322,8 @@ class KeyboardView @JvmOverloads constructor(
             canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp)), textPaint)
             canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp)), textPaint)
         } else if (!animatedEnglish && !animatedEnterPaste && !animatedSpecial) {
-            drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER, primaryAdjustment.xOffsetDp)
+            drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
+                primaryAdjustment.xOffsetDp, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
         }
         if (animatedEnglish) {
             val secondaryLabel = requireNotNull(secondary)
@@ -331,10 +349,14 @@ class KeyboardView @JvmOverloads constructor(
         } else if (secondary != null) {
             val adjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
-            textPaint.color = if (selected) Color.rgb(16, 40, 68) else Color.rgb(181, 181, 191)
             val isStackHint = spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE)
+            textPaint.color = when {
+                selected -> Color.rgb(16, 40, 68)
+                isStackHint -> Color.rgb(244, 244, 246)
+                else -> Color.rgb(181, 181, 191)
+            }
             textPaint.alpha = if (isStackHint) (255 * .7f).toInt() else 255
-            textPaint.letterSpacing = if (isStackHint) dp(.7f) / textPaint.textSize else 0f
+            textPaint.letterSpacing = if (isStackHint) dp(.7f * adjustment.scale) / textPaint.textSize else 0f
             val visualCenter = when {
                 spec.kind == KeyKind.ENTER -> target.bounds.height() / density / 2f - 10f
                 spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY ->
@@ -363,7 +385,7 @@ class KeyboardView @JvmOverloads constructor(
         textPaint.textSize = sp(10f) * secondaryAdjustment.scale * frame.secondaryScale
         textPaint.color = Color.rgb(16, 40, 68)
         textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
-        textPaint.letterSpacing = dp(.7f) / textPaint.textSize
+        textPaint.letterSpacing = dp(.7f * secondaryAdjustment.scale * frame.secondaryScale) / textPaint.textSize
         val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
         drawFittedText(canvas, secondary, bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), secondaryBaseline, availableWidth(bounds, secondaryAdjustment.xOffsetDp))
         textPaint.letterSpacing = 0f
@@ -433,10 +455,15 @@ class KeyboardView @JvmOverloads constructor(
         canvas.drawText("↓", x, y + dp(18f), textPaint)
     }
 
-    private fun drawMainLabel(canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean, xOffsetDp: Float = 0f) {
+    private fun drawMainLabel(
+        canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean,
+        xOffsetDp: Float = 0f, edgePaddingDp: Float = 4f,
+    ) {
         val x = bounds.centerX() + dp(xOffsetDp)
         if (!allowComposite || label !in setOf("#!", "あん", "AZ", "19")) {
-            drawFittedText(canvas, label, x, y, availableWidth(bounds, xOffsetDp))
+            val maxWidth = (bounds.width() - dp(edgePaddingDp * 2f) - 2f * kotlin.math.abs(dp(xOffsetDp)))
+                .coerceAtLeast(dp(4f))
+            drawFittedText(canvas, label, x, y, maxWidth)
             return
         }
         val main = label.substring(0, 1)
@@ -446,9 +473,6 @@ class KeyboardView @JvmOverloads constructor(
         val originalAlpha = textPaint.alpha
         val mainVisualCenter = y + (textPaint.ascent() + textPaint.descent()) / 2f
         textPaint.textSize = originalSize * .75f
-        if (originalColor != Color.rgb(16, 40, 68)) {
-            textPaint.color = Color.rgb(181, 181, 191)
-        }
         textPaint.alpha = (originalAlpha * .72f).toInt()
         val ghostLineHeight = textPaint.descent() - textPaint.ascent()
         val ghostCenter = mainVisualCenter + ghostLineHeight * .15f
