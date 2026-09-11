@@ -48,6 +48,8 @@ class KeyboardView @JvmOverloads constructor(
     private val timers = mutableMapOf<Int, Runnable>()
     private var animationProgress = 1f
     private var animator: ValueAnimator? = null
+    private var qwertyLabelStyle = QwertyLabelStyle.DEFAULT
+    private var previewOnly = false
     private val accessibilityHelper = KeyboardAccessibilityHelper(this)
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -95,6 +97,19 @@ class KeyboardView @JvmOverloads constructor(
         cancelActiveGestures()
         state = state.copy(dualFlickEnabled = enabled)
         rebuildLayout()
+    }
+
+    fun setQwertyLabelStyle(style: QwertyLabelStyle) {
+        qwertyLabelStyle = style.sanitized()
+        invalidate()
+    }
+
+    fun setPreviewOnly(enabled: Boolean) {
+        cancelActiveGestures()
+        previewOnly = enabled
+        isFocusable = !enabled
+        importantForAccessibility = if (enabled) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_YES
+        accessibilityHelper.invalidateRoot()
     }
 
     private fun rebuildLayout() {
@@ -197,9 +212,12 @@ class KeyboardView @JvmOverloads constructor(
         keyPaint.color = when { selected || modifierActive -> Color.rgb(168, 206, 255); target.spec.dark -> Color.rgb(48, 48, 52); else -> Color.rgb(65, 65, 68) }
         keyPaint.alpha = 255
         canvas.drawRoundRect(target.bounds, dp(5f), dp(5f), keyPaint)
+        val textSave = canvas.save()
+        canvas.clipRect(target.bounds)
         textPaint.color = if (selected || modifierActive) Color.rgb(16, 40, 68) else Color.rgb(244, 244, 246)
         textPaint.alpha = 255
-        textPaint.textSize = sp(mainTextSize(target.spec))
+        val primaryAdjustment = labelAdjustment(target.spec, secondary = false)
+        textPaint.textSize = sp(mainTextSize(target.spec)) * primaryAdjustment.scale
         val direction = pointerId?.let { directions[it] } ?: Direction.CENTER
         val spec = target.spec
         val label = when {
@@ -215,11 +233,11 @@ class KeyboardView @JvmOverloads constructor(
         if (spec.id == "mode-↔" && !selected) {
             drawCursorCross(canvas, target.bounds)
         } else if (idleModifier) {
-            textPaint.textSize = sp(10f)
-            canvas.drawText("C", target.bounds.centerX(), target.bounds.top + dp(13f), textPaint)
-            canvas.drawText("A", target.bounds.centerX(), target.bounds.bottom - dp(6f), textPaint)
+            textPaint.textSize = sp(10f) * primaryAdjustment.scale
+            canvas.drawText("C", target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp), textPaint)
+            canvas.drawText("A", target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp), textPaint)
         } else if (!animatedEnglish && !animatedSpecial) {
-            drawMainLabel(canvas, label, target.bounds, centerY, !selected && direction == Direction.CENTER)
+            drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, centerY + dp(primaryAdjustment.yOffsetDp)), !selected && direction == Direction.CENTER, primaryAdjustment.xOffsetDp)
         }
         val secondary = when {
             spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
@@ -228,25 +246,51 @@ class KeyboardView @JvmOverloads constructor(
             else -> null
         }
         if (animatedEnglish && direction == Direction.DOWN && secondary != null) {
-            textPaint.textSize = sp(12f) * (1f + .7f * animationProgress)
+            val secondaryAdjustment = labelAdjustment(spec, secondary = true)
+            textPaint.textSize = sp(12f) * secondaryAdjustment.scale * (1f + .7f * animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(secondary, target.bounds.centerX(), target.bounds.top + dp(14f + 13f * animationProgress), textPaint)
-            textPaint.textSize = sp(22f)
+            canvas.drawText(secondary, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), safeBaseline(target.bounds, target.bounds.top + dp(14f + 13f * animationProgress + secondaryAdjustment.yOffsetDp)), textPaint)
+            textPaint.textSize = sp(22f) * primaryAdjustment.scale
             textPaint.alpha = (255 * (1f - animationProgress)).toInt()
-            canvas.drawText(spec.center?.label.orEmpty(), target.bounds.centerX(), centerY + dp(22f) * animationProgress, textPaint)
+            canvas.drawText(spec.center?.label.orEmpty(), target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, centerY + dp(22f * animationProgress + primaryAdjustment.yOffsetDp)), textPaint)
         } else if (animatedEnglish && direction == Direction.UP) {
-            textPaint.textSize = sp(22f)
+            textPaint.textSize = sp(22f) * primaryAdjustment.scale
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(label, target.bounds.centerX(), centerY - dp(3f) * animationProgress, textPaint)
+            canvas.drawText(label, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, centerY - dp(3f) * animationProgress + dp(primaryAdjustment.yOffsetDp)), textPaint)
         } else if (animatedSpecial) {
             textPaint.textSize = sp(11f) * (1f + .7f * animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
             drawFittedText(canvas, label, target.bounds.centerX(), centerY, target.bounds.width() - dp(8f))
         } else if (!selected && secondary != null) {
-            textPaint.textSize = sp(secondaryTextSize(spec))
+            val adjustment = labelAdjustment(spec, secondary = true)
+            textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
             textPaint.color = Color.rgb(190, 192, 200)
-            canvas.drawText(secondary, target.bounds.centerX(), target.bounds.top + dp(14f), textPaint)
+            val baseline = safeBaseline(target.bounds, target.bounds.top + dp(14f + adjustment.yOffsetDp))
+            drawFittedText(canvas, secondary, target.bounds.centerX() + dp(adjustment.xOffsetDp), baseline, availableWidth(target.bounds, adjustment.xOffsetDp))
         }
+        canvas.restoreToCount(textSave)
+    }
+
+    private fun labelAdjustment(spec: KeySpec, secondary: Boolean): LabelAdjustment {
+        if (state.mode != KeyboardMode.QWERTY) return LabelAdjustment()
+        val group = when {
+            secondary && spec.kind == KeyKind.CHARACTER -> QwertyLabelGroup.LETTER_SECONDARY
+            secondary && spec.kind in setOf(KeyKind.SPACE, KeyKind.ENTER) -> QwertyLabelGroup.SPACE_ENTER_SECONDARY
+            !secondary && spec.kind == KeyKind.CHARACTER -> QwertyLabelGroup.LETTER_PRIMARY
+            !secondary && spec.kind in setOf(KeyKind.SPACE, KeyKind.ENTER) -> QwertyLabelGroup.SPACE_ENTER_PRIMARY
+            else -> QwertyLabelGroup.COMPOSITE_SMALL
+        }
+        return qwertyLabelStyle[group]
+    }
+
+    private fun availableWidth(bounds: RectF, xOffsetDp: Float): Float =
+        (bounds.width() - dp(8f) - 2f * kotlin.math.abs(dp(xOffsetDp))).coerceAtLeast(dp(4f))
+
+    private fun safeBaseline(bounds: RectF, desired: Float): Float {
+        val metrics = textPaint.fontMetrics
+        val minimum = bounds.top + dp(3f) - metrics.top
+        val maximum = bounds.bottom - dp(3f) - metrics.bottom
+        return if (minimum <= maximum) desired.coerceIn(minimum, maximum) else bounds.centerY()
     }
 
     private fun mainTextSize(spec: KeySpec) = when {
@@ -273,10 +317,10 @@ class KeyboardView @JvmOverloads constructor(
         canvas.drawText("↓", x, y + dp(18f), textPaint)
     }
 
-    private fun drawMainLabel(canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean) {
-        val x = bounds.centerX()
+    private fun drawMainLabel(canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean, xOffsetDp: Float = 0f) {
+        val x = bounds.centerX() + dp(xOffsetDp)
         if (!allowComposite || label !in setOf("#!", "あん", "AZ", "19")) {
-            drawFittedText(canvas, label, x, y, bounds.width() - dp(8f))
+            drawFittedText(canvas, label, x, y, availableWidth(bounds, xOffsetDp))
             return
         }
         val main = label.substring(0, 1)
@@ -345,6 +389,7 @@ class KeyboardView @JvmOverloads constructor(
         (target.bounds.centerX() - tile * count / 2f).coerceIn(0f, (width - tile * count).coerceAtLeast(0f))
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (previewOnly) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> pointerDown(event, event.actionIndex)
             MotionEvent.ACTION_MOVE -> for (i in 0 until event.pointerCount) pointerMove(event, i)
@@ -402,6 +447,7 @@ class KeyboardView @JvmOverloads constructor(
         }
 
         override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: android.os.Bundle?): Boolean {
+            if (previewOnly) return false
             val target = hitTargets.getOrNull(virtualViewId) ?: return false
             val direction = when (action) {
                 AccessibilityNodeInfoCompat.ACTION_CLICK -> Direction.CENTER

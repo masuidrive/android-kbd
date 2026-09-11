@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -89,6 +90,42 @@ class KeyboardViewTest {
 
         assertTrue("font scale 1.3 must not expand labels beyond their key bounds", normal.sameAs(enlarged))
         assertTrue("font scale 2.0 must not expand labels beyond their key bounds", normal.sameAs(accessibility))
+    }
+
+    @Test fun `preview consumes touch and accessibility without changing input state`() {
+        view.setPreviewOnly(true)
+        touch(MotionEvent.ACTION_DOWN, 40f, 20f)
+        touch(MotionEvent.ACTION_UP, 40f, 20f, 10)
+        val provider = view.accessibilityNodeProvider
+
+        assertTrue(actions.isEmpty())
+        assertTrue(!provider.performAction(0, AccessibilityNodeInfo.ACTION_CLICK, null))
+        assertTrue(actions.isEmpty())
+    }
+
+    @Test fun `extreme label adjustments preserve bounded nonoverlapping keys at narrow and wide widths`() {
+        val extreme = QwertyLabelGroup.entries.fold(QwertyLabelStyle.DEFAULT) { style, group ->
+            style.with(group, LabelAdjustment(1.3f, 6f, 8f))
+        }
+        view.setQwertyLabelStyle(extreme)
+
+        listOf(412 to 220, 840 to 248).forEach { (width, height) ->
+            view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+            view.draw(Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)))
+            val provider = view.accessibilityNodeProvider
+            val host = requireNotNull(provider.createAccessibilityNodeInfo(-1))
+            val bounds = (0 until host.childCount).map { id -> Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) } }
+            bounds.forEach { assertTrue("key left bounds at $width px", it.left >= 0); assertTrue("key right bounds at $width px", it.right <= width) }
+            for (i in bounds.indices) for (j in i + 1 until bounds.size) assertFalse("keys overlap at $width px", Rect.intersects(bounds[i], bounds[j]))
+        }
+    }
+
+    @Test fun `label style does not change key hit bounds`() {
+        fun bounds() = Rect().also { view.accessibilityNodeProvider.createAccessibilityNodeInfo(0)!!.getBoundsInParent(it) }
+        val before = bounds()
+        view.setQwertyLabelStyle(QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_PRIMARY, LabelAdjustment(.7f, -6f, -8f)))
+        view.draw(Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888)))
+        assertEquals(before, bounds())
     }
 
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
