@@ -129,8 +129,8 @@ object KeyboardLayouts {
         FlickValue(label, KeyAction.SwitchLayer(tap)),
         left = FlickValue(KeyboardMode.SYMBOLS.displayName, KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)),
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
-        right = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
-        down = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)), widthUnits = width, dark = true)
+        right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
+        down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), widthUnits = width, dark = true)
 
     private fun arrow(direction: Direction) = when (direction) {
         Direction.LEFT -> "←"; Direction.UP -> "↑"; Direction.RIGHT -> "→"; Direction.DOWN -> "↓"; Direction.CENTER -> "•"

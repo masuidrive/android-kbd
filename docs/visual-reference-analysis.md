@@ -31,6 +31,8 @@ The user’s later requirement overrides line 231: native flick feedback must no
 
 The user’s later requirements override the original Kana height split: native Japanese/Numbers/Cursor rows must use the same height as QWERTY at each width. Dual Flick still duplicates only the Japanese central 12 keys, and the layer key’s 1-second voice hold remains available.
 
+The user also overrides the original layer navigation at mock lines 292 and 599: left remains Symbols, up remains Kana, right becomes QWERTY, and down becomes Numbers. Tap and the 1-second voice hold remain unchanged.
+
 ## Typography and label placement
 
 | Label type | Static contract | Source |

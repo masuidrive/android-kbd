@@ -91,6 +91,15 @@ class CandidateStripViewTest {
         assertEquals(8, view.paddingBottom)
     }
 
+    @Test fun showingCandidatesKeepsTheStripBackgroundStable() {
+        val view = view()
+        view.showCandidates(listOf("未選択", "選択"), 1)
+
+        assertEquals(Color.rgb(41, 41, 44), (view.textView("未選択").background as ColorDrawable).color)
+        assertEquals(Color.rgb(97, 210, 255), (view.textView("選択").background as ColorDrawable).color)
+        assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
+    }
+
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }
     private fun View.allTextViews(): List<TextView> {
         val result = mutableListOf<TextView>()

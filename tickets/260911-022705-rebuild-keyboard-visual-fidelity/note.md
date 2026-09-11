@@ -49,6 +49,8 @@
 - 正本 `docs/reference/mock-source.html` のstatic CSS/JSをselectorとline単位で抽出し、`docs/visual-reference-analysis.md` に表として記録した。browser computed値とnative比較は別証拠として混同しない。
 - 後続overrideとして、かな行高=QWERTY、QWERTY BS=`⌫`、flick中の他key背景減光なし、Dual Flick、layer-key hold音声を維持する。
 - Enter/Pasteの元HTMLはnavigation選択でmain labelを置換する一方、通常secondary用 `.flick-selected` transformを付けないため、down-swipe animationの位置関係が揃わないと特定した。nativeではこのbugを再現せず、意図したsecondary animationへ統合する。
+- 候補表示時だけcandidate row/未選択labelが`#2a313a`へ変わる実装を確認し、候補欄・未選択候補を既存gap/keyboard背景`#29292c`へ固定した。選択候補のaccentは維持する。
+- ユーザーの最新指定で全layer共通切替を左=記号、上=日本語、右=QWERTY、下=テンキーへ変更した。正本HTMLの右=テンキー、下=QWERTYは後続overrideとして採用しない。tap/1秒holdは維持する。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

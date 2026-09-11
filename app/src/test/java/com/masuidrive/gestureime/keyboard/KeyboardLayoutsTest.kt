@@ -56,8 +56,8 @@ class KeyboardLayoutsTest {
         KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.LAYER_SWITCH }.forEach { key ->
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS), key.left?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), key.up?.action)
-            assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.right?.action)
-            assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), key.down?.action)
+            assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), key.right?.action)
+            assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.down?.action)
         }
         KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.MODE }.forEach { key ->
             assertNull(key.left); assertNull(key.up); assertNull(key.right); assertNull(key.down)

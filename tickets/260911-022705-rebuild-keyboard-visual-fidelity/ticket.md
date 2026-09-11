@@ -21,6 +21,8 @@ Galaxy Z Fold7で日常入力する利用者が、正本HTMLモックと一貫�
 - [ ] AC 4: EnterからPasteを選ぶanimationが正本HTMLの意図どおり動き、HTML側にある元bugはnativeへ再現せず補正結果をHTML比較にも明記する。
 - [ ] AC 5: 412dp/840dpと文字倍率1.0/1.3/2.0で比較しても、キー・ラベル・popupが切れず、操作対象が重ならない。
 - [ ] AC 6: 日本語キー高、QWERTY BSの⌫、layer-key hold音声、Dual Flickなど後続の明示仕様を維持する。
+- [ ] AC 7: 変換候補の有無で候補欄全体の背景色が変わらず、選択中候補のaccentだけが識別できる。
+- [ ] AC 8: 全レイヤー共通の切替キーで、左swipeは記号、上は日本語、右はQWERTY、下はテンキーへ切り替わり、tapと1秒hold音声は従来どおり動く。
 
 ### Architectural Invariants check
 AI-1〜AI-4と矛盾しない。描画変更は入力内容の保存・通信・Mozc学習を追加せず、既存のnative Custom Viewを維持する。
