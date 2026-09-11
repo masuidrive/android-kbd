@@ -40,6 +40,12 @@ class SetupActivity : AppCompatActivity() {
                 }
             }, matchWidth())
             addView(Button(context).apply {
+                text = getString(R.string.adjust_qwerty_labels)
+                setOnClickListener {
+                    startActivity(Intent(context, QwertyLabelAdjustmentActivity::class.java))
+                }
+            }, matchWidth())
+            addView(Button(context).apply {
                 text = getString(R.string.enable_ime)
                 setOnClickListener { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) }
             }, matchWidth())

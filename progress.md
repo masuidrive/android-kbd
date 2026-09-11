@@ -56,3 +56,7 @@
 [2026/09/11 10:23] 音声入力v0.3の最終実装6ec20ccでfast-check 5件、unit 62件、connected 7件、lint、APK buildが成功。APK SHA-256は4e691b4003dcdc883de55dd812b27fd7fba3061b408867d561ac63b821fa2cea。API 36 AVDは端末内recognizer対応だが日本語model未導入のため実発話成功は未検証と区別した。
 [2026/09/11 10:23] 端末でマイク未許可時の通常候補維持、許可後のIME hide→showで音声ボタン復帰、model未導入時の非対応表示、機密欄で候補・音声UI非表示を確認した。
 [2026/09/11 10:23] 音声公開後に着手するQWERTYラベル微調整preview ticket `260911-011016-add-qwerty-label-adjustment-preview` を起票。さらにユーザーから、その後は英数字候補bufferを含む残りticketも完了まで進める指示を受領した。音声v0.3公開前には着手しない。
+[2026/09/11 10:28] v0.3公開の実ブラウザ確認後、QWERTYラベル微調整preview ticketを開始。主/補助/Space・Enter/小型複合の5群ごとにscaleとX/Y位置を調整し、同じKeyboardViewで412dp/840dpと文字倍率1.0/1.3/2.0の安全範囲を検証する。
+[2026/09/11 10:35] ユーザーから音声操作の変更を受領。左下レイヤーキーは短tap/flickの既存操作を維持し、1秒以上holdで録音開始、開始時2回振動、release後の最終結果を同じ入力欄へ自動確定する。QWERTY微調整と同じv0.4で公開し、別ticketとして実装する。
+[2026/09/11 10:37] v0.4へ、縦swipe拡大文字の位置ずれ、QWERTY BSの削除記号、Enter→Pasteアニメーション、cursorレイヤーとSpaceのカーソル移動不良という追加4点を含める指示を受領。UI3点は描画側、カーソル2経路は実入力欄で挿入位置を観測して再検証する。
+[2026/09/11 10:38] カーソル移動不良は標準入力欄では動作し、ブラウザのxterm.jsで再現するというユーザー補足を受領。通常Editorの安全なsetSelectionを維持し、xtermのhidden textareaへ矢印KeyEventを送る経路は誤判定とfocus越境を避ける条件を調査してから実装する。

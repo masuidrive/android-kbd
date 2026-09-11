@@ -12,6 +12,8 @@
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] ユーザー追加指示: QWERTY微調整公開後、英数字候補bufferを含む残りticketを順次完了する
+- [ ] 同じv0.4 deliveryで、左下レイヤーキー1秒hold音声入力の別ticketを実装して公開する
+- [ ] v0.4で縦swipe拡大文字位置、QWERTY BS記号、Enter→Pasteアニメ、cursor/Space移動のユーザー申告4点を再現・修正する
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -85,3 +87,6 @@
 
 - 音声入力v0.3.0の公開後に着手する段階3として起票した。現在の音声ticket/branchは切り替えず、実装は開始していない。
 - v0.3.0公開確認後、既存delivery履歴を基点に開始する。設定値は5群それぞれのscale/X/Yとし、UI描画・調整画面とService永続化の境界を分離する。
+- AC 4の検証は412dp/840dp、font scale 1.0/1.3/2.0、各slider両端で主・補助・ghost文字の描画がkey bounds内へfit/clampされることを対象にする。scale 0.7〜1.3、X ±6dp、Y ±8dpを初期安全範囲として実測する。
+- 音声holdは通常KeyActionと分離し、owner pointer・editor・generationごとにterminalを一度だけ処理する。発火前のflick/second pointer、size/mode/view/editor変更、ACTION_CANCELで破棄する。1秒発火後のMOVEは録音を維持し、release前resultは保持、release後resultだけ自動commitする。onReady前releaseは開始も振動もせず破棄する。
+- カーソル不動のユーザー申告は標準Editorでは再現せず、ブラウザ内xterm.jsに限定された。通常Editorの安全なsetSelectionを維持し、xtermのhidden textareaへ無条件fallbackしてfocus越境を再発させない。端末専用KeyEvent経路は検出方法または明示設定を確認してから実装判断する。

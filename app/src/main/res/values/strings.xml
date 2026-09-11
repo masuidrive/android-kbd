@@ -8,5 +8,6 @@
     <string name="test_input">入力を試す</string>
     <string name="licenses">オープンソースライセンス</string>
     <string name="dual_flick">Dual Flick（広い画面で日本語12キーを左右に表示）</string>
+    <string name="adjust_qwerty_labels">QWERTYラベルを調整</string>
     <string name="test_hint">ここをタップして Gesture IME を試す</string>
 </resources>

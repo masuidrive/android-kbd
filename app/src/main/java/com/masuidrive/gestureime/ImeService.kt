@@ -63,6 +63,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
+            it.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
             keyboardView = it
         }
         val strip = CandidateStripView(this).also {
@@ -88,6 +89,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         voiceController.cancel(notify = false)
+        keyboardView?.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
     }
 
@@ -101,6 +103,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         keyboardView?.setMode(KeyboardMode.QWERTY)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
+        keyboardView?.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
     }
 
     override fun onFinishInput() {
