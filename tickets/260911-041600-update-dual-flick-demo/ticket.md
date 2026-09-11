@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: default  # Override base branch for start/close (default: use default_branch from config)
+base_branch: features/260911-022705-rebuild-keyboard-visual-fidelity
 description: "公開デモをDual Flick対応の可変幅キーボード表示へ更新する"
 created_at: "2026-09-11T04:16:00Z"
 started_at: null  # Do not modify manually
