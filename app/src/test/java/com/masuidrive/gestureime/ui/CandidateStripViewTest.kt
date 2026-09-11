@@ -9,12 +9,15 @@ import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.HorizontalScrollView
+import android.os.Looper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -218,6 +221,35 @@ class CandidateStripViewTest {
         view.textView("same").performClick()
 
         assertEquals(listOf(CandidateUiEvent(30, 0), CandidateUiEvent(31, 0)), events)
+    }
+
+    @Test fun candidateContentChangeResetsScrollButSelectionOnlyChangeKeepsIt() {
+        val view = view()
+        val candidates = listOf("alpha", "bravo", "charlie", "delta", "echo")
+        fun layout() {
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(180, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY),
+            )
+            view.layout(0, 0, 180, 50)
+        }
+
+        view.showCandidates(CandidateUiSnapshot(40, candidates, 0))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        val scroll = view.getChildAt(0) as HorizontalScrollView
+        scroll.scrollTo(140, 0)
+        assertEquals(140, scroll.scrollX)
+
+        view.showCandidates(CandidateUiSnapshot(41, candidates, 3))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(140, scroll.scrollX)
+
+        view.showCandidates(CandidateUiSnapshot(42, listOf("foxtrot", "golf", "hotel", "india"), 0))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, scroll.scrollX)
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }

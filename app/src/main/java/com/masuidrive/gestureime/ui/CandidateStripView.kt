@@ -2,7 +2,6 @@ package com.masuidrive.gestureime.ui
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -43,8 +42,10 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
+        val contentChanged = candidateSnapshot.candidates != snapshot.candidates
         candidateSnapshot = snapshot
         render()
+        if (contentChanged) candidateScroll.scrollTo(0, 0)
     }
 
     fun showStatus(message: String) {
@@ -92,16 +93,13 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     private fun renderCandidates() {
         val snapshot = candidateSnapshot
-        var selectedView: TextView? = null
         snapshot.candidates.forEachIndexed { index, candidate ->
             candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
                 isClickable = true; isFocusable = true
                 contentDescription = "候補 ${index + 1}: $candidate"
                 setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
-                if (index == snapshot.selectedIndex) selectedView = this
             }, candidateLayout(hasLeadingGap = index > 0))
         }
-        selectedView?.let { view -> post { view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true) } }
     }
 
     private fun renderCandidateMessage(message: String, description: String = message) {
