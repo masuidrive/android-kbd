@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <title>Gesture IME 操作モック</title>
-  <style>html,body{margin:0;background:transparent} #ios-keyboard-demo .phone{min-height:min(760px,calc(100svh - 20px))!important}</style>
+  <style>html,body{margin:0;background:transparent}</style>
 </head>
 <body>
 <div id="ios-keyboard-demo" data-device="cover">
@@ -13,10 +13,10 @@
     <span class="device-name">Galaxy Z Fold7</span>
     <button type="button" data-device="cover" aria-pressed="true">外画面</button>
     <button type="button" data-device="inner" aria-pressed="false">内画面</button>
+    <button type="button" data-dual aria-pressed="false">Dual Flick</button>
     <span class="device-size">6.5″ · 2520 × 1080</span>
   </div>
   <div class="phone">
-    <header class="topbar"><span class="app-title">キーボード</span></header>
     <div class="editor-wrap">
       <label class="editor-label" for="ios-typing-area">入力を試す<span class="count">0 文字</span></label>
       <textarea id="ios-typing-area" aria-label="入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに入力されます" rows="4"></textarea>
@@ -42,14 +42,14 @@
   #ios-keyboard-demo .device-picker button { border:0; border-radius:7px; padding:7px 12px; background:transparent; color:var(--ik-muted); font-size:12px; }
   #ios-keyboard-demo .device-picker button[aria-pressed=true] { background:var(--ik-active); color:var(--ik-ink); }
   #ios-keyboard-demo .device-size { min-width:126px; margin:0 8px; color:var(--ik-muted); font:500 10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; }
-  #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); min-height:min(960px,calc(100svh - 72px)); margin:0 auto; border:1px solid var(--ik-line); border-radius:22px; background:var(--ik-paper); overflow:hidden; }
-  #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); min-height:min(930px,calc(100svh - 72px)); border-radius:26px; }
+  #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); margin:0 auto; background:var(--ik-paper); overflow:hidden; }
+  #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); }
   #ios-keyboard-demo button { font-family:inherit; cursor:pointer; color:inherit; margin:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   #ios-keyboard-demo .topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 16px; }
   #ios-keyboard-demo .app-title { font-size:19px; font-weight:500; letter-spacing:-.5px; }
-  #ios-keyboard-demo .editor-wrap { flex:1; min-height:190px; padding:22px 20px 12px; }
+  #ios-keyboard-demo .editor-wrap { height:164px; padding:14px 20px 10px; }
   #ios-keyboard-demo .editor-label { display:flex; justify-content:space-between; font-size:11px; color:var(--ik-muted); margin-bottom:10px; }
-  #ios-keyboard-demo textarea { display:block; width:100%; height:100%; min-height:144px; resize:none; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
+  #ios-keyboard-demo textarea { display:block; width:100%; height:124px; min-height:124px; resize:vertical; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
   #ios-keyboard-demo textarea::placeholder { color:var(--ik-muted); opacity:.65; }
   #ios-keyboard-demo .feedback { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:8px 16px; font-size:11px; border-top:1px solid var(--ik-line); gap:8px; }
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
@@ -60,7 +60,6 @@
   #ios-keyboard-demo .candidate-bar[hidden] { display:none; }
   #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
-  #ios-keyboard-demo .candidate-bar .candidate-empty { flex:1; color:var(--ik-muted); font-size:12px; text-align:center; }
   #ios-keyboard-demo .keys { position:relative; }
   #ios-keyboard-demo .key-row { display:flex; justify-content:center; height:54px; margin-bottom:7px; gap:0; }
   #ios-keyboard-demo .key { display:flex; position:relative; justify-content:center; align-items:center; flex:1; min-width:0; height:100%; background:none; border:0; padding:0 3px; font-size:25px; font-weight:400; touch-action:none; }
@@ -119,7 +118,6 @@
   #ios-keyboard-demo .key.uppercase-selected .key-main { transform:translateY(-3px); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .key.uppercase-selected .key-alt { opacity:0; }
   #ios-keyboard-demo .trackpad .key-face, #ios-keyboard-demo .trackpad .key-face * { color:transparent!important; }
-  #ios-keyboard-demo .keyboard.popup-active .keys .key:not(.pressed) .key-face { opacity:.42; }
   @media(prefers-reduced-motion:reduce) { #ios-keyboard-demo .key .key-main, #ios-keyboard-demo .key .key-alt { transition:none; } }
   #ios-keyboard-demo .english .key.backspace .key-face, #ios-keyboard-demo .english .key.return .key-face { background:var(--ik-key); }
   #ios-keyboard-demo .english .key-row:last-child .key { flex:1.45; }
@@ -145,6 +143,10 @@
   #ios-keyboard-demo[data-device=inner] .keyboard { padding-left:10px; padding-right:10px; }
   #ios-keyboard-demo[data-device=inner] .english .key-row { height:52px; }
   #ios-keyboard-demo[data-device=inner] .kana .key-row { height:58px; }
+  #ios-keyboard-demo .kana.dual .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.dual .key.return { width:12.5%; }
+  #ios-keyboard-demo .key.return.navigation-selected .key-hint { transform:translateY(13px) scale(1.7); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.return.navigation-selected .key-main { transform:translateY(22px); opacity:0; }
   @media(max-width:560px) { #ios-keyboard-demo .device-picker .device-name { display:none; } #ios-keyboard-demo .device-size { min-width:0; } }
   @media(max-width:360px) { #ios-keyboard-demo .key { padding:0 2px; } #ios-keyboard-demo .topbar { padding-top:16px; } #ios-keyboard-demo .device-size { display:none; } }
 </style>
@@ -159,7 +161,7 @@
     [['cursor','カーソル',{visual:'cursor-cross'}],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
     [['symbols','#'],['た',['た','ち','つ','て','と']],['な',['な','に','ぬ','ね','の']],['は',['は','ひ','ふ','へ','ほ']],['space','Space']],
     [['numbers','123'],['ま',['ま','み','む','め','も']],['や',['や','（','ゆ','）','よ']],['ら',['ら','り','る','れ','ろ']],['return','Enter']],
-    [['english','ABC',{layerSwitch:true}],['modifier','小゛゜'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
+    [['english','ABC',{layerSwitch:true}],['modifier','小'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
   ];
   const tenkeyRows = [
     [['cursor','カーソル',{visual:'cursor-cross'}],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
@@ -182,6 +184,7 @@
   };
   const layerNavigation = {left:{label:'記号',action:'symbol-layer'},up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
   const pasteNavigation = {down:{label:'paste',action:'paste'}};
+  const conversionNavigation = {up:{label:'無変換',action:'raw-conversion'},left:{label:'カタカナ',action:'katakana-conversion'}};
   const repeatKeys = ['backspace','left','right','up','down'];
   const accents = {a:'àáâäæãåā',e:'èéêëēėę',i:'îïíīįì',o:'ôöòóœøōõ',u:'ûüùúū',c:'çćč',n:'ñń',s:'ßśš',y:'ÿ'};
   const modifierCycles = ['あぁ','いぃ','うぅゔ','えぇ','おぉ','かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つっづ','てで','とど','はばぱ','ひびぴ','ふぶぷ','へべぺ','ほぼぽ','やゃ','ゆゅ','よょ','わゎ'];
@@ -214,7 +217,7 @@
     return true;
   }
   function keyOutput(p) {
-    if(p.altSelected)return p.key.alt;
+    if(p.altSelected)return p.key.alt||p.key.gestureAlt;
     if(p.variants)return p.variants[p.accentIndex];
     return p.upperSelected||p.upper?p.key.text.toUpperCase():p.key.text;
   }
@@ -262,6 +265,14 @@
   }
   // END KEY FLICK LOGIC
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
+  let dualEnabled = false;
+  try {
+    const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
+    if(saved&&['english','kana'].includes(saved.language))language=saved.language;
+    if(saved&&['letters','symbols','numbers','cursor'].includes(saved.layer))layer=saved.layer;
+    dualEnabled=Boolean(saved?.dualEnabled);
+  } catch (_) {}
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null, cursorReturnLayer = 'letters';
   const segments = text => [...segmenter.segment(text)];
@@ -311,9 +322,7 @@
     candidateBar.replaceChildren();
     candidateBar.hidden=language!=='kana'||layer!=='letters';
     if(candidateBar.hidden)return;
-    if(!composition.reading) {
-      const empty=document.createElement('span');empty.className='candidate-empty';empty.textContent='かなを入力すると変換候補を表示';candidateBar.append(empty);return;
-    }
+    if(!composition.reading)return;
     composition.candidates.forEach((candidate,index)=>{
       const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
       button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
@@ -396,15 +405,33 @@
     const next=cycle[(cycle.indexOf(prev.segment)+1)%cycle.length];
     editor.setSelectionRange(prev.index,end);insert(next);
   }
+  function transformKana(kind) {
+    if(kind==='cycle')return modify();
+    const maps={
+      small:'あぁいぃうぅえぇおぉつっやゃゆゅよょわゎ',
+      dakuten:'かがきぎくぐけげこござじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼうゔ',
+      handakuten:'はぱひぴふぷへぺほぽ'
+    };
+    const end=editor.selectionStart;if(end!==editor.selectionEnd)return;
+    const prev=segments(editor.value.slice(0,end)).at(-1),pairs=maps[kind];if(!prev||!pairs)return;
+    const index=pairs.indexOf(prev.segment);if(index<0)return;
+    const next=pairs[index%2===0?index+1:index-1];editor.setSelectionRange(prev.index,end);insert(next);
+  }
   function action(id,modifier=currentModifier()) {
     const specialKeys={backspace:'Backspace',space:' ',return:'Enter',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
     if(specialKeys[id]&&applyModified(specialKeys[id],modifier)) {render();return true;}
     if(id!=='space')lastSpace=-Infinity;
-    if(id==='backspace')erase();
+    if(id==='backspace'||id==='flick-backspace')erase();
     else if(id==='left'||id==='right')moveCursor(id==='left'?-1:1);
     else if(id==='up'||id==='down')moveVertical(id==='up'?-1:1);
     else if(id==='home'||id==='end') {preferredCursorX=null;setCursor(id==='home'?0:editor.value.length,null,id==='home'?'⇤ 先頭':'⇥ 末尾');editor.scrollTop=id==='home'?0:editor.scrollHeight;}
     else if(id==='modifier')modify();
+    else if(id==='escape')announce('ESC');
+    else if(id==='raw-conversion'&&composition.reading) {replaceComposition(composition.candidates.indexOf(composition.reading),true);}
+    else if(id==='katakana-conversion'&&composition.reading) {
+      const katakana=composition.reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+      const index=composition.candidates.indexOf(katakana);replaceComposition(index<0?composition.candidates.length-1:index,true);
+    }
     else if(id==='return') {
       if(composition.reading) {announce('確定');clearComposition();}
       else insert('\n');
@@ -440,19 +467,22 @@
   const textKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,preview:'press'}));
   const letterKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,alt:flickSymbols[c],preview:'press'}));
   const modifierGesture=()=>makeKey('modifier-gesture','',{modifierFlick:true,preview:'selection'});
-  const flickBackspace=()=>makeKey('flick-backspace','',{alt:'⌫',altAction:'backspace',preview:'selection'});
+  const flickBackspace=()=>makeKey('flick-backspace','⌫',{gestureAlt:'ESC',altAction:'escape',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
-    const flick=Array.isArray(value)?value:null;
+    const transform=id==='modifier'?['小','濁','小','半','']:null;
+    const flick=transform||Array.isArray(value)?(transform||value):null;
     const toggle=layerToggleLabels[id];
     const text=options.text?value:null;
-    return makeKey(id,toggle?.main??options.label??(flick?flick[0]:value),{
+    const converting=id==='return'&&Boolean(composition.reading);
+    return makeKey(id,converting?'確定':toggle?.main??options.label??(flick?flick[0]:value),{
       flick,
+      transformActions:transform?['cycle','dakuten','small','handakuten',null]:null,
       text,
       hint:options.hint??null,
       ghost:toggle?.ghost??null,
-      navigation:options.layerSwitch?layerNavigation:null,
+      navigation:converting?conversionNavigation:options.layerSwitch?layerNavigation:null,
       preview:flick||text?'press':null,
       visual:options.visual??null,
       special:index===0||index===4,
@@ -483,14 +513,19 @@
     ];
   }
   function keyboardRows() {
-    if(language==='kana')return kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+    if(language==='kana') {
+      const rows=kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+      return dualEnabled&&root.getBoundingClientRect().width>=600&&layer==='letters'
+        ?rows.map(row=>[row[0],...row.slice(1,4),...row.slice(1,4),row[4]])
+        :rows;
+    }
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
     const layerDirections='左フリックで記号、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
     const names={
       backspace:'削除',
-      'flick-backspace':'下フリックで削除、タップと上フリックは無効',
+      'flick-backspace':'タップで削除、下フリックでESC',
       'modifier-gesture':pendingModifier
         ?modifierLabel(pendingModifier)+' 選択中。タップで解除、下スワイプでCtrl、上スワイプでAlt'
         :'下スワイプでCtrl、上スワイプでAlt、タップは無効',
@@ -544,7 +579,7 @@
       key.side?'side':null,
       key.ghost?'letter-layer-toggle':null,
       key.id==='modifier-gesture'&&pendingModifier?'mode-on':null,
-      key.alt?'has-flick':null
+      key.alt||key.gestureAlt?'has-flick':null
     ].filter(Boolean);
     button.type='button';
     button.dataset.key=key.id;
@@ -603,7 +638,8 @@
     return button;
   }
   function renderKeys() {
-    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='cursor'?' cursor-layer':'');
+    const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&root.getBoundingClientRect().width>=600;
+    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
   }
   function render(force=false) {
@@ -615,6 +651,11 @@
     const languageButton=$('.keyboard-bottom [data-key="globe"]');
     languageButton.textContent=language==='kana'?'':'あ';languageButton.style.visibility=language==='kana'?'hidden':'visible';languageButton.disabled=language==='kana';
     languageButton.setAttribute('aria-label',language==='kana'?'QWERTYへ切り替える':'日本語へ切り替える');
+    const dualButton=$('[data-dual]');
+    dualButton.setAttribute('aria-pressed',String(dualEnabled));
+    dualButton.title=root.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
+    persistState();
+    requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin));
   }
   function direction(dx,dy) {
     if(Math.hypot(dx,dy)<18)return 0;
@@ -650,13 +691,18 @@
     active.clear();pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
   }
+  function cancelGestures() {
+    for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');}
+    active.clear();popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
+  }
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
   keyboard.addEventListener('pointerdown',e=>{
     const element=e.target.closest('.key');if(!element||e.button!==0)return;
     e.preventDefault();editor.focus({preventScroll:true});
     const key=keyMap.get(element.dataset.key);
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt?key.id:null,altSelected:false,upperSelected:false};
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -684,6 +730,7 @@
       const selection=p.navigationChoice&&p.key.navigation[p.navigationChoice];
       p.element.classList.toggle('mode-on',Boolean(selection));
       p.element.classList.toggle('navigation-selected',Boolean(selection));
+      p.element.classList.toggle('flick-selected',p.navigationChoice==='down'&&p.key.id==='return');
       p.element.querySelector('.key-main').textContent=selection?.label||p.key.label;
       if(selection)announce(selection.label);
       return;
@@ -724,11 +771,15 @@
   });
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
-    clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');
+    const remaining=[...active.values()].at(-1);
+    if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
+    if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
     if(!canceled&&!p.trackpad) {
       if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
+      else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
@@ -775,7 +826,7 @@
   let layoutWidth=root.getBoundingClientRect().width;
   window.addEventListener('resize',()=>{
     const width=root.getBoundingClientRect().width;
-    if(Math.abs(width-layoutWidth)>1)cancelAll();
+    if(Math.abs(width-layoutWidth)>1)cancelGestures();
     layoutWidth=width;
   });
   const fold7Displays={
@@ -783,11 +834,14 @@
     inner:{label:'8.0″ · 2184 × 1968'}
   };
   root.querySelectorAll('.device-picker [data-device]').forEach(button=>button.addEventListener('click',()=>{
-    cancelAll();root.dataset.device=button.dataset.device;
+    cancelGestures();root.dataset.device=button.dataset.device;
     root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
     $('.device-size').textContent=fold7Displays[button.dataset.device].label;
+    render();
   }));
+  $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
   render();
+  parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin);
 })();
 </script>
 </div>

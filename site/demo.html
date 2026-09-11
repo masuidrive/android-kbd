@@ -7,26 +7,38 @@
   <title>操作モック | Gesture IME</title>
   <link rel="stylesheet" href="styles.css">
   <style>
-    .demo-main{width:min(980px,calc(100% - 2rem));margin:auto;padding:clamp(2.5rem,6vw,5rem) 0 6rem}
-    .demo-head{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:end;margin-bottom:2rem}
-    .demo-head h1{font-size:clamp(2.8rem,7vw,5.6rem);max-width:8ch}
+    .demo-main{width:min(920px,calc(100% - 2rem));margin:auto;padding:2rem 0 5rem}
+    .demo-head{display:grid;grid-template-columns:auto 1fr;gap:2rem;align-items:end;margin-bottom:1.25rem}
+    .demo-head h1{font-size:clamp(2rem,5vw,3.6rem);white-space:nowrap}
     .demo-copy{color:var(--muted);margin:0}
-    .demo-frame{width:100%;min-height:780px;border:1px solid var(--line);border-radius:1.25rem;background:#151619;overflow:hidden}
-    .demo-frame iframe{display:block;width:100%;height:800px;border:0}
+    .demo-frame{width:100%;border:1px solid var(--line);border-radius:1.25rem;background:#151619;overflow:hidden}
+    .demo-frame iframe{display:block;width:100%;height:590px;border:0}
     .demo-tips{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:1px;border:1px solid var(--line);border-radius:1rem;overflow:hidden;background:var(--line)}
     .demo-tips div{padding:1rem 1.15rem;background:var(--surface);font-size:.84rem;color:var(--muted)}
     .demo-tips strong{display:block;margin-bottom:.35rem;color:var(--ink)}
-    @media(max-width:700px){.demo-head,.demo-tips{grid-template-columns:1fr}.demo-frame{min-height:740px;border-left:0;border-right:0;border-radius:0}.demo-frame iframe{height:760px}.demo-main{width:100%}.demo-head,.demo-tips{margin-left:1rem;margin-right:1rem}}
+    @media(max-width:700px){.demo-head,.demo-tips{grid-template-columns:1fr}.demo-frame{border-left:0;border-right:0;border-radius:0}.demo-main{width:100%}.demo-head,.demo-tips{margin-left:1rem;margin-right:1rem}}
   </style>
 </head>
 <body>
   <a class="skip" href="#demo">モックへ移動</a>
-  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html">Gesture IME</a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.4.0.zip" download>APK ZIP</a></div></div></nav>
+  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html">Gesture IME</a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.5.0.zip" download>APK ZIP</a></div></div></nav>
   <main class="demo-main">
-    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">五つのレイヤー、かなフリック、QWERTYの上下操作をブラウザで確認できます。候補は説明用の内蔵辞書で生成します。このモックは操作の参考用で、Dual Flickと音声入力などAndroid版v0.4.0の一部機能には対応していません。</p></header>
+    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、五つのレイヤー、かなフリック、QWERTYの上下操作を試せます。内画面でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書です。音声認識はAndroid版だけの機能です。</p></header>
     <section id="demo" class="demo-frame" aria-label="Gesture IME操作モック"><iframe src="mock.html" title="Gesture IMEの操作モック"></iframe></section>
     <div class="demo-tips"><div><strong>日本語を試す</strong>「にほんご」を入力してSpaceを押すと、候補が切り替わります。</div><div><strong>レイヤーを動かす</strong>左下のキーは、左が記号、上が日本語、右がQWERTY、下がテンキーです。</div><div><strong>英字を試す</strong>英字キーはタップで小文字、上で大文字、下で副文字を入力します。</div></div>
   </main>
-  <footer class="footer"><span>参考モック 0.2</span><span><a href="manual.html">Android版の使い方</a></span></footer>
+  <footer class="footer"><span>参考モック 0.3</span><span><a href="manual.html">Android版の使い方</a></span></footer>
+  <script>
+    const frame=document.querySelector('.demo-frame iframe');
+    frame.addEventListener('load',()=>{
+      const doc=frame.contentDocument;if(!doc)return;
+      const fit=()=>{frame.style.height=Math.ceil(doc.documentElement.scrollHeight)+'px';};
+      fit();new ResizeObserver(fit).observe(doc.documentElement);
+    });
+    addEventListener('message',event=>{
+      if(event.source!==frame.contentWindow||event.origin!==location.origin||event.data?.type!=='gesture-ime-demo-height')return;
+      frame.style.height=Math.max(520,Number(event.data.height)||0)+'px';
+    });
+  </script>
 </body>
 </html>
