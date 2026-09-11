@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-041600-update-dual-flick-demo
 description: "英数字入力を未確定bufferとして保持し、候補タップ時だけ置換確定する任意の候補表示を検討する"
 created_at: "2026-09-11T00:39:16Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T04:39:27Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
