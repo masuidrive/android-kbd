@@ -118,3 +118,4 @@
 [2026/09/11 19:27] Enter上フリック`Ctrl+J`のnative実装とgesture/描画testが完了。待機中は追加ラベルなし、選択中だけ`C-j`を中央表示し、変換中の上無変換・左カタカナを維持した。候補内容更新時だけ横スクロールを先頭へ戻すticketを追加し、nativeとdemoの同期を開始した。
 [2026/09/11 19:55] Mozc の学習順位変化を Android 計装テストで確認した。Android 個人辞書の SHORTCUT 読み出しも実プロバイダで確認済み。候補内容が変化した場合だけ候補欄を先頭へ戻す実装と、同一内容での選択変化ではスクロール位置を維持するテストを追加した。
 [2026/09/11 20:08] レビュー指摘を反映し、実JNIで候補学習、新sessionで先頭化、履歴削除後の順位復元まで恒久計装testへ追加。Provider未提供・拒否時は通常Mozc候補だけを出す仕様をmanualへ明記し、設定実画面を撮影した。fast-check 5件、unit、lint、APK build、API 36.1 connected実Mozc 9件が成功。Terra再reviewはCritical/Majorなし。v0.9.0 APKは34,888,644 bytes/SHA-256 `695506d514d60338fb4bb1b9d9d48957c65a123c31efeff153540b1d48e2bc25`、ZIPはSHA-256 `e1c7895d90d3cffd0d405170f1048760dc2159e180a7bbdd86a23800aa7403e5`。
+[2026/09/11 20:18] `https://h3qwrv2c.aboutme.style/` をGesture IME v0.9.0へ更新。Sites容量上限に合わせ、現行ページから未参照のv0.5 ZIPだけを配布サイトから外し、v0.6〜v0.9を保持した。製品紹介、manual、demo、mock、画像3点、v0.9 ZIPの公開SHA-256がローカル8ファイルと全件一致した。
