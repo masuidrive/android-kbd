@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-053738-support-native-light-mode
 description: "Move the QWERTY down-swipe auxiliary label to the vertical center"
 created_at: "2026-09-11T05:57:01Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T06:18:37Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
