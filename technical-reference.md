@@ -51,6 +51,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 22. Mozcは通常欄で`incognitoMode=false`と`DEFAULT_HISTORY`を使い、確定結果を端末内profileへ学習する。Mozc候補の長押しは描画token・候補source・index・editor sessionを再検証して`DELETE_CANDIDATE_FROM_HISTORY`を送る。private欄は変換engineへ入力を渡さない。（2026-09-11 / 260911-102026-enable-mozc-learning-and-user-dictionary）
 23. Android個人辞書はSetupの既定OFF toggleを利用者がONにした場合だけ`UserDictionary.Words`を参照し、shortcutがreadingと完全一致し、localeが日本語または未指定の語を頻度順で最大6件、Mozc候補の前へ重複なく加える。Android個人辞書候補の長押しではprovider rowを削除しない。（2026-09-11 / 260911-102026-enable-mozc-learning-and-user-dictionary）
 24. 候補barはcandidate sourceと表示文字列の並びが変わった時だけ横scrollを0へ戻し、同じ内容でtokenまたは選択indexだけが変わる候補巡回では現在位置を維持する。（2026-09-11 / 260911-102706-reset-candidate-scroll-on-content-change）
+25. `KeyboardView`は描画矩形とtap矩形を分離する。横6dp・縦10dpの見える隙間は中点で隣接キーへ分け、ACTION_DOWNとaccessibility hit testで同じtap矩形を使う。EMPTY領域は入力せず、描画geometryと`GestureThresholds.selectionDp=18`を維持する。（2026-09-11 / 260911-132948-expand-key-hit-targets-through-gaps）
 
 ## 実装の注意・地雷
 

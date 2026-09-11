@@ -121,3 +121,5 @@
 [2026/09/11 20:18] `https://h3qwrv2c.aboutme.style/` をGesture IME v0.9.0へ更新。Sites容量上限に合わせ、現行ページから未参照のv0.5 ZIPだけを配布サイトから外し、v0.6〜v0.9を保持した。製品紹介、manual、demo、mock、画像3点、v0.9 ZIPの公開SHA-256がローカル8ファイルと全件一致した。
 [2026/09/11 20:19] v0.9.0実装・テスト・公開物をcommit `b11a393`まで `github.com/masuidrive/android-kbd` の `features/260911-060238-align-voice-status-ui-and-show-partials` へpushした。
 [2026/09/11 20:57] ユーザのclose承認を受領。音声途中結果UI、Enter上Ctrl+J、Mozc学習・Android個人辞書、候補内容変更時scroll resetの4ticketをPDH-closeした。統合commit `7318247` を `features/260911-055701-configure-slash-command-candidates`、元履歴commit `6844732` を音声UI branchへpushした。
+[2026/09/11 22:30] タップ精度を監査。nativeは見えるキー面をそのままACTION_DOWNのhit boundsに使うため、HTMLへ合わせて広げた横6dp・縦10dpの隙間が無反応領域になっていた。412dp QWERTYのセル内有効面積は概算約70%で、以前よりタップ許容度が下がるため修正ticketを作成。外観とフリック閾値を維持し、隙間を近いキーへ中点分割する実装を開始した。
+[2026/09/11 22:57] 描画矩形とtap矩形を分離し、横6dp・縦10dpの見えるgapを隣接キーへ中点分割。EMPTYは無反応、Dual Flickと複数行Enterは重複なし、ACTION_DOWNとaccessibilityは共通判定にした。独立Terra reviewはCritical/Majorなし。v0.9.1最終版でfast-check 5件、unit、lint、APK build、API 36.1 connected実Mozc 9件が成功し、AVDのQWERTY表示もv0.9.0から不変と確認した。
