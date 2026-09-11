@@ -336,6 +336,13 @@ class KeyboardViewTest {
         val label = idle.draws.last { it.text == "、。?!" }
         assertEquals(18f, label.textSize, .1f)
         assertFalse(idle.draws.any { it.text == "、" })
+        val accentId = KeyboardLayouts.layout(KeyboardMode.KANA, false, false).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ACCENT }
+        val accentBounds = android.graphics.RectF(keyBounds(accentId))
+        assertEquals(android.graphics.Color.rgb(65, 65, 68), idle.roundRects.last {
+            kotlin.math.abs(it.rect.centerX() - accentBounds.centerX()) < 1f &&
+                kotlin.math.abs(it.rect.centerY() - accentBounds.centerY()) < 1f
+        }.color)
     }
 
     @Test fun `cursor layer uses generic labels and the reference space hint stack`() {

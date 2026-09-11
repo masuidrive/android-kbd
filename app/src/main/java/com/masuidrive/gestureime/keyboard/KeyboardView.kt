@@ -267,7 +267,11 @@ class KeyboardView @JvmOverloads constructor(
     private fun drawKey(canvas: Canvas, target: HitTarget, pointerId: Int?) {
         val selected = pointerId != null
         val modifierActive = target.spec.kind == KeyKind.MODIFIER && state.pendingModifier != null
-        val faceColor = when { selected || modifierActive -> Color.rgb(168, 206, 255); target.spec.dark -> Color.rgb(48, 48, 52); else -> Color.rgb(65, 65, 68) }
+        val faceColor = when {
+            selected || modifierActive -> Color.rgb(168, 206, 255)
+            target.spec.dark && target.spec.kind != KeyKind.ACCENT -> Color.rgb(48, 48, 52)
+            else -> Color.rgb(65, 65, 68)
+        }
         keyPaint.color = Color.rgb(20, 20, 22)
         canvas.drawRoundRect(RectF(target.bounds).apply { offset(0f, dp(1f)) }, dp(5f), dp(5f), keyPaint)
         keyPaint.color = faceColor
