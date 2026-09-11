@@ -11,8 +11,8 @@ canceled_at: null # Do not modify manually
 ## 260911-173100-align-site-with-masuidrive-resume-style
 
 ### Why
-製品サイト上部がmasuidrive本人のサイトと別のブランドに見える。
-`resume.html`の名前表示とクマ画像を引き継ぎ、masuidrive製品だとひと目で分かるようにする。
+製品サイト全体がmasuidrive本人のサイトと別のブランドに見える。
+`resume.html`の名前表示、クマ画像、紙面の色・文字・見出しを引き継ぎ、masuidrive製品だとひと目で分かるようにする。
 
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
@@ -31,11 +31,14 @@ canceled_at: null # Do not modify manually
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-このticketが終わると、閲覧者がローカル製品サイト上部からmasuidriveの製品だと認識し、クマ画像から本人サイトへ移動できる。
+このticketが終わると、閲覧者がローカル製品サイト全体からmasuidriveの製品だと認識し、操作mockと機能説明を一貫した紙面で読める。
 
 - [x] AC 1: トップ上部に`masuidrive-kbd`と`Android Flick Keyboard by masuidrive`が、参照resumeの名前表示に近い文字組みで表示される。
 - [x] AC 2: 参照resumeと同じクマ画像が上部に残り、画像を押すと`https://masuidrive.jp/`へ移動する。
 - [x] AC 3: 390pxと840pxで上部と実操作mockが横にはみ出さず、既存のLight/Darkとmock操作を利用できる。
+- [x] AC 4: トップページの背景、本文、見出し、機能一覧、CTA、footerが`resume.html`の白・薄灰色・濃灰色・赤罫線を基調にした一貫した紙面になる。
+- [x] AC 5: 初期表示では名前headerを見せ、headerを過ぎてスクロールするとtopbarが上端へ表示され、ページ上端へ戻ると隠れる。
+- [x] AC 6: topbar表示中にページ内リンクを使っても対象見出しがtopbarへ隠れず、JavaScript無効時もナビゲーションへアクセスできる。
 
 ### Architectural Invariants check
 静的な製品ページの表現変更だけであり、IMEのAI-1〜AI-4を変更しない。
@@ -44,7 +47,9 @@ canceled_at: null # Do not modify manually
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- `resume.html`のBootstrap構造は移さず、白基調、名前の字間、画像サイズ、余白のテイストを既存サイトへ適用する。
+- `resume.html`のBootstrap構造は移さず、白・薄灰色・濃灰色・赤罫線、名前の字間、画像サイズ、余白のテイストを既存サイト全体へ適用する。
+- topbarは固定配置で初期状態を隠し、名前headerが画面外へ出たら表示する。キーボード操作でfocusした場合も表示する。
+- 動きは`prefers-reduced-motion`で無効化する。
 - 今回はローカル確認までとし、Sitesへは公開しない。
 
 ### Out-of-scope
@@ -52,6 +57,7 @@ canceled_at: null # Do not modify manually
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
 - 製品機能、キーボードmockの操作仕様、Android本体の変更。
 - `resume.html`全体の複製。
+- manualと独立demoの本文構造変更。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
