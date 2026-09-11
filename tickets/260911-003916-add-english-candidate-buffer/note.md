@@ -1,6 +1,6 @@
 # Work Notes: 260911-003916-add-english-candidate-buffer
 
-## Status: PDH-open (ticket drafted; implementation not started)
+## Status: PDH-ticket-review (contract approved; implementation start pending branch preparation)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -84,9 +84,9 @@
 
 - ユーザーの明示指示により、英数字候補の将来作業を起票した。`./ticket.sh start`、ブランチ切替、実装、設定追加は未実行。
 - 実装を検討する順序は、調整ticketとDual Flickの残作業、APK公開、音声入力の公開後とする。このticketを現在の作業へ混ぜない。
-- 英数字候補の辞書・生成方式、対象言語・文字種、単語境界、設定の既定ON/OFFは未決であり、ticket reviewで決定する。ネットワーク候補を追加しない。
+- Director contract reviewで、既定OFF、ASCII英数字最大64文字、英字だけのprefixへ端末内固定辞書から最大5候補、数字混在時は候補なし、入力履歴・個人学習なしを確定した。ネットワーク候補を追加しない。
 - ユーザー指定の順序変更により、正本HTMLからnative描画を作り直すv0.5の実装・公開後に、本ticketをv0.6として開始する。
 - v0.6開始時のDirector案: 設定は既定OFFでterminal cursor設定と独立させる。対象bufferはASCII `[A-Za-z0-9]`、最大64文字。letter-only prefixの辞書候補は最大5件とし、数字を含む場合は候補を出さずraw bufferは維持する。
 - caseはtyped prefixを保持してsuffixだけを補完する。全大文字prefixは候補全体を大文字、先頭大文字prefixは候補先頭を大文字にする。Enterはbufferがある時rawだけを確定し、候補tapだけが置換する。日本語候補stateとは分離する。
 - punctuation、non-ASCII、layer、modifier、cursor、paste、voice、IME hideはraw確定境界とする。editorが変わった場合は旧bufferを新editorへcommitしない。`SwitchLayer`と`SetModifier`の現行早期return経路で旧bufferを取りこぼさない状態遷移とgeneration guardを着手時に設計する。
-- 検証重点は、候補tap後の重複入力なし、queue中の旧候補無効化、Backspaceでのbuffer更新、各境界での取りこぼしなし、日本語復帰、private欄の既存direct入力維持。これらは現時点の設計案であり、v0.5公開前に実装しない。
+- 検証重点は、候補tap後の重複入力なし、queue中の旧候補無効化、Backspaceでのbuffer更新、各境界での取りこぼしなし、日本語復帰、private欄の既存direct入力維持。v0.5のQAとdemo公開完了後、ユーザーの全ticket継続指示に基づくv0.6実装契約として採用した。
