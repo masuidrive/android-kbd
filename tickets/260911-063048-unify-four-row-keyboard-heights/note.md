@@ -72,7 +72,8 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | Dual geometry evidence | Minor | 新規統合testはwide非DualだけでAC2のDual 52dp/10dpを直接assertしない | 採用・修正 | 840dp Dual KANAを有効化しface高と次行gapを直接固定 |
+| 2 | constrained parent | Minor | 親がintrinsic height未満をEXACTLY指定すると既存min計算でfaceが縮む | 後続ticketで調査 | 添付報告の`260911-063912-fix-intermittent-keyboard-vertical-offset`がIME親高・再計測を扱う。本ticketはレイヤー間gap分岐の統一に限定 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

@@ -506,6 +506,18 @@ class KeyboardViewTest {
             assertEquals("$width outer heights", 1, geometry.values.map { it.first }.distinct().size)
             assertTrue("$width key faces", geometry.values.all { it.second == if (width >= 600) 52 else 45 })
             assertTrue("$width vertical gaps", geometry.values.all { it.third == 10 })
+            if (width >= 600) {
+                view.setMode(KeyboardMode.KANA)
+                view.setDualFlickEnabled(true)
+                view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
+                view.layout(0, 0, width, view.measuredHeight)
+                val first = keyBounds(0)
+                val nextRowId = KeyboardLayouts.layout(KeyboardMode.KANA, true, false).rows.first().keys.size
+                val secondRow = keyBounds(nextRowId)
+                assertEquals("dual kana face", 52, first.height())
+                assertEquals("dual kana vertical gap", 10, secondRow.top - first.bottom)
+                view.setDualFlickEnabled(false)
+            }
         }
     }
 
