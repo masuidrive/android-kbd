@@ -72,3 +72,9 @@ The Enter→Paste path uses the navigation system (`pasteNavigation.down`) rathe
 | Accent strip | children `34×48px`, font `25px`; parent radius `8px`, padding `3px` | key x minus `8px`, clamped; top key minus `56px` | lines 250–251, 748–755 |
 
 Popup selection uses selected fill/ink/border at line 248. The native comparison must cover initial press, threshold crossing, selected endpoint, return inside hysteresis, release, and cancel frames. Static values alone do not prove browser-computed bounds or easing frames; those require the separate live-browser measurement.
+
+## Existing native policy to preserve
+
+`KeyboardView` currently fixes the Canvas palette to the mock's dark tokens: background `41/41/44`, regular key `65/65/68`, special key `48/48/52`, and selected key `168/206/255`. Its `sp()` helper caps `scaledDensity` at `density`, so Android font scales above 1.0 do not enlarge key labels beyond their physical key bounds. This is the existing 1.3/2.0 fit policy and remains deliberate.
+
+The five saved QWERTY adjustment groups apply scale and X/Y offsets after the default label geometry. Values are sanitized and the final baseline, horizontal center, and width are clamped to key bounds. The fidelity rebuild should change the unadjusted default size/position to the measured CSS values while retaining saved values as relative user overrides. Preference serialization, the adjustment Activity, and Service reload do not need a new storage format.

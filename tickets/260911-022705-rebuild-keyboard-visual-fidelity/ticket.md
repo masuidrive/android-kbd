@@ -32,13 +32,14 @@ AI-1〜AI-4と矛盾しない。描画変更は入力内容の保存・通信・
 - 正本は `docs/reference/mock-source.html` とし、推測値ではなくCSS/DOMの定量測定を先に行う。
 - nativeの同一描画primitiveへ寸法・typography・shadow・popupを集約し、通常状態とanimation frameの両方を比較する。
 - Enter/PasteのHTML側元bugは正本の意図を分析したうえで補正し、誤動作そのものは移植しない。
+- ユーザーの後続指定を優先し、flick中に他キー背景を減光する正本処理は採用しない。日本語変換中Enterの「確定」表示と補助ラベル非表示も維持する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
 - 英数字候補bufferの実装（本ticketのv0.5公開後にv0.6として実施）。
 - 日本語配列、Mozc変換、音声認識方式、Dual Flickの機能変更。
-- この起票時点での実装、HTML分析、ticket start、v0.4公開作業。
+- v0.4以前の公開物の書換えと、v0.5公開前の英数字候補実装。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
