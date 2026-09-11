@@ -36,7 +36,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 7. Spaceとカーソルレイヤーの上下移動は、現在Editorから得た`ExtractedText`の改行区切りlogical line間を同じ列で移動し、文書内へclampする。視覚上のsoft wrapは別行として扱わず、抽出不能時はfocus越境を避けるためno-opにする。（2026-09-11 / 260910-233809）
 8. 変換中Enterは候補確定を表示し、上で原ひらがな、左でカタカナをpreviewする。previewの確定はEnter tapで行い、raw readingは変換・復元用に保持する。（2026-09-11 / 260910-233809）
 9. 音声入力はAPI 31以降の`createOnDeviceSpeechRecognizer()`だけを使用し、`ja-JP`モデルの対応を確認する。通常のnetwork recognizerへのfallbackとモデルの自動downloadは行わない。（2026-09-11 / 260910-233205）
-10. 音声結果はpreview後の明示確定で現在Editorへ挿入する。UI描画snapshot、voice generation、editor sessionの3つを検証し、入力欄切替・IME非表示・取消・通常キー入力後の古い操作とcallbackを破棄する。（2026-09-11 / 260910-233205）
+10. 音声入力は左下レイヤーキーの単一pointerによる1秒holdだけで開始する。認識ready後に指を離すと最終結果を現在Editorへ自動確定し、候補欄からのStart/Stop/Confirm操作やpreview確定は提供しない。hold generationとeditor sessionを検証し、短tap/flick、入力欄切替、IME非表示、取消、通常キー入力後の古い結果を破棄する。（2026-09-11 / 260911-014049）
 
 ## 実装の注意・地雷
 
