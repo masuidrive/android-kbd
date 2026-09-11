@@ -61,6 +61,13 @@
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
 
+### Independent browser/static verification
+
+- `f26e370`をローカル`http://127.0.0.1:8765/demo.html`で確認した。412pxでは`scrollWidth=clientWidth=412`かつ単一かな、1000px内画面では`clientWidth=918`で「あ・か・さ」が2組生成され、横overflowはなかった。
+- 内画面/Dual/日本語の選択はreload後も保持された。console error/warningは0件。
+- `site/mock.html`はpointerごとの`Map`で状態を保持し、release/cancel時に該当pointerだけを削除する。UI担当のsynthetic `PointerEvent` probeでは逆順releaseが`かあ`、片pointer cancel後の他方releaseが`か`となった。実multi-touch端末入力ではなくbrowser mockの合成イベント試験として区別する。
+- latest native同期として、右QWERTY・下テンキー、BS`⌫`、空候補placeholder削除、背景dim削除、Dual state保存をsourceと表示で確認した。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
