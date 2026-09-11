@@ -32,18 +32,19 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 この ticket が終わると、公開デモの利用者が、入力欄とキーボードを見やすい幅で操作し、広幅ではDual Flickを試せるようになる。
 - [ ] AC 1: `demo.html`で、スマートフォンの縦長外枠を使わず、入力欄とキーボードが画面中央に表示される。
-- [ ] AC 2: デモの表示幅が利用可能幅に応じて変わり、狭幅では単一かな配列、広幅ではDual Flickかな配列を確認できる。
+- [ ] AC 2: デモの表示幅が利用可能幅に応じて変わり、狭幅では単一かな配列、広幅では左右のDual Flickかな配列を操作でき、左右それぞれのpointer releaseによる入力が同じ入力欄へ保持される。
 - [ ] AC 3: QWERTYを含む既存の入力・レイヤー切替デモが引き続き操作できる。
 - [ ] AC 4: 公開サイトの製品紹介・マニュアル・ダウンロード導線を壊さず、モバイル幅で横overflowが発生しない。
 
 ### Architectural Invariants check
-AI-1〜AI-4と矛盾しない。デモは端末内IMEや入力データを扱わず、配布APKの動作契約を説明する静的UIに留める。
+AI-1〜AI-4と矛盾しない。デモの固定テスト入力はブラウザ内だけで処理し、外部へ送信しない。Android IME本体とは独立した説明用UIに留める。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
 - Dual表示は実装済みnativeの境界と中央12キー2組・周辺キー1組という構造に合わせる。
+- 左右の12キーはそれぞれpointerを追跡し、交互入力と同時押下後の各releaseを同じ模擬入力欄へ反映する。
 - 固定のスマートフォンframeではなく、入力欄とキーボードを中心とする可変幅コンテナを使う。
 
 ### Out-of-scope
@@ -68,7 +69,7 @@ AI-1〜AI-4と矛盾しない。デモは端末内IMEや入力データを扱わ
      参考情報 (設計の参考にした ticket 等) は書かない。
      coding agent は未完了の依存がある場合、着手せず報告する。 -->
 
-- v0.5 visual fidelity APKの公開完了。
+- 物理的な実装blockerはない。v0.5を先に公開するのはdelivery順序であり、新siteの外部送信承認待ち中もローカルdemo実装は進める。
 
 ---
 Work notes: `note.md`
