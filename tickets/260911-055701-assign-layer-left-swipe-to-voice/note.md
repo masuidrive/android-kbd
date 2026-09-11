@@ -1,6 +1,6 @@
 # Work Notes: 260911-055701-assign-layer-left-swipe-to-voice
 
-## Status: PDH-implement (In progress)
+## Status: PDH-human-review (Awaiting close approval)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -12,18 +12,18 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内SpeechRecognizerだけを使用し外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -65,7 +65,8 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | accessibility | Major | 左音声を読み上げるがcustom actionではhold/releaseを表せず実行不能 | 採用・解消 | `2805cba`で説明/actionから除外し直接実行も拒否 |
+| - | 全AC | - | 最新`0868627`の独立再reviewでCritical/Majorなし | 採用 | 左Begin/End、中央hold廃止、multi-pointer/mode cancel、他方向維持を確認 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -87,3 +88,12 @@
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
+- `89ccd9c`: レイヤーキー左方向を既存の端末内音声入力eventへ接続した。
+- `2805cba`: push-to-talkを表現できないaccessibility custom actionから音声方向を除外し、実行不能な案内を防いだ。
+- `0868627`: 最新指示に合わせて中央1秒holdを廃止し、左方向確定で即時`Begin`、releaseで`End`へ変更。音声中に2本目pointerが触れた場合は`Cancel`し、両pointerのreleaseによる通常入力も抑止した。
+- `scripts/test-all.sh`: fast-check 5件、全unit、lint、APK build成功。API 36.1 AVD connected 7件成功。
+- 変更前後の非回帰入力として右フリックQWERTYを選び、変更前後とも`SwitchLayer(QWERTY)`を維持。中央は1500ms holdでも音声eventなし、releaseで従来tap先へ切り替わることを固定した。
+- Design decision 10を1秒holdから左フリック方向確定開始へ更新し、中央hold廃止と複数pointer取消を明記した。
+- Design decision 12を左=音声、上=日本語、右=QWERTY、下=テンキーへ更新した。
+- 確認手順: 左下レイヤーキーを左へ動かしたまま話し、2回振動後に指を離して認識結果が入力されることを確認する。中央を長押ししても音声入力が始まらず、離すと中央表示先へ切り替わることも確認する。
+- 明示close承認まではticketを閉じない。

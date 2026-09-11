@@ -107,3 +107,4 @@
 [2026/09/11 16:34] 断続的な縦ずれはIME root内のKeyboardViewが`height=0, weight=1`で、windowの`AT_MOST`初回計測時にintrinsic高がdesired heightへ寄与せず候補欄50dpだけになることをAVDで再現。`WRAP_CONTENT`へ修正し、候補欄50＋keyboard228＝root278、候補/音声状態で全高不変をunit testへ固定。修正後の初回・hide/show・入力欄切替でkeyboard領域がpixel一致し、fast-check 5件、全unit、lint、APK build、connected 7件が成功した。
 [2026/09/11 16:43] 記号レイヤーの重複tap `"`をバッククォート、`/`を`-`へ変更し、ESC tapとQWERTY `l`下の`"`・`b`下の`/`を維持。QWERTY＋記号の`CommitText`集合が印字可能ASCII `0x20..0x7e` 95文字と完全一致し、記号文字keyに方向割当がない回帰testが成功。独立reviewはCritical/Majorなし、全suiteとconnected 7件も成功した。
 [2026/09/11 16:49] 対象漏れだったテンキー・カーソルを含む全5レイヤーの4行geometryを統一。外幅はpitch55/gap10/face45・全高228dp、内幅は62/10/52・全高256dpとし、全mode直接testと既存Dual/縦長Enter/Space/Cursor hit targetを確認。独立reviewはCritical/Majorなし、全suiteとconnected 7件が成功した。
+[2026/09/11 17:11] レイヤーキー中央の1秒hold音声開始を廃止し、左フリック方向確定で端末内音声認識を開始、指を離して終了・確定する操作へ変更。中央tap/holdと上日本語・右QWERTY・下テンキーを維持し、音声中の2本目pointerは認識と残りのキー入力を取り消す。対象unit、fast-check 5件、全unit、lint、APK build、connected 7件が成功した。
