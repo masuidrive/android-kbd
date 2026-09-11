@@ -1,6 +1,6 @@
 # Work Notes: 260911-234748-wrap-long-voice-candidates
 
-## Status: PDH-ticket-review
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,20 +9,20 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内SpeechRecognizerと静的ブラウザmockだけの変更で外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: 独立reviewで修正対象のCritical/Majorがなかった
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -40,7 +40,9 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+2026-09-12: Mobile 390pxでは長文候補幅378px <= 候補欄384px、2行、keyboard高270px、document横overflow 0。Tablet 840px/Darkでは長文候補幅814px <= 候補欄820px、文字行y=60/75の2行、keyboard高298px、document横overflow 0。通常時と音声時で各modeのkeyboard高は同一だった。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -68,7 +70,35 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | Android / mock | - | Critical/Majorなし | 解消済み | VOICE限定presentation、幅再計測、固定高、通常候補非退行、tap/a11y経路を独立reviewで確認 |
+
+2026-09-12: base branch `origin/features/260911-055701-configure-slash-command-candidates` がHEADの祖先であることを確認。独立reviewはCritical/Majorなし。
+
+## PDH-verify. 検証結果
+
+- AC 1 VERIFIED: partial/finalはともに`CandidatePresentation.VOICE`を通り、最大2行・末尾省略になる。390px/840pxの実DOMで可視幅内の2行を観察した。
+- AC 2 VERIFIED: defaultの`SINGLE_LINE`は1行・省略なしを維持し、focused regressionと全suiteがPASSした。
+- AC 3 VERIFIED: 候補欄50dpとface34dpは不変。Mobile/Tabletそれぞれ通常時と音声時のkeyboard高が一致した。
+- AC 4 VERIFIED: mockは`.voice-candidate`だけ2行clamp。390px Lightと840px Dark/Tabletでdocument横overflow 0を観察した。
+- Surface Observer: Mobile/Tabletで長文候補を2行で読め、候補表示によるkeyboardの移動や視覚的なjumpはなかった。3行目以降の省略はticketの確定判断どおり。
+- Documentation: `technical-reference.md`の決定20を更新。PDH配布物自体の更新は不要。
+
+最終suite:
+
+```text
+$ scripts/test-all.sh --parallel
+Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.l7CQsa6sd8
+  Starting: fast-checks (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.l7CQsa6sd8/fast-checks.log)
+  Starting: android unit, lint, apk (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.l7CQsa6sd8/android_unit,_lint,_apk.log)
+
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+
+Passed: 2 / 2
+```
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

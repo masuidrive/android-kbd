@@ -141,3 +141,4 @@
 [2026/09/12 03:33] ローカル製品トップの埋め込み入力枠を外し、機能一覧を01〜06へ絞った。音声mockは通常候補bar、固定高、左下キャンセルへ同期し、Mobile/Tabletの通常・音声高一致と横overflow 0を確認。マニュアルも候補選択式へ更新し、全test suiteがPASS。Sitesは未更新。
 [2026/09/12 08:39] 承認を受け、最新の製品トップ、操作mock、候補選択式の音声入力マニュアル、設定画面と音声面の実画面画像を既存owner_only Sites `https://fez69vft.aboutme.style/`へ公開。36ファイル・3,809,300 bytesのpathとSHA-256がローカルと全件一致した。
 [2026/09/12 08:40] 設定画面整理、音声専用レイヤー、変換候補と共通の音声候補UI、ローカルサイト再設計、公開記録をcommit `859239b`まで `github.com/masuidrive/android-kbd` の `features/260911-055701-configure-slash-command-candidates`へpushした。
+[2026/09/12 08:57] 音声認識の途中結果と最終候補だけを候補欄の可視幅以内・最大2行・末尾省略で表示するよう変更。通常の日本語変換・英字補完・スラッシュ候補は1行横スクロールを維持し、Mobile 390pxとTablet 840pxのLight/Darkで固定高と横overflow 0を確認した。全test suite PASS、独立reviewはCritical/Majorなし。
