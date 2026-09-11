@@ -39,6 +39,7 @@ canceled_at: null # Do not modify manually
 - [x] AC 4: トップページの背景、本文、見出し、機能一覧、CTA、footerが`resume.html`の白・薄灰色・濃灰色・赤罫線を基調にした一貫した紙面になる。
 - [x] AC 5: 初期表示では名前headerを見せ、headerを過ぎてスクロールするとtopbarが上端へ表示され、ページ上端へ戻ると隠れる。
 - [x] AC 6: topbar表示中にページ内リンクを使っても対象見出しがtopbarへ隠れず、JavaScript無効時もナビゲーションへアクセスできる。
+- [x] AC 7: 製品ページ、マニュアル、独立demoの外側は常にLight表示を保ち、キーボードmockのLight/Dark切り替えだけがキーボード内へ反映される。
 
 ### Architectural Invariants check
 静的な製品ページの表現変更だけであり、IMEのAI-1〜AI-4を変更しない。
@@ -50,6 +51,7 @@ canceled_at: null # Do not modify manually
 - `resume.html`のBootstrap構造は移さず、白・薄灰色・濃灰色・赤罫線、名前の字間、画像サイズ、余白のテイストを既存サイト全体へ適用する。
 - topbarは固定配置で初期状態を隠し、名前headerが画面外へ出たら表示する。キーボード操作でfocusした場合も表示する。
 - 動きは`prefers-reduced-motion`で無効化する。
+- サイト外側はOS themeへ追従させずLight paletteへ固定し、mockからのtheme通知は親ページの色へ反映しない。
 - 今回はローカル確認までとし、Sitesへは公開しない。
 
 ### Out-of-scope
