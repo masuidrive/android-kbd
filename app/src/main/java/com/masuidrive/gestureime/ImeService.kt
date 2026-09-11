@@ -102,7 +102,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(strip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight))
-            addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     }
 

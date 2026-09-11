@@ -7,6 +7,10 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.ui.CandidateStripView
+import com.masuidrive.gestureime.ui.CandidateUiSnapshot
+import com.masuidrive.gestureime.ui.VoiceUiSnapshot
+import com.masuidrive.gestureime.ui.VoiceUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,6 +23,48 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ImeServiceVoiceLifecycleTest {
+    @Test
+    fun inputViewIncludesKeyboardIntrinsicHeightWithoutAnExactParent() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val root = controller.get().onCreateInputView() as ViewGroup
+
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
+        )
+
+        val keyboard = root.keyboardView()
+        assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
+        assertEquals(228, keyboard.measuredHeight)
+        assertEquals(278, root.measuredHeight)
+        controller.destroy()
+    }
+
+    @Test
+    fun candidateAndVoiceContentDoNotChangeInputViewHeight() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val root = controller.get().onCreateInputView() as ViewGroup
+        val strip = root.candidateStripView()
+        val width = View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY)
+        val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+
+        fun measuredHeight(): Int {
+            root.measure(width, height)
+            return root.measuredHeight
+        }
+
+        val emptyHeight = measuredHeight()
+        strip.showCandidates(CandidateUiSnapshot(1L, listOf("候補", "変換候補")))
+        assertEquals(emptyHeight, measuredHeight())
+        strip.showCandidates(CandidateUiSnapshot(2L, listOf("compact", "clear", "candidate")))
+        assertEquals(emptyHeight, measuredHeight())
+        strip.setVoiceState(VoiceUiSnapshot(3L, VoiceUiState.Recording))
+        assertEquals(emptyHeight, measuredHeight())
+        strip.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
+        assertEquals(emptyHeight, measuredHeight())
+        controller.destroy()
+    }
+
     @Test
     fun switchedLayerIsRestoredWhenInputViewIsRecreated() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
@@ -63,6 +109,15 @@ class ImeServiceVoiceLifecycleTest {
         return (0 until group.childCount)
             .asSequence()
             .mapNotNull { runCatching { group.getChildAt(it).keyboardView() }.getOrNull() }
+            .first()
+    }
+
+    private fun View.candidateStripView(): CandidateStripView {
+        if (this is CandidateStripView) return this
+        val group = this as? ViewGroup ?: error("CandidateStripView not found")
+        return (0 until group.childCount)
+            .asSequence()
+            .mapNotNull { runCatching { group.getChildAt(it).candidateStripView() }.getOrNull() }
             .first()
     }
 
