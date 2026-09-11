@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-062719-align-candidate-ui-with-html
 description: "Align the vertical key gaps across four-row layouts"
 created_at: "2026-09-11T06:30:48Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T06:51:23Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
