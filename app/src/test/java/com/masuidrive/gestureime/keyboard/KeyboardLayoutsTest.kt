@@ -71,6 +71,29 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.Escape, keys(KeyboardMode.SYMBOLS).single { it.id == "escape" }.center?.action)
     }
 
+    @Test fun `qwerty and symbol layers cover every printable ASCII character`() {
+        val actual = setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)
+            .flatMap(::keys)
+            .flatMap { key -> Direction.entries.mapNotNull(key::value) }
+            .mapNotNull { (it.action as? KeyAction.CommitText)?.text }
+            .flatMap(String::toList)
+            .toSet()
+        val expected = (0x20..0x7e).map(Int::toChar).toSet()
+
+        assertEquals(expected, actual)
+    }
+
+    @Test fun `symbol layer exposes backtick and minus as direct taps without symbol flicks`() {
+        val symbols = keys(KeyboardMode.SYMBOLS)
+        assertEquals(KeyAction.CommitText("`"), symbols.single { it.center?.label == "`" }.center?.action)
+        assertEquals(KeyAction.CommitText("-"), symbols.single { it.center?.label == "-" }.center?.action)
+        symbols.filter { it.kind == KeyKind.CHARACTER }.forEach { key ->
+            assertNull(key.left); assertNull(key.up); assertNull(key.right); assertNull(key.down)
+        }
+        assertEquals(KeyAction.CommitText("\""), keys(KeyboardMode.QWERTY).single { it.center?.label == "l" }.down?.action)
+        assertEquals(KeyAction.CommitText("/"), keys(KeyboardMode.QWERTY).single { it.center?.label == "b" }.down?.action)
+    }
+
     @Test fun `number minus key exposes its five specified ASCII values`() {
         val minus = keys(KeyboardMode.NUMBERS).single { it.id == "five--" }
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
