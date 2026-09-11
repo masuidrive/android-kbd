@@ -122,3 +122,9 @@ v0.3 evidence:
 - `v0.3/voice-permission-granted.png`: permission granted and input view reopened with idle voice control
 - `v0.3/voice-model-unavailable.png`: Japanese model check completed with `非対応`
 - `v0.3/voice-private-hidden.png`: password editor with candidate and voice strip hidden
+
+## v0.4 emulator observations
+
+- The QWERTY adjustment screen rendered the real `KeyboardView` at its 412 and 840 preview widths. Changing the primary-letter scale from 1.00 to 1.17 updated the preview immediately. Leaving and reopening the Activity retained 1.17; “初期値に戻して保存” restored 1.00. Evidence is under `docs/screenshots/v0.4/`.
+- With terminal-compatible cursor mode enabled, Android Chrome and the local xterm.js fixture received Home (`keyCode=36`, `ESC[H`) and End (`keyCode=35`, `ESC[F`). A Space left gesture followed by `x` changed `insert-here` to `inxsert-here`, proving an interior terminal-cursor insertion. Up, down, left, and right key-pair generation is covered by unit tests; all four were not separately retained as Android browser screenshots. This mode remains default OFF and must be restored OFF after the probe.
+- `docs/screenshots/v0.4-xterm-all-cursor-log.png` is the retained Home/End terminal log. Its filename reflects the intended probe set; it is not evidence that every direction was observed on screen.

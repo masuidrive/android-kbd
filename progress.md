@@ -61,3 +61,4 @@
 [2026/09/11 10:37] v0.4へ、縦swipe拡大文字の位置ずれ、QWERTY BSの削除記号、Enter→Pasteアニメーション、cursorレイヤーとSpaceのカーソル移動不良という追加4点を含める指示を受領。UI3点は描画側、カーソル2経路は実入力欄で挿入位置を観測して再検証する。
 [2026/09/11 10:38] カーソル移動不良は標準入力欄では動作し、ブラウザのxterm.jsで再現するというユーザー補足を受領。通常Editorの安全なsetSelectionを維持し、xtermのhidden textareaへ矢印KeyEventを送る経路は誤判定とfocus越境を避ける条件を調査してから実装する。
 [2026/09/11 10:42] v0.4へ、日本語キーの高さを単一・DualともQWERTYへ揃え、候補欄下に増えた隙間の背景色をキーボード下の隙間と揃える追加調整を受領。狭幅45dp・広幅52dpを描画側で検証し、必要ならIME全体高さも追従させる。
+[2026/09/11 11:08] v0.4実装8727e73でfast-check 5件、unit 84件、lint、APK buildが成功。APK SHA-256は6a3c05f4afa603549815a0d130bf026b5d2b06fdf0bb5c789e020561a4be6c75、connectedは直前の同一production codeで7件成功。QWERTY調整、1秒hold音声、terminal互換カーソル、追加UI修正を統合した。Android Chromeのxterm fixtureではSpace左移動後の途中挿入と、cursor layerのHome/End受信を実画面で確認した。4方向を含む全キーの個別ログ証跡、設定save/reset、hold非対応経路の最終端末確認は継続中。

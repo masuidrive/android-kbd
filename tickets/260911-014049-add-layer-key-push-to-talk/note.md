@@ -47,6 +47,12 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+- `c46d0e0`: hold結果をrelease後に同じeditorへ一度だけ確定するService実装。
+- `37ff7f7`: UI取消をhold世代の無効化へ接続し、terminal互換カーソル設定をdefault OFFで追加。
+- `d547a23`: 1秒layer-key hold、ready時2 pulse、追加描画調整とUI回帰。
+- `8727e73`: reset待機中に通常キーが入る実経路で古い音声commitを拒否する回帰を修正。
+- 最終local検証は fast-check 5件、unit 84件、lint、APK assemblyが成功。生ログは `docs/verification/v0.4-test-all.log`。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -61,10 +67,14 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
+| 1 | 音声queue | Major | 初期testがrecognizer開始前にreset gateで止まりfalse greenだった | 採用・修正済み | begin/ready/result後にgateをarmし、queued commitを通常keyで無効化する実経路へ修正した (`8727e73`) |
+| 2 | terminal実画面 | Note | xtermログ枠が直近行だけを表示し、6操作を1枚で保存できない | 制約記録 | Space左の途中挿入とHome/Endは実Android Chromeで観測。4方向送出はunit、実画面個別観測は未完として区別する |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- `docs/build-verification.md` と `docs/device-verification.md` にv0.4のhold/terminal/設定検証、APK識別情報、未確認範囲を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
