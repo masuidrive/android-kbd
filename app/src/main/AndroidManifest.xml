@@ -28,10 +28,6 @@
         <activity
             android:name=".LicenseActivity"
             android:exported="false" />
-        <activity
-            android:name=".QwertyLabelAdjustmentActivity"
-            android:exported="false" />
-
         <service
             android:name=".ImeService"
             android:exported="true"

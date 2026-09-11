@@ -58,7 +58,6 @@ class KeyboardView @JvmOverloads constructor(
     )
     private val labelFrames = mutableMapOf<Int, LabelFrame>()
     private val labelAnimators = mutableMapOf<Int, ValueAnimator>()
-    private var qwertyLabelStyle = QwertyLabelStyle.DEFAULT
     private var previewOnly = false
     private var voiceHoldOwner: Pair<Int, Long>? = null
     private var voiceHoldRequestId = 0L
@@ -116,11 +115,6 @@ class KeyboardView @JvmOverloads constructor(
         cancelActiveGestures()
         state = state.copy(dualFlickEnabled = enabled)
         rebuildLayout()
-    }
-
-    fun setQwertyLabelStyle(style: QwertyLabelStyle) {
-        qwertyLabelStyle = style.sanitized()
-        invalidate()
     }
 
     fun setPreviewOnly(enabled: Boolean) {
@@ -292,8 +286,7 @@ class KeyboardView @JvmOverloads constructor(
             context.getColor(R.color.keyboard_text)
         }
         textPaint.alpha = 255
-        val primaryAdjustment = labelAdjustment(target.spec, secondary = false)
-        textPaint.textSize = sp(mainTextSize(target.spec)) * primaryAdjustment.scale
+        textPaint.textSize = sp(mainTextSize(target.spec))
         val direction = pointerId?.let { directions[it] } ?: Direction.CENTER
         val frame = pointerId?.let { labelFrames[it] } ?: LabelFrame()
         val spec = target.spec
@@ -325,59 +318,56 @@ class KeyboardView @JvmOverloads constructor(
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
         val idleMainBaseline = when {
             state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER && secondary != null ->
-                baselineAtVisualCenter(target.bounds.centerY() + dp(5f + primaryAdjustment.yOffsetDp))
+                baselineAtVisualCenter(target.bounds.centerY() + dp(5f))
             spec.kind == KeyKind.ENTER && !state.conversionActive ->
-                baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f + primaryAdjustment.yOffsetDp))
+                baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
             spec.kind == KeyKind.SPACE && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.CURSOR) ->
-                baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f + primaryAdjustment.yOffsetDp))
-            else -> centerY + dp(primaryAdjustment.yOffsetDp)
+                baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
+            else -> centerY
         }
         if (spec.id == "mode-↔" && !selected) {
             drawCursorCross(canvas, target.bounds)
         } else if (idleModifier) {
-            textPaint.textSize = sp(10f) * primaryAdjustment.scale
-            val cX = safeCenterX(target.bounds, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), "C")
-            val aX = safeCenterX(target.bounds, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), "A")
-            canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp)), textPaint)
-            canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp)), textPaint)
+            textPaint.textSize = sp(10f)
+            val cX = safeCenterX(target.bounds, target.bounds.centerX(), "C")
+            val aX = safeCenterX(target.bounds, target.bounds.centerX(), "A")
+            canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f)), textPaint)
+            canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f)), textPaint)
         } else if (!animatedEnglish && !animatedEnterPaste && !selectedEnterControlJ && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
-                primaryAdjustment.xOffsetDp, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
+                0f, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
         }
         if (animatedEnglish) {
             val secondaryLabel = requireNotNull(secondary)
-            val secondaryAdjustment = labelAdjustment(spec, secondary = true)
-            textPaint.textSize = sp(11f) * secondaryAdjustment.scale * frame.secondaryScale
-            val baseline = baselineAtVisualCenter(target.bounds.top + dp(QWERTY_SECONDARY_IDLE_CENTER_DP + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
+            textPaint.textSize = sp(11f) * frame.secondaryScale
+            val baseline = baselineAtVisualCenter(target.bounds.top + dp(QWERTY_SECONDARY_IDLE_CENTER_DP + frame.secondaryDy))
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
             textPaint.alpha = (255 * frame.secondaryAlpha).toInt()
-            canvas.drawText(secondaryLabel, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), baseline, textPaint)
-            textPaint.textSize = sp(22f) * primaryAdjustment.scale
+            canvas.drawText(secondaryLabel, target.bounds.centerX(), baseline, textPaint)
+            textPaint.textSize = sp(22f)
             textPaint.alpha = (255 * frame.mainAlpha).toInt()
-            val mainBaseline = baselineAtVisualCenter(target.bounds.centerY() + dp(5f + frame.mainDy + primaryAdjustment.yOffsetDp))
+            val mainBaseline = baselineAtVisualCenter(target.bounds.centerY() + dp(5f + frame.mainDy))
             val main = if (direction == Direction.UP) spec.up?.label ?: label else spec.center?.label.orEmpty()
-            drawFittedText(canvas, main, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), mainBaseline, availableWidth(target.bounds, primaryAdjustment.xOffsetDp))
+            drawFittedText(canvas, main, target.bounds.centerX(), mainBaseline, availableWidth(target.bounds, 0f))
         } else if (animatedEnterPaste) {
-            drawDownLabelTransition(canvas, target.bounds, spec, spec.center?.label.orEmpty(), secondary, primaryAdjustment, frame)
+            drawDownLabelTransition(canvas, target.bounds, spec.center?.label.orEmpty(), secondary, frame)
         } else if (selectedEnterControlJ) {
-            textPaint.textSize = sp(17f) * primaryAdjustment.scale
+            textPaint.textSize = sp(17f)
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
             drawFittedText(
                 canvas,
                 requireNotNull(spec.up).label,
-                target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp),
-                safeBaseline(target.bounds, visualCenterBaseline(target.bounds) + dp(primaryAdjustment.yOffsetDp)),
-                availableWidth(target.bounds, primaryAdjustment.xOffsetDp),
+                target.bounds.centerX(),
+                safeBaseline(target.bounds, visualCenterBaseline(target.bounds)),
+                availableWidth(target.bounds, 0f),
             )
         } else if (animatedSpecial) {
-            val adjustment = labelAdjustment(spec, secondary = direction == Direction.DOWN)
-            textPaint.textSize = sp(11f) * adjustment.scale
-            val centered = visualCenterBaseline(target.bounds) + dp(adjustment.yOffsetDp)
+            textPaint.textSize = sp(11f)
+            val centered = visualCenterBaseline(target.bounds)
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
-            drawFittedText(canvas, label, target.bounds.centerX() + dp(adjustment.xOffsetDp), safeBaseline(target.bounds, centered), availableWidth(target.bounds, adjustment.xOffsetDp))
+            drawFittedText(canvas, label, target.bounds.centerX(), safeBaseline(target.bounds, centered), availableWidth(target.bounds, 0f))
         } else if (secondary != null) {
-            val adjustment = labelAdjustment(spec, secondary = true)
-            textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
+            textPaint.textSize = sp(secondaryTextSize(spec))
             val isStackHint = spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE)
             textPaint.color = when {
                 selected -> context.getColor(R.color.keyboard_selected_text)
@@ -385,7 +375,7 @@ class KeyboardView @JvmOverloads constructor(
                 else -> context.getColor(R.color.keyboard_muted_text)
             }
             textPaint.alpha = if (isStackHint) (255 * .7f).toInt() else 255
-            textPaint.letterSpacing = if (isStackHint) dp(.7f * adjustment.scale) / textPaint.textSize else 0f
+            textPaint.letterSpacing = if (isStackHint) dp(.7f) / textPaint.textSize else 0f
             val visualCenter = when {
                 spec.kind == KeyKind.ENTER -> target.bounds.height() / density / 2f - 10f
                 spec.kind == KeyKind.SPACE && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.CURSOR) ->
@@ -393,8 +383,8 @@ class KeyboardView @JvmOverloads constructor(
                 state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER -> 9f
                 else -> 9f
             }
-            val baseline = safeBaseline(target.bounds, baselineAtVisualCenter(target.bounds.top + dp(visualCenter + adjustment.yOffsetDp)))
-            drawFittedText(canvas, secondary, target.bounds.centerX() + dp(adjustment.xOffsetDp), baseline, availableWidth(target.bounds, adjustment.xOffsetDp))
+            val baseline = safeBaseline(target.bounds, baselineAtVisualCenter(target.bounds.top + dp(visualCenter)))
+            drawFittedText(canvas, secondary, target.bounds.centerX(), baseline, availableWidth(target.bounds, 0f))
             textPaint.letterSpacing = 0f
             textPaint.alpha = 255
         }
@@ -404,38 +394,24 @@ class KeyboardView @JvmOverloads constructor(
     private fun drawDownLabelTransition(
         canvas: Canvas,
         bounds: RectF,
-        spec: KeySpec,
         main: String,
         secondary: String,
-        primaryAdjustment: LabelAdjustment,
         frame: LabelFrame,
     ) {
-        val secondaryAdjustment = labelAdjustment(spec, secondary = true)
-        textPaint.textSize = sp(10f) * secondaryAdjustment.scale * frame.secondaryScale
+        textPaint.textSize = sp(10f) * frame.secondaryScale
         textPaint.color = context.getColor(R.color.keyboard_selected_text)
         textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
-        textPaint.letterSpacing = dp(.7f * secondaryAdjustment.scale * frame.secondaryScale) / textPaint.textSize
-        val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
-        drawFittedText(canvas, secondary, bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), secondaryBaseline, availableWidth(bounds, secondaryAdjustment.xOffsetDp))
+        textPaint.letterSpacing = dp(.7f * frame.secondaryScale) / textPaint.textSize
+        val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy))
+        drawFittedText(canvas, secondary, bounds.centerX(), secondaryBaseline, availableWidth(bounds, 0f))
         textPaint.letterSpacing = 0f
-        textPaint.textSize = sp(15f) * primaryAdjustment.scale
+        textPaint.textSize = sp(15f)
         textPaint.alpha = (255 * frame.mainAlpha).toInt()
-        val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(6.5f + frame.mainDy + primaryAdjustment.yOffsetDp))
-        drawFittedText(canvas, main, bounds.centerX() + dp(primaryAdjustment.xOffsetDp), mainBaseline, availableWidth(bounds, primaryAdjustment.xOffsetDp))
+        val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(6.5f + frame.mainDy))
+        drawFittedText(canvas, main, bounds.centerX(), mainBaseline, availableWidth(bounds, 0f))
         textPaint.alpha = 255
     }
 
-    private fun labelAdjustment(spec: KeySpec, secondary: Boolean): LabelAdjustment {
-        if (state.mode != KeyboardMode.QWERTY) return LabelAdjustment()
-        val group = when {
-            secondary && spec.kind == KeyKind.CHARACTER -> QwertyLabelGroup.LETTER_SECONDARY
-            secondary && spec.kind in setOf(KeyKind.SPACE, KeyKind.ENTER) -> QwertyLabelGroup.SPACE_ENTER_SECONDARY
-            !secondary && spec.kind == KeyKind.CHARACTER -> QwertyLabelGroup.LETTER_PRIMARY
-            !secondary && spec.kind in setOf(KeyKind.SPACE, KeyKind.ENTER) -> QwertyLabelGroup.SPACE_ENTER_PRIMARY
-            else -> QwertyLabelGroup.COMPOSITE_SMALL
-        }
-        return qwertyLabelStyle[group]
-    }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -814,8 +790,7 @@ class KeyboardView @JvmOverloads constructor(
         val downSecondaryDy = active[id]?.takeIf { target ->
             state.mode == KeyboardMode.QWERTY && target.spec.kind == KeyKind.CHARACTER
         }?.let { target ->
-            target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP -
-                labelAdjustment(target.spec, secondary = true).yOffsetDp
+            target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
         } ?: 13f
         val end = when (direction) {
             Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)

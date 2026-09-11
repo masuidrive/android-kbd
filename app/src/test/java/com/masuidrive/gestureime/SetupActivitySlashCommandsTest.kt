@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
+import android.widget.TextView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,6 +54,23 @@ class SetupActivitySlashCommandsTest {
         assertEquals(listOf("/review", "/ship", "/quit", "", "", ""), ImePreferences.getSlashCommands(activity))
         assertEquals("/review", inputs[0].text.toString())
         assertNotNull(root)
+    }
+
+    @Test
+    fun setupGroupsActionsShowsBuildVersionAndUsesAccessibleTouchTargets() {
+        val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        val descendants = activity.findViewById<View>(android.R.id.content).descendants()
+        val labels = descendants.filterIsInstance<TextView>().map { it.text.toString() }
+
+        assertTrue(labels.indexOf("初期設定") < labels.indexOf("入力設定"))
+        assertTrue(labels.indexOf("入力設定") < labels.indexOf("スラッシュコマンド候補（最大6件）"))
+        assertTrue(labels.indexOf("スラッシュコマンド候補（最大6件）") < labels.indexOf("アプリ情報"))
+        assertTrue(labels.contains("バージョン ${BuildConfig.VERSION_NAME}"))
+        assertFalse(labels.any { it.contains("QWERTYラベル") })
+
+        val minimum = (48 * activity.resources.displayMetrics.density).toInt()
+        descendants.filter { it is Button || it is Switch || it is EditText }
+            .forEach { assertTrue("${it.javaClass.simpleName} touch target", it.minimumHeight >= minimum) }
     }
 
     private fun View.descendants(): List<View> {

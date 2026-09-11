@@ -117,12 +117,7 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
-    @Test fun `extreme label adjustments preserve bounded nonoverlapping keys at narrow and wide widths`() {
-        val extreme = QwertyLabelGroup.entries.fold(QwertyLabelStyle.DEFAULT) { style, group ->
-            style.with(group, LabelAdjustment(1.3f, 6f, 8f))
-        }
-        view.setQwertyLabelStyle(extreme)
-
+    @Test fun `fixed labels preserve bounded nonoverlapping keys at narrow and wide widths`() {
         listOf(412 to 228, 840 to 248).forEach { (width, height) ->
             view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
             view.draw(Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)))
@@ -134,30 +129,18 @@ class KeyboardViewTest {
         }
     }
 
-    @Test fun `label style does not change key hit bounds`() {
-        fun bounds() = Rect().also { view.accessibilityNodeProvider.createAccessibilityNodeInfo(0)!!.getBoundsInParent(it) }
-        val before = bounds()
-        view.setQwertyLabelStyle(QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_PRIMARY, LabelAdjustment(.7f, -6f, -8f)))
-        view.draw(Canvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)))
-        assertEquals(before, bounds())
-    }
-
-    @Test fun `modifier and composite glyphs remain wholly inside narrow and wide keys at adjustment limits`() {
+    @Test fun `modifier and composite glyphs remain wholly inside narrow and wide keys`() {
         listOf(412 to 220, 840 to 248).forEach { (width, height) ->
-            listOf(-1f, 1f).forEach { sign ->
-                val adjustment = LabelAdjustment(1.3f, 6f * sign, 8f * sign)
-                view.setQwertyLabelStyle(QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.COMPOSITE_SMALL, adjustment))
-                view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
-                val canvas = Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888))
-                view.draw(canvas)
-                val shadow = shadowOf(canvas)
-                val events = (0 until shadow.textHistoryCount).map(shadow::getDrawnTextEvent)
+            view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+            val canvas = Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888))
+            view.draw(canvas)
+            val shadow = shadowOf(canvas)
+            val events = (0 until shadow.textHistoryCount).map(shadow::getDrawnTextEvent)
 
-                assertGlyphInside(events.last { it.text == "C" }.x, events.last { it.text == "C" }.y, "C", 13f, keyBounds(10))
-                assertGlyphInside(events.last { it.text == "A" }.x, events.last { it.text == "A" }.y, "A", 13f, keyBounds(10))
-                assertGlyphInside(events.last { it.text == "ん" }.x, events.last { it.text == "ん" }.y, "ん", 16f * 1.3f * .64f, keyBounds(31))
-                assertGlyphInside(events.last { it.text == "あ" }.x, events.last { it.text == "あ" }.y, "あ", 16f * 1.3f, keyBounds(31))
-            }
+            assertGlyphInside(events.last { it.text == "C" }.x, events.last { it.text == "C" }.y, "C", 10f, keyBounds(10))
+            assertGlyphInside(events.last { it.text == "A" }.x, events.last { it.text == "A" }.y, "A", 10f, keyBounds(10))
+            assertGlyphInside(events.last { it.text == "ん" }.x, events.last { it.text == "ん" }.y, "ん", 16f * .64f, keyBounds(31))
+            assertGlyphInside(events.last { it.text == "あ" }.x, events.last { it.text == "あ" }.y, "あ", 16f, keyBounds(31))
         }
     }
 
@@ -260,9 +243,6 @@ class KeyboardViewTest {
         assertEquals(22f, uppercase.textSize, .1f)
         assertEquals(center(idleMain) - 3f, center(uppercase), .6f)
         assertEquals(0, up.draws.last { it.text == "1" }.alpha)
-        view.setQwertyLabelStyle(
-            QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_SECONDARY, LabelAdjustment(yOffsetDp = 8f)),
-        )
         touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY() + 24f, 120)
         looper.idleFor(100, TimeUnit.MILLISECONDS)
         val down = frame()
@@ -278,7 +258,7 @@ class KeyboardViewTest {
         looper.idleFor(60, TimeUnit.MILLISECONDS)
         val reverseEnd = center(frame().draws.last { it.text == "1" })
         assertTrue(reverseMiddle < reverseStart)
-        assertEquals(center(idleAux) + 8f, reverseEnd, .6f)
+        assertEquals(center(idleAux), reverseEnd, .6f)
         touch(MotionEvent.ACTION_CANCEL, q.centerX().toFloat(), q.centerY().toFloat(), 300)
     }
 
@@ -360,11 +340,6 @@ class KeyboardViewTest {
         fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
         assertEquals(q.exactCenterY() + 5f, center(canvas.draws.last { it.text == "q" }), .6f)
         assertEquals(q.top + 9f, center(canvas.draws.last { it.text == "1" }), .6f)
-        view.setQwertyLabelStyle(
-            QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_SECONDARY, LabelAdjustment(yOffsetDp = -8f)),
-        )
-        val adjustedIdle = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
-        val adjustedIdleCenter = center(adjustedIdle.draws.last { it.text == "1" })
         touch(MotionEvent.ACTION_DOWN, q.exactCenterX(), q.exactCenterY())
         touch(MotionEvent.ACTION_MOVE, q.exactCenterX(), q.exactCenterY() + 24f, 10)
         looper.idleFor(KeyboardView.LABEL_ANIMATION_MS + 10, TimeUnit.MILLISECONDS)
@@ -372,7 +347,7 @@ class KeyboardViewTest {
         assertEquals(q.exactCenterY(), center(down.draws.last { it.text == "1" }), .6f)
         touch(MotionEvent.ACTION_CANCEL, q.exactCenterX(), q.exactCenterY(), 120)
         val canceled = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
-        assertEquals(adjustedIdleCenter, center(canceled.draws.last { it.text == "1" }), .6f)
+        assertEquals(center(canvas.draws.last { it.text == "1" }), center(canceled.draws.last { it.text == "1" }), .6f)
         assertTrue(actions.isEmpty())
     }
 
