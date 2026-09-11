@@ -24,7 +24,7 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -94,3 +94,4 @@
 - Design decision 20としてpartial要求、最新非空値の一時表示、final限定確定、session破棄条件を追記した。
 - 確認手順: 日本語端末内音声modelのあるAndroid 12以降でレイヤーキーを左へフリックしたまま発話し、候補欄へ途中文字が更新されること、指を離した後に最終結果だけが入力されること、取消で途中表示も消えることを確認する。
 - 明示close承認まではticketを閉じない。
+- 2026/09/11 ユーザの「桶」を、直前に提示したv0.9.0確認結果と今回3件・音声UI ticketのclose承認として受領した。
