@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-000706-add-dual-flick-wide-layout
 description: "端末内の日本語音声認識結果を確認して入力欄へ挿入できるようにする"
 created_at: "2026-09-10T23:32:05Z"
-started_at: null
+started_at: 2026-09-11T00:53:25Z
 closed_at: null
 canceled_at: null
 ---
