@@ -89,3 +89,4 @@
 [2026/09/11 14:37] Android nativeはDayNightテーマを使用しているが、キーボード・候補欄・ポップアップの色がDark固定でLight Mode未対応と確認。チケット260911-053738-support-native-light-modeを作成し、端末uiMode自動追従で実装開始。
 [2026/09/11 14:43] HTML正本のLight配色と既存Dark配色をAndroidのvalues/values-nightへ定義し、キーボード・候補欄・フリックpopup・設定プレビューが端末uiModeへ追従する実装を追加。Light/Darkの描画テストを含む対象unit testが成功。
 [2026/09/11 14:50] Light Mode実装でfast-check 5件、unit 125件、lint、APK build、API 36.1 AVD connected test 7件が成功。AVDをLight/Darkへ切り替え、Gesture IMEの両テーマ実画面をスクリーンショット保存した。
+[2026/09/11 14:57] 追加依頼を3チケット化: レイヤーキー左スワイプの音声入力、設定可能な最大6件のスラッシュコマンド候補（既定/compact,/clear,/quit）、QWERTY下スワイプ補助ラベルの縦中央移動。Light Mode版の公開後に順次実装する。
