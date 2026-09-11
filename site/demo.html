@@ -21,13 +21,13 @@
 </head>
 <body>
   <a class="skip" href="#demo">モックへ移動</a>
-  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html">Gesture IME</a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.7.0.zip" download>APK ZIP</a></div></div></nav>
+  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html">Gesture IME</a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.8.0.zip" download>APK ZIP</a></div></div></nav>
   <main class="demo-main">
-    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、五つのレイヤー、かなフリック、QWERTYの上下操作を試せます。内画面でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書です。音声認識はAndroid版だけの機能です。</p></header>
+    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、五つのレイヤー、かなフリック、QWERTYの上下操作を試せます。内画面でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書で、音声はマイクを使わず途中結果と確定を再現します。</p></header>
     <section id="demo" class="demo-frame" aria-label="Gesture IME操作モック"><iframe src="mock.html" title="Gesture IMEの操作モック"></iframe></section>
-    <div class="demo-tips"><div><strong>日本語を試す</strong>「にほんご」を入力してSpaceを押すと、候補が切り替わります。</div><div><strong>レイヤーを動かす</strong>左下のキーは、左が記号、上が日本語、右がQWERTY、下がテンキーです。</div><div><strong>英字を試す</strong>英字キーはタップで小文字、上で大文字、下で副文字を入力します。</div></div>
+    <div class="demo-tips"><div><strong>日本語を試す</strong>「にほんご」を入力してSpaceを押すと、候補が切り替わります。</div><div><strong>音声を試す</strong>左下キーを左へフリックしたまま待ち、途中結果が出たら指を離します。記号は「#!」で開きます。</div><div><strong>候補を試す</strong>QWERTYのbを下へフリックして「/」を入れると、3つのスラッシュ候補が出ます。</div></div>
   </main>
-  <footer class="footer"><span>参考モック 0.3</span><span><a href="manual.html">Android版の使い方</a></span></footer>
+  <footer class="footer"><span>参考モック 0.4</span><span><a href="manual.html">Android版の使い方</a></span></footer>
   <script>
     const frame=document.querySelector('.demo-frame iframe');
     frame.addEventListener('load',()=>{

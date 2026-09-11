@@ -110,3 +110,5 @@
 [2026/09/11 17:11] レイヤーキー中央の1秒hold音声開始を廃止し、左フリック方向確定で端末内音声認識を開始、指を離して終了・確定する操作へ変更。中央tap/holdと上日本語・右QWERTY・下テンキーを維持し、音声中の2本目pointerは認識と残りのキー入力を取り消す。対象unit、fast-check 5件、全unit、lint、APK build、connected 7件が成功した。
 [2026/09/11 17:33] 設定画面へスラッシュコマンド候補6slotを追加し、初期値`/compact`,`/clear`,`/quit`、先頭slash補正、空欄・重複の表示除外を実装。通常欄の`/`を候補tap時だけ置換確定し、stale tapとprivate欄を保護した。独立reviewはCritical/Majorなし、全suiteとconnected 7件が成功。API 36.1 AVDで6欄表示、QWERTYの`/`入力、3候補表示、`/compact`確定を確認した。
 [2026/09/11 17:40] 端末内SpeechRecognizerのpartial resultsを有効化し、最新途中文字を候補欄の共通faceへ表示。release後もfinalまでpartialを保持するが入力欄へは確定せず、finalだけを自動入力する。cancel時の表示残留も修正し、取消・許可・非対応の34dp/R7/影/Light-Dark色を回帰testへ追加。独立reviewはCritical/Majorなし、全suiteとconnected 7件が成功した。実発話partialはAVDに日本語modelがないため実機確認待ち。
+[2026/09/11 17:55] v0.8公開物の最終化を開始。versionCode 8/versionName 0.8.0へ更新し、製品紹介・マニュアル・操作モックを、左フリック保持の音声入力、途中結果、設定可能なスラッシュ候補、全5レイヤー同高、QWERTY＋記号のASCII 95文字網羅へ同期した。モックにはマイクを使わない音声途中表示と確定、取消も実装し、ブラウザで外画面・内画面の確認を進めている。
+[2026/09/11 18:01] 公開モックをブラウザで比較し、旧CSSの対象漏れで内画面テンキー/カーソルだけ58px、日本語/QWERTY/記号は52pxという高さ差を再現。全レイヤーを外45px・内52px・縦gap10pxへ統一し、内画面5種すべて4行238px、Dual Flick各行8キー、横overflow 0を確認した。`/`入力で3候補表示と`/compact`置換、記号面のbacktick/minusも実操作で確認した。
