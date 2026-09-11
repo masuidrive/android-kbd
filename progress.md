@@ -102,3 +102,6 @@
 [2026/09/11 15:45] 日本語/英字候補faceをHTMLの34高/82最小幅/14余白/5間隔/R7/下影1へ揃え、Dark通常/選択色もkey paletteへ修正。demo mockは英字候補toggleと1文字prefix、tap置換、大文字保持に対応した。独立reviewのMajor 2件・Minor 2件を解消し、fast-check 5件、unit 129件、lint、APK build、実ブラウザCSS/入力確認が成功。
 [2026/09/11 15:50] かな・Dual Flickの縦gapを6dpからQWERTYと同じ10dpへ変更し、row pitchも外55dp/内62dpへ統合。キー面高45/52dpと横gap6dpは維持。412/840幅のQWERTY・記号・かなで4行総高/face高/gap一致、既存Enter/Dual hit targetを含むKeyboardView test 32件が成功。
 [2026/09/11 15:54] キー縦gap統一の独立reviewはCritical/Majorなし。指摘されたDual直接証跡を追加し、840dp Dualかなでface52dp・gap10dpを固定。親高不足時の既存縮小挙動は、添付画像由来の縦ずれticketでlayout lifecycleと併せて調査する。
+[2026/09/11 16:22] QWERTY＋記号の全割当を監査し、印字可能ASCIIで入力不能なのは既存仕様でESCへ置換したバッククォートだけと確認。記号レイヤーでQWERTY下フリックと重複する`"`をバッククォートへ、`/`を`-`へ置換し、ESC tap維持・記号上フリックなし・ASCII 95文字網羅testを行うticket `260911-072234-complete-qwerty-symbol-ascii`を起票した。
+[2026/09/11 16:26] 日本語はQWERTYと同じ縦gap 10dpへ修正済みだが、テンキーとカーソルは6dpのままで4行全体が16dp短い対象漏れを確認。全5レイヤーの外45dp/内52dp faceと縦gap 10dpを統一するticket `260911-072658-unify-all-four-row-layout-heights`を起票した。
+[2026/09/11 16:34] 断続的な縦ずれはIME root内のKeyboardViewが`height=0, weight=1`で、windowの`AT_MOST`初回計測時にintrinsic高がdesired heightへ寄与せず候補欄50dpだけになることをAVDで再現。`WRAP_CONTENT`へ修正し、候補欄50＋keyboard228＝root278、候補/音声状態で全高不変をunit testへ固定。修正後の初回・hide/show・入力欄切替でkeyboard領域がpixel一致し、fast-check 5件、全unit、lint、APK build、connected 7件が成功した。

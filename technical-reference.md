@@ -43,6 +43,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 14. QWERTY文字キーの下swipeでは補助labelのvisual centerを実key高の中央へ90msで移動する。保存済みlabel Y調整は選択終端から差し引き、狭幅/広幅とも中央を維持する。QWERTY以外とEnter/Pasteの下swipeは従来の13dp transitionを維持する。（2026-09-11 / 260911-055701-center-qwerty-down-swipe-label）
 15. 日本語変換候補と英字補完候補は共通faceを使い、高さ34dp、最小幅82dp、左右padding 14dp、gap 5dp、radius 7dp、1dp下影、HTML 15px相当の固定15dp文字で描画する。候補欄全高50dpは上8dp・左右3dp・下8dpを含み、Light/Darkの通常/選択色はHTML key/selected paletteへ一致させる。（2026-09-11 / 260911-062719-align-candidate-ui-with-html）
 16. QWERTY、記号、日本語の4行layoutは縦gap 10dpとrow pitchを共有し、外画面は55dp pitch/45dp face、内画面は62dp pitch/52dp faceとする。日本語の単一配列・Dual Flick・縦長Enterにも同じ縦geometryを適用し、横gap 6dpは維持する。（2026-09-11 / 260911-063048-unify-four-row-keyboard-heights）
+17. IME入力Viewは候補欄を固定50dp、`KeyboardView`をintrinsic `WRAP_CONTENT`として縦LinearLayoutへ積み、windowの`AT_MOST`初回計測でも4行key clusterをroot desired heightへ含める。候補内容や音声状態の変更は候補欄内だけで描画し、IME root高を変えない。（2026-09-11 / 260911-063912-fix-intermittent-keyboard-vertical-offset）
 
 ## 実装の注意・地雷
 

@@ -1,20 +1,19 @@
 ---
 priority: 2
-base_branch: features/260911-063048-unify-four-row-keyboard-heights
-description: "Fix intermittent vertical keyboard offset after entering an app"
-created_at: "2026-09-11T06:39:12Z"
-started_at: 2026-09-11T07:00:01Z # Do not modify manually
+base_branch: features/260911-063912-fix-intermittent-keyboard-vertical-offset
+description: "Complete printable ASCII coverage across QWERTY and Symbols"
+created_at: "2026-09-11T07:22:34Z"
+started_at: null  # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
-## 260911-063912-fix-intermittent-keyboard-vertical-offset
+## 260911-072234-complete-qwerty-symbol-ascii
 
 ### Why
 <!-- ユーザ価値・解きたい問題を 1〜3 行で書く。
      Product Brief の Problem / Solution のどの部分を担うか明記する。 -->
-アプリの入力欄へ入った際、IME上部の空きが大きくなりキー群が下へずれて見えることがある。起動や入力欄切替に左右されず、安定したキー位置で入力できるようにする。
-
+QWERTYと記号レイヤーを組み合わせてもバッククォートが入力できず、記号レイヤーに`-`が見えないためコード・ターミナル入力で迷う。既存のESC操作を維持しつつ、印字可能ASCIIを漏れなく入力できる配置にする。
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
      読み手はこの ticket を承認する人であり、実装する agent ではない。
@@ -32,31 +31,31 @@ canceled_at: null # Do not modify manually
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-この ticket が終わると、Gesture IME利用者がアプリへ入った直後やIMEを再表示したときも、キー群を同じ縦位置で利用できる。
+この ticket が終わると、Gesture IME利用者がQWERTYと記号レイヤーだけで空白から`~`までの印字可能ASCIIをすべて入力できる。
 
-- [x] AC 1: 通常入力欄を初めてfocusしたとき、候補なしのかな4行が規定位置へ表示され、候補欄上部に過大な空白が生じない。
-- [x] AC 2: QWERTY/かなを最後のレイヤーとして保存した各状態で、IME hide→showと別入力欄への切替後もキー領域の上端・下端が同じ位置を保つ。
-- [x] AC 3: 候補なし、かな候補あり、英字候補あり、音声状態表示の各状態で、候補欄の規定高以外にキー位置が動かない。
-- [x] AC 4: 端末bottom inset、外画面/内画面、画面回転またはwindow再計測後も、hit targetと描画位置が一致する。
-
+- [ ] AC 1: 記号レイヤーでバッククォート`` ` ``と`-`が直接タップできる。
+- [ ] AC 2: 記号レイヤーのESCはタップ操作のまま維持され、上フリックを含む新しい記号フリックを要求しない。
+- [ ] AC 3: 記号レイヤーから外す`"`と`/`は、それぞれQWERTYの`l`下フリックと`b`下フリックで入力できる。
+- [ ] AC 4: QWERTYと記号レイヤーの入力集合に印字可能ASCII 95文字の欠落がない。
+入力actionとlayer構成だけを変更し、端末内処理・private欄・AI-1〜AI-4と矛盾しない。
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
      矛盾しない場合: 「Hub stateless / Process immutable と矛盾しない」等。
      新規 Invariant を要求する場合: 実装を止めて Product Brief 更新から始める。 -->
-IME lifecycleとlayoutだけを修正し、入力内容の保存・外部送信を増やさずAI-1〜AI-4と矛盾しない。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- 添付再現画像を`docs/verification/intermittent-keyboard-vertical-offset.jpg`へ保存した。
-- IME生成時の保存レイヤー復元、CandidateStrip固定高、KeyboardViewの`onMeasure`/`requestLayout`、bottom inset適用順を観測して原因を特定してから修正する。
+- 記号レイヤーでQWERTY下フリックと重複する`"`をバッククォートへ、`/`を`-`へ置き換える。
+- ESCはtapのまま維持し、記号レイヤーへ上フリックを導入しない。
+- ASCII網羅性は割当集合を走査する回帰testで固定する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- xterm.js固有のカーソル移動互換性。
-- キーfaceの意匠変更。
+- 日本語記号やテンキーの割当変更。
+- 制御文字Tab等の追加。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
