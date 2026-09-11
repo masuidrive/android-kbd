@@ -35,6 +35,8 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 6. Dual Flickは設定default OFFとし、利用可能幅600dp以上の日本語かなレイヤーだけ中央12キーを左右2組にする。候補・編集・レイヤー切替キーとcompositionは共有する。（2026-09-11 / 260911-000706）
 7. Spaceとカーソルレイヤーの上下移動は、現在Editorから得た`ExtractedText`の改行区切りlogical line間を同じ列で移動し、文書内へclampする。視覚上のsoft wrapは別行として扱わず、抽出不能時はfocus越境を避けるためno-opにする。（2026-09-11 / 260910-233809）
 8. 変換中Enterは候補確定を表示し、上で原ひらがな、左でカタカナをpreviewする。previewの確定はEnter tapで行い、raw readingは変換・復元用に保持する。（2026-09-11 / 260910-233809）
+9. 音声入力はAPI 31以降の`createOnDeviceSpeechRecognizer()`だけを使用し、`ja-JP`モデルの対応を確認する。通常のnetwork recognizerへのfallbackとモデルの自動downloadは行わない。（2026-09-11 / 260910-233205）
+10. 音声結果はpreview後の明示確定で現在Editorへ挿入する。UI描画snapshot、voice generation、editor sessionの3つを検証し、入力欄切替・IME非表示・取消・通常キー入力後の古い操作とcallbackを破棄する。（2026-09-11 / 260910-233205）
 
 ## 実装の注意・地雷
 
@@ -44,3 +46,4 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 - `onPostLoad` 成功だけで辞書利用可能とは判定しない。data copy成功と空でないdata versionを確認する。
 - `InputMethodService.currentInputConnection` はEditor切替で変わる。suspend処理の再開後にenqueue時のEditor generationを再確認する。
 - 候補Viewのtapは表示時候補のsnapshotと現在候補が一致する場合だけ受理する。
+- `SpeechRecognizer`の生成、listener設定、開始、停止、取消、破棄はmain threadで行う。`stopListening()`後は結果またはerrorまで再開始せず、`onFinishInputView`でも音声sessionを破棄する。

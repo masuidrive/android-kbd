@@ -41,6 +41,10 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
+- API 36 arm64 AVDで`SpeechRecognizer.isOnDeviceRecognitionAvailable(context)`は`true`。`RecognitionService`は2件、microphone featureも存在する。
+- 同AVDの`checkRecognitionSupport`はerrorなしだが`installedOnDeviceLanguages=[]`。日本語model導入済みとは扱わず、実発話認識成功はこのAVDでは未検証とする。自動model downloadやnetwork recognizer fallbackは行わない。
+- raw log: `app/build/outputs/androidTest-results/connected/debug/Medium_Phone_API_36.1(AVD) - 16/logcat-com.masuidrive.gestureime.VoiceRecognitionAvailabilityTest-reportsInstalledJapaneseModelSupport.txt`
+
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
@@ -85,3 +89,13 @@
 - ユーザーがstage1公開後に音声入力を実装して再公開する順序を明示し、stage1公開完了後の実装を開始した。起票時点だけに適用された実装保留は解除された。
 - AC案は会話で示された要件候補を観察可能な形に整理したもので、個別のAC承認済みとは扱わない。
 - 着手前にFold7実機で端末内日本語認識service/modelのavailabilityをprobeし、既存5レイヤーを妨げないマイク配置をticket reviewで決定する。
+Candidate strip右端へ音声状態UIを置き、backendは端末内recognizer factoryだけを使用する。Serviceはvoice generationとeditor sessionを別々に検証し、通常キー・入力欄切替・取消で古いcallbackを破棄する。`RECORD_AUDIO`許可はSetupActivityでユーザー操作後に要求し、許可直後の自動録音は行わない。
+
+- UI描画snapshot token、backend voice generation、editor session tokenの3層で古いtap/callbackを拒否する。通常キーが待機中の録音開始を追い越した場合もUI token不一致で開始しない。
+- `onFinishInputView`で音声だけをcancel/destroyし、`onStartInputView`で同じViewを再利用する場合もprivacy/permission/availabilityからcontrolを復元する。通常かなcompositionはこのview lifecycle処理で変更しない。
+- recognizerのcreate/support/start/stop/cancel/destroy例外はmain threadでUnavailableへ閉じ、成功扱いしない。最新Unavailable理由を保持して説明操作へ使用する。
+- 重複検出 skip: `similarity-generic`が環境に導入されていない。
+- 実装commitは `e82d20b`、UI追補は `30e15dc` / `648724d`、IME view lifecycle修正と回帰は `7f871a0` / `2900c38`、API 31 lint境界は `6ec20cc`。独立再reviewでCritical/Majorなし。
+- `6ec20cc`でfast-check 5件、unit 62件、lint、assembleがPASS。connectedはMozc 5件と音声availability/model probe 2件の計7件がPASS。APK SHA-256は`4e691b4003dcdc883de55dd812b27fd7fba3061b408867d561ac63b821fa2cea`。
+- API 36 AVDで未許可時の候補維持、許可後のhide→showでIdle復帰、model未導入時の`非対応`、private欄でvoice/candidate strip非表示を実画面確認。日本語model未導入のため、実発話、preview、確定はfake backendによる回帰までであり実音声成功とは扱わない。
+- ユーザー追加指示により、音声v0.3公開後はQWERTY微調整ticket、その後は英数字候補bufferを含む残りticketを順次実装する。人間レビュー未完の既存ticketを完了扱いにはしない。

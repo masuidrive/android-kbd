@@ -103,3 +103,22 @@ v0.2 evidence:
 - `kana-font-200.png`: candidate strip clipping found at font scale 2.0
 - `kana-font-200-fixed.png`: fitted candidate strip at font scale 2.0
 - `reduced-motion-symbols.png`: Symbols layer with animation scales disabled
+
+## v0.3 on-device voice input
+
+Revision `6ec20cc` and APK SHA-256 `4e691b4003dcdc883de55dd812b27fd7fba3061b408867d561ac63b821fa2cea` were verified on the API 36 AVD. The on-device recognizer factory was available, but `installedOnDeviceLanguages` was empty; Japanese speech recognition itself could not be exercised on this emulator.
+
+- Without `RECORD_AUDIO`, the candidate strip retained normal candidates and displayed the `許可` control. Permission was not bypassed and recording did not begin.
+- After granting `RECORD_AUDIO`, hiding and reopening the same input view restored the `音声` control. Granting permission did not automatically start recording.
+- Starting voice input performed the Japanese model check and changed the control to `非対応`; it did not use a network recognizer or download a model.
+- In the password editor, the entire candidate and voice strip was hidden.
+- Ordinary QWERTY and Kana input remained usable. Candidate preservation with both permission-required and unavailable states is also covered by `CandidateStripViewTest`.
+- Closing and reopening the input view, stale callback rejection, explicit stop/cancel, preview confirmation, editor switching, and recognizer exceptions are covered by lifecycle/controller unit tests. Actual recording, preview text, and confirmation were not claimed on this model-less AVD.
+
+v0.3 evidence:
+
+- `v0.3/voice-permission-required.png`: no microphone permission, normal IME retained
+- `v0.3/voice-permission-with-candidates.png`: Mozc candidates retained beside the permission control
+- `v0.3/voice-permission-granted.png`: permission granted and input view reopened with idle voice control
+- `v0.3/voice-model-unavailable.png`: Japanese model check completed with `非対応`
+- `v0.3/voice-private-hidden.png`: password editor with candidate and voice strip hidden

@@ -31,4 +31,6 @@ adb shell ime set com.masuidrive.gestureime/.ImeService
 
 ## プライバシー
 
-Manifestに `INTERNET` 権限はありません。通常欄を含め入力内容をログや永続学習へ保存しません。パスワード欄と `IME_FLAG_NO_PERSONALIZED_LEARNING` 指定欄では、Mozc候補と貼り付けを無効にします。
+Manifestに `INTERNET` 権限はありません。通常欄を含め入力内容をログや永続学習へ保存しません。パスワード欄と `IME_FLAG_NO_PERSONALIZED_LEARNING` 指定欄では、Mozc候補、貼り付け、音声入力を無効にします。
+
+Android 12以降では、端末内日本語モデルが利用できる端末に限り、候補欄右の音声ボタンを使えます。マイク権限はSetup画面からユーザー操作で許可します。端末内モデルがない場合は非対応と表示し、ネットワーク認識へ自動で切り替えません。
