@@ -1,6 +1,6 @@
 # Work Notes: 260911-053738-support-native-light-mode
 
-## Status: PDH-implement (In progress)
+## Status: PDH-verify (Verified; awaiting publication evidence)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -12,22 +12,23 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内描画だけの変更で外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 - [x] ユーザ追加依頼: レイヤーキー左スワイプを音声入力へ変更するticket `260911-055701-assign-layer-left-swipe-to-voice` を作成
 - [x] ユーザ追加依頼: 最大6件の`/`候補を設定するticket `260911-055701-configure-slash-command-candidates` を作成
 - [x] ユーザ追加依頼: QWERTY下スワイプ補助ラベルを縦中央へ動かすticket `260911-055701-center-qwerty-down-swipe-label` を作成
+- [x] ユーザ追加依頼: 音声状態UIをキーと揃え、認識途中テキストを候補・確定エリアへ表示するticket `260911-060238-align-voice-status-ui-and-show-partials` を作成
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -71,6 +72,9 @@
 - Full test 2回目: `scripts/test-all.sh` → fast-check 5件、unit 125件、lint、debug APK buildすべて成功。
 - AVD: API 36.1でLight/Darkへ切替後、Gesture IMEを再表示。`docs/verification/light-mode-keyboard.png`と`dark-mode-keyboard.png`に実画面を保存した。
 - Connected tests: `./gradlew connectedDebugAndroidTest` → Popup_API_36_1で7件成功。
+- 論理commit: `cadd7d0` theme resource実装、`9922a61` Light/Dark描画test、`7203300` runtime refreshとreview修正。
+- 最終full suite: versionCode 7 / versionName 0.7.0で`scripts/test-all.sh` → fast-check 5件、unit 127件、lint、debug APK buildすべて成功。
+- 配布APK: 34,853,696 bytes、SHA-256 `e0b58e00fd4b73c49d94bdceb2d7f7fcaa9e1f2d0d5679684b31b7a229259847`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -90,9 +94,28 @@
 
 - 修正後対象test: CandidateStripViewTest / KeyboardPopupControllerTest → BUILD SUCCESSFUL。
 
+### Findings (PDH-review-2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | popup runtime route | Minor | `KeyboardView.onConfigurationChanged`からpopup controllerまでの経路を直接通す回帰testがない | deferred | 実装hookとpopup再描画testを確認。AVDではtheme変更でActivityが再生成されIMEが閉じ、再focus後に新themeで表示されるため製品blockerではない |
+
+- Terraによる限定再reviewで追加Critical/Majorなし。
+- 壊していない側の反例: Darkの通常キー`#414144`、特殊キー`#303034`、選択キー`#a8ceff`を変更前後で固定し、Dark AVD screenshotでも維持を確認した。
+- `[PDH-review] -> [PDH-verify]` — 採用したMajorを解消し、残るMinorはruntime再生成を伴うtest到達範囲として分類した。
+
+## PDH-verify. AC evidence
+
+- AC 1: Light AVDでkeyboard、candidate strip、popup resource、設定previewのLight paletteをunit/connected testと`light-mode-keyboard.png`、`light-mode-settings-preview.png`で確認。
+- AC 2: Dark AVDで既存paletteを`dark-mode-keyboard.png`とDark resource assertionで確認。
+- AC 3: theme切替後にIMEを再focusしQWERTYを表示。unit 127件とconnected 7件で候補token、popup draw、既存入力動作の回帰なし。
+- Surface Observer: API 36.1 AVDとローカル製品紹介/マニュアルを実ブラウザで観察。Light/Dark比較画像、v0.7導線、画像欠落0、横overflowなし。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- `technical-reference.md`のnative描画契約をDark固定から`values`/`values-night`による端末`uiMode`自動追従へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

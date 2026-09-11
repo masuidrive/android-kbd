@@ -62,3 +62,11 @@ Revision `17e0b4d` contains the reviewed production implementation at `b145c7e` 
 The version code 6 / version name 0.6.0 APK is 34,965,858 bytes with SHA-256 `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be3ca`. The bundled 28,001-word asset is 225,007 bytes with SHA-256 `eb5e60159b5860301a5d581364ff8f4cc9319472905f20cc3fef4ecc85150346`.
 
 Raw evidence is preserved in `docs/verification/v0.6-test-all.log`, `docs/verification/v0.6-connected.log`, and `docs/verification/v0.6-candidate-tap.xml`. Generated reports are under `app/build/test-results/testDebugUnitTest/`, `app/build/outputs/androidTest-results/connected/debug/`, and `app/build/reports/lint-results-debug.html`.
+
+## v0.7 Light/Dark theme verification
+
+The version code 7 / version name 0.7.0 APK is 34,853,696 bytes with SHA-256 `e0b58e00fd4b73c49d94bdceb2d7f7fcaa9e1f2d0d5679684b31b7a229259847`. The release ZIP is 20,105,166 bytes with SHA-256 `1714b9a016ea833c0a2be99988822e506f6d27cdc278d5892b6f254b87e3d9c8` and contains only `gesture-ime-v0.7.0.apk`.
+
+`scripts/test-all.sh` passed 5 fast checks, 127 unit tests, Android lint, and APK assembly. `./gradlew connectedDebugAndroidTest` passed 7 tests on the API 36.1 AVD. Unit and connected JUnit records reported zero failures, errors, and skips.
+
+Robolectric native-graphics tests assert the Light and Dark keyboard, candidate, and popup palettes. Runtime qualifier tests keep an already rendered candidate token selectable and repaint an already bound popup after a day/night change. AVD screenshots are preserved as `docs/verification/light-mode-keyboard.png`, `dark-mode-keyboard.png`, and `light-mode-settings-preview.png`.

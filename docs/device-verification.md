@@ -160,3 +160,14 @@ The final APK SHA `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be
 - Airplane mode still produced the same bundled candidates for `pro`; airplane mode was then disabled.
 
 After verification, Dual Flick, terminal cursor, and English suggestions were OFF. The display remained 1080 × 2400 px at 420 dpi, QWERTY was restored as the last layer, and Gesture IME remained selected.
+
+## v0.7 Light/Dark theme on API 36.1
+
+The final version code 7 APK SHA is `e0b58e00fd4b73c49d94bdceb2d7f7fcaa9e1f2d0d5679684b31b7a229259847`. It was installed on `emulator-5556` at 1080 × 2400 px / 420 dpi.
+
+- Android Light mode rendered the keyboard background, regular and special keys, labels, candidate area, and selected control in the Light palette. Evidence: `docs/verification/light-mode-keyboard.png`.
+- Android Dark mode rendered the same view with the existing Dark palette. Evidence: `docs/verification/dark-mode-keyboard.png`.
+- The QWERTY label adjustment Activity used the same Light `KeyboardView` for its live preview. Evidence: `docs/verification/light-mode-settings-preview.png`.
+- Switching the system theme caused Android to recreate the focused Activity and hide the IME; refocusing the editor showed Gesture IME in the new theme. The connected suite still passed 7 tests.
+
+The AVD was restored to Light mode after verification. Gesture IME remained selected.
