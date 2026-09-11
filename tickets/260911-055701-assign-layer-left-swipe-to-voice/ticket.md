@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-072658-unify-all-four-row-layout-heights
 description: "Assign the layer key left swipe to on-device voice input"
 created_at: "2026-09-11T05:57:01Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T07:53:44Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
