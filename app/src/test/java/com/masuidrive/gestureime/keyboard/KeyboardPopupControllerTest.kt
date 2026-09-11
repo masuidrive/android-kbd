@@ -5,13 +5,19 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.RectF
+import android.app.Activity
+import android.view.View
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -20,9 +26,11 @@ class KeyboardPopupControllerTest {
 
     @Test fun `accent hit index uses key left minus eight then padded tiles`() {
         val target = RectF(100f, 80f, 150f, 125f)
-        val controller = KeyboardPopupController(RuntimeEnvironment.getApplication())
-
-        val anchor = android.view.View(RuntimeEnvironment.getApplication()).apply { layout(0, 0, 400, 220) }
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val controller = KeyboardPopupController(activity)
+        val anchor = View(activity)
+        activity.setContentView(anchor)
+        anchor.measure(exact(400), exact(220)); anchor.layout(0, 0, 400, 220)
         assertEquals(0, controller.accentIndexFor(anchor, target, 3, 94f))
         assertEquals(1, controller.accentIndexFor(anchor, target, 3, 94f + 3f + 34f + 2f))
         assertEquals(2, controller.accentIndexFor(anchor, target, 3, 1_000f))
@@ -35,29 +43,37 @@ class KeyboardPopupControllerTest {
         assertEquals(14f, parent.top)
     }
 
-    @Test fun `popup placement clamps a screen anchored kana cross`() {
+    @Test fun `popup placement clamps the content as well as its shadow surface`() {
         val anchor = android.view.View(RuntimeEnvironment.getApplication()).apply { layout(0, 0, 400, 220) }
         val size = geometry.windowSize(PopupKind.KANA, 0)
-        val position = geometry.placement(anchor, RectF(360f, 5f, 400f, 50f), PopupKind.KANA, 0, size, Rect(0, 0, 400, 800)).position
+        val placement = geometry.placement(anchor, RectF(360f, 5f, 400f, 50f), PopupKind.KANA, 0, size, Rect(0, 0, 400, 800))
+        val position = placement.position
+        val up = geometry.tileRect(Direction.UP, size, placement.contentOffsetX, placement.contentOffsetY)
 
         assertEquals(236, position.x)
         assertEquals(0, position.y)
+        assertTrue(up.top >= 0f)
+        assertTrue(up.bottom <= size.height)
     }
 
-    @Test fun `kana popup is five independent tiles with transparent corner`() {
+    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE) fun `kana popup is five independent tiles with transparent corner`() {
         val spec = KeyboardLayouts.layout(KeyboardMode.KANA).rows[0].keys[1]
         val size = geometry.windowSize(PopupKind.KANA, 0)
-        val view = KeyboardPopupRenderView(RuntimeEnvironment.getApplication(), geometry)
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = KeyboardPopupRenderView(activity, geometry)
         // Robolectric does not rasterize a software-layer-only detached View.
         view.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
         view.bind(PopupKind.KANA, spec, Direction.UP, emptyList(), 0, size, 7f, 7f)
+        activity.setContentView(view)
         view.measure(exact(size.width), exact(size.height)); view.layout(0, 0, size.width, size.height)
         val bitmap = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
 
         assertEquals(Color.TRANSPARENT, bitmap.getPixel(5, 5))
-        assertEquals(0xff55555a.toInt(), bitmap.getPixel(geometry.tileRect(Direction.LEFT, size).centerX().toInt(), geometry.tileRect(Direction.LEFT, size).centerY().toInt()))
-        assertEquals(0xffa8ceff.toInt(), bitmap.getPixel(geometry.tileRect(Direction.UP, size).centerX().toInt(), geometry.tileRect(Direction.UP, size).centerY().toInt()))
+        val left = geometry.tileRect(Direction.LEFT, size)
+        val up = geometry.tileRect(Direction.UP, size)
+        assertEquals(0xff55555a.toInt(), bitmap.getPixel((left.left + 6f).toInt(), left.centerY().toInt()))
+        assertEquals(0xffa8ceff.toInt(), bitmap.getPixel((up.left + 6f).toInt(), up.centerY().toInt()))
     }
 
     @Test fun `letter and modifier use separate source dimensions`() {
@@ -65,6 +81,37 @@ class KeyboardPopupControllerTest {
         assertEquals(PopupSize(104, 83), geometry.windowSize(PopupKind.MODIFIER, 0))
         assertEquals(PopupSize(122, 71), geometry.windowSize(PopupKind.ACCENT, 3))
         assertTrue(geometry.tileRect(Direction.CENTER, geometry.windowSize(PopupKind.KANA, 0)).width() == 50f)
+    }
+
+    @Test fun `attached popup updates one window then dismisses on detach`() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val anchor = View(activity)
+        activity.setContentView(anchor)
+        anchor.measure(exact(400), exact(220)); anchor.layout(0, 0, 400, 220)
+        val controller = KeyboardPopupController(activity)
+        val spec = KeyboardLayouts.layout(KeyboardMode.KANA).rows[0].keys[1]
+
+        controller.show(anchor, RectF(80f, 60f, 130f, 111f), spec, Direction.CENTER)
+        val first = controller.popupForTest()
+        assertTrue(controller.isShowingForTest())
+        controller.show(anchor, RectF(80f, 60f, 130f, 111f), spec, Direction.UP)
+        assertSame(first, controller.popupForTest())
+        activity.setContentView(View(activity))
+        assertFalse(controller.isShowingForTest())
+    }
+
+    @Test @Config(sdk = [28]) fun `api 28 can show and dismiss without screen clipping API`() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val anchor = View(activity)
+        activity.setContentView(anchor)
+        anchor.measure(exact(400), exact(220)); anchor.layout(0, 0, 400, 220)
+        val controller = KeyboardPopupController(activity)
+        val spec = KeyboardLayouts.layout(KeyboardMode.KANA).rows[0].keys[1]
+
+        controller.show(anchor, RectF(80f, 60f, 130f, 111f), spec, Direction.CENTER)
+        assertTrue(controller.isShowingForTest())
+        controller.dismiss()
+        assertFalse(controller.isShowingForTest())
     }
 
     private fun exact(value: Int) = android.view.View.MeasureSpec.makeMeasureSpec(value, android.view.View.MeasureSpec.EXACTLY)

@@ -99,6 +99,7 @@ class KeyboardPopupController(private val context: Context) {
     }
 
     internal fun isShowingForTest(): Boolean = window?.isShowing == true
+    internal fun popupForTest(): PopupWindow? = window
 
     private fun observe(anchor: View) {
         if (observedAnchor === anchor) return
@@ -208,14 +209,20 @@ internal class PopupGeometry(private val density: Float) {
         val contentHeight = content.height()
         val xInAnchor = content.left.coerceIn(0f, (anchor.width - contentWidth).coerceAtLeast(0f))
         val yInAnchor = content.top
-        val contentScreenX = location[0] + xInAnchor
-        val contentScreenY = location[1] + yInAnchor
+        val desiredContentScreenX = location[0] + xInAnchor
+        val desiredContentScreenY = location[1] + yInAnchor
+        // Clamp the visual primitive first. Clamping only the larger shadow
+        // surface would leave its content at a negative local offset.
+        val contentScreenX = desiredContentScreenX.coerceIn(visibleFrame.left.toFloat(), (visibleFrame.right - contentWidth).coerceAtLeast(visibleFrame.left.toFloat()))
+        val contentScreenY = desiredContentScreenY.coerceIn(visibleFrame.top.toFloat(), (visibleFrame.bottom - contentHeight).coerceAtLeast(visibleFrame.top.toFloat()))
         val unclampedX = contentScreenX - shadowHorizontalInset
         val unclampedY = contentScreenY - shadowTopInset
         val maxX = (visibleFrame.right - size.width).coerceAtLeast(visibleFrame.left)
         val maxY = (visibleFrame.bottom - size.height).coerceAtLeast(visibleFrame.top)
         val position = PopupPosition(unclampedX.toInt().coerceIn(visibleFrame.left, maxX), unclampedY.toInt().coerceIn(visibleFrame.top, maxY))
-        return PopupPlacement(position, contentScreenX - position.x, contentScreenY - position.y, contentScreenX)
+        val contentOffsetX = contentScreenX - position.x
+        val contentOffsetY = contentScreenY - position.y
+        return PopupPlacement(position, contentOffsetX, contentOffsetY, position.x + contentOffsetX)
     }
 
     fun tileRect(direction: Direction, size: PopupSize, contentOffsetX: Float = shadowHorizontalInset, contentOffsetY: Float = shadowTopInset): RectF {
