@@ -2,6 +2,7 @@ package com.masuidrive.gestureime
 
 import android.content.Context
 import com.masuidrive.gestureime.keyboard.LabelAdjustment
+import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.QwertyLabelGroup
 import com.masuidrive.gestureime.keyboard.QwertyLabelStyle
 
@@ -10,6 +11,7 @@ object ImePreferences {
     private const val DUAL_FLICK = "dual_flick_enabled"
     private const val LABEL_PREFIX = "qwerty_label_"
     private const val TERMINAL_CURSOR = "terminal_cursor_key_events"
+    private const val LAST_KEYBOARD_MODE = "last_keyboard_mode"
     fun isTerminalCursorEnabled(context: Context) = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).getBoolean(TERMINAL_CURSOR, false)
     fun setTerminalCursorEnabled(context: Context, enabled: Boolean) { context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().putBoolean(TERMINAL_CURSOR, enabled).apply() }
 
@@ -21,6 +23,22 @@ object ImePreferences {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(DUAL_FLICK, enabled)
+            .apply()
+    }
+
+    fun getLastKeyboardMode(context: Context): KeyboardMode {
+        val stored = runCatching {
+            context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+                .getString(LAST_KEYBOARD_MODE, null)
+        }.getOrNull()
+        return stored?.let { value -> KeyboardMode.entries.firstOrNull { it.name == value } }
+            ?: KeyboardMode.QWERTY
+    }
+
+    fun setLastKeyboardMode(context: Context, mode: KeyboardMode) {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(LAST_KEYBOARD_MODE, mode.name)
             .apply()
     }
 

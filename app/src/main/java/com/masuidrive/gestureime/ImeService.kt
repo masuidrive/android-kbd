@@ -72,6 +72,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
+            it.setMode(ImePreferences.getLastKeyboardMode(this))
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             it.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
             keyboardView = it
@@ -112,7 +113,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
-        keyboardView?.setMode(KeyboardMode.QWERTY)
+        keyboardView?.setMode(ImePreferences.getLastKeyboardMode(this))
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
     }
@@ -145,6 +146,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         cancelVoiceHold()
         if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         if (action is KeyAction.SwitchLayer) {
+            ImePreferences.setLastKeyboardMode(this, action.target)
             keyboardView?.setMode(action.target)
             return
         }
