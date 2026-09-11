@@ -9,6 +9,9 @@ object ImePreferences {
     private const val FILE_NAME = "gesture_ime_preferences"
     private const val DUAL_FLICK = "dual_flick_enabled"
     private const val LABEL_PREFIX = "qwerty_label_"
+    private const val TERMINAL_CURSOR = "terminal_cursor_key_events"
+    fun isTerminalCursorEnabled(context: Context) = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).getBoolean(TERMINAL_CURSOR, false)
+    fun setTerminalCursorEnabled(context: Context, enabled: Boolean) { context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().putBoolean(TERMINAL_CURSOR, enabled).apply() }
 
     fun isDualFlickEnabled(context: Context): Boolean =
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)

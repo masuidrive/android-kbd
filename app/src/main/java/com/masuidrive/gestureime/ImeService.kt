@@ -109,6 +109,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         textController.beginInput(attribute)
+        textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         keyboardView?.setMode(KeyboardMode.QWERTY)
@@ -375,7 +376,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             VoiceUiAction.Stop -> voiceController.stop()
             VoiceUiAction.Cancel -> {
-                voiceController.cancel(notify = false)
+                cancelVoiceHold()
                 if (editorSession.isCurrent(token)) setVoiceUi(voiceController.initialState().toUiState())
             }
             VoiceUiAction.Confirm -> {

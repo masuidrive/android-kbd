@@ -22,6 +22,7 @@ class TextInputController(
 ) {
     private var editorInfo: EditorInfo = EditorInfo()
     private var composing = ""
+    var terminalCursorEnabled: Boolean = false
 
     val isPrivateField: Boolean
         get() = editorInfo.isPasswordField() ||
@@ -109,6 +110,11 @@ class TextInputController(
     fun moveCursor(direction: Direction, units: Int) {
         finishComposition()
         val input = connection() ?: return
+        if (terminalCursorEnabled && !isPrivateField) {
+            val code = when (direction) { Direction.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT; Direction.UP -> KeyEvent.KEYCODE_DPAD_UP; Direction.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT; Direction.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN; Direction.CENTER -> return }
+            repeat(units.coerceAtLeast(1)) { sendKeyPair(input, code) }
+            return
+        }
         if (direction == Direction.UP || direction == Direction.DOWN) {
             val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
             val target = verticalCursorPosition(extracted, direction, units.coerceAtLeast(1))
@@ -154,12 +160,21 @@ class TextInputController(
     fun moveToBoundary(boundary: CursorBoundary) {
         finishComposition()
         val input = connection() ?: return
+        if (terminalCursorEnabled && !isPrivateField) {
+            sendKeyPair(input, if (boundary == CursorBoundary.START) KeyEvent.KEYCODE_MOVE_HOME else KeyEvent.KEYCODE_MOVE_END)
+            return
+        }
         val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
         val position = when (boundary) {
             CursorBoundary.START -> 0
             CursorBoundary.END -> extracted.startOffset + (extracted.text?.length ?: 0)
         }
         input.setSelection(position, position)
+    }
+
+    private fun sendKeyPair(input: InputConnection, keyCode: Int) {
+        input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        input.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
     }
 
     fun enter() {

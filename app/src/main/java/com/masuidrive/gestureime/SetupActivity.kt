@@ -39,6 +39,11 @@ class SetupActivity : AppCompatActivity() {
                     ImePreferences.setDualFlickEnabled(context, checked)
                 }
             }, matchWidth())
+            addView(Switch(context).apply {
+                text = getString(R.string.terminal_cursor)
+                isChecked = ImePreferences.isTerminalCursorEnabled(context)
+                setOnCheckedChangeListener { _, checked -> ImePreferences.setTerminalCursorEnabled(context, checked) }
+            }, matchWidth())
             addView(Button(context).apply {
                 text = getString(R.string.adjust_qwerty_labels)
                 setOnClickListener {

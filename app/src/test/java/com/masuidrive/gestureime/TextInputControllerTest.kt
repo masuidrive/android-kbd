@@ -122,6 +122,23 @@ class TextInputControllerTest {
     }
 
     @Test
+    fun terminalCursorModeSendsArrowAndMoveBoundaryKeyPairs() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
+        controller.terminalCursorEnabled = true
+        controller.moveCursor(Direction.LEFT, 1)
+        controller.moveToBoundary(CursorBoundary.END)
+        assertEquals(listOf(KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MOVE_END, KeyEvent.KEYCODE_MOVE_END), input.keyEvents)
+    }
+
+    @Test
+    fun terminalCursorModeDoesNotSendKeysInPrivateField() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD })
+        controller.terminalCursorEnabled = true
+        controller.moveCursor(Direction.RIGHT, 1)
+        assertTrue(input.keyEvents.isEmpty())
+    }
+
+    @Test
     fun ctrlAUsesEditorContextAction() {
         controller.sendModifiedKey("a", Modifier.CTRL)
 

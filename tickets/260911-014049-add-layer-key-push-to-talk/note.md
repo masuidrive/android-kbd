@@ -3,6 +3,7 @@
 ## Status: PDH-open (Opening)
 
 ## Checklist
+- [ ] 同じv0.4 deliveryで日本語キー高さをQWERTYと揃え、候補下gap背景をkeyboard下gapと揃える
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す

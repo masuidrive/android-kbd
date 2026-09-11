@@ -9,5 +9,6 @@
     <string name="licenses">オープンソースライセンス</string>
     <string name="dual_flick">Dual Flick（広い画面で日本語12キーを左右に表示）</string>
     <string name="adjust_qwerty_labels">QWERTYラベルを調整</string>
+    <string name="terminal_cursor">ターミナル向けカーソル操作（矢印キー送信。通常入力ではOFF推奨）</string>
     <string name="test_hint">ここをタップして Gesture IME を試す</string>
 </resources>
