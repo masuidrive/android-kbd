@@ -128,6 +128,19 @@ class KeyboardViewTest {
         assertEquals(before, bounds())
     }
 
+    @Test fun `vertical label animation grows and lands on the requested baseline`() {
+        val start = view.verticalLabelFrame(14f, 30f, 0f)
+        val middle = view.verticalLabelFrame(14f, 30f, .5f)
+        val end = view.verticalLabelFrame(14f, 30f, 1f)
+
+        assertEquals(1f, start.scale)
+        assertEquals(14f, start.baseline)
+        assertTrue(middle.scale > start.scale)
+        assertTrue(middle.baseline in 14f..30f)
+        assertEquals(1.7f, end.scale)
+        assertEquals(30f, end.baseline)
+    }
+
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
         view.setMode(KeyboardMode.KANA)
         view.setDualFlickEnabled(true)

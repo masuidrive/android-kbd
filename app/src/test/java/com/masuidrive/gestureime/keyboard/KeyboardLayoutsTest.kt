@@ -34,6 +34,7 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.SetModifier(Modifier.CTRL), modifier.down?.action)
         val backspace = qwerty.single { it.kind == KeyKind.BACKSPACE }
         assertTrue(backspace.center?.action is KeyAction.Backspace); assertNull(backspace.up)
+        assertEquals("⌫", backspace.center?.label)
         assertEquals(KeyAction.Escape, backspace.down?.action)
     }
 

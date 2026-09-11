@@ -18,7 +18,7 @@ object KeyboardLayouts {
 
     private fun qwerty(): KeyboardLayout = KeyboardLayout(KeyboardMode.QWERTY, listOf(
         KeyboardRow("qwertyuiop".mapIndexed { i, c -> text(c.toString(), "1234567890"[i].toString()) }),
-        KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + backspace(tapDelete = true, escapeOnDown = true)),
+        KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + backspace(tapDelete = true, escapeOnDown = true, deleteSymbol = true)),
         KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), text(".", "?"))),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
@@ -75,9 +75,9 @@ object KeyboardLayouts {
         up = FlickValue("A", KeyAction.SetModifier(Modifier.ALT)),
         down = FlickValue("C", KeyAction.SetModifier(Modifier.CTRL)), widthUnits = .5f, dark = true)
 
-    private fun backspace(width: Float = .5f, tapDelete: Boolean = width >= 1f, escapeOnDown: Boolean = false) = KeySpec(
+    private fun backspace(width: Float = .5f, tapDelete: Boolean = width >= 1f, escapeOnDown: Boolean = false, deleteSymbol: Boolean = false) = KeySpec(
         "backspace", KeyKind.BACKSPACE,
-        center = if (tapDelete) FlickValue(if (width < 1f) "BS" else "⌫", KeyAction.Backspace()) else null,
+        center = if (tapDelete) FlickValue(if (deleteSymbol || width >= 1f) "⌫" else "BS", KeyAction.Backspace()) else null,
         down = when {
             escapeOnDown -> FlickValue("ESC", KeyAction.Escape)
             width < 1f -> FlickValue("BS", KeyAction.Backspace())

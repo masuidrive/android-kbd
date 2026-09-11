@@ -247,20 +247,30 @@ class KeyboardView @JvmOverloads constructor(
         }
         if (animatedEnglish && direction == Direction.DOWN && secondary != null) {
             val secondaryAdjustment = labelAdjustment(spec, secondary = true)
-            textPaint.textSize = sp(12f) * secondaryAdjustment.scale * (1f + .7f * animationProgress)
+            val scale = 1f + .7f * animationProgress
+            textPaint.textSize = sp(12f) * secondaryAdjustment.scale * scale
+            val frame = verticalLabelFrame(target.bounds.top + dp(14f + secondaryAdjustment.yOffsetDp), visualCenterBaseline(target.bounds) + dp(secondaryAdjustment.yOffsetDp), animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(secondary, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), safeBaseline(target.bounds, target.bounds.top + dp(14f + 13f * animationProgress + secondaryAdjustment.yOffsetDp)), textPaint)
+            canvas.drawText(secondary, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), textPaint)
             textPaint.textSize = sp(22f) * primaryAdjustment.scale
             textPaint.alpha = (255 * (1f - animationProgress)).toInt()
             canvas.drawText(spec.center?.label.orEmpty(), target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, centerY + dp(22f * animationProgress + primaryAdjustment.yOffsetDp)), textPaint)
         } else if (animatedEnglish && direction == Direction.UP) {
-            textPaint.textSize = sp(22f) * primaryAdjustment.scale
+            val scale = 1f + .7f * animationProgress
+            textPaint.textSize = sp(13f) * primaryAdjustment.scale * scale
+            val centered = visualCenterBaseline(target.bounds) + dp(primaryAdjustment.yOffsetDp)
+            val frame = verticalLabelFrame(centered, centered, animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(label, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, centerY - dp(3f) * animationProgress + dp(primaryAdjustment.yOffsetDp)), textPaint)
+            canvas.drawText(label, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), textPaint)
         } else if (animatedSpecial) {
-            textPaint.textSize = sp(11f) * (1f + .7f * animationProgress)
+            val adjustment = labelAdjustment(spec, secondary = direction == Direction.DOWN)
+            val scale = 1f + .7f * animationProgress
+            textPaint.textSize = sp(11f) * adjustment.scale * scale
+            val centered = visualCenterBaseline(target.bounds) + dp(adjustment.yOffsetDp)
+            val start = if (spec.kind == KeyKind.ENTER && direction == Direction.DOWN) target.bounds.top + dp(14f + adjustment.yOffsetDp) else centered
+            val frame = verticalLabelFrame(start, centered, animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            drawFittedText(canvas, label, target.bounds.centerX(), centerY, target.bounds.width() - dp(8f))
+            drawFittedText(canvas, label, target.bounds.centerX() + dp(adjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), availableWidth(target.bounds, adjustment.xOffsetDp))
         } else if (!selected && secondary != null) {
             val adjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
@@ -291,6 +301,16 @@ class KeyboardView @JvmOverloads constructor(
         val minimum = bounds.top + dp(3f) - metrics.top
         val maximum = bounds.bottom - dp(3f) - metrics.bottom
         return if (minimum <= maximum) desired.coerceIn(minimum, maximum) else bounds.centerY()
+    }
+
+    private fun visualCenterBaseline(bounds: RectF) =
+        bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
+
+    internal data class LabelAnimationFrame(val scale: Float, val baseline: Float)
+
+    internal fun verticalLabelFrame(startBaseline: Float, endBaseline: Float, progress: Float): LabelAnimationFrame {
+        val bounded = progress.coerceIn(0f, 1f)
+        return LabelAnimationFrame(1f + .7f * bounded, startBaseline + (endBaseline - startBaseline) * bounded)
     }
 
     private fun mainTextSize(spec: KeySpec) = when {
