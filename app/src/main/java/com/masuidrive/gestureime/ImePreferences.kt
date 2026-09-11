@@ -29,9 +29,9 @@ object ImePreferences {
             style = style.with(
                 group,
                 LabelAdjustment(
-                    scale = preferences.getFloat(key(group, "scale"), fallback.scale),
-                    xOffsetDp = preferences.getFloat(key(group, "x"), fallback.xOffsetDp),
-                    yOffsetDp = preferences.getFloat(key(group, "y"), fallback.yOffsetDp),
+                    scale = runCatching { preferences.getFloat(key(group, "scale"), fallback.scale) }.getOrDefault(fallback.scale),
+                    xOffsetDp = runCatching { preferences.getFloat(key(group, "x"), fallback.xOffsetDp) }.getOrDefault(fallback.xOffsetDp),
+                    yOffsetDp = runCatching { preferences.getFloat(key(group, "y"), fallback.yOffsetDp) }.getOrDefault(fallback.yOffsetDp),
                 ),
             )
         }

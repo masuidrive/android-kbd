@@ -43,4 +43,19 @@ class ImePreferencesTest {
             ImePreferences.getQwertyLabelStyle(context)[group],
         )
     }
+
+    @Test
+    fun malformedStoredQwertyValuesFallBackWithoutCrashing() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
+            .putString("qwerty_label_letter_primary_scale", "bad")
+            .putBoolean("qwerty_label_letter_primary_x", true)
+            .putInt("qwerty_label_letter_primary_y", 9)
+            .apply()
+        val group = com.masuidrive.gestureime.keyboard.QwertyLabelGroup.LETTER_PRIMARY
+        assertEquals(
+            com.masuidrive.gestureime.keyboard.QwertyLabelStyle.DEFAULT[group],
+            ImePreferences.getQwertyLabelStyle(context)[group],
+        )
+    }
 }
