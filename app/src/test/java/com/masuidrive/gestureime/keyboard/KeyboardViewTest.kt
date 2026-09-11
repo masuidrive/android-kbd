@@ -330,6 +330,25 @@ class KeyboardViewTest {
         assertEquals(q.top + 9f, center(canvas.draws.last { it.text == "1" }), .6f)
     }
 
+    @Test fun `kana punctuation key shows its four choices while idle`() {
+        view.setMode(KeyboardMode.KANA)
+        val idle = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val label = idle.draws.last { it.text == "、。?!" }
+        assertEquals(18f, label.textSize, .1f)
+        assertFalse(idle.draws.any { it.text == "、" })
+    }
+
+    @Test fun `cursor layer uses generic labels and the reference space hint stack`() {
+        view.setMode(KeyboardMode.CURSOR)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertEquals(25f, canvas.draws.last { it.text == "先頭" }.textSize, .1f)
+        assertEquals(25f, canvas.draws.last { it.text == "↑" }.textSize, .1f)
+        assertEquals(16f, canvas.draws.last { it.text == "space" }.textSize, .1f)
+        val hint = canvas.draws.last { it.text == "←↓↑→" }
+        assertEquals(10f, hint.textSize, .1f)
+        assertEquals((255 * .7f).toInt(), hint.alpha)
+    }
+
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.CURSOR).forEach { mode ->
