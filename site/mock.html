@@ -14,6 +14,7 @@
     <button type="button" data-device="cover" aria-pressed="true">外画面</button>
     <button type="button" data-device="inner" aria-pressed="false">内画面</button>
     <button type="button" data-dual aria-pressed="false">Dual Flick</button>
+    <button type="button" data-english-candidates aria-pressed="false">英字候補</button>
     <span class="device-size">6.5″ · 2520 × 1080</span>
   </div>
   <div class="phone">
@@ -23,7 +24,7 @@
     </div>
     <div class="feedback" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
     <div class="keyboard" role="group" aria-label="画面キーボード">
-      <div class="candidate-bar" role="listbox" aria-label="日本語変換候補" hidden></div>
+      <div class="candidate-bar" role="listbox" aria-label="入力候補" hidden></div>
       <div class="keys"></div>
       <div class="trackpad-status" role="status" aria-live="polite" hidden>←↓↑→</div>
       <div class="keyboard-bottom"><button type="button" data-key="globe" aria-label="日本語に切り替える">あ</button><span class="language">QWERTY</span><button type="button" data-key="hide" aria-label="キーボードを閉じる">⌄</button></div>
@@ -268,14 +269,15 @@
   }
   // END KEY FLICK LOGIC
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
-  let dualEnabled = false;
+  let dualEnabled = false, englishCandidatesEnabled = false;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
     if(saved&&['english','kana'].includes(saved.language))language=saved.language;
     if(saved&&['letters','symbols','numbers','cursor'].includes(saved.layer))layer=saved.layer;
     dualEnabled=Boolean(saved?.dualEnabled);
+    englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
   } catch (_) {}
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled}));}catch(_){}};
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null, cursorReturnLayer = 'letters';
   const segments = text => [...segmenter.segment(text)];
@@ -321,15 +323,34 @@
     if(commit)clearComposition();
     render();return true;
   }
+  const englishSuggestionWords=['compact','clear','quit','project','prompt','program','product','problem','keyboard','gesture','android','candidate'];
+  function englishPrefix() {
+    if(language!=='english'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd)return null;
+    const end=editor.selectionStart,match=editor.value.slice(0,end).match(/[A-Za-z]+$/);
+    return match&&match[0].length>=2?{raw:match[0],start:end-match[0].length,end}:null;
+  }
+  function replaceEnglishCandidate(candidate) {
+    const prefix=englishPrefix();if(!prefix)return;
+    editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));announce('候補を確定：'+candidate);render();
+  }
   function renderCandidates() {
     candidateBar.replaceChildren();
-    candidateBar.hidden=language!=='kana'||layer!=='letters';
-    if(candidateBar.hidden)return;
-    if(!composition.reading)return;
-    composition.candidates.forEach((candidate,index)=>{
-      const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
-      button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
-      button.textContent=candidate;candidateBar.append(button);
+    if(language==='kana'&&layer==='letters'&&composition.reading) {
+      candidateBar.hidden=false;
+      composition.candidates.forEach((candidate,index)=>{
+        const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
+        button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
+        button.textContent=candidate;candidateBar.append(button);
+      });
+      return;
+    }
+    const prefix=englishCandidatesEnabled?englishPrefix():null;
+    const candidates=prefix?englishSuggestionWords.filter(word=>word.startsWith(prefix.raw.toLowerCase())&&word!==prefix.raw.toLowerCase()).slice(0,5):[];
+    candidateBar.hidden=!candidates.length;
+    candidates.forEach(candidate=>{
+      const button=document.createElement('button');button.type='button';button.dataset.englishCandidate=candidate;
+      button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;candidateBar.append(button);
     });
   }
   function insert(text) {
@@ -659,6 +680,7 @@
     const dualButton=$('[data-dual]');
     dualButton.setAttribute('aria-pressed',String(dualEnabled));
     dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
+    $('[data-english-candidates]').setAttribute('aria-pressed',String(englishCandidatesEnabled));
     persistState();
     requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin));
   }
@@ -799,6 +821,8 @@
   keyboard.addEventListener('pointercancel',e=>finish(e,true));
   keyboard.addEventListener('lostpointercapture',e=>finish(e,true));
   root.addEventListener('click',e=>{
+    const englishCandidate=e.target.closest('button[data-english-candidate]');
+    if(englishCandidate) {replaceEnglishCandidate(englishCandidate.dataset.englishCandidate);return;}
     const candidate=e.target.closest('button[data-candidate-index]');
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
@@ -845,6 +869,7 @@
     render();
   }));
   $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
+  $('[data-english-candidates]').addEventListener('click',()=>{cancelGestures();englishCandidatesEnabled=!englishCandidatesEnabled;render();});
   render();
   parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin);
 })();
