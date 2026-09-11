@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: features/260911-053738-support-native-light-mode
+base_branch: features/260911-072658-unify-all-four-row-layout-heights
 description: "Assign the layer key left swipe to on-device voice input"
 created_at: "2026-09-11T05:57:01Z"
 started_at: null  # Do not modify manually
@@ -49,6 +49,7 @@ canceled_at: null # Do not modify manually
      例: - 423 reject ではなく 422: validation error として扱う -->
 - 左方向の記号レイヤー割当を音声入力へ置き換える。
 - 認識処理と権限処理は既存の音声入力経路を再利用する。
+- 左へ選択した状態でも押下開始から1秒経過するまで認識を始めず、1秒未満で離した場合は入力もレイヤー切替もしない。中央長押しの既存push-to-talkも維持する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
