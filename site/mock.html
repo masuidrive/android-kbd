@@ -4,15 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <title>Gesture IME 操作モック</title>
+  <title>md-kbd 操作モック</title>
   <style>html,body{margin:0;background:transparent}</style>
 </head>
 <body>
-<div id="ios-keyboard-demo" data-device="cover">
-  <div class="device-picker" role="group" aria-label="Galaxy Z Fold7の画面">
-    <span class="device-name">Galaxy Z Fold7</span>
-    <button type="button" data-device="cover" aria-pressed="true">外画面</button>
-    <button type="button" data-device="inner" aria-pressed="false">内画面</button>
+<div id="ios-keyboard-demo" data-device="cover" data-theme="light">
+  <div class="device-picker" role="group" aria-label="モックの表示設定">
+    <span class="device-name">md-kbd</span>
+    <button type="button" data-theme="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+    <button type="button" data-device="cover" aria-pressed="true">Mobile</button>
+    <button type="button" data-device="inner" aria-pressed="false">Tablet</button>
     <button type="button" data-dual aria-pressed="false">Dual Flick</button>
     <button type="button" data-english-candidates aria-pressed="false">英字候補</button>
     <span class="device-size">6.5″ · 2520 × 1080</span>
@@ -36,9 +38,12 @@
 </div>
 <style>
   #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
+  #ios-keyboard-demo[data-theme=light] { color-scheme:light; }
+  #ios-keyboard-demo[data-theme=dark] { color-scheme:dark; }
+  #ios-keyboard-demo[data-embed=hero] [data-english-candidates], #ios-keyboard-demo[data-embed=hero] .device-size { display:none; }
   #ios-keyboard-demo * { box-sizing:border-box; }
   #ios-keyboard-demo { --ik-key:light-dark(#fff,#414144); --ik-special:light-dark(#aeb3bd,#303034); --ik-key-muted:light-dark(#73737b,#b5b5bf); --ik-selected:light-dark(#174ea6,#a8ceff); --ik-selected-ink:light-dark(#fff,#102844); --ik-popup:light-dark(#fff,#55555a); --ik-popup-ink:light-dark(#19191b,#f4f4f6); --ik-popup-line:light-dark(#d0d2d8,#74747a); }
-  #ios-keyboard-demo .device-picker { display:flex; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
+  #ios-keyboard-demo .device-picker { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
   #ios-keyboard-demo .device-picker .device-name { margin:0 8px; color:var(--ik-muted); font-size:11px; white-space:nowrap; }
   #ios-keyboard-demo .device-picker button { border:0; border-radius:7px; padding:7px 12px; background:transparent; color:var(--ik-muted); font-size:12px; }
   #ios-keyboard-demo .device-picker button[aria-pressed=true] { background:var(--ik-active); color:var(--ik-ink); }
@@ -266,6 +271,9 @@
     return {pos:row.reduce((best,s)=>Math.abs(s.x-x)<Math.abs(best.x-x)?s:best).pos,x};
   }
   // END KEY FLICK LOGIC
+  const params=new URLSearchParams(location.search);
+  const heroEmbed=params.get('embed')==='hero';
+  if(heroEmbed)root.dataset.embed='hero';
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
@@ -277,8 +285,10 @@
     if(saved&&['letters','symbols','numbers','cursor'].includes(saved.layer))layer=saved.layer;
     dualEnabled=Boolean(saved?.dualEnabled);
     englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
+    if(['light','dark'].includes(saved?.theme))root.dataset.theme=saved.theme;
   } catch (_) {}
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled}));}catch(_){}};
+  if(heroEmbed)editor.value='ここは入力できるよ';
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null, cursorReturnLayer = 'letters';
   const segments = text => [...segmenter.segment(text)];
@@ -732,7 +742,7 @@
     dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
     $('[data-english-candidates]').setAttribute('aria-pressed',String(englishCandidatesEnabled));
     persistState();
-    requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin));
+    requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin));
   }
   function direction(dx,dy) {
     if(Math.hypot(dx,dy)<18)return 0;
@@ -916,20 +926,32 @@
     if(Math.abs(width-layoutWidth)>1)cancelGestures();
     layoutWidth=width;
   });
-  const fold7Displays={
-    cover:{label:'6.5″ · 2520 × 1080'},
-    inner:{label:'8.0″ · 2184 × 1968'}
+  const displayModes={
+    cover:{label:'スマホ幅 · 412 dp'},
+    inner:{label:'タブレット幅 · 840 dp'}
   };
+  root.dataset.device=root.getBoundingClientRect().width>=600?'inner':'cover';
   root.querySelectorAll('.device-picker [data-device]').forEach(button=>button.addEventListener('click',()=>{
     cancelGestures();root.dataset.device=button.dataset.device;
     root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
-    $('.device-size').textContent=fold7Displays[button.dataset.device].label;
+    $('.device-size').textContent=displayModes[button.dataset.device].label;
     render();
+  }));
+  root.querySelectorAll('.device-picker [data-theme]').forEach(button=>button.addEventListener('click',()=>{
+    root.dataset.theme=button.dataset.theme;
+    root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    persistState();
+    parent.postMessage({type:'gesture-ime-demo-theme',theme:root.dataset.theme},location.origin);
   }));
   $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
   $('[data-english-candidates]').addEventListener('click',()=>{cancelGestures();englishCandidatesEnabled=!englishCandidatesEnabled;render();});
+  root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.device===root.dataset.device)));
+  root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.theme===root.dataset.theme)));
+  $('.device-size').textContent=displayModes[root.dataset.device].label;
+  updateCount();
   render();
-  parent.postMessage({type:'gesture-ime-demo-height',height:document.documentElement.scrollHeight},location.origin);
+  parent.postMessage({type:'gesture-ime-demo-theme',theme:root.dataset.theme},location.origin);
+  parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin);
 })();
 </script>
 </div>

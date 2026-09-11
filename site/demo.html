@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="description" content="Gesture IMEの五つのレイヤーとフリック操作をブラウザで試せる参考モック。">
-  <title>操作モック | Gesture IME</title>
+  <title>操作モック | md-kbd</title>
   <link rel="stylesheet" href="styles.css">
   <style>
     .demo-main{width:min(920px,calc(100% - 2rem));margin:auto;padding:2rem 0 5rem}
@@ -21,9 +21,9 @@
 </head>
 <body>
   <a class="skip" href="#demo">モックへ移動</a>
-  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html">Gesture IME</a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.9.1.zip" download>APK ZIP</a></div></div></nav>
+  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">md</span><span>md-kbd</span></a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="downloads/gesture-ime-v0.9.1.zip" download>APK ZIP</a></div></div></nav>
   <main class="demo-main">
-    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、五つのレイヤー、かなフリック、QWERTYの上下操作を試せます。内画面でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書で、音声はマイクを使わず途中結果と確定を再現します。</p></header>
+    <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、五つのレイヤー、かなフリック、QWERTYの上下操作を試せます。タブレット表示でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書で、音声はマイクを使わず途中結果と確定を再現します。</p></header>
     <section id="demo" class="demo-frame" aria-label="Gesture IME操作モック"><iframe src="mock.html" title="Gesture IMEの操作モック"></iframe></section>
     <div class="demo-tips"><div><strong>Enterを試す</strong>上へフリックするとC-j、下へフリックするとpasteが中央へ移動します。</div><div><strong>音声を試す</strong>左下キーを左へフリックしたまま待ち、途中結果が出たら指を離します。記号は「#!」で開きます。</div><div><strong>候補を試す</strong>QWERTYのbを下へフリックして「/」を入れると、3つのスラッシュ候補が出ます。</div></div>
   </main>
@@ -32,12 +32,13 @@
     const frame=document.querySelector('.demo-frame iframe');
     frame.addEventListener('load',()=>{
       const doc=frame.contentDocument;if(!doc)return;
-      const fit=()=>{frame.style.height=Math.ceil(doc.documentElement.scrollHeight)+'px';};
-      fit();new ResizeObserver(fit).observe(doc.documentElement);
+      const root=doc.getElementById('ios-keyboard-demo');
+      const fit=()=>{frame.style.height=Math.ceil(root.getBoundingClientRect().height)+'px';};
+      fit();new ResizeObserver(fit).observe(root);
     });
     addEventListener('message',event=>{
       if(event.source!==frame.contentWindow||event.origin!==location.origin||event.data?.type!=='gesture-ime-demo-height')return;
-      frame.style.height=Math.max(520,Number(event.data.height)||0)+'px';
+      if(Number(event.data.height)>0)frame.style.height=Math.ceil(Number(event.data.height))+'px';
     });
   </script>
 </body>
