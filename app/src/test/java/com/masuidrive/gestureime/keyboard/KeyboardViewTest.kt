@@ -100,9 +100,9 @@ class KeyboardViewTest {
         view.layout(0, 0, 599, 228)
         assertEquals(19, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
 
-        view.measure(exact(600), exact(228))
-        view.layout(0, 0, 600, 228)
-        view.draw(Canvas(Bitmap.createBitmap(600, 228, Bitmap.Config.ARGB_8888)))
+        view.measure(exact(600), exact(256))
+        view.layout(0, 0, 600, 256)
+        view.draw(Canvas(Bitmap.createBitmap(600, 256, Bitmap.Config.ARGB_8888)))
         assertEquals(31, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
     }
 
@@ -123,6 +123,19 @@ class KeyboardViewTest {
         assertEquals(.19f, mode.toFloat() / total, .01f)
         assertEquals(.55f, space.toFloat() / total, .01f)
         assertEquals(.26f, enter.toFloat() / total, .01f)
+    }
+
+    @Test fun `inner width uses css outer inset and taller kana keys`() {
+        view.setMode(KeyboardMode.KANA)
+        view.measure(exact(840), exact(256))
+        view.layout(0, 0, 840, 256)
+        val provider = view.accessibilityNodeProvider
+        fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
+        val first = bounds(0)
+        assertEquals(10, first.left)
+        assertEquals(58, first.height())
+        assertEquals(6, bounds(5).top - first.bottom)
+        assertEquals(6, bounds(1).left - first.right)
     }
 
     @Test fun `kana popup leaves surrounding key backgrounds undimmed`() {
@@ -161,7 +174,7 @@ class KeyboardViewTest {
         view.setMode(KeyboardMode.KANA)
         assertNoVisibleTargetsOverlap(width = 400, height = 228, expectedCount = 19)
         view.setDualFlickEnabled(true)
-        assertNoVisibleTargetsOverlap(width = 840, height = 228, expectedCount = 31)
+        assertNoVisibleTargetsOverlap(width = 840, height = 256, expectedCount = 31)
     }
 
     @Test fun `both halves of spanning kana enter dispatch enter`() {

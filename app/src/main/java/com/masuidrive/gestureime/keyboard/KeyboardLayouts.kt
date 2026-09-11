@@ -86,7 +86,14 @@ object KeyboardLayouts {
         widthUnits = width,
     )
 
-    private fun accent() = KeySpec("accent", KeyKind.ACCENT, FlickValue("小", KeyAction.TransformKana), dark = true)
+    private fun accent() = KeySpec(
+        "accent", KeyKind.ACCENT,
+        center = FlickValue("小", KeyAction.TransformKana(KanaTransform.CYCLE)),
+        left = FlickValue("゛", KeyAction.TransformKana(KanaTransform.DAKUTEN)),
+        up = FlickValue("小", KeyAction.TransformKana(KanaTransform.SMALL)),
+        right = FlickValue("゜", KeyAction.TransformKana(KanaTransform.HANDAKUTEN)),
+        dark = true,
+    )
 
     private fun escape() = KeySpec("escape", KeyKind.CHARACTER, FlickValue("ESC", KeyAction.Escape))
 

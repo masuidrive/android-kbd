@@ -141,7 +141,7 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val wanted = (dp(rowPitchDp()) * 4 + paddingTop + paddingBottom).toInt()
+        val wanted = (dp(rowPitchDp(width / density)) * 4 + paddingTop + paddingBottom).toInt()
         setMeasuredDimension(width, resolveSize(wanted, heightMeasureSpec))
     }
 
@@ -165,12 +165,15 @@ class KeyboardView @JvmOverloads constructor(
         val rowPitch = (height - top - paddingBottom) / 4f
         val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 10f else 6f)
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
+        val wideInset = if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) dp(7f) else 0f
+        val contentLeft = paddingLeft + wideInset
+        val contentWidth = width - paddingLeft - paddingRight - wideInset * 2
         rows.forEachIndexed { rowIndex, row ->
             val layoutUnits = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
                 row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
             } else sharedUnits
-            val unit = (width - paddingLeft - paddingRight) / layoutUnits
-            var x = paddingLeft.toFloat()
+            val unit = contentWidth / layoutUnits
+            var x = contentLeft
             row.keys.forEach { key ->
                 val right = x + unit * key.widthUnits
                 val keyTop = top + rowPitch * rowIndex
@@ -181,7 +184,12 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun rowPitchDp() = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 55f else 57f
+    private fun rowPitchDp(widthDp: Float) = when {
+        widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 62f
+        widthDp >= DUAL_FLICK_MIN_WIDTH_DP -> 64f
+        state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 55f
+        else -> 57f
+    }
 
     private fun drawKey(canvas: Canvas, target: HitTarget, pointerId: Int?) {
         val selected = pointerId != null
@@ -273,10 +281,20 @@ class KeyboardView @JvmOverloads constructor(
         }
         val main = label.substring(0, 1)
         val ghost = label.substring(1)
+        val originalSize = textPaint.textSize
+        val originalColor = textPaint.color
+        val originalAlpha = textPaint.alpha
+        textPaint.textSize = originalSize * .75f
+        if (originalColor != Color.rgb(16, 40, 68)) {
+            textPaint.color = Color.rgb(181, 181, 191)
+            textPaint.alpha = (originalAlpha * .72f).toInt()
+        }
+        val ghostX = x + dp(2f) + textPaint.measureText(ghost) / 2f
+        canvas.drawText(ghost, ghostX, y + dp(4f), textPaint)
+        textPaint.textSize = originalSize
+        textPaint.color = originalColor
+        textPaint.alpha = originalAlpha
         canvas.drawText(main, x - dp(3f), y, textPaint)
-        textPaint.textSize *= .75f
-        textPaint.color = Color.rgb(185, 188, 197)
-        canvas.drawText(ghost, x + dp(7f), y + dp(4f), textPaint)
     }
 
     private fun drawFittedText(canvas: Canvas, label: String, x: Float, y: Float, maxWidth: Float) {

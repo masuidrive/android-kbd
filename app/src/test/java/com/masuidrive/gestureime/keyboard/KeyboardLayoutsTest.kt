@@ -42,7 +42,13 @@ class KeyboardLayoutsTest {
         val actual = kana.flatMap { Direction.entries.mapNotNull(it::value) }.map { it.label }.toSet()
         val expected = listOf("あいうえお", "かきくけこ", "さしすせそ", "たちつてと", "なにぬねの", "はひふへほ", "まみむめも", "や（ゆ）よ", "らりるれろ", "、。？！", "わをんー〜").flatMap(String::toList).map(Char::toString).toSet()
         assertEquals(expected, actual)
-        assertEquals(KeyAction.TransformKana, keys(KeyboardMode.KANA).single { it.kind == KeyKind.ACCENT }.center?.action)
+        val transform = keys(KeyboardMode.KANA).single { it.kind == KeyKind.ACCENT }
+        assertEquals("小", transform.center?.label)
+        assertEquals(KeyAction.TransformKana(KanaTransform.CYCLE), transform.center?.action)
+        assertEquals(KeyAction.TransformKana(KanaTransform.DAKUTEN), transform.left?.action)
+        assertEquals(KeyAction.TransformKana(KanaTransform.SMALL), transform.up?.action)
+        assertEquals(KeyAction.TransformKana(KanaTransform.HANDAKUTEN), transform.right?.action)
+        assertNull(transform.down)
     }
 
     @Test fun `mode keys share the fixed four-direction layer map`() {

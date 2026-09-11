@@ -6,6 +6,7 @@ enum class KeyboardMode(val displayName: String) {
 
 enum class Direction { CENTER, LEFT, UP, RIGHT, DOWN }
 enum class Modifier { CTRL, ALT }
+enum class KanaTransform { CYCLE, SMALL, DAKUTEN, HANDAKUTEN }
 enum class KeyKind { CHARACTER, KANA, MODE, LAYER_SWITCH, MODIFIER, BACKSPACE, SPACE, ENTER, CURSOR, ACCENT, EMPTY }
 enum class CursorBoundary { START, END }
 
@@ -43,7 +44,7 @@ sealed interface KeyAction {
     data class MoveToBoundary(val boundary: CursorBoundary) : KeyAction
     data class SwitchLayer(val target: KeyboardMode) : KeyAction
     data class SetModifier(val modifier: Modifier?) : KeyAction
-    data object TransformKana : KeyAction
+    data class TransformKana(val transform: KanaTransform) : KeyAction
     data object Escape : KeyAction
     data object CommitConversion : KeyAction
     data object CommitWithoutConversion : KeyAction
