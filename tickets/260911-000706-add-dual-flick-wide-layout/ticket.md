@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260910-233809-fix-keyboard-interaction-details
 description: "広幅画面で日本語12キーを左右に複製するDual Flick設定を追加する"
 created_at: "2026-09-11T00:07:06Z"
-started_at: null
+started_at: 2026-09-11T00:13:02Z
 closed_at: null
 canceled_at: null
 ---
