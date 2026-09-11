@@ -70,6 +70,7 @@
 - この確認後のroot全layer監査で、通常Kana/Numbers/Cursor EnterのPaste hint/navigation欠落、Symbolsのbacktick→ESC未同期、狭幅QWERTY BS clippingをMajorとして採用した。濁点・半濁点popup表記と変換Enterのaccessible nameも修正対象であり、`f26e370`を最終PASSとは扱わない。
 - `1ac684c`/`74a24a1`後の限定再確認で、412pxは`scrollWidth=clientWidth=412`、BS faceはx327.8..409.0内、空候補placeholderなし、SymbolsはESCあり/backtickなし、日本語は`小`表示、通常Enterは`Enterpaste`、console warning/error 0を確認した。この静止表示確認後、rootがEnter animationのmain opacity/label遷移に追加Majorを検出したため、初回finding全体はまだ解消扱いにしない。
 - 追補`72197c4`/`a8855ac`/`b823768`後、外phoneの実keyboard幅412で単一かな、内phone幅840でDualかなを確認。外はrow/pitch/Enter=45/51/96px、内は52/58/110pxでnativeと一致した。通常Enterはmain可視・hint opacity .7、gesture中はhint可視/main非表示となる実測をUI担当から受領し、has-paste限定selectorと変換Enterが対象外であることを独立source確認した。追加Majorは解消。
+- 既存owner_only siteの`https://amykwzak.aboutme.style/demo.html`へdemo/mockだけを公開した。remote/localはdemo 3,719 bytes SHA `6b898e...b8a`、mock 57,652 bytes SHA `71b56c...f46e`で一致。既存downloadはv0.4のまま維持し、新v0.5 site送信とは分離した。hosted UIのowner session確認はroot担当の結果待ち。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
