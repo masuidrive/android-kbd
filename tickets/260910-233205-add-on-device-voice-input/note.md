@@ -1,6 +1,6 @@
 # Work Notes: 260910-233205-add-on-device-voice-input
 
-## Status: PDH-open (ticket drafted; implementation not started)
+## Status: PDH-ticket-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -82,6 +82,6 @@
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 
-- ユーザーは複数の追加指示を後日まとめて作業させるため、今回は起票のみを依頼した。`./ticket.sh start` は未実行。
+- ユーザーがstage1公開後に音声入力を実装して再公開する順序を明示し、stage1公開完了後の実装を開始した。起票時点だけに適用された実装保留は解除された。
 - AC案は会話で示された要件候補を観察可能な形に整理したもので、個別のAC承認済みとは扱わない。
 - 着手前にFold7実機で端末内日本語認識service/modelのavailabilityをprobeし、既存5レイヤーを妨げないマイク配置をticket reviewで決定する。

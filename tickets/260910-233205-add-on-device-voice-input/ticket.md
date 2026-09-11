@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: default
+base_branch: features/260911-000706-add-dual-flick-wide-layout
 description: "端末内の日本語音声認識結果を確認して入力欄へ挿入できるようにする"
 created_at: "2026-09-10T23:32:05Z"
 started_at: null
@@ -33,7 +33,7 @@ AI-1〜AI-4と矛盾しない。音声と認識結果を端末外へ送信・永
 
 ### Out-of-scope
 - 通信を使う音声認識、録音音声・認識結果の保存、認識履歴・学習・同期。
-- この起票時点での実装、既存ticketのclose、音声入力を理由としたAndroid 9以上の基本IME対応範囲の縮小。
+- 既存ticketのclose、音声入力を理由としたAndroid 9以上の基本IME対応範囲の縮小。
 
 ### Implementation Notes
 - 公式参照: https://developer.android.com/reference/android/speech/SpeechRecognizer
