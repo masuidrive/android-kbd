@@ -175,6 +175,29 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `left layer swipe keeps voice armed until one second and short swipe is inert`() {
+        val events = mutableListOf<VoiceHoldEvent>()
+        view.voiceHoldSink = VoiceHoldSink(events::add)
+        val layer = keyCenter(31)
+
+        touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
+        touch(MotionEvent.ACTION_MOVE, layer.first - 35f, layer.second, 20)
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS - 1, TimeUnit.MILLISECONDS)
+        assertTrue(events.isEmpty())
+        shadowOf(Looper.getMainLooper()).idleFor(1, TimeUnit.MILLISECONDS)
+        assertEquals(listOf(VoiceHoldEvent.Begin(1)), events)
+        touch(MotionEvent.ACTION_UP, layer.first - 35f, layer.second, 1_010)
+        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.End(1)), events)
+        assertTrue(actions.isEmpty())
+
+        touch(MotionEvent.ACTION_DOWN, layer.first, layer.second, 2_000)
+        touch(MotionEvent.ACTION_MOVE, layer.first - 35f, layer.second, 2_020)
+        touch(MotionEvent.ACTION_UP, layer.first - 35f, layer.second, 2_040)
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
+        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.End(1)), events)
+        assertTrue(actions.isEmpty())
+    }
+
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `direction before hold and second pointer cancel voice arming`() {
         val events = mutableListOf<VoiceHoldEvent>()
         view.voiceHoldSink = VoiceHoldSink(events::add)

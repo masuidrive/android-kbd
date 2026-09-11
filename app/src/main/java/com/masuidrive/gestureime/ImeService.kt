@@ -330,6 +330,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             KeyAction.CycleCandidate -> cycleCandidate()
             is KeyAction.SetModifier -> finishEnglishRaw()
+            KeyAction.VoiceHold -> Unit
         }
     }
 

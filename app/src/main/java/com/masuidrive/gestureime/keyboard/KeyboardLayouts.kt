@@ -127,7 +127,7 @@ object KeyboardLayouts {
 
     private fun layerKey(label: String, tap: KeyboardMode, width: Float = 1f) = KeySpec("layer-$label", KeyKind.LAYER_SWITCH,
         FlickValue(label, KeyAction.SwitchLayer(tap)),
-        left = FlickValue(KeyboardMode.SYMBOLS.displayName, KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)),
+        left = FlickValue("音声", KeyAction.VoiceHold),
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), widthUnits = width, dark = true)

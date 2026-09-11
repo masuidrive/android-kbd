@@ -1,6 +1,6 @@
 # Work Notes: 260911-055701-assign-layer-left-swipe-to-voice
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (In progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,9 +9,9 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -32,6 +32,9 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- ユーザの最新指示を左方向=音声、既存の1秒hold後だけ認識・release確定という組合せで実装する。
+- 短い左swipeは音声を開始せず、以前の記号切替も行わない。記号は各layerの`#!` tapから到達できる。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -39,7 +42,10 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+- 現状はlayer key pointer down時に中央方向限定の1秒timerをarmし、方向選択時に必ずcancelする。左だけを音声選択としてtimer継続対象へ加える。
+- 反例基準: 中央1秒hold、右QWERTY、上Kana、下Numbers、multi-pointer cancel、private/unsupported service制約を維持する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。

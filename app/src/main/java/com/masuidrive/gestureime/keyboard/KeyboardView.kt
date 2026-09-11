@@ -624,7 +624,8 @@ class KeyboardView @JvmOverloads constructor(
                 if (directions[id] != update.direction) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 directions[id] = update.direction
                 cancelTimer(id)
-                if (update.direction != Direction.CENTER) cancelVoiceHoldArm(id)
+                val activeHit = active[id]
+                if (activeHit == null || !isVoiceHoldSelection(activeHit, update.direction)) cancelVoiceHoldArm(id)
                 if (active[id]?.spec?.down?.action is KeyAction.Backspace && update.direction == Direction.DOWN) {
                     active[id]?.let { scheduleTimer(id, it, Direction.DOWN) }
                 }
@@ -676,7 +677,7 @@ class KeyboardView @JvmOverloads constructor(
     private fun scheduleVoiceHold(id: Int, hit: HitTarget) {
         val task = Runnable {
             voiceHoldTimers.remove(id)
-            if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || directions[id] != Direction.CENTER) return@Runnable
+            if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || !isVoiceHoldSelection(hit, directions[id])) return@Runnable
             val requestId = ++voiceHoldRequestId
             voiceHoldOwner = id to requestId
             interpreter.cancel(id)
@@ -684,6 +685,11 @@ class KeyboardView @JvmOverloads constructor(
         }
         voiceHoldTimers[id] = task
         postDelayed(task, VOICE_HOLD_DELAY_MS)
+    }
+
+    private fun isVoiceHoldSelection(hit: HitTarget, direction: Direction?): Boolean {
+        if (direction == Direction.CENTER) return true
+        return direction != null && hit.spec.value(direction)?.action == KeyAction.VoiceHold
     }
 
     private fun cancelVoiceHoldArm(id: Int) {
@@ -712,6 +718,7 @@ class KeyboardView @JvmOverloads constructor(
                     actionSink?.onKeyAction(KeyAction.ModifiedKey(action.text, modifier)); updateModifier(null)
                 } else actionSink?.onKeyAction(action)
             }
+            KeyAction.VoiceHold -> Unit
             else -> actionSink?.onKeyAction(action)
         }
         announceForAccessibility(spec.value(direction)?.label ?: "")

@@ -54,6 +54,7 @@ sealed interface KeyAction {
     data class Backspace(val repeat: Boolean = false) : KeyAction
     data object Enter : KeyAction
     data object Paste : KeyAction
+    data object VoiceHold : KeyAction
 }
 
 fun interface KeyboardActionSink {

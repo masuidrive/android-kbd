@@ -52,9 +52,10 @@ class KeyboardLayoutsTest {
         assertNull(transform.down)
     }
 
-    @Test fun `mode keys share the fixed four-direction layer map`() {
+    @Test fun `layer keys expose voice left and the fixed up right down layer map`() {
         KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.LAYER_SWITCH }.forEach { key ->
-            assertEquals(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS), key.left?.action)
+            assertEquals("音声", key.left?.label)
+            assertEquals(KeyAction.VoiceHold, key.left?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), key.up?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), key.right?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.down?.action)
