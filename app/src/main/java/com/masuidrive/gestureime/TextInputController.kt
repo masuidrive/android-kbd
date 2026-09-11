@@ -7,6 +7,7 @@ import android.icu.text.BreakIterator
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
 import com.masuidrive.gestureime.keyboard.Direction
@@ -109,9 +110,9 @@ class TextInputController(
         finishComposition()
         val input = connection() ?: return
         if (direction == Direction.UP || direction == Direction.DOWN) {
-            repeat(units.coerceAtLeast(1)) {
-                sendKey(if (direction == Direction.UP) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN)
-            }
+            val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
+            val target = verticalCursorPosition(extracted, direction, units.coerceAtLeast(1))
+            input.setSelection(extracted.startOffset + target, extracted.startOffset + target)
             return
         }
         val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
@@ -127,6 +128,27 @@ class TextInputController(
         }
         val absoluteCursor = extracted.startOffset + cursor
         input.setSelection(absoluteCursor, absoluteCursor)
+    }
+
+    private fun verticalCursorPosition(extracted: ExtractedText, direction: Direction, requested: Int): Int {
+        val text = extracted.text?.toString().orEmpty()
+        val cursor = extracted.selectionEnd.coerceIn(0, text.length)
+        val starts = buildList {
+            add(0)
+            text.forEachIndexed { index, character -> if (character == '\n') add(index + 1) }
+        }
+        val currentLine = starts.indexOfLast { it <= cursor }.coerceAtLeast(0)
+        val targetLine = when (direction) {
+            Direction.UP -> (currentLine - requested).coerceAtLeast(0)
+            Direction.DOWN -> (currentLine + requested).coerceAtMost(starts.lastIndex)
+            else -> currentLine
+        }
+        val currentColumn = cursor - starts[currentLine]
+        val targetStart = starts[targetLine]
+        val targetEnd = text.indexOf('\n', targetStart).takeUnless { it < 0 } ?: text.length
+        val proposed = (targetStart + currentColumn).coerceAtMost(targetEnd)
+        val iterator = BreakIterator.getCharacterInstance().apply { setText(text) }
+        return if (iterator.isBoundary(proposed)) proposed else iterator.preceding(proposed).coerceAtLeast(targetStart)
     }
 
     fun moveToBoundary(boundary: CursorBoundary) {

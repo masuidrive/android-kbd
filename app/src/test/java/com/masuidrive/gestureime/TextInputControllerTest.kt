@@ -74,6 +74,54 @@ class TextInputControllerTest {
     }
 
     @Test
+    fun verticalCursorMovementDoesNotEscapePastKnownEditorLines() {
+        input.extracted = ExtractedText().apply {
+            text = "first\nsecond"
+            selectionStart = 1
+            selectionEnd = 1
+        }
+
+        controller.moveCursor(Direction.DOWN, 4)
+
+        assertEquals(7 to 7, input.selection)
+        assertTrue(input.keyEvents.isEmpty())
+    }
+
+    @Test
+    fun verticalCursorMovementStopsAtDocumentBoundaries() {
+        input.extracted = ExtractedText().apply {
+            text = "first\nsecond"
+            selectionStart = 0
+            selectionEnd = 0
+        }
+        controller.moveCursor(Direction.UP, 2)
+
+        input.extracted = ExtractedText().apply {
+            text = "first\nsecond"
+            selectionStart = text.length
+            selectionEnd = text.length
+        }
+        controller.moveCursor(Direction.DOWN, 2)
+
+        assertEquals(12 to 12, input.selection)
+        assertTrue(input.keyEvents.isEmpty())
+    }
+
+    @Test
+    fun verticalCursorMovementKeepsPartialExtractedTextOffset() {
+        input.extracted = ExtractedText().apply {
+            text = "ab\nc"
+            startOffset = 40
+            selectionStart = 1
+            selectionEnd = 1
+        }
+
+        controller.moveCursor(Direction.DOWN, 1)
+
+        assertEquals(44 to 44, input.selection)
+    }
+
+    @Test
     fun ctrlAUsesEditorContextAction() {
         controller.sendModifiedKey("a", Modifier.CTRL)
 
