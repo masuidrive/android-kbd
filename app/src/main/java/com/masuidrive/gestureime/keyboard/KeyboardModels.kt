@@ -60,6 +60,17 @@ fun interface KeyboardActionSink {
     fun onKeyAction(action: KeyAction)
 }
 
+sealed interface VoiceHoldEvent {
+    val requestId: Long
+    data class Begin(override val requestId: Long) : VoiceHoldEvent
+    data class End(override val requestId: Long) : VoiceHoldEvent
+    data class Cancel(override val requestId: Long) : VoiceHoldEvent
+}
+
+fun interface VoiceHoldSink {
+    fun onVoiceHold(event: VoiceHoldEvent)
+}
+
 data class KeyboardUiState(
     val mode: KeyboardMode = KeyboardMode.QWERTY,
     val pendingModifier: Modifier? = null,

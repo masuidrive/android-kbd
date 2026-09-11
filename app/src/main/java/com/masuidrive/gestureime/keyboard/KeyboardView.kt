@@ -28,6 +28,7 @@ class KeyboardView @JvmOverloads constructor(
         const val DELETE_REPEAT_DELAY_MS = 420L
         const val DELETE_REPEAT_INTERVAL_MS = 65L
         const val DUAL_FLICK_MIN_WIDTH_DP = 600f
+        const val VOICE_HOLD_DELAY_MS = 1_000L
         private const val ACTION_FLICK_LEFT = 0x01020001
         private const val ACTION_FLICK_UP = 0x01020002
         private const val ACTION_FLICK_RIGHT = 0x01020003
@@ -35,6 +36,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     var actionSink: KeyboardActionSink? = null
+    var voiceHoldSink: VoiceHoldSink? = null
     private var state = KeyboardUiState()
     private val density = resources.displayMetrics.density
     private val interpreter = GestureInterpreter()
@@ -50,6 +52,12 @@ class KeyboardView @JvmOverloads constructor(
     private var animator: ValueAnimator? = null
     private var qwertyLabelStyle = QwertyLabelStyle.DEFAULT
     private var previewOnly = false
+    private val voiceHoldTimers = mutableMapOf<Int, Runnable>()
+    private var voiceHoldOwner: Pair<Int, Long>? = null
+    private var voiceHoldRequestId = 0L
+    private var voiceHoldMultiPointer = false
+    private var voiceReadyRequestId: Long? = null
+    private var secondVoiceHaptic: Runnable? = null
     private val accessibilityHelper = KeyboardAccessibilityHelper(this)
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -112,6 +120,16 @@ class KeyboardView @JvmOverloads constructor(
         accessibilityHelper.invalidateRoot()
     }
 
+    fun onVoiceRecordingReady(requestId: Long) {
+        val owner = voiceHoldOwner ?: return
+        if (owner.second != requestId || owner.first !in active || voiceReadyRequestId == requestId) return
+        voiceReadyRequestId = requestId
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        secondVoiceHaptic = Runnable { performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP) }.also {
+            postDelayed(it, 70L)
+        }
+    }
+
     private fun rebuildLayout() {
         if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
         requestLayout()
@@ -120,6 +138,14 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     fun cancelActiveGestures() {
+        voiceHoldOwner?.second?.let { voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Cancel(it)) }
+        voiceHoldOwner = null
+        voiceReadyRequestId = null
+        voiceHoldTimers.values.forEach(::removeCallbacks)
+        voiceHoldTimers.clear()
+        secondVoiceHaptic?.let(::removeCallbacks)
+        secondVoiceHaptic = null
+        voiceHoldMultiPointer = false
         timers.values.forEach(::removeCallbacks)
         timers.clear()
         active.clear()
@@ -177,7 +203,7 @@ class KeyboardView @JvmOverloads constructor(
         hitTargets.clear()
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
         val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
-        val rowPitch = (height - top - paddingBottom) / 4f
+        val rowPitch = min((height - top - paddingBottom) / 4f, dp(rowPitchDp(width / density)))
         val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 10f else 6f)
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         val wideInset = if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) dp(7f) else 0f
@@ -201,8 +227,10 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun rowPitchDp(widthDp: Float) = when {
         widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 62f
+        widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode == KeyboardMode.KANA -> 58f
         widthDp >= DUAL_FLICK_MIN_WIDTH_DP -> 64f
         state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 55f
+        state.mode == KeyboardMode.KANA -> 51f
         else -> 57f
     }
 
@@ -234,8 +262,10 @@ class KeyboardView @JvmOverloads constructor(
             drawCursorCross(canvas, target.bounds)
         } else if (idleModifier) {
             textPaint.textSize = sp(10f) * primaryAdjustment.scale
-            canvas.drawText("C", target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp), textPaint)
-            canvas.drawText("A", target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp), textPaint)
+            val cX = safeCenterX(target.bounds, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), "C")
+            val aX = safeCenterX(target.bounds, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), "A")
+            canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp)), textPaint)
+            canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp)), textPaint)
         } else if (!animatedEnglish && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, centerY + dp(primaryAdjustment.yOffsetDp)), !selected && direction == Direction.CENTER, primaryAdjustment.xOffsetDp)
         }
@@ -249,9 +279,9 @@ class KeyboardView @JvmOverloads constructor(
             val secondaryAdjustment = labelAdjustment(spec, secondary = true)
             val scale = 1f + .7f * animationProgress
             textPaint.textSize = sp(12f) * secondaryAdjustment.scale * scale
-            val frame = verticalLabelFrame(target.bounds.top + dp(14f + secondaryAdjustment.yOffsetDp), visualCenterBaseline(target.bounds) + dp(secondaryAdjustment.yOffsetDp), animationProgress)
+            val baseline = verticalLabelBaseline(target.bounds.top + dp(14f + secondaryAdjustment.yOffsetDp), visualCenterBaseline(target.bounds) + dp(secondaryAdjustment.yOffsetDp), animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(secondary, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), textPaint)
+            canvas.drawText(secondary, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), safeBaseline(target.bounds, baseline), textPaint)
             textPaint.textSize = sp(22f) * primaryAdjustment.scale
             textPaint.alpha = (255 * (1f - animationProgress)).toInt()
             canvas.drawText(spec.center?.label.orEmpty(), target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, centerY + dp(22f * animationProgress + primaryAdjustment.yOffsetDp)), textPaint)
@@ -259,18 +289,18 @@ class KeyboardView @JvmOverloads constructor(
             val scale = 1f + .7f * animationProgress
             textPaint.textSize = sp(13f) * primaryAdjustment.scale * scale
             val centered = visualCenterBaseline(target.bounds) + dp(primaryAdjustment.yOffsetDp)
-            val frame = verticalLabelFrame(centered, centered, animationProgress)
+            val baseline = verticalLabelBaseline(centered, centered, animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            canvas.drawText(label, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), textPaint)
+            canvas.drawText(label, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), safeBaseline(target.bounds, baseline), textPaint)
         } else if (animatedSpecial) {
             val adjustment = labelAdjustment(spec, secondary = direction == Direction.DOWN)
             val scale = 1f + .7f * animationProgress
             textPaint.textSize = sp(11f) * adjustment.scale * scale
             val centered = visualCenterBaseline(target.bounds) + dp(adjustment.yOffsetDp)
             val start = if (spec.kind == KeyKind.ENTER && direction == Direction.DOWN) target.bounds.top + dp(14f + adjustment.yOffsetDp) else centered
-            val frame = verticalLabelFrame(start, centered, animationProgress)
+            val baseline = verticalLabelBaseline(start, centered, animationProgress)
             textPaint.color = Color.rgb(16, 40, 68)
-            drawFittedText(canvas, label, target.bounds.centerX() + dp(adjustment.xOffsetDp), safeBaseline(target.bounds, frame.baseline), availableWidth(target.bounds, adjustment.xOffsetDp))
+            drawFittedText(canvas, label, target.bounds.centerX() + dp(adjustment.xOffsetDp), safeBaseline(target.bounds, baseline), availableWidth(target.bounds, adjustment.xOffsetDp))
         } else if (!selected && secondary != null) {
             val adjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
@@ -303,14 +333,19 @@ class KeyboardView @JvmOverloads constructor(
         return if (minimum <= maximum) desired.coerceIn(minimum, maximum) else bounds.centerY()
     }
 
+    private fun safeCenterX(bounds: RectF, desired: Float, label: String): Float {
+        val half = textPaint.measureText(label) / 2f
+        val minimum = bounds.left + dp(3f) + half
+        val maximum = bounds.right - dp(3f) - half
+        return if (minimum <= maximum) desired.coerceIn(minimum, maximum) else bounds.centerX()
+    }
+
     private fun visualCenterBaseline(bounds: RectF) =
         bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
 
-    internal data class LabelAnimationFrame(val scale: Float, val baseline: Float)
-
-    internal fun verticalLabelFrame(startBaseline: Float, endBaseline: Float, progress: Float): LabelAnimationFrame {
+    private fun verticalLabelBaseline(startBaseline: Float, endBaseline: Float, progress: Float): Float {
         val bounded = progress.coerceIn(0f, 1f)
-        return LabelAnimationFrame(1f + .7f * bounded, startBaseline + (endBaseline - startBaseline) * bounded)
+        return startBaseline + (endBaseline - startBaseline) * bounded
     }
 
     private fun mainTextSize(spec: KeySpec) = when {
@@ -353,12 +388,12 @@ class KeyboardView @JvmOverloads constructor(
             textPaint.color = Color.rgb(181, 181, 191)
             textPaint.alpha = (originalAlpha * .72f).toInt()
         }
-        val ghostX = x + dp(2f) + textPaint.measureText(ghost) / 2f
-        canvas.drawText(ghost, ghostX, y + dp(4f), textPaint)
+        val ghostX = safeCenterX(bounds, x + dp(2f) + textPaint.measureText(ghost) / 2f, ghost)
+        canvas.drawText(ghost, ghostX, safeBaseline(bounds, y + dp(4f)), textPaint)
         textPaint.textSize = originalSize
         textPaint.color = originalColor
         textPaint.alpha = originalAlpha
-        canvas.drawText(main, x - dp(3f), y, textPaint)
+        canvas.drawText(main, safeCenterX(bounds, x - dp(3f), main), safeBaseline(bounds, y), textPaint)
     }
 
     private fun drawFittedText(canvas: Canvas, label: String, x: Float, y: Float, maxWidth: Float) {
@@ -488,6 +523,10 @@ class KeyboardView @JvmOverloads constructor(
     private fun pointerDown(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)
         val hit = hitTargets.lastOrNull { it.spec.kind != KeyKind.EMPTY && it.bounds.contains(event.getX(index), event.getY(index)) } ?: return
+        if (active.isNotEmpty()) {
+            voiceHoldMultiPointer = true
+            cancelVoiceHoldArms()
+        }
         active[id] = hit
         directions[id] = Direction.CENTER
         val verticalOnly = hit.spec.kind == KeyKind.MODIFIER ||
@@ -499,12 +538,14 @@ class KeyboardView @JvmOverloads constructor(
         if (hit.spec.kind == KeyKind.CHARACTER || (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null)) {
             scheduleTimer(id, hit, Direction.CENTER)
         }
+        if (hit.spec.kind == KeyKind.LAYER_SWITCH && !voiceHoldMultiPointer) scheduleVoiceHold(id, hit)
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         invalidate()
     }
 
     private fun pointerMove(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)
+        if (voiceHoldOwner?.first == id) return
         if (id in accentActive) {
             val hit = active[id]
             val choices = hit?.spec?.center?.label?.let(::accentChoices)
@@ -518,6 +559,7 @@ class KeyboardView @JvmOverloads constructor(
                 if (directions[id] != update.direction) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                 directions[id] = update.direction
                 cancelTimer(id)
+                if (update.direction != Direction.CENTER) cancelVoiceHoldArm(id)
                 if (active[id]?.spec?.down?.action is KeyAction.Backspace && update.direction == Direction.DOWN) {
                     active[id]?.let { scheduleTimer(id, it, Direction.DOWN) }
                 }
@@ -537,14 +579,49 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun pointerUp(id: Int) {
         cancelTimer(id)
+        cancelVoiceHoldArm(id)
         val hit = active.remove(id) ?: return
+        val voiceOwner = voiceHoldOwner
+        if (voiceOwner?.first == id) {
+            voiceHoldOwner = null
+            voiceReadyRequestId = null
+            directions.remove(id)
+            interpreter.cancel(id)
+            voiceHoldSink?.onVoiceHold(VoiceHoldEvent.End(voiceOwner.second))
+            if (active.isEmpty()) voiceHoldMultiPointer = false
+            invalidate()
+            return
+        }
         val direction = directions.remove(id) ?: Direction.CENTER
         interpreter.finish(id)
         val accents = if (accentActive.remove(id)) accentChoices(hit.spec.center?.label.orEmpty()) else null
         if (accents != null) actionSink?.onKeyAction(KeyAction.CommitText(accents[accentSelected.remove(id) ?: 0]))
         else if (!cursorMoved.remove(id) && !repeated.remove(id)) dispatch(hit.spec, direction)
         cursorMoved.remove(id)
+        if (active.isEmpty()) voiceHoldMultiPointer = false
         invalidate()
+    }
+
+    private fun scheduleVoiceHold(id: Int, hit: HitTarget) {
+        val task = Runnable {
+            voiceHoldTimers.remove(id)
+            if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || directions[id] != Direction.CENTER) return@Runnable
+            val requestId = ++voiceHoldRequestId
+            voiceHoldOwner = id to requestId
+            interpreter.cancel(id)
+            voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Begin(requestId))
+        }
+        voiceHoldTimers[id] = task
+        postDelayed(task, VOICE_HOLD_DELAY_MS)
+    }
+
+    private fun cancelVoiceHoldArm(id: Int) {
+        voiceHoldTimers.remove(id)?.let(::removeCallbacks)
+    }
+
+    private fun cancelVoiceHoldArms() {
+        voiceHoldTimers.values.forEach(::removeCallbacks)
+        voiceHoldTimers.clear()
     }
 
     private fun dispatch(spec: KeySpec, direction: Direction) {
@@ -603,6 +680,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun animateLabels() {
         animator?.cancel()
+        animationProgress = 0f
         if (Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f) {
             animationProgress = 1f; return
         }

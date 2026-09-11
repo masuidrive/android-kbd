@@ -1,5 +1,7 @@
 package com.masuidrive.gestureime.ui
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -81,6 +83,12 @@ class CandidateStripViewTest {
         view.textView("確定").performClick()
 
         assertEquals(listOf(VoiceUiEvent(10, VoiceUiAction.Confirm), VoiceUiEvent(11, VoiceUiAction.Confirm)), events)
+    }
+
+    @Test fun bottomGapUsesTheKeyboardBackgroundColor() {
+        val view = view()
+        assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
+        assertEquals(8, view.paddingBottom)
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }

@@ -1,8 +1,12 @@
 package com.masuidrive.gestureime.keyboard
 
 import android.graphics.Bitmap
+import android.app.Activity
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Rect
+import android.os.Looper
+import android.provider.Settings
 import android.content.res.Configuration
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -13,8 +17,12 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.LooperMode
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -23,8 +31,13 @@ class KeyboardViewTest {
     private val actions = mutableListOf<KeyAction>()
 
     @Before fun setUp() {
-        view = KeyboardView(RuntimeEnvironment.getApplication()).apply {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        view = KeyboardView(activity).apply {
             actionSink = KeyboardActionSink { actions += it }
+        }
+        activity.setContentView(view)
+        shadowOf(Looper.getMainLooper()).idle()
+        view.apply {
             measure(exact(400), exact(220))
             layout(0, 0, 400, 220)
             draw(Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888)))
@@ -128,17 +141,104 @@ class KeyboardViewTest {
         assertEquals(before, bounds())
     }
 
-    @Test fun `vertical label animation grows and lands on the requested baseline`() {
-        val start = view.verticalLabelFrame(14f, 30f, 0f)
-        val middle = view.verticalLabelFrame(14f, 30f, .5f)
-        val end = view.verticalLabelFrame(14f, 30f, 1f)
+    @Test fun `modifier and composite glyphs remain wholly inside narrow and wide keys at adjustment limits`() {
+        listOf(412 to 220, 840 to 248).forEach { (width, height) ->
+            listOf(-1f, 1f).forEach { sign ->
+                val adjustment = LabelAdjustment(1.3f, 6f * sign, 8f * sign)
+                view.setQwertyLabelStyle(QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.COMPOSITE_SMALL, adjustment))
+                view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                val canvas = Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888))
+                view.draw(canvas)
+                val shadow = shadowOf(canvas)
+                val events = (0 until shadow.textHistoryCount).map(shadow::getDrawnTextEvent)
 
-        assertEquals(1f, start.scale)
-        assertEquals(14f, start.baseline)
-        assertTrue(middle.scale > start.scale)
-        assertTrue(middle.baseline in 14f..30f)
-        assertEquals(1.7f, end.scale)
-        assertEquals(30f, end.baseline)
+                assertGlyphInside(events.last { it.text == "C" }.x, events.last { it.text == "C" }.y, "C", 13f, keyBounds(10))
+                assertGlyphInside(events.last { it.text == "A" }.x, events.last { it.text == "A" }.y, "A", 13f, keyBounds(10))
+                assertGlyphInside(events.last { it.text == "ん" }.x, events.last { it.text == "ん" }.y, "ん", 16f * 1.3f * .64f, keyBounds(31))
+                assertGlyphInside(events.last { it.text == "あ" }.x, events.last { it.text == "あ" }.y, "あ", 16f * 1.3f, keyBounds(31))
+            }
+        }
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `one second layer hold begins voice and release ends without layer action`() {
+        val events = mutableListOf<VoiceHoldEvent>()
+        view.voiceHoldSink = VoiceHoldSink(events::add)
+        val layer = keyCenter(31)
+        touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
+        assertEquals(listOf(VoiceHoldEvent.Begin(1)), events)
+        touch(MotionEvent.ACTION_MOVE, layer.first + 60f, layer.second - 90f, 1_010)
+        touch(MotionEvent.ACTION_UP, layer.first + 60f, layer.second - 90f, 1_020)
+
+        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.End(1)), events)
+        assertTrue(actions.isEmpty())
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `direction before hold and second pointer cancel voice arming`() {
+        val events = mutableListOf<VoiceHoldEvent>()
+        view.voiceHoldSink = VoiceHoldSink(events::add)
+        val layer = keyCenter(31)
+        touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
+        touch(MotionEvent.ACTION_MOVE, layer.first + 35f, layer.second, 20)
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
+        touch(MotionEvent.ACTION_UP, layer.first + 35f, layer.second, 1_120)
+        assertTrue(events.isEmpty())
+        assertTrue(actions.contains(KeyAction.SwitchLayer(KeyboardMode.NUMBERS)))
+
+        actions.clear(); view.setMode(KeyboardMode.QWERTY)
+        multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to layer))
+        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (40f to 20f)))
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
+        multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (40f to 20f)))
+        multiTouch(MotionEvent.ACTION_UP, listOf(0 to layer))
+        assertTrue(events.isEmpty())
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `mode change cancels active voice hold and stale ready is inert`() {
+        val events = mutableListOf<VoiceHoldEvent>()
+        view.voiceHoldSink = VoiceHoldSink(events::add)
+        val layer = keyCenter(31)
+        touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
+        shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
+
+        view.setMode(KeyboardMode.KANA)
+        view.onVoiceRecordingReady(1)
+
+        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.Cancel(1)), events)
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `down labels and enter paste visibly animate into their key centers`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        val looper = shadowOf(Looper.getMainLooper())
+        looper.pause()
+        data class TextFrame(val textSize: Float, val baseline: Float)
+        fun textFrame(label: String): TextFrame {
+            val canvas = Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888))
+            view.draw(canvas)
+            val shadow = shadowOf(canvas)
+            val event = (0 until shadow.textHistoryCount).map(shadow::getDrawnTextEvent).last { it.text == label }
+            return TextFrame(event.paint.textSize, event.y)
+        }
+        fun animateDown(virtualId: Int, label: String): Triple<TextFrame, TextFrame, TextFrame> {
+            val bounds = Rect().also { view.accessibilityNodeProvider.createAccessibilityNodeInfo(virtualId)!!.getBoundsInParent(it) }
+            touch(MotionEvent.ACTION_DOWN, bounds.centerX().toFloat(), bounds.centerY().toFloat())
+            touch(MotionEvent.ACTION_MOVE, bounds.centerX().toFloat(), bounds.centerY() + 24f, 10)
+            val start = textFrame(label)
+            looper.idleFor(45, TimeUnit.MILLISECONDS); val middle = textFrame(label)
+            looper.idleFor(60, TimeUnit.MILLISECONDS); val end = textFrame(label)
+            touch(MotionEvent.ACTION_CANCEL, bounds.centerX().toFloat(), bounds.centerY().toFloat(), 120)
+            return Triple(start, middle, end)
+        }
+
+        val punctuation = animateDown(29, "!")
+        assertTrue("punctuation frames=$punctuation", punctuation.second.baseline > punctuation.first.baseline)
+        assertTrue("punctuation frames=$punctuation", punctuation.third.baseline >= punctuation.second.baseline)
+        val paste = animateDown(33, "paste")
+        // Enter is the final key drawn, so its Paint snapshot still carries the
+        // animated size; the earlier punctuation Paint is reused by later keys.
+        assertTrue("paste frames=$paste", paste.second.textSize > paste.first.textSize)
+        assertTrue("paste frames=$paste", paste.third.baseline > paste.first.baseline)
+        assertTrue(paste.third.baseline <= 220f)
     }
 
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
@@ -183,7 +283,7 @@ class KeyboardViewTest {
         fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
         val first = bounds(0)
         assertEquals(10, first.left)
-        assertEquals(58, first.height())
+        assertEquals(52, first.height())
         assertEquals(6, bounds(5).top - first.bottom)
         assertEquals(6, bounds(1).left - first.right)
     }
@@ -279,6 +379,27 @@ class KeyboardViewTest {
         val event = MotionEvent.obtain(0, time, action, x, y, 0)
         view.onTouchEvent(event)
         event.recycle()
+    }
+
+    private fun keyCenter(virtualId: Int): Pair<Float, Float> {
+        val bounds = keyBounds(virtualId)
+        return bounds.exactCenterX() to bounds.exactCenterY()
+    }
+
+    private fun keyBounds(virtualId: Int) = Rect().also {
+        view.accessibilityNodeProvider.createAccessibilityNodeInfo(virtualId)!!.getBoundsInParent(it)
+    }
+
+    private fun assertGlyphInside(x: Float, baseline: Float, label: String, textSize: Float, key: Rect) {
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = textSize; textAlign = Paint.Align.CENTER }
+        val glyph = Rect()
+        paint.getTextBounds(label, 0, label.length, glyph)
+        val left = x - paint.measureText(label) / 2f + glyph.left
+        val right = x - paint.measureText(label) / 2f + glyph.right
+        assertTrue("$label left=$left key=$key", left >= key.left)
+        assertTrue("$label right=$right key=$key", right <= key.right)
+        assertTrue("$label top=${baseline + glyph.top} key=$key", baseline + glyph.top >= key.top)
+        assertTrue("$label bottom=${baseline + glyph.bottom} key=$key", baseline + glyph.bottom <= key.bottom)
     }
 
     private fun exact(size: Int) = android.view.View.MeasureSpec.makeMeasureSpec(size, android.view.View.MeasureSpec.EXACTLY)

@@ -31,7 +31,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, 0, 0, dp(8))
-        setBackgroundColor(BACKGROUND)
+        setBackgroundColor(GAP_BACKGROUND)
         candidateRow.setBackgroundColor(BACKGROUND)
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -125,6 +125,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     private companion object {
         val BACKGROUND = Color.rgb(42, 49, 58)
+        val GAP_BACKGROUND = Color.rgb(41, 41, 44)
         val SELECTED = Color.rgb(97, 210, 255)
         val SELECTED_INK = Color.rgb(0, 25, 35)
     }
