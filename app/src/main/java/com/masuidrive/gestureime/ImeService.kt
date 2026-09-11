@@ -367,28 +367,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         if (event.sessionToken != voiceUiToken) return
         val token = editorSession.capture()
         when (event.action) {
-            VoiceUiAction.Start -> serviceScope.launch {
-                actionMutex.withLock {
-                    if (!editorSession.isCurrent(token) || event.sessionToken != voiceUiToken || textController.isPrivateField) return@withLock
-                    resetConversion(clearComposing = false)
-                    if (editorSession.isCurrent(token) && event.sessionToken == voiceUiToken) voiceController.start(token)
-                }
-            }
-            VoiceUiAction.Stop -> voiceController.stop()
             VoiceUiAction.Cancel -> {
                 cancelVoiceHold()
                 if (editorSession.isCurrent(token)) setVoiceUi(voiceController.initialState().toUiState())
-            }
-            VoiceUiAction.Confirm -> {
-                val text = voiceController.confirm(token) ?: return
-                serviceScope.launch {
-                    actionMutex.withLock {
-                        if (!editorSession.isCurrent(token) || textController.isPrivateField) return@withLock
-                        resetConversion(clearComposing = false)
-                        editorSession.runIfCurrent(token) { textController.commitText(text) }
-                        setVoiceUi(voiceController.initialState().toUiState())
-                    }
-                }
             }
             VoiceUiAction.RequestPermission -> startActivity(
                 Intent(this, SetupActivity::class.java)
@@ -472,7 +453,7 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.PermissionRequired -> VoiceUiState.PermissionRequired
     VoiceBackendState.Recording -> VoiceUiState.Recording
     VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
-    is VoiceBackendState.Preview -> VoiceUiState.Preview(text)
+    is VoiceBackendState.Preview -> VoiceUiState.Recognizing
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
 }
 
