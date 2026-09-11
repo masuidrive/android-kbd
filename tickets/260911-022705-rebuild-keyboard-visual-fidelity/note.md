@@ -1,6 +1,6 @@
-# Work Notes: 260911-003916-add-english-candidate-buffer
+# Work Notes: 260911-022705-rebuild-keyboard-visual-fidelity
 
-## Status: PDH-open (ticket drafted; implementation not started)
+## Status: PDH-open (Opening)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -81,8 +81,3 @@
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
-
-- ユーザーの明示指示により、英数字候補の将来作業を起票した。`./ticket.sh start`、ブランチ切替、実装、設定追加は未実行。
-- 実装を検討する順序は、調整ticketとDual Flickの残作業、APK公開、音声入力の公開後とする。このticketを現在の作業へ混ぜない。
-- 英数字候補の辞書・生成方式、対象言語・文字種、単語境界、設定の既定ON/OFFは未決であり、ticket reviewで決定する。ネットワーク候補を追加しない。
-- ユーザー指定の順序変更により、正本HTMLからnative描画を作り直すv0.5の実装・公開後に、本ticketをv0.6として開始する。

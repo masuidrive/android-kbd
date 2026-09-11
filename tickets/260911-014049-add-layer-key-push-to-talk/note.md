@@ -3,6 +3,7 @@
 ## Status: PDH-open (Opening)
 
 ## Checklist
+- [ ] v0.4公開後、正本HTML分析とnative描画作り直しticketを実装・公開し、その後に英数字候補bufferへ進む
 - [ ] 同じv0.4 deliveryで日本語キー高さをQWERTYと揃え、候補下gap背景をkeyboard下gapと揃える
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
