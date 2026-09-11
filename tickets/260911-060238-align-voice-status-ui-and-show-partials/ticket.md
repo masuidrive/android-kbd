@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: features/260911-053738-support-native-light-mode
+base_branch: features/260911-055701-configure-slash-command-candidates
 description: "Align voice status controls with the keyboard UI and show partial recognition text"
 created_at: "2026-09-11T06:02:38Z"
 started_at: null  # Do not modify manually
