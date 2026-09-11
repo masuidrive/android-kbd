@@ -51,6 +51,8 @@
 - Enter/Pasteの元HTMLはnavigation選択でmain labelを置換する一方、通常secondary用 `.flick-selected` transformを付けないため、down-swipe animationの位置関係が揃わないと特定した。nativeではこのbugを再現せず、意図したsecondary animationへ統合する。
 - 候補表示時だけcandidate row/未選択labelが`#2a313a`へ変わる実装を確認し、候補欄・未選択候補を既存gap/keyboard背景`#29292c`へ固定した。選択候補のaccentは維持する。
 - ユーザーの最新指定で全layer共通切替を左=記号、上=日本語、右=QWERTY、下=テンキーへ変更した。正本HTMLの右=テンキー、下=QWERTYは後続overrideとして採用しない。tap/1秒holdは維持する。
+- ユーザーの追加指定により、最後に実際に切り替えた`KeyboardMode`を端末内設定へ保存し、IME再表示・View再作成時に復元する。設定なしまたは不正値はQWERTYとし、modifier・変換state・音声holdは保存しない。Preferences保存とService再作成回帰はfocused testで成功した。
+- 色の後続overrideは、過去に共有された実装指定「基本Enter/BSは通常キーと同色、dark指定を外す」「通常keyは灰、modeは暗色」を維持する。今回のユーザー原文として再確認したものではないため、正本HTMLのside-special darkとの差は明示overrideとして扱う。Accent keyは正本HTMLに合わせて通常色にする。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

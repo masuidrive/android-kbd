@@ -68,3 +68,7 @@
 [2026/09/11 11:45] v0.5 visual fidelity ticketをv0.4完成履歴から開始。正本mock-sourceのselector/lineを根拠に、5layerの寸法・色・角丸・影・主副label・ghost・popup・animation閾値/終端を `docs/visual-reference-analysis.md` へ定量整理した。HTML Enter/Pasteはnavigation label置換経路のため通常secondary transformを通らない元bugも切り分けた。
 [2026/09/11 11:51] 候補表示時にcandidate rowと未選択候補だけが`#2a313a`へ変わる実装を確認。候補欄・未選択候補をkeyboard gapと同じ`#29292c`へ固定し、選択中候補のaccentは維持する修正と回帰テストを追加した。
 [2026/09/11 11:51] 全レイヤー共通切替キーの最新指定を反映し、左=記号・上=日本語を維持したまま、右をQWERTY、下をテンキーへ交換した。tapと1秒hold音声は維持し、layout回帰テストと正本override記録を更新した。
+[2026/09/11 12:10] v0.5の同一platform比較基準として、API 36 Android Chromeで正本HTMLのQWERTYを412dp外画面・840dp内画面の両方で撮影し、キー全体とファイル名の一致を原寸で確認した。native最終後にAndroidフォントのbaselineとpopupを同端末で比較する。
+[2026/09/11 12:12] 412dpの正本HTMLをdark modeで追加撮影し、key face・下影・主副label・Enter/Pasteの色比較基準を保存した。画面設定はlight、1080x2400/420dpiへ復元した。
+[2026/09/11 12:17] v0.5描画初稿のKotlin compileは成功したが、fidelity完了とは扱っていない。独立確認で検出したpopup上端clampは`f5abeab`で修正し、Popup対象テスト7件は成功。KeyboardViewは全mode Enter経路の残り1件を切り分けて修正中のため、全suiteと端末QAは未実施。
+[2026/09/11 12:38] 最後に使ったレイヤーを次回IME表示で引き継ぐ追加指定を反映。実際のSwitchLayer時に5種のKeyboardModeだけを保存し、設定なし・不正型・不正値はQWERTYへfallbackする。IME View再作成後の復元を含むfocused testは成功した。
