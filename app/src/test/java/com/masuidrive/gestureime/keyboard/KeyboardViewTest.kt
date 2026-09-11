@@ -528,6 +528,88 @@ class KeyboardViewTest {
         assertTrue("half-width delete icon remains readable", canvas.draws.last { it.text == "⌫" }.textSize >= 11f)
     }
 
+    @Test fun `horizontal and vertical visual gaps assign their halves without changing faces`() {
+        view.measure(exact(412), exact(228))
+        view.layout(0, 0, 412, 228)
+        val q = keyBounds(0)
+        val w = keyBounds(1)
+        val a = keyBounds(11)
+        val qBefore = Rect(q)
+        val wBefore = Rect(w)
+
+        assertEquals(6, w.left - q.right)
+        assertEquals(0, view.hitTargetIndexAt(q.right + 1f, q.exactCenterY()))
+        assertEquals(1, view.hitTargetIndexAt(w.left - 1f, w.exactCenterY()))
+        touch(MotionEvent.ACTION_DOWN, q.right + 1f, q.exactCenterY())
+        touch(MotionEvent.ACTION_UP, q.right + 1f, q.exactCenterY(), 1)
+        touch(MotionEvent.ACTION_DOWN, w.left - 1f, w.exactCenterY(), 2)
+        touch(MotionEvent.ACTION_UP, w.left - 1f, w.exactCenterY(), 3)
+
+        val sharedX = maxOf(q.left, a.left) + 1f
+        assertTrue(sharedX < minOf(q.right, a.right))
+        assertEquals(10, a.top - q.bottom)
+        assertEquals(0, view.hitTargetIndexAt(sharedX, q.bottom + 1f))
+        assertEquals(11, view.hitTargetIndexAt(sharedX, a.top - 1f))
+        touch(MotionEvent.ACTION_DOWN, sharedX, q.bottom + 1f, 4)
+        touch(MotionEvent.ACTION_UP, sharedX, q.bottom + 1f, 5)
+        touch(MotionEvent.ACTION_DOWN, sharedX, a.top - 1f, 6)
+        touch(MotionEvent.ACTION_UP, sharedX, a.top - 1f, 7)
+
+        assertEquals(listOf(KeyAction.CommitText("q"), KeyAction.CommitText("w"), KeyAction.CommitText("q"), KeyAction.CommitText("a")), actions)
+        assertEquals(qBefore, keyBounds(0))
+        assertEquals(wBefore, keyBounds(1))
+    }
+
+    @Test fun `accessibility resolves visual gaps while empty cells remain inert`() {
+        view.measure(exact(412), exact(228))
+        view.layout(0, 0, 412, 228)
+        val q = keyBounds(0)
+        val w = keyBounds(1)
+        val qGap = q.right + 1f
+        // ExploreByTouchHelper resolves its virtual id through hitTargetIndexAt;
+        // this proves the same gap geometry without relying on a protected View API.
+        assertEquals(0, view.hitTargetIndexAt(qGap, q.exactCenterY()))
+
+        view.setMode(KeyboardMode.CURSOR)
+        val cursorMode = keyBounds(0)
+        assertEquals(-1, view.hitTargetIndexAt(cursorMode.right + 20f, cursorMode.exactCenterY()))
+        touch(MotionEvent.ACTION_DOWN, cursorMode.right + 20f, cursorMode.exactCenterY(), 1)
+        touch(MotionEvent.ACTION_UP, cursorMode.right + 20f, cursorMode.exactCenterY(), 2)
+        assertTrue(actions.isEmpty())
+    }
+
+    @Test fun `spanning enter and dual kana gaps have one unambiguous owner`() {
+        view.setMode(KeyboardMode.KANA)
+        view.measure(exact(400), exact(228))
+        view.layout(0, 0, 400, 228)
+        val space = keyBounds(9)
+        val enter = keyBounds(14)
+        val enterX = enter.exactCenterX()
+        assertEquals(10, enter.top - space.bottom)
+        assertEquals(9, view.hitTargetIndexAt(enterX, space.bottom + 1f))
+        assertEquals(14, view.hitTargetIndexAt(enterX, enter.top - 1f))
+        touch(MotionEvent.ACTION_DOWN, enterX, space.bottom + 1f)
+        touch(MotionEvent.ACTION_UP, enterX, space.bottom + 1f, 1)
+        touch(MotionEvent.ACTION_DOWN, enterX, enter.top - 1f, 2)
+        touch(MotionEvent.ACTION_UP, enterX, enter.top - 1f, 3)
+        assertEquals(listOf(KeyAction.CycleCandidate, KeyAction.Enter), actions)
+
+        actions.clear()
+        view.setDualFlickEnabled(true)
+        view.measure(exact(840), exact(256))
+        view.layout(0, 0, 840, 256)
+        val first = keyBounds(1)
+        val second = keyBounds(2)
+        assertEquals(6, second.left - first.right)
+        assertEquals(1, view.hitTargetIndexAt(first.right + 1f, first.exactCenterY()))
+        assertEquals(2, view.hitTargetIndexAt(second.left - 1f, second.exactCenterY()))
+        touch(MotionEvent.ACTION_DOWN, first.right + 1f, first.exactCenterY(), 4)
+        touch(MotionEvent.ACTION_UP, first.right + 1f, first.exactCenterY(), 5)
+        touch(MotionEvent.ACTION_DOWN, second.left - 1f, second.exactCenterY(), 6)
+        touch(MotionEvent.ACTION_UP, second.left - 1f, second.exactCenterY(), 7)
+        assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.KanaInput("か")), actions)
+    }
+
     @Test fun `kana uses qwerty vertical gap and face height at inner width`() {
         view.setMode(KeyboardMode.KANA)
         view.measure(exact(840), exact(256))

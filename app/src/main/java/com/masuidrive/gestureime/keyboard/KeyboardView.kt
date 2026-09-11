@@ -72,7 +72,11 @@ class KeyboardView @JvmOverloads constructor(
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
 
-    private data class HitTarget(val spec: KeySpec, val bounds: RectF)
+    private data class HitTarget(val spec: KeySpec, val bounds: RectF, val tapBounds: RectF)
+
+    internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
+        it.spec.kind != KeyKind.EMPTY && it.tapBounds.contains(x, y)
+    }
 
     init {
         isFocusable = true
@@ -248,7 +252,18 @@ class KeyboardView @JvmOverloads constructor(
                 val right = x + unit * key.widthUnits
                 val keyTop = keyboardTop + rowPitch * rowIndex
                 val bottom = min(height - paddingBottom.toFloat(), keyTop + rowPitch * key.rowSpan - rowGap)
-                hitTargets += HitTarget(key, RectF(x + dp(3f), keyTop, right - dp(3f), bottom))
+                val tapTop = if (rowIndex == 0) keyTop else keyTop - rowGap / 2f
+                val occupiedRowsEnd = rowIndex + key.rowSpan
+                val tapBottom = if (occupiedRowsEnd < rows.size) {
+                    keyboardTop + rowPitch * occupiedRowsEnd - rowGap / 2f
+                } else {
+                    bottom
+                }
+                hitTargets += HitTarget(
+                    key,
+                    bounds = RectF(x + dp(3f), keyTop, right - dp(3f), bottom),
+                    tapBounds = RectF(x, tapTop, right, tapBottom),
+                )
                 x = right
             }
         }
@@ -544,9 +559,8 @@ class KeyboardView @JvmOverloads constructor(
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
 
     private inner class KeyboardAccessibilityHelper(host: View) : ExploreByTouchHelper(host) {
-        override fun getVirtualViewAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
-            it.spec.kind != KeyKind.EMPTY && it.bounds.contains(x, y)
-        }.takeIf { it >= 0 } ?: INVALID_ID
+        override fun getVirtualViewAt(x: Float, y: Float): Int =
+            hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
 
         override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
             hitTargets.indices.filterTo(virtualViewIds) { hitTargets[it].spec.kind != KeyKind.EMPTY }
@@ -599,7 +613,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun pointerDown(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)
-        val hit = hitTargets.lastOrNull { it.spec.kind != KeyKind.EMPTY && it.bounds.contains(event.getX(index), event.getY(index)) } ?: return
+        val hit = hitTargets.getOrNull(hitTargetIndexAt(event.getX(index), event.getY(index))) ?: return
         if (active.isNotEmpty()) {
             voiceHoldMultiPointer = true
             if (voiceHoldOwner != null) {
