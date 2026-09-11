@@ -51,7 +51,7 @@ canceled_at: null # Do not modify manually
 - 左フリック成立時に専用面へ遷移し、認識を開始する。押下保持と1秒待機は廃止する。
 - `SpeechRecognizer.RESULTS_RECOGNITION`は最有力候補を先頭に複数文字列を返せるが、実装依存で1件の場合もあるため可変件数で表示する。
 - `RecognizerIntent.EXTRA_PARTIAL_RESULTS`を要求するが、認識サービスが途中結果を返さない場合も最終結果だけで操作を完了できるようにする。
-- 途中結果、最終候補、キャンセルを一枚の音声入力面へまとめ、通常の変換候補欄は音声候補に使わない。
+- キーボード面と同じキー形状・角丸・影・Light/Dark tokenを使う。キャンセルは左上、最終候補は発話全体の候補を1行1件で縦に並べ、通常の変換候補欄は音声候補に使わない。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。

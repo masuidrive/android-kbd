@@ -130,3 +130,5 @@
 [2026/09/12 01:04] 左フリック成立時に認識を始め、途中結果と可変件数の最終候補、送信・キャンセルを扱う専用音声入力面の検討ticket `260911-160113-voice-input-layer`を起票。Android SpeechRecognizerは最有力順の複数候補を返せるが端末実装により1件の場合もあり、途中結果も0回以上のため両方を扱える仕様とした。
 [2026/09/12 01:35] 専用音声入力layerをブラウザmockへ実装。左フリック成立で即座に模擬認識を始め、途中結果の後に一体型card内へ3候補とCancelを表示する。上部候補欄への音声候補と送信buttonは廃止し、候補tapでexact 1回確定、Cancelで入力不変のまま元layerへ復帰。通常候補欄は空でも42pxを維持し、視覚feedback行を削除した。390/840pxの横overflow 0、iframe実高一致、Mobile/Tablet、Dual、Light/Darkを実ブラウザ確認。全suite PASS、独立reviewはCritical/Major/Minorなし。
 [2026/09/12 01:47] サイト上部を正式表示`masuidrive-kbd`、省略形`md-kbd`へ整理。Lightのeditorとtextareaを薄いgray `#f3f4f7`、Darkを従来の`#1c1c1e`とし、mock最下段の言語・閉じる帯とhome indicatorを削除。「操作モック」「ブラウザで試す」はトップ先頭demoへjumpするよう変更した。reviewの旧hide参照とmobile anchor隠れを修正し、390pxでdemo上端がnav下10px以上、横overflow 0、候補欄42px、console error 0を確認。全suite PASS、再review findingなし。
+[2026/09/12 02:11] 音声入力mockをキーボード面へ合わせ、左上キャンセルと発話全体の候補を1行1件で縦に並べるUIへ変更。既存キーと同じ高さ45px・角丸R5・影・Light/Dark色を使用し、Mobile/Tabletの確定・取消・overflow 0を確認した。
+[2026/09/12 02:11] APK配布をGitHub Releasesの直接APKへ移す作業を開始。Sitesからv0.1.0〜v0.9.1の旧ZIP 10本を削除し、サイト容量を約200MBから3.6MBへ削減、全ページのリンクをv0.9.1 Release assetへ更新した。

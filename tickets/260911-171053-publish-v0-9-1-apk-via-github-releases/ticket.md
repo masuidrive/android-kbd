@@ -1,18 +1,18 @@
 ---
 priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
-description: "Prototype the dedicated voice-input layer in the browser mock"
-created_at: "2026-09-11T16:09:43Z"
+description: "Publish the v0.9.1 APK directly through GitHub Releases and slim the Sites deployment"
+created_at: "2026-09-11T17:10:53Z"
 started_at: null  # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
-## 260911-160943-prototype-voice-input-layer-in-browser
+## 260911-171053-publish-v0-9-1-apk-via-github-releases
 
 ### Why
-左フリック中だけ認識する現在の操作より、専用面で途中結果と候補を確認して送信する案の方が長文入力に適する可能性がある。
-native実装を変える前に、公開ブラウザモックで操作感と情報配置を触って判断できるようにする。
+APKをZIPへ包むとAndroidで展開が必要になり、Sitesへ全世代を置くと容量も約200MBになる。
+APKを直接インストールできる配布先へ移し、操作モックと説明ページだけをSitesで軽く配信する。
 
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
@@ -31,33 +31,27 @@ native実装を変える前に、公開ブラウザモックで操作感と情�
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-このticketが終わると、閲覧者がブラウザモックで専用音声入力面の開始から候補選択、取消まで試せる。
+このticketが終わると、利用者がGitHub Releasesからv0.9.1 APKを直接ダウンロードでき、公開サイトを軽量なまま利用できる。
 
-- [x] AC 1: 文字レイヤーのレイヤーキーを左へフリックすると音声入力面へ移り、その時点で模擬認識を開始する。
-- [x] AC 2: 音声入力面は認識状態と更新される途中結果を表示し、最終結果ができるまで入力欄へ文字を追加しない。
-- [x] AC 3: 最終結果は上部候補欄を使わず音声入力面の中へ複数表示する。
-- [x] AC 4: 音声入力面の候補をタップすると、その候補を入力欄へ1回だけ追加して直前の文字レイヤーへ戻る。独立した送信ボタンは表示しない。
-- [x] AC 5: 「キャンセル」で文字を追加せず直前の文字レイヤーへ戻る。
-- [x] AC 6: トップ埋め込みと独立demoのMobile/Tablet、Light/Dark、Dual Flickを壊さず、音声面でも横overflowがない。
+- [ ] AC 1: GitHub Release v0.9.1に`gesture-ime-v0.9.1.apk`が単体で公開される。
+- [ ] AC 2: 製品紹介、操作モック、マニュアルのAPKリンクがGitHub Releaseの直接APKを開く。
+- [ ] AC 3: Sitesの公開物に旧版を含むAPK ZIPが残らず、操作モック、製品紹介、マニュアルは引き続き表示できる。
 
 ### Architectural Invariants check
-ブラウザ上の操作プロトタイプであり、nativeの端末内完結とネットワーク権限なしを定めるAI-1〜AI-4を変更しない。
+配布経路だけの変更であり、端末内完結とネットワーク権限なしを定めるAI-1〜AI-4を変更しない。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- 実マイクは使わず、時間経過で途中結果と複数の最終候補を表示する。
-- 音声面から戻る先は進入前の文字レイヤーとする。
-- キーボード面と同じキー形状・角丸・影・Light/Dark tokenを使う。キャンセルは左上、最終候補は発話全体の候補を1行1件で縦に並べる。
-- 通常の変換候補欄は候補がないときも高さを維持するが、音声候補には使わない。
+- APKはZIP化せずGitHub Release assetとして置く。
+- SitesはHTML/CSS/画像と操作モックだけを配信し、バイナリの世代保管には使わない。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- AndroidのSpeechRecognizer実装変更。
-- 実際のマイク権限や音声認識。
-- Sitesへの公開。
+- 既存APKの署名方式変更。
+- Androidアプリ本体の機能変更。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
