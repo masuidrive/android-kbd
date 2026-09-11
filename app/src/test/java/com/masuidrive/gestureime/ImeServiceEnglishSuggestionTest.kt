@@ -1,17 +1,21 @@
 package com.masuidrive.gestureime
 
 import android.content.ClipboardManager
+import android.app.Activity
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.conversion.ConversionEngine
+import com.masuidrive.gestureime.conversion.ConversionCandidate
+import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
+import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.voice.VoiceRecognitionController
 import com.masuidrive.gestureime.voice.VoiceRecognizerFactory
 import kotlinx.coroutines.CompletableDeferred
@@ -211,9 +215,45 @@ class ImeServiceEnglishSuggestionTest {
         assertEquals("a".repeat(65), harness.input.committed)
     }
 
+    @Test
+    fun onlyMozcCandidateLongPressDeletesHistoryAndStaleViewsCannotDeleteIt() {
+        val conversion = FakeConversion(
+            listOf(
+                ConversionCandidate(10, "履歴候補"),
+                ConversionCandidate(-1, "個人辞書候補", ConversionCandidateSource.ANDROID_USER_DICTIONARY),
+            ),
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+
+        harness.service.onKeyAction(KeyAction.KanaInput("か"))
+        harness.idle()
+        val history = harness.root.findView { it.contentDescription?.toString() == "候補 1: 履歴候補" }!!
+        val dictionary = harness.root.findView { it.contentDescription?.toString() == "候補 2: 個人辞書候補" }!!
+
+        assertEquals(false, dictionary.performLongClick())
+        assertEquals(emptyList<Int>(), conversion.deletedIndexes)
+        assertEquals(true, history.performLongClick())
+        harness.idle()
+        assertEquals(listOf(0), conversion.deletedIndexes)
+
+        harness.service.onKeyAction(KeyAction.KanaInput("き"))
+        harness.idle()
+        assertEquals(
+            false,
+            isEligibleHistoryLongPress(
+                CandidateUiLongPressEvent(1, 0),
+                currentToken = 2,
+                isJapaneseCandidateSource = true,
+                conversionCandidates = listOf(ConversionCandidate(10, "履歴候補")),
+            ),
+        )
+        assertEquals(listOf(0), conversion.deletedIndexes)
+    }
+
     private class Harness(
         slashCommands: List<String>? = null,
         privateEditor: Boolean = false,
+        conversion: FakeConversion = FakeConversion(),
         english: suspend (String, Int) -> List<String>,
     ) {
         private val controller = Robolectric.buildService(ImeService::class.java).create()
@@ -238,7 +278,7 @@ class ImeServiceEnglishSuggestionTest {
                     onState = service::onVoiceState,
                 ),
                 text = text,
-                conversion = FakeConversion(),
+                conversion = conversion,
                 english = object : EnglishSuggestionEngine {
                     override suspend fun suggest(prefix: String, limit: Int) = english(prefix, limit)
                 },
@@ -247,6 +287,7 @@ class ImeServiceEnglishSuggestionTest {
                 if (privateEditor) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             }, false)
             root = service.onCreateInputView()
+            Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(root)
             idle()
         }
 
@@ -311,11 +352,18 @@ class ImeServiceEnglishSuggestionTest {
         }
     }
 
-    private class FakeConversion : ConversionEngine {
-        override suspend fun start(reading: String) = ConversionState(reading, emptyList(), -1)
+    private class FakeConversion(
+        private val candidateValues: List<ConversionCandidate> = emptyList(),
+    ) : ConversionEngine {
+        val deletedIndexes = mutableListOf<Int>()
+        override suspend fun start(reading: String) = ConversionState(reading, candidateValues, -1)
         override suspend fun update(reading: String) = start(reading)
         override suspend fun nextCandidate() = start("")
         override suspend fun commit(index: Int) = null
+        override suspend fun deleteCandidateFromHistory(index: Int): ConversionState? {
+            deletedIndexes += index
+            return ConversionState("か", candidateValues, -1)
+        }
         override suspend fun reset() = Unit
     }
 }

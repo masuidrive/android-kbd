@@ -26,6 +26,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     private var candidateSnapshot = CandidateUiSnapshot(0L, emptyList())
     private var voiceSnapshot = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
+    private var onCandidateLongPressed: ((CandidateUiLongPressEvent) -> Boolean)? = null
     private var onVoiceAction: ((VoiceUiEvent) -> Unit)? = null
 
     init {
@@ -39,6 +40,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
+    fun setOnCandidateLongPressed(listener: (CandidateUiLongPressEvent) -> Boolean) { onCandidateLongPressed = listener }
     fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
@@ -98,6 +100,9 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
                 isClickable = true; isFocusable = true
                 contentDescription = "候補 ${index + 1}: $candidate"
                 setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
+                setOnLongClickListener {
+                    onCandidateLongPressed?.invoke(CandidateUiLongPressEvent(snapshot.token, index)) ?: false
+                }
             }, candidateLayout(hasLeadingGap = index > 0))
         }
     }

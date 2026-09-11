@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime.conversion
 
 import android.content.Context
+import com.masuidrive.gestureime.ImePreferences
 import com.google.android.apps.inputmethod.libs.mozc.session.MozcJNI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -12,8 +13,14 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoConfig
 import java.io.File
 
 /** Local-only Mozc session. All protobuf evaluation runs away from the UI thread. */
-class MozcConversionEngine(context: Context) : ConversionEngine {
+class MozcConversionEngine(
+    context: Context,
+    private val userDictionaryEnabled: () -> Boolean = {
+        ImePreferences.isAndroidUserDictionaryEnabled(context.applicationContext)
+    },
+) : ConversionEngine {
     private val appContext = context.applicationContext
+    private val userDictionaryCandidates = AndroidUserDictionaryCandidates(appContext.contentResolver)
     private var sessionId: Long = 0
     private var state = ConversionState("", emptyList(), -1)
     private var initialized = false
@@ -28,7 +35,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         state = ConversionState("", emptyList(), -1)
         if (reading.isEmpty()) return@withContext state
         reading.forEach { sendKey(it.toString()) }
-        state = stateFrom(lastOutput)
+        state = mergeAndroidUserDictionaryCandidates(stateFrom(lastOutput), platformDictionaryWords(reading))
         state
     } }
 
@@ -36,13 +43,23 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         ensureInitialized()
         check(sessionId != 0L) { "Mozc session has not been started" }
         lastOutput = evaluate(commandForKey(ProtoCommands.KeyEvent.SpecialKey.SPACE))
-        state = stateFrom(lastOutput)
+        state = mergeAndroidUserDictionaryCandidates(
+            stateFrom(lastOutput),
+            platformDictionaryWords(state.reading),
+        )
         state
     } }
 
     override suspend fun commit(index: Int): ConversionCommit? = mutex.withLock { withContext(Dispatchers.Default) {
         ensureInitialized()
         val candidate = state.candidates.getOrNull(index) ?: return@withContext null
+        if (candidate.source == ConversionCandidateSource.ANDROID_USER_DICTIONARY) {
+            // A platform dictionary word has no Mozc candidate ID.  The IME
+            // replaces the whole composing reading with this explicit word.
+            deleteSession()
+            state = ConversionState("", emptyList(), -1)
+            return@withContext ConversionCommit(candidate.value)
+        }
         val selectCommand = ProtoCommands.Command.newBuilder().setInput(
             ProtoCommands.Input.newBuilder()
                 .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
@@ -74,6 +91,30 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
         if (committed.isEmpty()) return@withContext null
         state = ConversionState("", emptyList(), -1)
         ConversionCommit(committed)
+    } }
+
+    override suspend fun deleteCandidateFromHistory(index: Int): ConversionState? = mutex.withLock { withContext(Dispatchers.Default) {
+        ensureInitialized()
+        val candidate = state.candidates.getOrNull(index) ?: return@withContext null
+        if (candidate.source != ConversionCandidateSource.MOZC || sessionId == 0L) return@withContext null
+        val output = evaluate(
+            ProtoCommands.Command.newBuilder().setInput(
+                ProtoCommands.Input.newBuilder()
+                    .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
+                    .setId(sessionId)
+                    .setCommand(
+                        ProtoCommands.SessionCommand.newBuilder()
+                            .setType(ProtoCommands.SessionCommand.CommandType.DELETE_CANDIDATE_FROM_HISTORY)
+                            .setId(candidate.id),
+                    ),
+            ).build(),
+        )
+        if (!output.output.consumed) return@withContext null
+        state = mergeAndroidUserDictionaryCandidates(
+            stateFrom(output),
+            platformDictionaryWords(state.reading),
+        )
+        state
     } }
 
     override suspend fun reset() = mutex.withLock { withContext(Dispatchers.Default) {
@@ -113,10 +154,7 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
                 ProtoCommands.Input.newBuilder()
                     .setType(ProtoCommands.Input.CommandType.SET_CONFIG)
                     .setConfig(
-                        ProtoConfig.Config.newBuilder()
-                            .setPreeditMethod(ProtoConfig.Config.PreeditMethod.KANA)
-                            .setIncognitoMode(true)
-                            .setHistoryLearningLevel(ProtoConfig.Config.HistoryLearningLevel.NO_HISTORY),
+                        learningConfig(),
                     ),
             ).build(),
         )
@@ -168,6 +206,9 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
     private fun sendKey(text: String) {
         lastOutput = evaluate(commandForKey(text))
     }
+
+    private fun platformDictionaryWords(reading: String): List<String> =
+        if (userDictionaryEnabled()) userDictionaryCandidates.forReading(reading) else emptyList()
 
     private fun commandForKey(text: String): ProtoCommands.Command = ProtoCommands.Command.newBuilder().setInput(
         ProtoCommands.Input.newBuilder()
@@ -247,5 +288,33 @@ class MozcConversionEngine(context: Context) : ConversionEngine {
 
         internal fun isUsableDataVersion(version: String): Boolean =
             version.isNotBlank() && version != MINIMAL_ENGINE_DATA_VERSION
+
+        internal fun learningConfig(): ProtoConfig.Config = ProtoConfig.Config.newBuilder()
+            .setPreeditMethod(ProtoConfig.Config.PreeditMethod.KANA)
+            .setIncognitoMode(false)
+            .setHistoryLearningLevel(ProtoConfig.Config.HistoryLearningLevel.DEFAULT_HISTORY)
+            .build()
+
+        internal fun mergeAndroidUserDictionaryCandidates(
+            mozcState: ConversionState,
+            userDictionaryWords: List<String>,
+        ): ConversionState {
+            val mozcValues = mozcState.candidates.mapTo(mutableSetOf()) { it.value }
+            val userCandidates = userDictionaryWords
+                .distinct()
+                .filterNot(mozcValues::contains)
+                .mapIndexed { index, value ->
+                    ConversionCandidate(
+                        id = -index - 1,
+                        value = value,
+                        source = ConversionCandidateSource.ANDROID_USER_DICTIONARY,
+                    )
+                }
+            if (userCandidates.isEmpty()) return mozcState
+            return mozcState.copy(
+                candidates = userCandidates + mozcState.candidates,
+                selectedIndex = mozcState.selectedIndex.takeIf { it >= 0 }?.plus(userCandidates.size) ?: -1,
+            )
+        }
     }
 }

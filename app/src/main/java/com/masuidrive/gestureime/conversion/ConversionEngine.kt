@@ -10,6 +10,9 @@ interface ConversionEngine {
 
     suspend fun commit(index: Int): ConversionCommit?
 
+    /** Removes a selected Mozc history candidate, when the engine supports it. */
+    suspend fun deleteCandidateFromHistory(index: Int): ConversionState? = null
+
     suspend fun reset()
 }
 
@@ -22,6 +25,10 @@ data class ConversionState(
 data class ConversionCandidate(
     val id: Int,
     val value: String,
+    val source: ConversionCandidateSource = ConversionCandidateSource.MOZC,
 )
+
+/** Identifies which local store owns a conversion candidate. */
+enum class ConversionCandidateSource { MOZC, ANDROID_USER_DICTIONARY }
 
 data class ConversionCommit(val value: String)

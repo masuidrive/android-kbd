@@ -51,6 +51,11 @@ class SetupActivity : AppCompatActivity() {
                 isChecked = ImePreferences.isEnglishSuggestionsEnabled(context)
                 setOnCheckedChangeListener { _, checked -> ImePreferences.setEnglishSuggestionsEnabled(context, checked) }
             }, matchWidth())
+            addView(Switch(context).apply {
+                text = getString(R.string.android_user_dictionary)
+                isChecked = ImePreferences.isAndroidUserDictionaryEnabled(context)
+                setOnCheckedChangeListener { _, checked -> ImePreferences.setAndroidUserDictionaryEnabled(context, checked) }
+            }, matchWidth())
             addView(TextView(context).apply {
                 text = getString(R.string.slash_commands)
                 textSize = 18f

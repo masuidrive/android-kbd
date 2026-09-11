@@ -61,6 +61,23 @@ class ImePreferencesTest {
     }
 
     @Test
+    fun androidUserDictionaryDefaultsOffAndPersistsExplicitConsent() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
+            .remove("android_user_dictionary_enabled")
+            .apply()
+        assertFalse(ImePreferences.isAndroidUserDictionaryEnabled(context))
+
+        ImePreferences.setAndroidUserDictionaryEnabled(context, true)
+        assertTrue(ImePreferences.isAndroidUserDictionaryEnabled(context))
+
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
+            .putString("android_user_dictionary_enabled", "bad")
+            .apply()
+        assertFalse(ImePreferences.isAndroidUserDictionaryEnabled(context))
+    }
+
+    @Test
     fun slashCommandsDefaultToThreeValuesNormalizeSixSlotsAndHideDuplicates() {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()

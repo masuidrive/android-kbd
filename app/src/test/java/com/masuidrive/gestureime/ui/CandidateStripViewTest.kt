@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime.ui
 
 import android.graphics.Color
+import android.app.Activity
 import android.graphics.Typeface
 import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
@@ -16,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
@@ -221,6 +223,24 @@ class CandidateStripViewTest {
         view.textView("same").performClick()
 
         assertEquals(listOf(CandidateUiEvent(30, 0), CandidateUiEvent(31, 0)), events)
+    }
+
+    @Test fun longPressUsesRenderedTokenAndOnlyConsumesWhenTheServiceAcceptsIt() {
+        val view = view()
+        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
+        val events = mutableListOf<CandidateUiLongPressEvent>()
+        view.setOnCandidateLongPressed { event -> events += event; event.index == 0 }
+        view.showCandidates(CandidateUiSnapshot(32, listOf("履歴", "個人辞書")))
+        val oldHistory = view.textView("履歴")
+
+        assertTrue(oldHistory.performLongClick())
+        assertEquals(listOf(CandidateUiLongPressEvent(32, 0)), events)
+        assertTrue(!view.textView("個人辞書").performLongClick())
+        assertEquals(listOf(CandidateUiLongPressEvent(32, 0), CandidateUiLongPressEvent(32, 1)), events)
+
+        view.showCandidates(CandidateUiSnapshot(33, listOf("履歴")))
+        assertTrue(oldHistory.performLongClick())
+        assertEquals(CandidateUiLongPressEvent(32, 0), events.last())
     }
 
     @Test fun candidateContentChangeResetsScrollButSelectionOnlyChangeKeepsIt() {
