@@ -33,9 +33,9 @@ APKを直接インストールできる配布先へ移し、操作モックと�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者がGitHub Releasesからv0.9.1 APKを直接ダウンロードでき、公開サイトを軽量なまま利用できる。
 
-- [ ] AC 1: GitHub Release v0.9.1に`gesture-ime-v0.9.1.apk`が単体で公開される。
-- [ ] AC 2: 製品紹介、操作モック、マニュアルのAPKリンクがGitHub Releaseの直接APKを開く。
-- [ ] AC 3: Sitesの公開物に旧版を含むAPK ZIPが残らず、操作モック、製品紹介、マニュアルは引き続き表示できる。
+- [x] AC 1: GitHub Release v0.9.1に`gesture-ime-v0.9.1.apk`が単体で公開される。
+- [x] AC 2: 製品紹介、操作モック、マニュアルのAPKリンクがGitHub Releaseの直接APKを開く。
+- [x] AC 3: Sitesの公開物に旧版を含むAPK ZIPが残らず、操作モック、製品紹介、マニュアルは引き続き表示できる。
 
 ### Architectural Invariants check
 配布経路だけの変更であり、端末内完結とネットワーク権限なしを定めるAI-1〜AI-4を変更しない。

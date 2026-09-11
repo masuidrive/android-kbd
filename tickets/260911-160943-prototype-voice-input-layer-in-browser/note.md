@@ -69,6 +69,7 @@
 | 1 | 独立review | - | Critical/Major/Minorなし | 採用findingなし | 390/840px、left flick、途中・最終、候補確定、cancel、theme、Dual、overflowを確認 |
 | 2 | cleanup | Minor | Escapeに削除済hide action呼び出しが残る | 修正 | `03293a6`で`cancelAll()`だけへ整理。再review findingなし |
 | 3 | responsive | Minor | 390pxのanchor jumpでdemo上端がnavへ6px隠れる | 修正 | mobile scroll marginを96pxへ変更。再測定でnav下10px以上を確保 |
+| 4 | 音声面再設計 | - | Critical/Major/Minorなし | 採用findingなし | 390/840px、左上取消、候補1行1件、exact once確定、42px候補欄、Light/Dark、overflow 0を独立確認 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

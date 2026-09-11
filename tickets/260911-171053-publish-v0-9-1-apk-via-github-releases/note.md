@@ -1,5 +1,18 @@
 # Work Notes: 260911-171053-publish-v0-9-1-apk-via-github-releases
 
+## Status: PDH-human-review
+
+## Result
+- GitHub Release `v0.9.1`へ`gesture-ime-v0.9.1.apk`を公開。34,888,644 bytes、SHA-256 `2baffbe07ea94a1c67a01749ec512867fd9d21309f81a71c6c7949b556ca7a23`でローカル成果物と一致。
+- `index.html`、`demo.html`、`manual.html`の全導線をRelease assetへ変更。
+- activeなGesture IME Sites 3件の`downloads/`を削除。`amykwzak` 4件、`h3qwrv2c` 4件、`fez69vft` 1件の配布ZIPを削除した。
+- `fez69vft`へ34ファイル・3,750,743 bytesを再公開。ローカル34ファイルとpath/SHA-256が全件一致し、3サイトすべてのcontent listにZIPがないことを確認。
+- GitHub repositoryはprivateのため、asset URLはGitHub未ログイン状態では404になる。GitHubへログイン済みの権限保有者が取得する配布である。
+
+## Review
+- 独立reviewは音声UIにCritical/Major/Minorなし。Release作成前に検出したAPK URL 404は、Release asset公開によって解消済み（GitHub API上でuploaded、digest/size一致）。
+- `scripts/test-all.sh --parallel`: fast-checks、Android unit/lint/apkともPASS。
+
 ## Status: PDH-open (Opening)
 
 ## Checklist
