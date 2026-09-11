@@ -226,6 +226,7 @@ class KeyboardViewTest {
         assertEquals(center(idleMain), center(pressed.draws.last { it.text == "q" }), .1f)
         assertEquals(center(idleAux), center(pressed.draws.last { it.text == "1" }), .1f)
         touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY() - 24f, 10)
+        assertEquals(0, frame().draws.last { it.text == "1" }.alpha)
         looper.idleFor(100, TimeUnit.MILLISECONDS)
         val up = frame()
         val uppercase = up.draws.last { it.text == "Q" }
@@ -240,6 +241,7 @@ class KeyboardViewTest {
         assertEquals(11f * 1.7f, downAux.textSize, .2f)
         assertEquals(0, down.draws.last { it.text == "q" }.alpha)
         touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY().toFloat(), 230)
+        assertEquals(255, frame().draws.last { it.text == "1" }.alpha)
         val reverseStart = center(frame().draws.last { it.text == "1" })
         looper.idleFor(45, TimeUnit.MILLISECONDS)
         val reverseMiddle = center(frame().draws.last { it.text == "1" })
@@ -248,6 +250,23 @@ class KeyboardViewTest {
         assertTrue(reverseMiddle < reverseStart)
         assertEquals(center(idleAux), reverseEnd, .6f)
         touch(MotionEvent.ACTION_CANCEL, q.centerX().toFloat(), q.centerY().toFloat(), 300)
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `mode change cancels an old label animator before pointer id reuse`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
+        val q = keyCenter(0)
+        touch(MotionEvent.ACTION_DOWN, q.first, q.second)
+        touch(MotionEvent.ACTION_MOVE, q.first, q.second + 24f, 10)
+        view.setMode(KeyboardMode.KANA)
+        view.setMode(KeyboardMode.QWERTY)
+        val freshQ = keyCenter(0)
+        touch(MotionEvent.ACTION_DOWN, freshQ.first, freshQ.second, 20)
+        looper.idleFor(100, TimeUnit.MILLISECONDS)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val drawn = canvas.draws.last { it.text == "q" }
+        assertEquals(keyBounds(0).exactCenterY() + 5f, drawn.y + (drawn.ascent + drawn.descent) / 2f, .6f)
+        touch(MotionEvent.ACTION_CANCEL, freshQ.first, freshQ.second, 130)
     }
 
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter down animates paste and dispatches paste only on release`() {
@@ -261,6 +280,8 @@ class KeyboardViewTest {
         val idleHint = idle.draws.last { it.text == "paste" }
         assertEquals(enter.top + 29f, center(idleMain), .6f)
         assertEquals(enter.top + 12.5f, center(idleHint), .6f)
+        assertEquals((255 * .7f).toInt(), idleHint.alpha)
+        assertEquals(.7f / idleHint.textSize, idleHint.letterSpacing, .001f)
         touch(MotionEvent.ACTION_DOWN, enter.centerX().toFloat(), enter.centerY().toFloat())
         touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() + 24f, 10)
         assertTrue(actions.isEmpty())
@@ -517,6 +538,7 @@ class KeyboardViewTest {
         val alpha: Int,
         val ascent: Float,
         val descent: Float,
+        val letterSpacing: Float,
     )
 
     private data class RoundDraw(val rect: android.graphics.RectF, val color: Int)
@@ -526,7 +548,7 @@ class KeyboardViewTest {
         val roundRects = mutableListOf<RoundDraw>()
 
         override fun drawText(text: String, x: Float, y: Float, paint: Paint) {
-            draws += TextDraw(text, x, y, paint.textSize, paint.alpha, paint.ascent(), paint.descent())
+            draws += TextDraw(text, x, y, paint.textSize, paint.alpha, paint.ascent(), paint.descent(), paint.letterSpacing)
             super.drawText(text, x, y, paint)
         }
 

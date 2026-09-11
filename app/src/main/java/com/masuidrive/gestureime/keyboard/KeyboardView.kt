@@ -160,6 +160,9 @@ class KeyboardView @JvmOverloads constructor(
         voiceHoldMultiPointer = false
         timers.values.forEach(::removeCallbacks)
         timers.clear()
+        labelAnimators.values.forEach(ValueAnimator::cancel)
+        labelAnimators.clear()
+        labelFrames.clear()
         active.clear()
         directions.clear()
         cursorMoved.clear()
@@ -189,9 +192,6 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         cancelActiveGestures()
-        labelAnimators.values.forEach(ValueAnimator::cancel)
-        labelAnimators.clear()
-        labelFrames.clear()
         dismissPopup()
         super.onDetachedFromWindow()
     }
@@ -332,6 +332,9 @@ class KeyboardView @JvmOverloads constructor(
             val adjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
             textPaint.color = if (selected) Color.rgb(16, 40, 68) else Color.rgb(181, 181, 191)
+            val isStackHint = spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE)
+            textPaint.alpha = if (isStackHint) (255 * .7f).toInt() else 255
+            textPaint.letterSpacing = if (isStackHint) dp(.7f) / textPaint.textSize else 0f
             val visualCenter = when {
                 spec.kind == KeyKind.ENTER -> target.bounds.height() / density / 2f - 10f
                 spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY ->
@@ -341,6 +344,8 @@ class KeyboardView @JvmOverloads constructor(
             }
             val baseline = safeBaseline(target.bounds, baselineAtVisualCenter(target.bounds.top + dp(visualCenter + adjustment.yOffsetDp)))
             drawFittedText(canvas, secondary, target.bounds.centerX() + dp(adjustment.xOffsetDp), baseline, availableWidth(target.bounds, adjustment.xOffsetDp))
+            textPaint.letterSpacing = 0f
+            textPaint.alpha = 255
         }
         canvas.restoreToCount(textSave)
     }
@@ -357,9 +362,11 @@ class KeyboardView @JvmOverloads constructor(
         val secondaryAdjustment = labelAdjustment(spec, secondary = true)
         textPaint.textSize = sp(10f) * secondaryAdjustment.scale * frame.secondaryScale
         textPaint.color = Color.rgb(16, 40, 68)
-        textPaint.alpha = (255 * frame.secondaryAlpha).toInt()
+        textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
+        textPaint.letterSpacing = dp(.7f) / textPaint.textSize
         val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
         drawFittedText(canvas, secondary, bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), secondaryBaseline, availableWidth(bounds, secondaryAdjustment.xOffsetDp))
+        textPaint.letterSpacing = 0f
         textPaint.textSize = sp(15f) * primaryAdjustment.scale
         textPaint.alpha = (255 * frame.mainAlpha).toInt()
         val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(6.5f + frame.mainDy + primaryAdjustment.yOffsetDp))
@@ -724,7 +731,8 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun animateLabels(id: Int, direction: Direction) {
         labelAnimators.remove(id)?.cancel()
-        val start = labelFrames[id] ?: LabelFrame()
+        val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
+        val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
         val end = when (direction) {
             Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
             Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = 13f, secondaryScale = 1.7f)
@@ -735,6 +743,8 @@ class KeyboardView @JvmOverloads constructor(
             invalidate()
             return
         }
+        labelFrames[id] = start
+        invalidate()
         labelAnimators[id] = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = LABEL_ANIMATION_MS; interpolator = PathInterpolator(.25f, .1f, .25f, 1f)
             addUpdateListener {
@@ -744,7 +754,7 @@ class KeyboardView @JvmOverloads constructor(
                     mainAlpha = start.mainAlpha + (end.mainAlpha - start.mainAlpha) * p,
                     secondaryDy = start.secondaryDy + (end.secondaryDy - start.secondaryDy) * p,
                     secondaryScale = start.secondaryScale + (end.secondaryScale - start.secondaryScale) * p,
-                    secondaryAlpha = start.secondaryAlpha + (end.secondaryAlpha - start.secondaryAlpha) * p,
+                    secondaryAlpha = immediateSecondaryAlpha,
                 )
                 invalidate()
             }
