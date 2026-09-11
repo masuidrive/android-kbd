@@ -13,6 +13,7 @@ import android.speech.RecognitionSupportCallback
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.content.ContextCompat
+import androidx.annotation.RequiresApi
 
 sealed interface VoiceBackendState {
     data object Idle : VoiceBackendState
@@ -57,7 +58,10 @@ class VoiceRecognitionController internal constructor(
         onDeviceAvailable = {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
         },
-        factory = VoiceRecognizerFactory { listener -> AndroidVoiceRecognizer(context, listener) },
+        factory = VoiceRecognizerFactory { listener ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) AndroidVoiceRecognizer(context, listener)
+            else error("On-device speech recognition requires Android 12")
+        },
         onState = onState,
     )
 
@@ -178,6 +182,7 @@ class VoiceRecognitionController internal constructor(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.S)
 private class AndroidVoiceRecognizer(
     context: Context,
     private val listener: VoiceRecognizerListener,
