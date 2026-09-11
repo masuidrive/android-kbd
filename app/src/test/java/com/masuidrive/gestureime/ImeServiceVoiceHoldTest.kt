@@ -49,6 +49,16 @@ class ImeServiceVoiceHoldTest {
         assertEquals("",h.input.text)
         assertEquals(false,h.root.allText().contains("途中の文"))
     }
+    @Test fun unavailableAfterPartialClearsTheStalePartialCandidate() {
+        val h=Harness(); h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.partial("古い途中結果"); h.idle()
+        assertTrue(h.root.allText().contains("古い途中結果"))
+
+        h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+
+        assertEquals(false, h.root.allText().contains("古い途中結果"))
+        assertTrue(h.root.allText().contains("非対応"))
+    }
     @Test fun releaseAfterPartialWaitsForFinalAndCommitsOnlyFinalText() {
         val h=Harness(); h.begin(); h.recognizer.partial("途中"); h.service.onVoiceHold(VoiceHoldEvent.End(1)); h.idle()
         assertEquals("",h.input.text)
@@ -79,7 +89,7 @@ class ImeServiceVoiceHoldTest {
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
     private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; override fun commitText(t:CharSequence?,n:Int):Boolean { text+=t?.toString() ?: ""; return true } }
-    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()) }
+    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 
     private fun View.allText():List<String> { val result=mutableListOf<String>(); fun visit(v:View){ if(v is android.widget.TextView) result+=v.text.toString(); if(v is android.view.ViewGroup) repeat(v.childCount){visit(v.getChildAt(it))} }; visit(this); return result }

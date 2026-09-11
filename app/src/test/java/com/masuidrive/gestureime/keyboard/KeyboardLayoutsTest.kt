@@ -61,6 +61,8 @@ class KeyboardLayoutsTest {
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.down?.action)
         }
         val voice = keys(KeyboardMode.VOICE).single { it.kind == KeyKind.LAYER_SWITCH }
+        assertEquals("キャンセル", voice.center?.label)
+        assertEquals(2f, voice.widthUnits)
         assertEquals(KeyAction.CancelVoice, voice.center?.action)
         assertNull(voice.left)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), voice.up?.action)

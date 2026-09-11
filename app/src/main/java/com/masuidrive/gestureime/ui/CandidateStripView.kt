@@ -96,11 +96,15 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         val snapshot = candidateSnapshot
         snapshot.candidates.forEachIndexed { index, candidate ->
             candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
-                isClickable = true; isFocusable = true
-                contentDescription = "候補 ${index + 1}: $candidate"
-                setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
-                setOnLongClickListener {
-                    onCandidateLongPressed?.invoke(CandidateUiLongPressEvent(snapshot.token, index)) ?: false
+                isEnabled = snapshot.selectable
+                isClickable = snapshot.selectable
+                isFocusable = snapshot.selectable
+                contentDescription = if (snapshot.selectable) "候補 ${index + 1}: $candidate" else "認識途中: $candidate"
+                if (snapshot.selectable) {
+                    setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
+                    setOnLongClickListener {
+                        onCandidateLongPressed?.invoke(CandidateUiLongPressEvent(snapshot.token, index)) ?: false
+                    }
                 }
             }, candidateLayout(hasLeadingGap = index > 0))
         }

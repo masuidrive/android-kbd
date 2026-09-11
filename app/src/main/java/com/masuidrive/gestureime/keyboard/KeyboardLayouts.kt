@@ -66,7 +66,7 @@ object KeyboardLayouts {
         KeyboardRow(listOf(empty(10f))),
         KeyboardRow(listOf(empty(10f))),
         KeyboardRow(listOf(empty(10f))),
-        KeyboardRow(listOf(voiceLayerKey(), empty(8.55f))),
+        KeyboardRow(listOf(voiceLayerKey(), empty(8f))),
     ))
 
     private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
@@ -142,11 +142,11 @@ object KeyboardLayouts {
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), widthUnits = width, dark = true)
 
     private fun voiceLayerKey() = KeySpec("voice-cancel", KeyKind.LAYER_SWITCH,
-        FlickValue("取消", KeyAction.CancelVoice),
+        FlickValue("キャンセル", KeyAction.CancelVoice),
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
-        widthUnits = 1.45f,
+        widthUnits = 2f,
         dark = true,
     )
 

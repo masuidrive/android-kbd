@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.HorizontalScrollView
 import android.os.Looper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +35,27 @@ class CandidateStripViewTest {
         view.textView("日本語の").performClick()
         assertEquals(listOf(CandidateUiEvent(20, 1)), candidates); assertTrue(actions.isEmpty())
         assertTrue(view.allTextViews().none { it.text == "音声" })
+    }
+
+    @Test fun partialCandidateUsesTheCandidateFaceButCannotBeSelected() {
+        val view = view()
+        val events = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(events::add)
+        view.showCandidates(CandidateUiSnapshot(41, listOf("認識の途中"), selectable = false))
+
+        val partial = view.textView("認識の途中")
+        assertFalse(partial.isEnabled)
+        assertFalse(partial.isClickable)
+        assertFalse(partial.isFocusable)
+        assertFalse(partial.performClick())
+        assertEquals(emptyList<CandidateUiEvent>(), events)
+
+        view.showCandidates(CandidateUiSnapshot(42, listOf("最終候補")))
+        val final = view.textView("最終候補")
+        assertTrue(final.isEnabled)
+        assertTrue(final.isClickable)
+        assertTrue(final.performClick())
+        assertEquals(listOf(CandidateUiEvent(42, 0)), events)
     }
 
     @Test fun recordingAndRecognizingKeepTheCandidateAreaEmptyWithoutLegacyControls() {

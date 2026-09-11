@@ -19,6 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -147,10 +148,57 @@ class ImeServiceVoiceLifecycleTest {
         controller.destroy()
     }
 
+    @Test
+    fun closingVoiceLayerRestoresItsPreviousModeAndClearsCandidates() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        service.onStartInput(EditorInfo(), false)
+        val root = service.onCreateInputView()
+        val keyboard = root.keyboardView()
+        val strip = root.candidateStripView()
+
+        service.setModeForLifecycleTest(KeyboardMode.VOICE, returnMode = KeyboardMode.KANA)
+        keyboard.setMode(KeyboardMode.VOICE)
+        assertEquals(KeyboardMode.VOICE, keyboard.mode())
+        strip.showCandidates(CandidateUiSnapshot(99, listOf("古い音声候補")))
+
+        service.onFinishInputView(false)
+        service.onStartInputView(EditorInfo(), true)
+
+        assertEquals(KeyboardMode.KANA, keyboard.mode())
+        assertFalse(root.containsText("古い音声候補"))
+        controller.destroy()
+    }
+
+    @Test
+    fun finishingInputAloneCannotLeaveTheKeyboardInVoiceMode() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val keyboard = service.onCreateInputView().keyboardView()
+        service.setModeForLifecycleTest(KeyboardMode.VOICE, returnMode = KeyboardMode.SYMBOLS)
+        keyboard.setMode(KeyboardMode.VOICE)
+
+        service.onFinishInput()
+
+        assertEquals(KeyboardMode.SYMBOLS, keyboard.mode())
+        controller.destroy()
+    }
+
     private fun View.hasVoiceControl(): Boolean {
         if (contentDescription?.let { it.contains("音声") || it.contains("マイク") } == true) return true
         val group = this as? ViewGroup ?: return false
         return (0 until group.childCount).any { group.getChildAt(it).hasVoiceControl() }
+    }
+
+    private fun View.containsText(value: String): Boolean {
+        if (this is android.widget.TextView && text.toString() == value) return true
+        val group = this as? ViewGroup ?: return false
+        return (0 until group.childCount).any { group.getChildAt(it).containsText(value) }
+    }
+
+    private fun ImeService.setModeForLifecycleTest(mode: KeyboardMode, returnMode: KeyboardMode) {
+        ImeService::class.java.getDeclaredField("keyboardMode").apply { isAccessible = true }.set(this, mode)
+        ImeService::class.java.getDeclaredField("voiceReturnMode").apply { isAccessible = true }.set(this, returnMode)
     }
 
     private fun View.keyboardView(): KeyboardView {

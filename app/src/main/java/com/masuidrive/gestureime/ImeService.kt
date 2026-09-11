@@ -89,7 +89,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     override fun onCreateInputView(): View {
-        cancelVoiceHold()
+        if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
@@ -115,7 +115,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
-        cancelVoiceHold()
+        if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         finishEnglishRaw()
         finishSlashRaw()
         setVoiceUi(VoiceUiState.Hidden)
@@ -125,7 +125,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        cancelVoiceHold()
+        if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
     }
 
@@ -146,7 +146,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     override fun onFinishInput() {
-        cancelVoiceHold()
+        if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         finishEnglishRaw()
         finishSlashRaw()
         editorSession.advance()
@@ -527,8 +527,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         keyboardView?.setCandidates(candidates, selectedCandidate)
     }
 
-    private fun showCandidateStrip(values: List<String>, selectedIndex: Int) {
-        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex))
+    private fun showCandidateStrip(values: List<String>, selectedIndex: Int, selectable: Boolean = true) {
+        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable))
     }
 
     private fun candidateSnapshot() = CandidateSnapshot(
@@ -671,14 +671,19 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = listOf(state.text)
-                    showCandidateStrip(candidates, -1)
+                    showCandidateStrip(candidates, -1, selectable = false)
                 }
                 is VoiceBackendState.Preview -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = state.candidates
                     showCandidateStrip(candidates, -1)
                 }
-                else -> setVoiceUi(state.toUiState())
+                else -> {
+                    candidateSource = CandidateSource.NONE
+                    candidates = emptyList()
+                    showCandidateStrip(emptyList(), -1)
+                    setVoiceUi(state.toUiState())
+                }
             }
             return
         }
