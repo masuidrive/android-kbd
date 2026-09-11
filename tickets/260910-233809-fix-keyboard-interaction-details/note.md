@@ -109,3 +109,5 @@
 - 実装default: 無変換は原読みのひらがな、カタカナは原読みをカタカナへ変換したpreviewへ切り替え、Enter「確定」tapで挿入する。ユーザーへ質問後に回答がなかったためrootがdefault続行を明示したもので、個別承認済みとは記録しない。通常かな再入力、BS、候補Spaceで古いpreviewを残さない回帰を確認する。
 - 事前監査: 正本モックの「小」はtapによる直前かなcycleだけで、方向別フリック割当は定義されていない。AC 2の方向割当はユーザーへ上=小文字、左=濁点、右=半濁点、tap=cycle、下=未割当を提案中。このmappingだけ回答まで実装を保留し、未定義方向を創作しない。
 - preview状態は原readingを保持し、候補更新・reset・通常かな再入力・BS・候補Spaceで表示用ひらがな/カタカナを変換readingとして再利用したり古いpreviewを残したりしない。
+- 本体側: CandidateStripの空表示を無文言化し、候補下8dp余白とCSS基準15spへ調整。ESC key event、原readingを保持するひらがな/カタカナpreview、「確定」tap処理をImeService/TextInputControllerへ追加。通常かな、BS、候補Spaceの前にpreviewを原readingへ戻す。
+- 配布段階1はversionName 0.2.0 / versionCode 2。対象単体テストはTextInputControllerTest/ImePreferencesTestで成功。

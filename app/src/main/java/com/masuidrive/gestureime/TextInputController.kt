@@ -145,6 +145,11 @@ class TextInputController(
         }
     }
 
+    fun escape() {
+        finishComposition()
+        sendKey(KeyEvent.KEYCODE_ESCAPE)
+    }
+
     fun paste() {
         if (isPrivateField || !clipboard.hasPrimaryClip()) return
         val clip = clipboard.primaryClip ?: return

@@ -44,3 +44,4 @@
 [2026/09/11 09:02] QWERTY BSの直前指定をユーザー訂正に合わせ、tap=1文字削除、下swipe=ESC、上・左・右swipe=未割当へAC 5を更新した。主BSラベルは表示し、ESCを含む補助ラベルは表示しない。記号レイヤーのESC要件は維持し、実装は開始していない。
 [2026/09/11 09:07] Dual Flick設定をONにした広幅画面で、日本語12キー3×4を左右2セット表示して両手入力を試す未着手ticket `260911-000706-add-dual-flick-wide-layout` を起票した。Fold7展開画面を対象とし、OFF/狭幅は単一配列、幅変化時はcomposition保持を要件候補にした。thresholdと周辺キー配置は未確定で、実装・probeは開始していない。
 [2026/09/11 09:11] ユーザーの段階1実装・公開指示を受け、調整とDual Flickを同じdeliveryで開始準備。C/A待機色をCSS一致として採用し、無変換/カタカナはpreview切替後に「確定」tapで挿入するdefaultで進める。音声入力は段階1公開後まで未着手を維持する。
+[2026/09/11 09:16] 調整ticketを旧native featureから、Dual Flick ticketを調整featureから標準PDH手順で開始し、両方を同一delivery履歴へ接続した。設定default OFFの永続化、候補placeholder削除、ESC送出、変換中ひらがな/カタカナpreviewと確定、v0.2.0化を本体側へ実装し、対象単体テストが成功した。

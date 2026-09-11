@@ -34,6 +34,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     private var reading = ""
     private var candidates = emptyList<String>()
     private var selectedCandidate = -1
+    private var conversionPreview: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -45,9 +46,10 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onCreateInputView(): View {
-        val candidateHeight = (52 * resources.displayMetrics.density).toInt()
+        val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
+            it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             keyboardView = it
         }
         val strip = CandidateStripView(this).also {
@@ -68,6 +70,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         textController.beginInput(attribute)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
         keyboardView?.setMode(KeyboardMode.QWERTY)
+        keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
     }
 
     override fun onFinishInput() {
@@ -123,9 +126,16 @@ class ImeService : InputMethodService(), KeyboardActionSink {
                     editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }
                 }
             }
-            is KeyAction.KanaInput -> updateReading(textController.appendComposing(action.reading))
-            KeyAction.TransformKana -> updateReading(textController.transformKana())
+            is KeyAction.KanaInput -> {
+                restoreReadingPreview()
+                updateReading(textController.appendComposing(action.reading))
+            }
+            KeyAction.TransformKana -> {
+                restoreReadingPreview()
+                updateReading(textController.transformKana())
+            }
             is KeyAction.Backspace -> {
+                restoreReadingPreview()
                 val remaining = textController.backspace()
                 if (reading.isNotEmpty()) updateReading(remaining)
             }
@@ -148,6 +158,13 @@ class ImeService : InputMethodService(), KeyboardActionSink {
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.paste() }
             }
+            KeyAction.Escape -> {
+                resetConversion(clearComposing = false)
+                editorSession.runIfCurrent(editorToken) { textController.escape() }
+            }
+            KeyAction.CommitConversion -> commitDisplayedConversion()
+            KeyAction.CommitWithoutConversion -> showConversionPreview(reading)
+            KeyAction.ConvertToKatakana -> showConversionPreview(reading.toKatakana())
             is KeyAction.MoveCursor -> {
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.moveCursor(action.direction, action.units) }
@@ -170,12 +187,14 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     private suspend fun updateReading(newReading: String) {
+        conversionPreview = null
         if (textController.isPrivateField || newReading.isEmpty()) {
             resetConversion(clearComposing = false)
             return
         }
         val wasEmpty = reading.isEmpty()
         reading = newReading
+        keyboardView?.setConversionActive(true)
         val generation = ++conversionGeneration
         val state = if (wasEmpty) conversionEngine.start(newReading) else conversionEngine.update(newReading)
         if (generation == conversionGeneration && reading == newReading) applyConversion(state)
@@ -183,6 +202,8 @@ class ImeService : InputMethodService(), KeyboardActionSink {
 
     private suspend fun cycleCandidate() {
         if (reading.isEmpty()) return textController.commitText(" ")
+        conversionPreview = null
+        textController.replaceComposing(reading)
         val generation = ++conversionGeneration
         val state = conversionEngine.nextCandidate()
         if (generation == conversionGeneration) applyConversion(state)
@@ -197,11 +218,39 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         clearCandidateState()
     }
 
+    private suspend fun commitDisplayedConversion() {
+        val preview = conversionPreview
+        if (preview != null) {
+            textController.commitCandidate(preview)
+            resetConversion(clearComposing = false)
+        } else if (candidates.isNotEmpty()) {
+            commitCandidate(selectedCandidate.coerceAtLeast(0))
+        } else if (reading.isNotEmpty()) {
+            textController.commitCandidate(reading)
+            resetConversion(clearComposing = false)
+        }
+    }
+
+    private fun showConversionPreview(value: String) {
+        if (reading.isEmpty()) return
+        conversionPreview = value
+        textController.replaceComposing(value)
+        candidateStrip?.showCandidates(emptyList(), -1)
+        keyboardView?.setCandidates(emptyList(), -1)
+    }
+
+    private fun restoreReadingPreview() {
+        if (conversionPreview == null) return
+        conversionPreview = null
+        textController.replaceComposing(reading)
+    }
+
     private fun applyConversion(state: ConversionState) {
         candidates = state.candidates.map { it.value }
         selectedCandidate = state.selectedIndex
         candidateStrip?.showCandidates(candidates, selectedCandidate)
         keyboardView?.setCandidates(candidates, selectedCandidate)
+        keyboardView?.setConversionActive(reading.isNotEmpty())
     }
 
     private fun invalidateConversion(clearComposing: Boolean) {
@@ -226,8 +275,10 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         reading = ""
         candidates = emptyList()
         selectedCandidate = -1
+        conversionPreview = null
         candidateStrip?.showCandidates(emptyList(), -1)
         keyboardView?.setCandidates(emptyList(), -1)
+        keyboardView?.setConversionActive(false)
     }
 
     override fun onDestroy() {
@@ -235,3 +286,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         super.onDestroy()
     }
 }
+
+internal fun String.toKatakana(): String = map { char ->
+    if (char in 'ぁ'..'ゖ') (char.code + 0x60).toChar() else char
+}.joinToString("")

@@ -24,10 +24,12 @@ class CandidateStripView @JvmOverloads constructor(
 
     init {
         isHorizontalScrollBarEnabled = false
+        val bottomGap = (8 * resources.displayMetrics.density).toInt()
+        setPadding(0, 0, 0, bottomGap)
         setBackgroundColor(Color.rgb(42, 49, 58))
         row.setBackgroundColor(Color.rgb(42, 49, 58))
         addView(row, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        showMessage("かなを入力すると候補を表示します")
+        clear()
     }
 
     fun setOnCandidateSelected(listener: (Int) -> Unit) {
@@ -37,7 +39,7 @@ class CandidateStripView @JvmOverloads constructor(
     fun showCandidates(candidates: List<String>, selectedIndex: Int) {
         row.removeAllViews()
         if (candidates.isEmpty()) {
-            showMessage("かなを入力すると候補を表示します")
+            clear()
             return
         }
         var selectedView: TextView? = null
@@ -61,6 +63,10 @@ class CandidateStripView @JvmOverloads constructor(
         showMessage(message)
     }
 
+    private fun clear() {
+        row.removeAllViews()
+    }
+
     private fun showMessage(message: String) {
         row.removeAllViews()
         row.addView(label(message, false))
@@ -68,10 +74,10 @@ class CandidateStripView @JvmOverloads constructor(
 
     private fun label(textValue: String, selected: Boolean) = TextView(context).apply {
         text = textValue
-        setTextSize(TypedValue.COMPLEX_UNIT_PX, 18f * resources.displayMetrics.density)
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, 15f * resources.displayMetrics.density)
         gravity = Gravity.CENTER
         val h = (18 * resources.displayMetrics.density).toInt()
-        val v = (10 * resources.displayMetrics.density).toInt()
+        val v = (6 * resources.displayMetrics.density).toInt()
         setPadding(h, v, h, v)
         setTextColor(if (selected) Color.rgb(0, 25, 35) else Color.WHITE)
         setBackgroundColor(if (selected) Color.rgb(97, 210, 255) else Color.rgb(42, 49, 58))

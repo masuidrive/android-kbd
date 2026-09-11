@@ -90,3 +90,4 @@
 - default OFFと幅thresholdは未承認の仮定を含むため、ticket reviewと実機probeを経てから実装する。
 - 複製範囲は日本語12キー「あ・か・さ / た・な・は / ま・や・ら / 小・わ・句読点」に固定し、candidate strip、編集キー、レイヤー切替キーは1セットを維持する。
 - 左右同時操作はAndroidのUPイベント到着順にdispatchし、既存の変換直列化経路へ渡す。
+- 本体側: SharedPreferencesにDual Flick toggleをdefault OFFで永続化し、SetupActivityとImeServiceから同じ値を読み書きする。KeyboardViewへ設定を明示して、幅判定・描画はkeyboard担当へ委譲する。

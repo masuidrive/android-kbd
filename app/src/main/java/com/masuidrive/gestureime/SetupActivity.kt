@@ -9,6 +9,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Switch
 import androidx.appcompat.app.AppCompatActivity
 
 class SetupActivity : AppCompatActivity() {
@@ -27,6 +28,13 @@ class SetupActivity : AppCompatActivity() {
                 text = getString(R.string.setup_body)
                 textSize = 16f
                 setPadding(0, padding, 0, padding)
+            }, matchWidth())
+            addView(Switch(context).apply {
+                text = getString(R.string.dual_flick)
+                isChecked = ImePreferences.isDualFlickEnabled(context)
+                setOnCheckedChangeListener { _, checked ->
+                    ImePreferences.setDualFlickEnabled(context, checked)
+                }
             }, matchWidth())
             addView(Button(context).apply {
                 text = getString(R.string.enable_ime)

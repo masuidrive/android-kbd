@@ -3,6 +3,7 @@ package com.masuidrive.gestureime
 import android.content.ClipboardManager
 import android.text.InputType
 import android.view.View
+import android.view.KeyEvent
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedText
@@ -153,6 +154,13 @@ class TextInputControllerTest {
         controller.commitCandidate("仮名")
 
         assertEquals(listOf("compose:かな", "commit:仮名"), input.operations)
+    }
+
+    @Test
+    fun escapeSendsDownAndUpKeyEvents() {
+        controller.escape()
+
+        assertEquals(listOf(KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_ESCAPE), input.keyEvents)
     }
 
     private class RecordingInputConnection(view: View) : BaseInputConnection(view, true) {
