@@ -282,7 +282,7 @@ class KeyboardViewTest {
         assertEquals(enter.top + 12.5f, center(idleHint), .6f)
         assertEquals((255 * .7f).toInt(), idleHint.alpha)
         assertEquals(.7f / idleHint.textSize, idleHint.letterSpacing, .001f)
-        assertEquals(android.graphics.Color.rgb(244, 244, 246), idleHint.color)
+        assertEquals(android.graphics.Color.rgb(25, 25, 27), idleHint.color)
         touch(MotionEvent.ACTION_DOWN, enter.centerX().toFloat(), enter.centerY().toFloat())
         touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() + 24f, 10)
         assertTrue(actions.isEmpty())
@@ -316,7 +316,7 @@ class KeyboardViewTest {
         val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
         val q = keyBounds(0)
         val qShadow = canvas.roundRects.first { it.rect.left == q.left.toFloat() && it.rect.top == q.top + 1f }
-        assertEquals(android.graphics.Color.rgb(20, 20, 22), qShadow.color)
+        assertEquals(android.graphics.Color.rgb(137, 140, 148), qShadow.color)
         assertEquals(q.bottom + 1f, qShadow.rect.bottom, .01f)
     }
 
@@ -339,7 +339,7 @@ class KeyboardViewTest {
         val accentId = KeyboardLayouts.layout(KeyboardMode.KANA, false, false).rows.flatMap { it.keys }
             .indexOfFirst { it.kind == KeyKind.ACCENT }
         val accentBounds = android.graphics.RectF(keyBounds(accentId))
-        assertEquals(android.graphics.Color.rgb(65, 65, 68), idle.roundRects.last {
+        assertEquals(android.graphics.Color.WHITE, idle.roundRects.last {
             kotlin.math.abs(it.rect.centerX() - accentBounds.centerX()) < 1f &&
                 kotlin.math.abs(it.rect.centerY() - accentBounds.centerY()) < 1f
         }.color)

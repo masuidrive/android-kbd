@@ -10,21 +10,37 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import com.masuidrive.gestureime.R
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class KeyboardThemeTest {
     @Test @Config(qualifiers = "notnight") fun lightThemeUsesReferenceKeyboardBackground() {
-        assertEquals(0xffd3d5db.toInt(), renderBackground())
+        val activity = activity()
+        assertEquals(0xffd3d5db.toInt(), renderBackground(activity))
+        assertEquals(0xffffffff.toInt(), activity.getColor(R.color.keyboard_key))
+        assertEquals(0xffaeb3bd.toInt(), activity.getColor(R.color.keyboard_special))
+        assertEquals(0xff19191b.toInt(), activity.getColor(R.color.keyboard_text))
+        assertEquals(0xff174ea6.toInt(), activity.getColor(R.color.keyboard_selected))
+        assertEquals(0xffffffff.toInt(), activity.getColor(R.color.keyboard_selected_text))
+        assertEquals(0xff898c94.toInt(), activity.getColor(R.color.keyboard_shadow))
     }
 
     @Test @Config(qualifiers = "night") fun darkThemeKeepsExistingKeyboardBackground() {
-        assertEquals(0xff29292c.toInt(), renderBackground())
+        val activity = activity()
+        assertEquals(0xff29292c.toInt(), renderBackground(activity))
+        assertEquals(0xff414144.toInt(), activity.getColor(R.color.keyboard_key))
+        assertEquals(0xff303034.toInt(), activity.getColor(R.color.keyboard_special))
+        assertEquals(0xfff4f4f6.toInt(), activity.getColor(R.color.keyboard_text))
+        assertEquals(0xffa8ceff.toInt(), activity.getColor(R.color.keyboard_selected))
+        assertEquals(0xff102844.toInt(), activity.getColor(R.color.keyboard_selected_text))
+        assertEquals(0xff141416.toInt(), activity.getColor(R.color.keyboard_shadow))
     }
 
-    private fun renderBackground(): Int {
-        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+    private fun activity() = Robolectric.buildActivity(Activity::class.java).setup().get()
+
+    private fun renderBackground(activity: Activity): Int {
         val view = KeyboardView(activity)
         activity.setContentView(view)
         view.measure(exact(412), exact(220))

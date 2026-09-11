@@ -64,6 +64,10 @@
 - `onConfigurationChanged`でKeyboardViewと表示中popupをinvalidateし、CandidateStripViewは子Viewを再renderする。
 - 重複検出 skip: `similarity-generic`が環境にinstallされていないため。色resource参照は既存3描画classへ直接適用し、新規utilityは追加していない。
 - Targeted tests: `./gradlew testDebugUnitTest --tests '...KeyboardThemeTest' --tests '...KeyboardPopupControllerTest' --tests '...CandidateStripViewTest'` → BUILD SUCCESSFUL。
+- Full test 1回目: 既存KeyboardViewTest 3件がDark固定色を期待してfail。Light既定値へ期待を更新し、Dark配色はKeyboardThemeTestで6色を固定した。
+- Full test 2回目: `scripts/test-all.sh` → fast-check 5件、unit 125件、lint、debug APK buildすべて成功。
+- AVD: API 36.1でLight/Darkへ切替後、Gesture IMEを再表示。`docs/verification/light-mode-keyboard.png`と`dark-mode-keyboard.png`に実画面を保存した。
+- Connected tests: `./gradlew connectedDebugAndroidTest` → Popup_API_36_1で7件成功。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
