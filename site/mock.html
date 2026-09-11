@@ -130,14 +130,12 @@
   #ios-keyboard-demo .english .key-row:last-child .return { flex:2; }
   #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 0; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
-  #ios-keyboard-demo .voice-layer { display:grid; place-items:center; min-height:210px; padding:24px 16px; text-align:center; }
-  #ios-keyboard-demo .voice-card { width:min(100%,520px); padding:22px; border:1px solid var(--ik-line); border-radius:14px; background:var(--ik-paper); }
-  #ios-keyboard-demo .voice-state { margin:0 0 8px; color:var(--ik-blue); font-size:12px; font-weight:650; letter-spacing:.05em; }
-  #ios-keyboard-demo .voice-partial { min-height:3.4em; margin:0; font-size:clamp(18px,4vw,25px); line-height:1.7; overflow-wrap:anywhere; }
-  #ios-keyboard-demo .voice-results { display:grid; gap:8px; margin-top:16px; }
-  #ios-keyboard-demo .voice-results button { min-height:42px; padding:8px 12px; border:1px solid var(--ik-line); border-radius:9px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; text-align:left; }
-  #ios-keyboard-demo .voice-actions { display:flex; justify-content:center; gap:10px; margin-top:18px; }
-  #ios-keyboard-demo .voice-actions button { min-width:110px; min-height:42px; padding:8px 16px; border:1px solid var(--ik-line); border-radius:9px; background:var(--ik-key); font-size:15px; }
+  #ios-keyboard-demo .voice-layer { min-height:210px; padding:0 3px 10px; }
+  #ios-keyboard-demo .voice-cancel { display:block; width:min(132px,42%); height:45px; padding:0 12px; border:0; border-radius:5px; background:var(--ik-key); color:var(--ik-ink); box-shadow:0 1px 0 light-dark(#898c94,#141416); font-size:15px; }
+  #ios-keyboard-demo .voice-state { margin:16px 8px 5px; color:var(--ik-blue); font-size:12px; font-weight:650; letter-spacing:.05em; }
+  #ios-keyboard-demo .voice-partial { min-height:2.7em; margin:0 8px; color:var(--ik-ink); font-size:clamp(18px,4vw,25px); line-height:1.5; overflow-wrap:anywhere; }
+  #ios-keyboard-demo .voice-results { display:grid; gap:8px; width:100%; margin-top:12px; }
+  #ios-keyboard-demo .voice-results button { width:100%; min-height:45px; padding:9px 14px; border:0; border-radius:5px; background:var(--ik-key); color:var(--ik-ink); box-shadow:0 1px 0 light-dark(#898c94,#141416); font-size:15px; line-height:1.45; text-align:left; white-space:normal; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -740,17 +738,16 @@
     if(voiceDemo.active) {
       keyMap=new Map();keys.replaceChildren();keys.className='keys voice';
       const panel=document.createElement('section');panel.className='voice-layer';panel.setAttribute('aria-label','模擬音声入力');
-      const card=document.createElement('div');card.className='voice-card';
+      const cancel=document.createElement('button');cancel.type='button';cancel.className='voice-cancel';cancel.dataset.voiceCancel='';cancel.textContent='キャンセル';
       const state=document.createElement('p');state.className='voice-state';state.textContent=voiceDemo.phase==='ready'?'認識結果':'認識中';
       const partial=document.createElement('p');partial.className='voice-partial';partial.setAttribute('role','status');partial.setAttribute('aria-live','polite');partial.textContent=voiceDemo.partial;
+      panel.append(cancel,state,partial);
       if(voiceDemo.phase==='ready') {
         const results=document.createElement('div');results.className='voice-results';results.setAttribute('aria-label','音声認識候補');
         voiceDemo.candidates.forEach((candidate,index)=>{const button=document.createElement('button');button.type='button';button.dataset.voiceCandidate=String(index);button.textContent=candidate;results.append(button);});
-        card.append(state,partial,results);
-      } else card.append(state,partial);
-      const actions=document.createElement('div');actions.className='voice-actions';
-      const cancel=document.createElement('button');cancel.type='button';cancel.dataset.voiceCancel='';cancel.textContent='キャンセル';
-      actions.append(cancel);card.append(actions);panel.append(card);keys.append(panel);return;
+        panel.append(results);
+      }
+      keys.append(panel);return;
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
