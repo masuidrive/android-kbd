@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "Reset the candidate strip scroll when candidate content changes"
 created_at: "2026-09-11T10:27:06Z"
 started_at: null  # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-11T11:56:20Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
