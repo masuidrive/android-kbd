@@ -133,3 +133,4 @@
 [2026/09/12 02:11] 音声入力mockをキーボード面へ合わせ、左上キャンセルと発話全体の候補を1行1件で縦に並べるUIへ変更。既存キーと同じ高さ45px・角丸R5・影・Light/Dark色を使用し、Mobile/Tabletの確定・取消・overflow 0を確認した。
 [2026/09/12 02:11] APK配布をGitHub Releasesの直接APKへ移す作業を開始。Sitesからv0.1.0〜v0.9.1の旧ZIP 10本を削除し、サイト容量を約200MBから3.6MBへ削減、全ページのリンクをv0.9.1 Release assetへ更新した。
 [2026/09/12 02:23] GitHub Release v0.9.1へAPK単体を公開。34,888,644 bytes、SHA-256 `2baffbe07ea94a1c67a01749ec512867fd9d21309f81a71c6c7949b556ca7a23`でビルド成果物と一致。activeなGesture IME Sites 3件から旧ZIP計9本を削除し、最新owner_onlyサイト `https://fez69vft.aboutme.style/` を34ファイル・3,750,743 bytesで再公開。ローカルとのpath/SHA-256全件一致、3サイトともZIP 0件を確認した。
+[2026/09/12 02:33] 公開サイト上部のローカル案を`masuidrive.jp/resume.html`のテイストへ変更。白地に60px/30pxの`masuidrive-kbd`と副題、右下に参照元と同一SHAのクマ画像128px/64pxを配置し、画像全体を`https://masuidrive.jp/`へのリンクにした。390/840pxでoverflow 0、既存mock入力とLight/Darkを確認。Sitesは未更新。
