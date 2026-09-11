@@ -24,7 +24,7 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -88,3 +88,4 @@ Product Briefの端末内完結条件を更新し、ユーザの直接指示を�
 - private/incognito欄では既存境界で変換engineへreadingを渡さず、学習・個人辞書参照を止める。
 端末内Mozc学習、履歴削除、明示ONのAndroid個人辞書参照とprivate欄除外をdecision 22-23へ記録した。
 設定画面スクリーンショット、実Mozc計装9件、実Provider確認結果を提示する。ユーザのクローズ承認待ち。
+2026/09/11 ユーザの「桶」をクローズ承認として受領した。

@@ -24,7 +24,7 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -87,3 +87,4 @@
 - `site/mock.html`: 候補種別と文字列からcontent keyを作り、変更時だけscrollLeft=0。
 候補内容変更時だけ先頭復帰し、選択変化では位置維持するdecision 24を記録した。
 APK、操作モックとテスト結果を提示する。ユーザのクローズ承認待ち。
+2026/09/11 ユーザの「桶」をクローズ承認として受領した。
