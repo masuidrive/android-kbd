@@ -96,6 +96,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnVoiceActionListener(::onVoiceAction)
+            it.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
             candidateStrip = it
             setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }

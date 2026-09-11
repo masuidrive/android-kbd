@@ -96,6 +96,26 @@ class ImeServiceVoiceLifecycleTest {
     }
 
     @Test
+    fun initiallyPrivateEditorCreatesAnInvisibleFixedHeightCandidateStrip() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        service.onStartInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }, false)
+        val root = service.onCreateInputView() as ViewGroup
+
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
+        )
+
+        assertEquals(View.INVISIBLE, root.candidateStripView().visibility)
+        assertEquals(228, root.keyboardView().measuredHeight)
+        assertEquals(278, root.measuredHeight)
+        controller.destroy()
+    }
+
+    @Test
     fun switchedLayerIsRestoredWhenInputViewIsRecreated() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
