@@ -12,6 +12,7 @@ import android.view.inputmethod.InputConnection
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.CursorBoundary
+import com.masuidrive.gestureime.keyboard.KanaTransform
 
 class TextInputController(
     private val connection: () -> InputConnection?,
@@ -90,10 +91,15 @@ class TextInputController(
         return composing
     }
 
-    fun transformKana(): String {
+    fun transformKana(transform: KanaTransform = KanaTransform.CYCLE): String {
         if (composing.isEmpty()) return composing
         val last = composing.substring(composing.offsetByCodePoints(composing.length, -1))
-        val transformed = KANA_TRANSFORMS[last] ?: return composing
+        val transformed = when (transform) {
+            KanaTransform.CYCLE -> KANA_TRANSFORMS[last]
+            KanaTransform.SMALL -> SMALL_KANA_TRANSFORMS[last]
+            KanaTransform.DAKUTEN -> DAKUTEN_TRANSFORMS[last]
+            KanaTransform.HANDAKUTEN -> HANDAKUTEN_TRANSFORMS[last]
+        } ?: return composing
         composing = composing.dropLast(last.length) + transformed
         connection()?.setComposingText(composing, 1)
         return composing
@@ -209,6 +215,24 @@ private val KANA_TRANSFORMS = mapOf(
     "ゅ" to "ゆ", "よ" to "ょ", "ょ" to "よ", "わ" to "ゎ", "ゎ" to "わ", "あ" to "ぁ",
     "ぁ" to "あ", "い" to "ぃ", "ぃ" to "い", "う" to "ぅ", "ぅ" to "ゔ", "ゔ" to "う",
     "え" to "ぇ", "ぇ" to "え", "お" to "ぉ", "ぉ" to "お",
+)
+
+private val SMALL_KANA_TRANSFORMS = mapOf(
+    "あ" to "ぁ", "ぁ" to "あ", "い" to "ぃ", "ぃ" to "い", "う" to "ぅ", "ぅ" to "う",
+    "え" to "ぇ", "ぇ" to "え", "お" to "ぉ", "ぉ" to "お", "つ" to "っ", "っ" to "つ",
+    "や" to "ゃ", "ゃ" to "や", "ゆ" to "ゅ", "ゅ" to "ゆ", "よ" to "ょ", "ょ" to "よ",
+    "わ" to "ゎ", "ゎ" to "わ",
+)
+
+private val DAKUTEN_TRANSFORMS = mapOf(
+    "か" to "が", "き" to "ぎ", "く" to "ぐ", "け" to "げ", "こ" to "ご",
+    "さ" to "ざ", "し" to "じ", "す" to "ず", "せ" to "ぜ", "そ" to "ぞ",
+    "た" to "だ", "ち" to "ぢ", "つ" to "づ", "て" to "で", "と" to "ど",
+    "は" to "ば", "ひ" to "び", "ふ" to "ぶ", "へ" to "べ", "ほ" to "ぼ", "う" to "ゔ",
+)
+
+private val HANDAKUTEN_TRANSFORMS = mapOf(
+    "は" to "ぱ", "ひ" to "ぴ", "ふ" to "ぷ", "へ" to "ぺ", "ほ" to "ぽ",
 )
 
 private val CTRL_CONTEXT_ACTIONS = mapOf(

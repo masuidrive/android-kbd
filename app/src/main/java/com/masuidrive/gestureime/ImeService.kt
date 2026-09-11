@@ -130,9 +130,9 @@ class ImeService : InputMethodService(), KeyboardActionSink {
                 restoreReadingPreview()
                 updateReading(textController.appendComposing(action.reading))
             }
-            KeyAction.TransformKana -> {
+            is KeyAction.TransformKana -> {
                 restoreReadingPreview()
-                updateReading(textController.transformKana())
+                updateReading(textController.transformKana(action.transform))
             }
             is KeyAction.Backspace -> {
                 restoreReadingPreview()

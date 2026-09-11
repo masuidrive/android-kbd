@@ -11,6 +11,7 @@ import android.view.inputmethod.ExtractedTextRequest
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.CursorBoundary
+import com.masuidrive.gestureime.keyboard.KanaTransform
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -161,6 +162,17 @@ class TextInputControllerTest {
         controller.escape()
 
         assertEquals(listOf(KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_ESCAPE), input.keyEvents)
+    }
+
+    @Test
+    fun directedKanaTransformsOnlyApplyToMatchingKana() {
+        controller.appendComposing("は")
+        assertEquals("ば", controller.transformKana(KanaTransform.DAKUTEN))
+        assertEquals("ば", controller.transformKana(KanaTransform.HANDAKUTEN))
+
+        controller.beginInput(EditorInfo())
+        controller.appendComposing("は")
+        assertEquals("ぱ", controller.transformKana(KanaTransform.HANDAKUTEN))
     }
 
     private class RecordingInputConnection(view: View) : BaseInputConnection(view, true) {
