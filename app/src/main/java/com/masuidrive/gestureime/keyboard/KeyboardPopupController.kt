@@ -196,7 +196,12 @@ internal class PopupGeometry(private val density: Float) {
         size: PopupSize,
         visibleFrame: Rect,
     ): PopupPlacement {
-        val location = IntArray(2).also(anchor::getLocationOnScreen)
+        // The visible frame and getLocationOnScreen() share screen coordinates,
+        // while PopupWindow.showAtLocation() takes coordinates in the IME window.
+        // Keep the two coordinate spaces separate: clamping and accent hit testing
+        // are screen based, then the final surface is converted for the window API.
+        val screenLocation = IntArray(2).also(anchor::getLocationOnScreen)
+        val windowLocation = IntArray(2).also(anchor::getLocationInWindow)
         val content = when (kind) {
             PopupKind.KANA -> RectF(target.centerX() - tile * 1.5f, target.top - dp(50f), target.centerX() + tile * 1.5f, target.top + tile * 2f)
             PopupKind.LETTER, PopupKind.MODIFIER -> {
@@ -209,8 +214,8 @@ internal class PopupGeometry(private val density: Float) {
         val contentHeight = content.height()
         val xInAnchor = content.left.coerceIn(0f, (anchor.width - contentWidth).coerceAtLeast(0f))
         val yInAnchor = content.top
-        val desiredContentScreenX = location[0] + xInAnchor
-        val desiredContentScreenY = location[1] + yInAnchor
+        val desiredContentScreenX = screenLocation[0] + xInAnchor
+        val desiredContentScreenY = screenLocation[1] + yInAnchor
         // Clamp the visual primitive first. Clamping only the larger shadow
         // surface would leave its content at a negative local offset.
         val contentScreenX = desiredContentScreenX.coerceIn(visibleFrame.left.toFloat(), (visibleFrame.right - contentWidth).coerceAtLeast(visibleFrame.left.toFloat()))
@@ -219,11 +224,18 @@ internal class PopupGeometry(private val density: Float) {
         val unclampedY = contentScreenY - shadowTopInset
         val maxX = (visibleFrame.right - size.width).coerceAtLeast(visibleFrame.left)
         val maxY = (visibleFrame.bottom - size.height).coerceAtLeast(visibleFrame.top)
-        val position = PopupPosition(unclampedX.toInt().coerceIn(visibleFrame.left, maxX), unclampedY.toInt().coerceIn(visibleFrame.top, maxY))
-        val contentOffsetX = contentScreenX - position.x
-        val contentOffsetY = contentScreenY - position.y
-        return PopupPlacement(position, contentOffsetX, contentOffsetY, position.x + contentOffsetX)
+        val surfaceScreenPosition = PopupPosition(
+            unclampedX.toInt().coerceIn(visibleFrame.left, maxX),
+            unclampedY.toInt().coerceIn(visibleFrame.top, maxY),
+        )
+        val position = windowPosition(surfaceScreenPosition, windowLocation[0], windowLocation[1])
+        val contentOffsetX = contentScreenX - surfaceScreenPosition.x
+        val contentOffsetY = contentScreenY - surfaceScreenPosition.y
+        return PopupPlacement(position, contentOffsetX, contentOffsetY, surfaceScreenPosition.x + contentOffsetX)
     }
+
+    internal fun windowPosition(surfaceScreenPosition: PopupPosition, windowLeftOnScreen: Int, windowTopOnScreen: Int) =
+        PopupPosition(surfaceScreenPosition.x - windowLeftOnScreen, surfaceScreenPosition.y - windowTopOnScreen)
 
     fun tileRect(direction: Direction, size: PopupSize, contentOffsetX: Float = shadowHorizontalInset, contentOffsetY: Float = shadowTopInset): RectF {
         val left = contentOffsetX
