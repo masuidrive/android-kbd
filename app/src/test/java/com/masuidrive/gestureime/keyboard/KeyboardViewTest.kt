@@ -237,7 +237,7 @@ class KeyboardViewTest {
         looper.idleFor(100, TimeUnit.MILLISECONDS)
         val down = frame()
         val downAux = down.draws.last { it.text == "1" }
-        assertEquals(center(idleAux) + 13f, center(downAux), .6f)
+        assertEquals(q.exactCenterY(), center(downAux), .6f)
         assertEquals(11f * 1.7f, downAux.textSize, .2f)
         assertEquals(0, down.draws.last { it.text == "q" }.alpha)
         touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY().toFloat(), 230)
@@ -320,7 +320,9 @@ class KeyboardViewTest {
         assertEquals(q.bottom + 1f, qShadow.rect.bottom, .01f)
     }
 
-    @Test fun `wide qwerty keeps relative label anchors as rows grow`() {
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `wide qwerty keeps relative label anchors and centers down swipe`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
         view.measure(exact(840), exact(248))
         view.layout(0, 0, 840, 248)
         val q = keyBounds(0)
@@ -328,6 +330,12 @@ class KeyboardViewTest {
         fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
         assertEquals(q.exactCenterY() + 5f, center(canvas.draws.last { it.text == "q" }), .6f)
         assertEquals(q.top + 9f, center(canvas.draws.last { it.text == "1" }), .6f)
+        touch(MotionEvent.ACTION_DOWN, q.exactCenterX(), q.exactCenterY())
+        touch(MotionEvent.ACTION_MOVE, q.exactCenterX(), q.exactCenterY() + 24f, 10)
+        looper.idleFor(KeyboardView.LABEL_ANIMATION_MS + 10, TimeUnit.MILLISECONDS)
+        val down = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertEquals(q.exactCenterY(), center(down.draws.last { it.text == "1" }), .6f)
+        touch(MotionEvent.ACTION_CANCEL, q.exactCenterX(), q.exactCenterY(), 120)
     }
 
     @Test fun `kana punctuation key shows its four choices while idle`() {

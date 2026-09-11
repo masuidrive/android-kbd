@@ -30,6 +30,7 @@ class KeyboardView @JvmOverloads constructor(
         const val DELETE_REPEAT_INTERVAL_MS = 65L
         const val DUAL_FLICK_MIN_WIDTH_DP = 600f
         const val VOICE_HOLD_DELAY_MS = 1_000L
+        private const val QWERTY_SECONDARY_IDLE_CENTER_DP = 9f
         private const val ACTION_FLICK_LEFT = 0x01020001
         private const val ACTION_FLICK_UP = 0x01020002
         private const val ACTION_FLICK_RIGHT = 0x01020003
@@ -340,7 +341,7 @@ class KeyboardView @JvmOverloads constructor(
             val secondaryLabel = requireNotNull(secondary)
             val secondaryAdjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(11f) * secondaryAdjustment.scale * frame.secondaryScale
-            val baseline = baselineAtVisualCenter(target.bounds.top + dp(9f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
+            val baseline = baselineAtVisualCenter(target.bounds.top + dp(QWERTY_SECONDARY_IDLE_CENTER_DP + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
             textPaint.alpha = (255 * frame.secondaryAlpha).toInt()
             canvas.drawText(secondaryLabel, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), baseline, textPaint)
@@ -775,9 +776,12 @@ class KeyboardView @JvmOverloads constructor(
         labelAnimators.remove(id)?.cancel()
         val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
         val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
+        val downSecondaryDy = active[id]?.bounds?.let {
+            it.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
+        } ?: 0f
         val end = when (direction) {
             Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
-            Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = 13f, secondaryScale = 1.7f)
+            Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = downSecondaryDy, secondaryScale = 1.7f)
             else -> LabelFrame()
         }
         if (Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f) {

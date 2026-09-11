@@ -1,6 +1,6 @@
 # Work Notes: 260911-055701-center-qwerty-down-swipe-label
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (In progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,13 +9,13 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Canvas描画だけの変更で外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -32,6 +32,11 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- `[PDH-open] -> [PDH-ticket-review]` — ユーザがQWERTY下swipe時の補助labelを縦中央まで下げるよう明示した。
+- WhyはProduct BriefのQWERTY上下gestureと視認性へ接続し、AC 1〜3はCanvas出力と実画面で観察できる。
+- 描画位置だけの変更で、入力action、90ms duration、設定項目、他layerへscopeを広げない。
+- `[PDH-ticket-review] -> [PDH-ticket-human-review] -> [PDH-implement]` — 会話内の直接指示をticket承認として記録した。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -39,12 +44,21 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+- 現状はQWERTY補助labelのidle visual centerがkey上端+9dp、下swipe終端が固定+13dpで合計22dp。狭幅45dp keyの中央22.5dpにも0.5dp届かず、広幅52dpでは中央26dpから4dpずれる。
+- 仮定: key実heightから終端deltaを算出すれば、狭幅/広幅の双方で中央へ一致する。412dp/840dp相当のCanvas testで測る。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- 反例基準: 上swipeは主labelを3dp上げて補助labelを隠す。tap/centerへ戻すとidle位置へ戻る。Enter→pasteは専用transitionを維持する。
+- `KeyboardView.animateLabels`の下swipe終端を固定13dpから、実key高の中央とidle anchor差へ変更。狭幅45dpは13.5dp、広幅52dpは17dp移動する。
+- `qwerty labels preserve css anchors...`で狭幅終端をkey中央へ更新し、広幅testでもdown swipe終端がkey中央になる回帰を追加。既存reverse animationとcancel、up animation、Enter/Paste testは維持。
+- Targeted: `KeyboardViewTest` → BUILD SUCCESSFUL。
+- Full: `scripts/test-all.sh` → fast-check 5件、unit、lint、APK buildすべて成功。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
