@@ -48,6 +48,7 @@
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 2026-09-12:
+- 実装commit: `c1ba5c2`。
 - 仮定確認: 候補欄は固定50dp、上下paddingを除くfaceは34dpだった。音声だけ13sp・15dp line-height相当、font paddingなし、最大2行とし、通常候補の15sp/1行を変更しない。
 - `CandidatePresentation`で音声表示を型として伝達し、途中結果と最終候補だけ可視幅以下・最大2行・末尾省略にした。選択可否は既存の`selectable`を維持する。
 - ブラウザmockも`.voice-candidate`だけ同じ固定34px face内で2行clampし、通常候補CSSを維持した。
