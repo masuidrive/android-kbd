@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260910-163036-implement-native-ime
 description: "キーボードのキー割当・フリック表示・カーソル操作・ラベルを調整する"
 created_at: "2026-09-10T23:38:09Z"
-started_at: null
+started_at: 2026-09-11T00:12:51Z
 closed_at: null
 canceled_at: null
 ---
