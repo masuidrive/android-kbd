@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: default  # Override base branch for start/close (default: use default_branch from config)
+base_branch: features/260910-233205-add-on-device-voice-input
 description: "実キーボードのプレビューを見ながらQWERTYラベルのサイズと位置を調整できるようにする"
 created_at: "2026-09-11T01:10:16Z"
 started_at: null  # Do not modify manually
@@ -51,6 +51,7 @@ AI-1〜AI-4と矛盾しない。入力処理と描画設定を分離し、オフ
 - 設定のプレビューには本番と同じKeyboardViewを使い、調整値は端末内へ永続化する。
 - プレビューは入力、クリップボード、音声、レイヤー変更を発火しない。狭幅と広幅を切り替え、広幅は実寸の横スクロールで確認する。
 - 初期値はv0.3.0公開時点のQWERTY描画値とする。
+- 調整値は5群（通常英字の主ラベル・補助ラベル、Space/Enterの主ラベル・補助ラベル、小型複合ラベル）ごとに文字倍率とX/Y位置を持つ。各群は安全な範囲へ制限する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。

@@ -11,6 +11,7 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [ ] ユーザー追加指示: QWERTY微調整公開後、英数字候補bufferを含む残りticketを順次完了する
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -83,3 +84,4 @@
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 
 - 音声入力v0.3.0の公開後に着手する段階3として起票した。現在の音声ticket/branchは切り替えず、実装は開始していない。
+- v0.3.0公開確認後、既存delivery履歴を基点に開始する。設定値は5群それぞれのscale/X/Yとし、UI描画・調整画面とService永続化の境界を分離する。
