@@ -1,14 +1,32 @@
 :root {
-  color-scheme: dark;
-  --bg: #0a0b0d;
-  --surface: #131519;
-  --surface-2: #1b1e24;
-  --ink: #f4f4f1;
-  --muted: #a7abb4;
-  --line: #2a2e36;
-  --blue: #8db0ff;
+  color-scheme: light dark;
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #e5e8ef;
+  --ink: #17191d;
+  --body: #3f444d;
+  --muted: #646a75;
+  --line: #d9dde5;
+  --blue: #3159a8;
   --blue-deep: #3159a8;
+  --counter: #737986;
+  --shot-shadow: #20273533;
   --max: 1180px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0b0d;
+    --surface: #131519;
+    --surface-2: #1b1e24;
+    --ink: #f4f4f1;
+    --body: #d7d8dd;
+    --muted: #a7abb4;
+    --line: #2a2e36;
+    --blue: #8db0ff;
+    --blue-deep: #3159a8;
+    --counter: #636975;
+    --shot-shadow: #0009;
+  }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; background: var(--bg); }
@@ -32,7 +50,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
 .button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: .65rem; text-decoration: none; font-weight: 650; }
 .button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.phone-shot { position: relative; padding: .75rem; border: 1px solid var(--line); border-radius: 1.7rem; background: linear-gradient(150deg, var(--surface-2), var(--surface)); box-shadow: 0 35px 90px #0009; }
+.phone-shot { position: relative; padding: .75rem; border: 1px solid var(--line); border-radius: 1.7rem; background: linear-gradient(150deg, var(--surface-2), var(--surface)); box-shadow: 0 35px 90px var(--shot-shadow); }
 .phone-shot img { width: 100%; height: 520px; object-fit: cover; object-position: center bottom; border-radius: 1.05rem; }
 .section { width: min(var(--max), calc(100% - 2rem)); margin: auto; padding: clamp(4rem, 8vw, 7rem) 0; border-top: 1px solid var(--line); }
 .section-head { display: grid; grid-template-columns: .75fr 1.25fr; gap: 2rem; margin-bottom: 3rem; }
@@ -49,6 +67,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .privacy > div { padding: clamp(1.5rem, 4vw, 3rem); background: var(--surface); }
 .privacy strong { display: block; margin-bottom: .6rem; font-size: 1.4rem; }
 .privacy p { margin: 0; color: var(--muted); }
+.theme-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .cta { text-align: center; }
 .cta h2 { max-width: none; }
 .meta { margin-top: 1rem; color: var(--muted); font: .78rem/1.6 ui-monospace, monospace; }
@@ -60,14 +79,14 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .toc ol { padding: 0; list-style: none; counter-reset: manual; }
 .toc li { counter-increment: manual; margin: .55rem 0; }
 .toc a { color: var(--muted); text-decoration: none; font-size: .86rem; }
-.toc a::before { content: counter(manual, decimal-leading-zero) " "; color: #636975; font-family: ui-monospace, monospace; }
+.toc a::before { content: counter(manual, decimal-leading-zero) " "; color: var(--counter); font-family: ui-monospace, monospace; }
 .manual { min-width: 0; }
 .manual header { margin-bottom: 5rem; }
 .manual h1 { max-width: 12ch; font-size: clamp(3rem, 7vw, 6rem); }
 .manual > section { scroll-margin-top: 90px; padding: 3.5rem 0; border-top: 1px solid var(--line); }
 .manual h2 { margin: 0 0 1.5rem; font-size: clamp(1.8rem, 3vw, 2.7rem); }
 .manual h3 { margin: 2.2rem 0 .7rem; font-size: 1.15rem; }
-.manual p, .manual li { max-width: 45rem; color: #d7d8dd; }
+.manual p, .manual li { max-width: 45rem; color: var(--body); }
 .manual .note { padding: 1.1rem 1.25rem; border-left: 3px solid var(--blue-deep); background: var(--surface); color: var(--muted); }
 .steps { padding: 0; list-style: none; counter-reset: steps; }
 .steps li { counter-increment: steps; position: relative; min-height: 3rem; margin: 1.25rem 0; padding-left: 3.5rem; }
@@ -79,7 +98,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .manual-shot img { margin: auto; max-height: 720px; border-radius: .6rem; }
 .manual-shot figcaption { padding: .7rem .3rem 0; color: var(--muted); font-size: .78rem; }
 @media (max-width: 800px) {
-  .hero, .section-head, .privacy { grid-template-columns: 1fr; }
+  .hero, .section-head, .privacy, .theme-gallery { grid-template-columns: 1fr; }
   .hero { padding-top: 4rem; }
   .phone-shot { max-width: 460px; margin: auto; }
   .feature-grid { grid-template-columns: 1fr; }
