@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-022705-rebuild-keyboard-visual-fidelity
 description: "公開デモをDual Flick対応の可変幅キーボード表示へ更新する"
 created_at: "2026-09-11T04:16:00Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T04:20:19Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
