@@ -1,6 +1,9 @@
 package com.masuidrive.gestureime
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -55,10 +58,21 @@ class SetupActivity : AppCompatActivity() {
                 setOnClickListener { startActivity(Intent(context, LicenseActivity::class.java)) }
             }, matchWidth())
         })
+        if (intent.getBooleanExtra(EXTRA_REQUEST_MICROPHONE_PERMISSION, false) &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MICROPHONE_PERMISSION)
+        }
     }
 
     private fun matchWidth() = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT,
     )
+
+    companion object {
+        const val EXTRA_REQUEST_MICROPHONE_PERMISSION = "request_microphone_permission"
+        private const val REQUEST_MICROPHONE_PERMISSION = 301
+    }
 }

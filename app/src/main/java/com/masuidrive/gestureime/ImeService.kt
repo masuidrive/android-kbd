@@ -1,11 +1,13 @@
 package com.masuidrive.gestureime
 
 import android.content.ClipboardManager
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
+import android.widget.Toast
 import com.masuidrive.gestureime.conversion.ConversionEngine
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.MozcConversionEngine
@@ -14,6 +16,12 @@ import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
+import com.masuidrive.gestureime.ui.VoiceUiAction
+import com.masuidrive.gestureime.ui.VoiceUiEvent
+import com.masuidrive.gestureime.ui.VoiceUiSnapshot
+import com.masuidrive.gestureime.ui.VoiceUiState
+import com.masuidrive.gestureime.voice.VoiceBackendState
+import com.masuidrive.gestureime.voice.VoiceRecognitionController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +36,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     private val editorSession = EditorSessionGate()
     private val conversionEngine: ConversionEngine by lazy { MozcConversionEngine(applicationContext) }
     private lateinit var textController: TextInputController
+    private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
     private var candidateStrip: CandidateStripView? = null
     private var conversionGeneration = 0L
@@ -35,6 +44,8 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     private var candidates = emptyList<String>()
     private var selectedCandidate = -1
     private var conversionPreview: String? = null
+    private var voiceUiToken = 0L
+    private var latestVoiceUnavailableMessage: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -43,6 +54,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
             context = applicationContext,
             clipboard = getSystemService(ClipboardManager::class.java),
         )
+        voiceController = VoiceRecognitionController(applicationContext, ::onVoiceState)
     }
 
     override fun onCreateInputView(): View {
@@ -54,7 +66,9 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         }
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected { index -> onKeyAction(KeyAction.SelectCandidate(index)) }
+            it.setOnVoiceActionListener(::onVoiceAction)
             candidateStrip = it
+            setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -66,15 +80,18 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
+        voiceController.cancel(notify = false)
         invalidateConversion(clearComposing = false)
         textController.beginInput(attribute)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
+        setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         keyboardView?.setMode(KeyboardMode.QWERTY)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
     }
 
     override fun onFinishInput() {
         editorSession.advance()
+        voiceController.cancel(notify = false)
         invalidateConversion(clearComposing = false)
         keyboardView?.cancelActiveGestures()
         textController.finishComposition()
@@ -97,6 +114,8 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onKeyAction(action: KeyAction) {
+        voiceController.cancel(notify = false)
+        if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         if (action is KeyAction.SwitchLayer) {
             keyboardView?.setMode(action.target)
             return
@@ -281,10 +300,69 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         keyboardView?.setConversionActive(false)
     }
 
+    private fun onVoiceAction(event: VoiceUiEvent) {
+        if (event.sessionToken != voiceUiToken) return
+        val token = editorSession.capture()
+        when (event.action) {
+            VoiceUiAction.Start -> serviceScope.launch {
+                actionMutex.withLock {
+                    if (!editorSession.isCurrent(token) || event.sessionToken != voiceUiToken || textController.isPrivateField) return@withLock
+                    resetConversion(clearComposing = false)
+                    if (editorSession.isCurrent(token) && event.sessionToken == voiceUiToken) voiceController.start(token)
+                }
+            }
+            VoiceUiAction.Stop -> voiceController.stop()
+            VoiceUiAction.Cancel -> {
+                voiceController.cancel(notify = false)
+                if (editorSession.isCurrent(token)) setVoiceUi(voiceController.initialState().toUiState())
+            }
+            VoiceUiAction.Confirm -> {
+                val text = voiceController.confirm(token) ?: return
+                serviceScope.launch {
+                    actionMutex.withLock {
+                        if (!editorSession.isCurrent(token) || textController.isPrivateField) return@withLock
+                        resetConversion(clearComposing = false)
+                        editorSession.runIfCurrent(token) { textController.commitText(text) }
+                        setVoiceUi(voiceController.initialState().toUiState())
+                    }
+                }
+            }
+            VoiceUiAction.RequestPermission -> startActivity(
+                Intent(this, SetupActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(SetupActivity.EXTRA_REQUEST_MICROPHONE_PERMISSION, true),
+            )
+            VoiceUiAction.ExplainUnavailable -> {
+                val message = latestVoiceUnavailableMessage ?: "端末内音声認識を利用できません"
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun onVoiceState(state: VoiceBackendState, token: Long) {
+        if (!editorSession.isCurrent(token) || textController.isPrivateField) return
+        setVoiceUi(state.toUiState())
+    }
+
+    private fun setVoiceUi(state: VoiceUiState) {
+        if (state is VoiceUiState.Unavailable) latestVoiceUnavailableMessage = state.message
+        candidateStrip?.setVoiceState(VoiceUiSnapshot(++voiceUiToken, state))
+    }
+
     override fun onDestroy() {
+        voiceController.destroy()
         serviceScope.cancel()
         super.onDestroy()
     }
+}
+
+private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
+    VoiceBackendState.Idle -> VoiceUiState.Idle
+    VoiceBackendState.PermissionRequired -> VoiceUiState.PermissionRequired
+    VoiceBackendState.Recording -> VoiceUiState.Recording
+    VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
+    is VoiceBackendState.Preview -> VoiceUiState.Preview(text)
+    is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
 }
 
 internal fun String.toKatakana(): String = map { char ->
