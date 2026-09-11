@@ -37,6 +37,8 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 8. 変換中Enterは候補確定を表示し、上で原ひらがな、左でカタカナをpreviewする。previewの確定はEnter tapで行い、raw readingは変換・復元用に保持する。（2026-09-11 / 260910-233809）
 9. 音声入力はAPI 31以降の`createOnDeviceSpeechRecognizer()`だけを使用し、`ja-JP`モデルの対応を確認する。通常のnetwork recognizerへのfallbackとモデルの自動downloadは行わない。（2026-09-11 / 260910-233205）
 10. 音声入力は左下レイヤーキーの単一pointerによる1秒holdだけで開始する。認識ready後に指を離すと最終結果を現在Editorへ自動確定し、候補欄からのStart/Stop/Confirm操作やpreview確定は提供しない。hold generationとeditor sessionを検証し、短tap/flick、入力欄切替、IME非表示、取消、通常キー入力後の古い結果を破棄する。（2026-09-11 / 260911-014049）
+11. native描画の既定値は保存済み正本HTMLのdark themeを基準にし、文字倍率はキー境界内へfitする。QWERTYの5群調整値は新しい既定値からの相対scale/X/Yとして維持する。popupは候補欄の高さを変えず、非focus・非touchのoverlayで上端キーから画面内へ表示する。（2026-09-11 / 260911-022705）
+12. レイヤー切替は全レイヤーで左=記号、上=日本語、右=QWERTY、下=テンキーとする。候補欄の背景は候補の有無によらずkeyboard背景`#29292c`に固定し、選択候補のaccentは維持する。（2026-09-11 / 260911-022705）
 
 ## 実装の注意・地雷
 

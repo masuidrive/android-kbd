@@ -67,4 +67,4 @@
 [2026/09/11 11:38] Gesture IME v0.4.0を既存の所有者限定Hanger Sites（https://amykwzak.aboutme.style/）へ公開した。先にv0.4 APK ZIP、続けて最終AVD画像とページ一式を更新し、v0.1〜v0.3 ZIPを保持した。配布ZIPは19,914,964 bytes、SHA-256は7f6297055c0d619775fad107df93afb79d183c142c7dd005655de49915e350d6で、内包APKのSHA-256は最終成果物8f6604d5bc433727a6bf421923c3f7557cfdb6b52d0119d94ee3b62c94246457と一致した。公開24ファイル・81,514,636 bytesの全size/SHA-256をローカルと照合し不一致なし。アクセス範囲owner_onlyと期限2026/09/18 08:02 JSTを維持した。
 [2026/09/11 11:45] v0.5 visual fidelity ticketをv0.4完成履歴から開始。正本mock-sourceのselector/lineを根拠に、5layerの寸法・色・角丸・影・主副label・ghost・popup・animation閾値/終端を `docs/visual-reference-analysis.md` へ定量整理した。HTML Enter/Pasteはnavigation label置換経路のため通常secondary transformを通らない元bugも切り分けた。
 [2026/09/11 11:51] 候補表示時にcandidate rowと未選択候補だけが`#2a313a`へ変わる実装を確認。候補欄・未選択候補をkeyboard gapと同じ`#29292c`へ固定し、選択中候補のaccentは維持する修正と回帰テストを追加した。
-[2026/09/11 11:54] 全レイヤー共通切替キーの最新指定を反映し、左=記号・上=日本語を維持したまま、右をQWERTY、下をテンキーへ交換した。tapと1秒hold音声は維持し、layout回帰テストと正本override記録を更新した。
+[2026/09/11 11:51] 全レイヤー共通切替キーの最新指定を反映し、左=記号・上=日本語を維持したまま、右をQWERTY、下をテンキーへ交換した。tapと1秒hold音声は維持し、layout回帰テストと正本override記録を更新した。
