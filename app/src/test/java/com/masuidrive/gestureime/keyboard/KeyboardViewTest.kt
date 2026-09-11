@@ -491,9 +491,9 @@ class KeyboardViewTest {
         assertEquals(6, bounds(1).left - first.right)
     }
 
-    @Test fun `four row qwerty symbols and kana share outer height and vertical gaps`() {
+    @Test fun `all five four row layers share outer height face height and vertical gaps`() {
         listOf(412 to 228, 840 to 256).forEach { (width, height) ->
-            val geometry = listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA).associateWith { mode ->
+            val geometry = KeyboardMode.entries.associateWith { mode ->
                 view.setMode(mode)
                 view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
                 val measuredHeight = view.measuredHeight

@@ -1,6 +1,6 @@
 # Work Notes: 260911-072658-unify-all-four-row-layout-heights
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (In progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,9 +9,9 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -32,6 +32,9 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- ユーザが日本語とテンキーの高さ差を確認し、全4行レイヤーを揃える指示として記録した。
+- 描画geometryだけの変更で入力action・privacy invariantと矛盾しない。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -39,7 +42,11 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+- 修正前のintrinsic geometry: 外幅でQWERTY/Symbols/Kanaはpitch 55dp・gap 10dp・face 45dp、Numbers/Cursorはpitch 57dp・gap 6dp・face 51dp・外高236dp。内幅では前者62/10/52、後者64/6/58・外高264dp。
+- 修正基準: 全5layerを外55/10/45・全高228dp、内62/10/52・全高256dpへ統一する。
+- 反例基準: rowSpan Enter、Space、Cursor、Dual Kanaのhit targetと描画を既存accessibility bounds testで維持する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
