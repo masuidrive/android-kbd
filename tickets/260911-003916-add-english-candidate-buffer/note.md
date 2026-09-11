@@ -82,8 +82,8 @@
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 
-- ユーザーの明示指示により、英数字候補の将来作業を起票した。`./ticket.sh start`、ブランチ切替、実装、設定追加は未実行。
-- 実装を検討する順序は、調整ticketとDual Flickの残作業、APK公開、音声入力の公開後とする。このticketを現在の作業へ混ぜない。
+- 起票時は将来作業として記録し、`./ticket.sh start`、ブランチ切替、実装、設定追加はいずれも未実行だった。その後のユーザー指示とDirector GOによりv0.6として開始し、現在は実装・レビュー・検証・APKおよび公開資料の準備まで完了している。
+- 最終APKはSHA-256 `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be3ca`。新しい公開先への送信だけがユーザー承認待ちであり、ticketのhuman closeも未実施。
 - Director contract reviewで、既定OFF、ASCII英数字最大64文字、英字だけのprefixへ端末内固定辞書から最大5候補、数字混在時は候補なし、入力履歴・個人学習なしを確定した。ネットワーク候補を追加しない。
 - ユーザー指定の順序変更により、正本HTMLからnative描画を作り直すv0.5の実装・公開後に、本ticketをv0.6として開始する。
 - v0.6開始時のDirector案: 設定は既定OFFでterminal cursor設定と独立させる。対象bufferはASCII `[A-Za-z0-9]`、最大64文字。letter-only prefixの辞書候補は最大5件とし、数字を含む場合は候補を出さずraw bufferは維持する。
