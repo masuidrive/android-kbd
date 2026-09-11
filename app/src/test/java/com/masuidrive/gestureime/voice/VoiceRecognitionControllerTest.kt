@@ -40,6 +40,24 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
+    fun latestNonBlankPartialIsDisplayedButCannotBeConfirmedOrLostAtEndOfSpeech() {
+        val controller = controller()
+        controller.start(8)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onReady()
+        recognizer.listener?.onPartialResults(listOf("", "途中"))
+        recognizer.listener?.onPartialResults(listOf("最新の途中結果"))
+
+        assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
+        assertNull(controller.confirm(8))
+
+        recognizer.listener?.onEndOfSpeech()
+        assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
+        controller.stop()
+        assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
+    }
+
+    @Test
     fun missingJapaneseModelNeverStartsListening() {
         val controller = controller()
         controller.start(2)
@@ -56,6 +74,7 @@ class VoiceRecognitionControllerTest {
         recognizer.supportCallback?.invoke(true)
         val delayedListener = recognizer.listener
         controller.cancel()
+        delayedListener?.onPartialResults(listOf("古い途中結果"))
         delayedListener?.onResults(listOf("古い結果"))
 
         assertEquals(VoiceBackendState.Idle to 11L, states.last())

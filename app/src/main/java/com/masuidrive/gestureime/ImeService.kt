@@ -225,9 +225,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 voiceHoldReleased = true
                 val text = voiceController.confirm(voiceHoldEditorToken)
                 if (text != null) commitVoiceHold(event.requestId, voiceHoldEditorToken, text)
-                else if (voiceHoldReady) voiceController.stop() else cancelVoiceHold()
+                else if (voiceHoldReady) voiceController.stop() else cancelVoiceHoldAndResetUi()
             }
-            is VoiceHoldEvent.Cancel -> if (voiceHoldRequestId == event.requestId) cancelVoiceHold()
+            is VoiceHoldEvent.Cancel -> if (voiceHoldRequestId == event.requestId) cancelVoiceHoldAndResetUi()
         }
     }
 
@@ -237,6 +237,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         voiceHoldReady = false
         voiceHoldReleased = false
         voiceController.cancel(notify = false)
+    }
+
+    private fun cancelVoiceHoldAndResetUi() {
+        cancelVoiceHold()
+        if (::textController.isInitialized && !textController.isPrivateField) {
+            setVoiceUi(voiceController.initialState().toUiState())
+        }
     }
 
     private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
@@ -684,6 +691,7 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.PermissionRequired -> VoiceUiState.PermissionRequired
     VoiceBackendState.Recording -> VoiceUiState.Recording
     VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
+    is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
     is VoiceBackendState.Preview -> VoiceUiState.Recognizing
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
 }

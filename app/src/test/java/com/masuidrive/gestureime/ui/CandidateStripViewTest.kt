@@ -57,6 +57,49 @@ class CandidateStripViewTest {
         assertTrue(view.allTextViews().none { it.text == "確定" || it.text == "取消" })
     }
 
+    @Test fun partialResultUsesCandidateFaceAndOffersTheSameCancelControl() {
+        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
+        view.setVoiceState(VoiceUiSnapshot(12, VoiceUiState.Partial("認識途中の文章")))
+        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 400, 50)
+
+        val partial = view.textView("認識途中の文章")
+        val cancel = view.textView("取消")
+        assertEquals(34, partial.height)
+        assertEquals(7f, partial.faceLayer().cornerRadius, .1f)
+        assertEquals(34, cancel.height)
+        assertEquals(7f, cancel.faceLayer().cornerRadius, .1f)
+        assertEquals("認識途中: 認識途中の文章", partial.contentDescription)
+        cancel.performClick()
+        assertEquals(listOf(VoiceUiEvent(12, VoiceUiAction.Cancel)), actions)
+    }
+
+    @Test fun permissionAndUnavailableControlsShareCandidateGeometryAndThemeColors() {
+        val view = view()
+        listOf(
+            VoiceUiState.PermissionRequired to "許可",
+            VoiceUiState.Unavailable("利用不可") to "非対応",
+        ).forEach { (state, text) ->
+            view.setVoiceState(VoiceUiSnapshot(13, state))
+            view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, 400, 50)
+            val control = view.textView(text)
+            assertEquals(82, control.width)
+            assertEquals(34, control.height)
+            assertEquals(7f, control.faceLayer().cornerRadius, .1f)
+            assertEquals(Color.rgb(23, 78, 166), control.faceColor())
+            assertEquals(Color.rgb(137, 140, 148), control.shadowLayer().color!!.defaultColor)
+        }
+    }
+
+    @Test @Config(qualifiers = "night") fun voiceControlUsesDarkCandidateFaceAndShadow() {
+        val view = view(); view.setVoiceState(VoiceUiSnapshot(14, VoiceUiState.PermissionRequired))
+        val control = view.textView("許可")
+        assertEquals(Color.rgb(168, 206, 255), control.faceColor())
+        assertEquals(Color.rgb(20, 20, 22), control.shadowLayer().color!!.defaultColor)
+        assertEquals(Color.rgb(16, 40, 68), control.currentTextColor)
+    }
+
     @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
         val view = view(); val actions = mutableListOf<VoiceUiEvent>(); val selected = mutableListOf<CandidateUiEvent>()
         view.setOnVoiceActionListener(actions::add); view.setOnCandidateSelected(selected::add)
