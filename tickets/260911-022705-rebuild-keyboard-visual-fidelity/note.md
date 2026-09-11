@@ -46,6 +46,10 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+- 正本 `docs/reference/mock-source.html` のstatic CSS/JSをselectorとline単位で抽出し、`docs/visual-reference-analysis.md` に表として記録した。browser computed値とnative比較は別証拠として混同しない。
+- 後続overrideとして、かな行高=QWERTY、QWERTY BS=`⌫`、flick中の他key背景減光なし、Dual Flick、layer-key hold音声を維持する。
+- Enter/Pasteの元HTMLはnavigation選択でmain labelを置換する一方、通常secondary用 `.flick-selected` transformを付けないため、down-swipe animationの位置関係が揃わないと特定した。nativeではこのbugを再現せず、意図したsecondary animationへ統合する。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
