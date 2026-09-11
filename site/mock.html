@@ -146,8 +146,8 @@
   #ios-keyboard-demo[data-device=inner] .kana .key-row { height:58px; }
   #ios-keyboard-demo .kana.dual .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
   #ios-keyboard-demo .kana.dual .key.return { width:12.5%; }
-  #ios-keyboard-demo .key.return.navigation-selected .key-hint { transform:translateY(13px) scale(1.7); color:var(--ik-selected-ink); }
-  #ios-keyboard-demo .key.return.navigation-selected .key-main { transform:translateY(22px); opacity:0; }
+  #ios-keyboard-demo .key.return.has-paste.navigation-selected .key-hint { transform:translateY(13px) scale(1.7); color:var(--ik-selected-ink); }
+  #ios-keyboard-demo .key.return.has-paste.navigation-selected .key-main { transform:translateY(22px); opacity:0; }
   @media(max-width:560px) { #ios-keyboard-demo .device-picker .device-name { display:none; } #ios-keyboard-demo .device-size { min-width:0; } }
   @media(max-width:360px) { #ios-keyboard-demo .key { padding:0 2px; } #ios-keyboard-demo .topbar { padding-top:16px; } #ios-keyboard-demo .device-size { display:none; } }
 </style>
@@ -580,6 +580,7 @@
       key.special?'special':null,
       key.side?'side':null,
       key.ghost?'letter-layer-toggle':null,
+      key.id==='return'&&key.hint==='paste'?'has-paste':null,
       key.id==='modifier-gesture'&&pendingModifier?'mode-on':null,
       key.alt||key.gestureAlt?'has-flick':null
     ].filter(Boolean);
@@ -733,7 +734,7 @@
       p.element.classList.toggle('mode-on',Boolean(selection));
       p.element.classList.toggle('navigation-selected',Boolean(selection));
       p.element.classList.toggle('flick-selected',p.navigationChoice==='down'&&p.key.id==='return');
-      p.element.querySelector('.key-main').textContent=selection?.label||p.key.label;
+      p.element.querySelector('.key-main').textContent=p.key.id==='return'&&p.key.hint?p.key.label:selection?.label||p.key.label;
       if(selection)announce(selection.label);
       return;
     }
