@@ -29,7 +29,6 @@ class KeyboardView @JvmOverloads constructor(
         const val DELETE_REPEAT_DELAY_MS = 420L
         const val DELETE_REPEAT_INTERVAL_MS = 65L
         const val DUAL_FLICK_MIN_WIDTH_DP = 600f
-        const val VOICE_HOLD_DELAY_MS = 1_000L
         private const val QWERTY_SECONDARY_IDLE_CENTER_DP = 9f
         private const val ACTION_FLICK_LEFT = 0x01020001
         private const val ACTION_FLICK_UP = 0x01020002
@@ -61,10 +60,10 @@ class KeyboardView @JvmOverloads constructor(
     private val labelAnimators = mutableMapOf<Int, ValueAnimator>()
     private var qwertyLabelStyle = QwertyLabelStyle.DEFAULT
     private var previewOnly = false
-    private val voiceHoldTimers = mutableMapOf<Int, Runnable>()
     private var voiceHoldOwner: Pair<Int, Long>? = null
     private var voiceHoldRequestId = 0L
     private var voiceHoldMultiPointer = false
+    private val voiceGestureCancelledPointers = mutableSetOf<Int>()
     private var voiceReadyRequestId: Long? = null
     private var secondVoiceHaptic: Runnable? = null
     private val popupController = KeyboardPopupController(context)
@@ -156,11 +155,10 @@ class KeyboardView @JvmOverloads constructor(
         voiceHoldOwner?.second?.let { voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Cancel(it)) }
         voiceHoldOwner = null
         voiceReadyRequestId = null
-        voiceHoldTimers.values.forEach(::removeCallbacks)
-        voiceHoldTimers.clear()
         secondVoiceHaptic?.let(::removeCallbacks)
         secondVoiceHaptic = null
         voiceHoldMultiPointer = false
+        voiceGestureCancelledPointers.clear()
         timers.values.forEach(::removeCallbacks)
         timers.clear()
         labelAnimators.values.forEach(ValueAnimator::cancel)
@@ -183,7 +181,6 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun discardPointer(id: Int) {
         cancelTimer(id)
-        cancelVoiceHoldArm(id)
         labelAnimators.remove(id)?.cancel()
         labelFrames.remove(id)
         active.remove(id)
@@ -593,7 +590,11 @@ class KeyboardView @JvmOverloads constructor(
         val hit = hitTargets.lastOrNull { it.spec.kind != KeyKind.EMPTY && it.bounds.contains(event.getX(index), event.getY(index)) } ?: return
         if (active.isNotEmpty()) {
             voiceHoldMultiPointer = true
-            cancelVoiceHoldArms()
+            if (voiceHoldOwner != null) {
+                voiceGestureCancelledPointers.addAll(active.keys)
+                voiceGestureCancelledPointers += id
+            }
+            cancelVoiceGesture()
         }
         active[id] = hit
         directions[id] = Direction.CENTER
@@ -607,7 +608,6 @@ class KeyboardView @JvmOverloads constructor(
         if (hit.spec.kind == KeyKind.CHARACTER || (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null)) {
             scheduleTimer(id, hit, Direction.CENTER)
         }
-        if (hit.spec.kind == KeyKind.LAYER_SWITCH && !voiceHoldMultiPointer) scheduleVoiceHold(id, hit)
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         syncPopup(id)
         invalidate()
@@ -629,11 +629,13 @@ class KeyboardView @JvmOverloads constructor(
                 directions[id] = update.direction
                 cancelTimer(id)
                 val activeHit = active[id]
-                if (activeHit == null || !isVoiceHoldSelection(activeHit, update.direction)) cancelVoiceHoldArm(id)
                 if (active[id]?.spec?.down?.action is KeyAction.Backspace && update.direction == Direction.DOWN) {
                     active[id]?.let { scheduleTimer(id, it, Direction.DOWN) }
                 }
                 animateLabels(id, update.direction)
+                if (activeHit != null && activeHit.spec.value(update.direction)?.action == KeyAction.VoiceHold) {
+                    beginVoiceGesture(id, activeHit)
+                }
             }
             is GestureUpdate.CursorDelta -> {
                 cursorMoved += id
@@ -650,7 +652,6 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun pointerUp(id: Int) {
         cancelTimer(id)
-        cancelVoiceHoldArm(id)
         val hit = active.remove(id) ?: return
         labelAnimators.remove(id)?.cancel()
         labelFrames.remove(id)
@@ -668,6 +669,20 @@ class KeyboardView @JvmOverloads constructor(
         }
         val direction = directions.remove(id) ?: Direction.CENTER
         interpreter.finish(id)
+        if (voiceGestureCancelledPointers.remove(id)) {
+            cursorMoved.remove(id)
+            repeated.remove(id)
+            accentActive.remove(id)
+            accentSelected.remove(id)
+            if (active.isEmpty()) {
+                voiceHoldMultiPointer = false
+                voiceGestureCancelledPointers.clear()
+            }
+            dismissPopup()
+            active.keys.firstOrNull()?.let(::syncPopup)
+            invalidate()
+            return
+        }
         val accents = if (accentActive.remove(id)) accentChoices(hit.spec.center?.label.orEmpty()) else null
         if (accents != null) actionSink?.onKeyAction(KeyAction.CommitText(accents[accentSelected.remove(id) ?: 0]))
         else if (!cursorMoved.remove(id) && !repeated.remove(id)) dispatch(hit.spec, direction)
@@ -678,31 +693,21 @@ class KeyboardView @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun scheduleVoiceHold(id: Int, hit: HitTarget) {
-        val task = Runnable {
-            voiceHoldTimers.remove(id)
-            if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || !isVoiceHoldSelection(hit, directions[id])) return@Runnable
-            val requestId = ++voiceHoldRequestId
-            voiceHoldOwner = id to requestId
-            interpreter.cancel(id)
-            voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Begin(requestId))
-        }
-        voiceHoldTimers[id] = task
-        postDelayed(task, VOICE_HOLD_DELAY_MS)
+    private fun beginVoiceGesture(id: Int, hit: HitTarget) {
+        if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || voiceHoldOwner != null) return
+        val requestId = ++voiceHoldRequestId
+        voiceHoldOwner = id to requestId
+        interpreter.cancel(id)
+        voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Begin(requestId))
     }
 
-    private fun isVoiceHoldSelection(hit: HitTarget, direction: Direction?): Boolean {
-        if (direction == Direction.CENTER) return true
-        return direction != null && hit.spec.value(direction)?.action == KeyAction.VoiceHold
-    }
-
-    private fun cancelVoiceHoldArm(id: Int) {
-        voiceHoldTimers.remove(id)?.let(::removeCallbacks)
-    }
-
-    private fun cancelVoiceHoldArms() {
-        voiceHoldTimers.values.forEach(::removeCallbacks)
-        voiceHoldTimers.clear()
+    private fun cancelVoiceGesture() {
+        val requestId = voiceHoldOwner?.second ?: return
+        voiceHoldOwner = null
+        voiceReadyRequestId = null
+        secondVoiceHaptic?.let(::removeCallbacks)
+        secondVoiceHaptic = null
+        voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Cancel(requestId))
     }
 
     private fun dispatch(spec: KeySpec, direction: Direction) {

@@ -32,8 +32,8 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
-- ユーザの最新指示を左方向=音声、既存の1秒hold後だけ認識・release確定という組合せで実装する。
-- 短い左swipeは音声を開始せず、以前の記号切替も行わない。記号は各layerの`#!` tapから到達できる。
+- ユーザの最新指示で中央長押し音声を廃止し、左方向選択時に即時開始・release確定へ更新した。
+- 以前の左=記号切替は行わない。記号は各layerの`#!` tapから到達できる。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -44,8 +44,8 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
-- 現状はlayer key pointer down時に中央方向限定の1秒timerをarmし、方向選択時に必ずcancelする。左だけを音声選択としてtimer継続対象へ加える。
-- 反例基準: 中央1秒hold、右QWERTY、上Kana、下Numbers、multi-pointer cancel、private/unsupported service制約を維持する。
+- 修正前はlayer key pointer down時に中央方向の1秒timerをarmしていた。これを除去し、左選択時だけ`VoiceHoldEvent.Begin`、releaseで`End`を送る。
+- 反例基準: 中央tap/長押し、右QWERTY、上Kana、下Numbers、multi-pointer cancel、private/unsupported service制約を維持する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
