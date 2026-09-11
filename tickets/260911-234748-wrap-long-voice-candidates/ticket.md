@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: default  # Override base branch for start/close (default: use default_branch from config)
+base_branch: features/260911-055701-configure-slash-command-candidates
 description: "Wrap long voice-recognition candidates inside the candidate strip"
 created_at: "2026-09-11T23:47:48Z"
 started_at: null  # Do not modify manually
