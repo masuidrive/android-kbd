@@ -29,9 +29,11 @@ class CandidateStripViewTest {
     @Test fun recordingRecognizingAndPermissionExposeOnlyValidAction() {
         val view = view(); val actions = mutableListOf<VoiceUiAction>(); view.setOnVoiceActionListener(actions::add)
         view.setVoiceState(VoiceUiState.Recording); view.textView("停止").performClick()
+        view.textView("取消").performClick()
         view.setVoiceState(VoiceUiState.Recognizing); assertFalse(view.textView("処理中").isEnabled)
+        view.textView("取消").performClick()
         view.setVoiceState(VoiceUiState.PermissionRequired); view.textView("許可").performClick()
-        assertEquals(listOf(VoiceUiAction.Stop, VoiceUiAction.RequestPermission), actions)
+        assertEquals(listOf(VoiceUiAction.Stop, VoiceUiAction.Cancel, VoiceUiAction.Cancel, VoiceUiAction.RequestPermission), actions)
     }
 
     @Test fun previewKeepsFullTextForScrollingAndAccessibilityUntilChoice() {
@@ -44,12 +46,22 @@ class CandidateStripViewTest {
         assertEquals(listOf(VoiceUiAction.Confirm, VoiceUiAction.Cancel), actions)
     }
 
-    @Test fun unavailableExplainsReasonAndDoesNotDispatchStart() {
-        val view = view(); val actions = mutableListOf<VoiceUiAction>(); view.setOnVoiceActionListener(actions::add)
+    @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
+        val view = view(); val actions = mutableListOf<VoiceUiAction>(); val selected = mutableListOf<Int>()
+        view.setOnVoiceActionListener(actions::add); view.setOnCandidateSelected(selected::add)
+        view.showCandidates(listOf("候補"), 0)
         view.setVoiceState(VoiceUiState.Unavailable("端末内の日本語モデルがありません"))
-        val button = view.textView("音声")
-        assertFalse(button.isEnabled); assertTrue(button.contentDescription.toString().contains("日本語モデル"))
-        button.performClick(); assertTrue(actions.isEmpty())
+        val button = view.textView("非対応")
+        assertTrue(button.isEnabled); assertTrue(button.contentDescription.toString().contains("日本語モデル"))
+        view.textView("候補").performClick(); button.performClick()
+        assertEquals(listOf(0), selected); assertEquals(listOf(VoiceUiAction.ExplainUnavailable), actions)
+    }
+
+    @Test fun permissionRequiredPreservesCandidateInput() {
+        val view = view(); val selected = mutableListOf<Int>(); view.setOnCandidateSelected(selected::add)
+        view.showCandidates(listOf("日本語"), 0); view.setVoiceState(VoiceUiState.PermissionRequired)
+        view.textView("日本語").performClick()
+        assertEquals(listOf(0), selected); assertTrue(view.textView("許可").isEnabled)
     }
 
     @Test fun hiddenRemovesVoiceControlsButPreservesCandidateInput() {

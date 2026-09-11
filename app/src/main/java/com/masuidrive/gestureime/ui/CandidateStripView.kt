@@ -62,22 +62,23 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         when (val state = voiceState) {
             VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
             VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("停止", "音声入力を停止", VoiceUiAction.Stop) }
-            VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("処理中", "音声を認識しています", null) }
+            VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("処理中", "音声を認識しています", null); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
             is VoiceUiState.Preview -> {
                 renderCandidateMessage(state.text, "認識結果: ${state.text}")
                 addVoiceButton("確定", "認識結果を確定", VoiceUiAction.Confirm)
                 addVoiceButton("取消", "認識結果を取り消す", VoiceUiAction.Cancel)
             }
             is VoiceUiState.Unavailable -> {
-                renderCandidateMessage(state.message, "音声入力を利用できません: ${state.message}")
-                addVoiceButton("音声", "音声入力は利用できません。${state.message}", null)
+                renderCandidates()
+                addVoiceButton("非対応", "音声入力を利用できない理由を表示。${state.message}", VoiceUiAction.ExplainUnavailable)
             }
             VoiceUiState.PermissionRequired -> {
-                renderCandidateMessage("マイクの許可が必要です")
+                renderCandidates()
                 addVoiceButton("許可", "マイクの使用を許可", VoiceUiAction.RequestPermission)
             }
         }
         if (voiceState == VoiceUiState.Idle) addVoiceButton("音声", "音声入力を開始", VoiceUiAction.Start)
+        if (voiceState == VoiceUiState.Recording) addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel)
     }
 
     private fun renderCandidates() {

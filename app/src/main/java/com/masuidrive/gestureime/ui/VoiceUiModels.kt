@@ -10,4 +10,4 @@ sealed interface VoiceUiState {
     data object PermissionRequired : VoiceUiState
 }
 
-enum class VoiceUiAction { Start, Stop, Confirm, Cancel, RequestPermission }
+enum class VoiceUiAction { Start, Stop, Confirm, Cancel, RequestPermission, ExplainUnavailable }
