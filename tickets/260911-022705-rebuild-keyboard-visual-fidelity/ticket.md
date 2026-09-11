@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-014049-add-layer-key-push-to-talk
 description: "正本HTMLを定量分析し、nativeキーボードの形状・影・文字・popup・swipe animationを忠実に描き直す"
 created_at: "2026-09-11T02:27:05Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T02:40:35Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
