@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-072234-complete-qwerty-symbol-ascii
 description: "Unify all four-row keyboard layout heights"
 created_at: "2026-09-11T07:26:58Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T07:45:44Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
