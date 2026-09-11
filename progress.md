@@ -136,3 +136,6 @@
 [2026/09/12 02:33] 公開サイト上部のローカル案を`masuidrive.jp/resume.html`のテイストへ変更。白地に60px/30pxの`masuidrive-kbd`と副題、右下に参照元と同一SHAのクマ画像128px/64pxを配置し、画像全体を`https://masuidrive.jp/`へのリンクにした。390/840pxでoverflow 0、既存mock入力とLight/Darkを確認。Sitesは未更新。
 [2026/09/12 02:44] ローカル案をトップページ全体へ拡張。最上部は名前mastheadだけを見せ、通過後にfixed topbarを表示し、上端へ戻ると隠す。JS/IntersectionObserver非対応時は通常navを残し、reduced-motionでは遷移を止める。背景#f4f4f4、白い本文面、#212529、赤い左6px＋下1px罫線へ統一し、15機能を履歴書風の行へ再構成。390/840/1440px、Light/Dark、anchor遮蔽なし、overflow 0、mock入力を確認。独立review findingなし、全suite PASS。Sitesは未更新。
 [2026/09/12 02:52] 外側サイトのDark表示を廃止し、index/manual/demoをOS設定に関係なくLight paletteへ固定。mockから親へのtheme通知を外し、高さ通知だけ維持した。キーボードmock内部はLight/Darkを引き続き切替可能。OS Dark条件を含む390/840/1440pxで外側の色不変、iframe高さ一致、overflow 0、console出力なしを確認。独立review findingなし。Sitesは未更新。
+[2026/09/12 03:33] QWERTYラベル調整機能をActivity・設定保存・Service・描画経路から完全撤去し、設定画面を4セクションへ整理してバージョン0.9.1を表示。Light/Darkの実画面と全操作、最新マニュアル画像を確認した。
+[2026/09/12 03:33] 音声専用レイヤーを通常と同じ固定4行高、左下キャンセル、上下右のレイヤーフリックへ更新。途中結果と複数の最終結果を日本語変換と同じ候補UIへ表示し、finalだけ選択可能、選択時1回確定、終了時stale結果破棄を実装した。
+[2026/09/12 03:33] ローカル製品トップの埋め込み入力枠を外し、機能一覧を01〜06へ絞った。音声mockは通常候補bar、固定高、左下キャンセルへ同期し、Mobile/Tabletの通常・音声高一致と横overflow 0を確認。マニュアルも候補選択式へ更新し、全test suiteがPASS。Sitesは未更新。
