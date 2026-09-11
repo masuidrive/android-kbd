@@ -335,14 +335,14 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private fun shouldBufferEnglish(text: String): Boolean =
         ImePreferences.isEnglishSuggestionsEnabled(this) &&
             !textController.isPrivateField &&
-            text.length == 1 && text[0].isAsciiLetterOrDigit() &&
-            englishBuffer.length < MAX_ENGLISH_BUFFER
+            text.length == 1 && text[0].isAsciiLetterOrDigit()
 
     private fun appendEnglish(text: String, editorToken: Long) {
         if (reading.isNotEmpty()) {
             textController.finishComposition()
             clearCandidateState()
         }
+        if (englishBuffer.length >= MAX_ENGLISH_BUFFER) finishEnglishRaw()
         englishBuffer = textController.appendComposing(text)
         candidateSource = CandidateSource.ENGLISH
         requestEnglishSuggestions(englishBuffer, editorToken)

@@ -154,6 +154,16 @@ class ImeServiceEnglishSuggestionTest {
         assertEquals("hi", harness.input.committed)
     }
 
+    @Test
+    fun sixtyFifthAsciiCharacterStartsANewBufferSoEnterDoesNotInsertNewline() {
+        val harness = Harness { _, _ -> emptyList() }
+        repeat(65) { harness.key("a") }
+        harness.service.onKeyAction(KeyAction.Enter)
+        harness.idle()
+
+        assertEquals("a".repeat(65), harness.input.committed)
+    }
+
     private class Harness(english: suspend (String, Int) -> List<String>) {
         private val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
