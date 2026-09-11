@@ -31,7 +31,7 @@ The live source changes the Enter main text to paste through navigationChoice, a
 
 The corrected native contract keeps two stable visual roles: Enter is the main label and paste is the top secondary. During a down selection, Enter follows the QWERTY main exit (+22px, opacity 1 → 0) while paste follows the QWERTY secondary entrance (+13px, scale toward 1.7, bounded to the face). The action remains Paste. The correction does not copy the source’s text-replacement bug.
 
-The live Enter hit target is 107.438 × 45px and its face is 101.438 × 45px. The face has a computed 15px normal-line-height font. The Enter main line box is 36.141 × 18px at face top +20px. The paste hint is 30.172 × 11px at face top +7px, computed 10px/11px with opacity .7. These are the correction’s progress-zero anchors; applying custom label adjustments is the only reason to move them.
+The live Enter hit target is 107.438 × 45px and its face is 101.438 × 45px. The face has a computed 15px normal-line-height font. The Enter main line box is 36.141 × 18px at face top +20px. The paste hint is 30.172 × 11px at face top +7px, computed 10px/11px with opacity .7. These are the correction’s fixed progress-zero anchors; runtime label adjustment was removed on 2026-09-12.
 
 ## Live five-way popup
 

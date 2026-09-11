@@ -47,7 +47,7 @@ The user also overrides the original layer navigation at mock lines 292 and 599:
 | C/A modifier | main `18px`; C top `6px`, A bottom `6px`; directional labels `10px` | lines 188–193 |
 | Layer composite (`あ/ん` etc.) | main translated left `3px`, z-index 1; ghost at `50%/50%`, translated `(2px,-35%)`, size `75%`, opacity `.72`, z-index 0; ghost is prepended before main | lines 215–219, 673–678 |
 
-The native rebuild must retain the later QWERTY BS `⌫` label and the user-configurable five label adjustment groups. Fidelity defaults are measured from these CSS values; saved user offsets remain an explicit override.
+The native rebuild must retain the later QWERTY BS `⌫` label. Fidelity defaults are measured from these CSS values. The five user-configurable label adjustment groups were removed on 2026-09-12, so the measured defaults are now the fixed runtime geometry.
 
 ## Flick and navigation animation
 
@@ -79,4 +79,4 @@ Popup selection uses selected fill/ink/border at line 248. The native comparison
 
 `KeyboardView` currently fixes the Canvas palette to the mock's dark tokens: background `41/41/44`, regular key `65/65/68`, special key `48/48/52`, and selected key `168/206/255`. Its `sp()` helper caps `scaledDensity` at `density`, so Android font scales above 1.0 do not enlarge key labels beyond their physical key bounds. This is the existing 1.3/2.0 fit policy and remains deliberate.
 
-The five saved QWERTY adjustment groups apply scale and X/Y offsets after the default label geometry. Values are sanitized and the final baseline, horizontal center, and width are clamped to key bounds. The fidelity rebuild should change the unadjusted default size/position to the measured CSS values while retaining saved values as relative user overrides. Preference serialization, the adjustment Activity, and Service reload do not need a new storage format.
+Historical note: the first fidelity rebuild applied five saved QWERTY adjustment groups after the default geometry. That preference serialization, adjustment Activity, and Service reload path was removed on 2026-09-12. Current rendering uses the measured default size and position directly while retaining the same key-bound fitting rules.
