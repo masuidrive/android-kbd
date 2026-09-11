@@ -85,6 +85,12 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         super.onFinishInputView(finishingInput)
     }
 
+    override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        voiceController.cancel(notify = false)
+        setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
+    }
+
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
