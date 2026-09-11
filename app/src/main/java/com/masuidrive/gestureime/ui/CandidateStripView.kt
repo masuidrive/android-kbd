@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -30,7 +32,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(0, 0, 0, dp(8))
+        setPadding(dp(3), dp(8), dp(3), dp(8))
         applyThemeColors()
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -96,14 +98,14 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
                 contentDescription = "候補 ${index + 1}: $candidate"
                 setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
                 if (index == snapshot.selectedIndex) selectedView = this
-            })
+            }, candidateLayout(hasLeadingGap = index > 0))
         }
         selectedView?.let { view -> post { view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true) } }
     }
 
     private fun renderCandidateMessage(message: String, description: String = message) {
         candidateRow.removeAllViews()
-        candidateRow.addView(label(message, false).apply { contentDescription = description; isFocusable = true })
+        candidateRow.addView(label(message, false).apply { contentDescription = description; isFocusable = true }, candidateLayout())
         candidateScroll.post { candidateScroll.scrollTo(0, 0) }
     }
 
@@ -111,20 +113,39 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         voiceControls.addView(label(text, action != null).apply {
             contentDescription = description
             isEnabled = action != null; isClickable = action != null; isFocusable = true
-            setPadding(dp(12), dp(6), dp(12), dp(6))
             if (action != null) setOnClickListener { onVoiceAction?.invoke(VoiceUiEvent(sessionToken, action)) }
-        })
+        }, candidateLayout(hasLeadingGap = true))
     }
 
     private fun label(textValue: String, selected: Boolean) = TextView(context).apply {
         text = textValue
         setTextSize(TypedValue.COMPLEX_UNIT_PX, 15f * resources.displayMetrics.density)
         gravity = Gravity.CENTER
-        setPadding(dp(18), dp(6), dp(18), dp(6))
+        minWidth = dp(82)
+        setPadding(dp(14), 0, dp(14), 0)
         setTextColor(context.getColor(if (selected) R.color.candidate_selected_text else R.color.keyboard_text))
-        setBackgroundColor(context.getColor(if (selected) R.color.candidate_selected else R.color.candidate_background))
-        setTypeface(typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
+        background = candidateFace(selected)
+        setTypeface(typeface, Typeface.NORMAL)
         maxLines = 1
+    }
+
+    private fun candidateLayout(hasLeadingGap: Boolean = false) = LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.MATCH_PARENT,
+    ).apply {
+        if (hasLeadingGap) marginStart = dp(5)
+    }
+
+    private fun candidateFace(selected: Boolean): LayerDrawable {
+        fun layer(color: Int) = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(7).toFloat()
+            setColor(color)
+        }
+        return LayerDrawable(arrayOf(
+            layer(context.getColor(R.color.keyboard_shadow)),
+            layer(context.getColor(if (selected) R.color.candidate_selected else R.color.candidate_background)),
+        )).apply { setLayerInset(1, 0, 0, 0, dp(1)) }
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

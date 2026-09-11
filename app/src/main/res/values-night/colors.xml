@@ -14,7 +14,7 @@
     <color name="keyboard_popup_text">#F4F4F6</color>
     <color name="keyboard_popup_border">#74747A</color>
     <color name="keyboard_popup_shadow">#88000000</color>
-    <color name="candidate_selected">#61D2FF</color>
-    <color name="candidate_selected_text">#001923</color>
-    <color name="candidate_background">#29292C</color>
+    <color name="candidate_selected">#A8CEFF</color>
+    <color name="candidate_selected_text">#102844</color>
+    <color name="candidate_background">#414144</color>
 </resources>

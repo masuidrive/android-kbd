@@ -1,7 +1,10 @@
 package com.masuidrive.gestureime.ui
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -88,15 +91,37 @@ class CandidateStripViewTest {
     @Test fun bottomGapUsesTheKeyboardBackgroundColor() {
         val view = view()
         assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
+        assertEquals(3, view.paddingLeft)
+        assertEquals(8, view.paddingTop)
+        assertEquals(3, view.paddingRight)
         assertEquals(8, view.paddingBottom)
+    }
+
+    @Test fun candidateGeometryMatchesHtmlReference() {
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(24, listOf("one", "two"), 1))
+        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 400, 50)
+        val first = view.textView("one")
+        val second = view.textView("two")
+
+        assertEquals(82, first.width)
+        assertEquals(34, first.height)
+        assertEquals(14, first.paddingLeft)
+        assertEquals(14, first.paddingRight)
+        assertEquals(5, (second.layoutParams as android.widget.LinearLayout.LayoutParams).marginStart)
+        assertEquals(15f, first.textSize, .1f)
+        assertEquals(Typeface.NORMAL, second.typeface.style)
+        assertEquals(7f, first.faceLayer().cornerRadius, .1f)
+        assertEquals(Color.rgb(137, 140, 148), first.shadowLayer().color!!.defaultColor)
     }
 
     @Test fun showingCandidatesKeepsTheStripBackgroundStable() {
         val view = view()
         view.showCandidates(CandidateUiSnapshot(24, listOf("未選択", "選択"), 1))
 
-        assertEquals(Color.WHITE, (view.textView("未選択").background as ColorDrawable).color)
-        assertEquals(Color.rgb(23, 78, 166), (view.textView("選択").background as ColorDrawable).color)
+        assertEquals(Color.WHITE, view.textView("未選択").faceColor())
+        assertEquals(Color.rgb(23, 78, 166), view.textView("選択").faceColor())
         assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
     }
 
@@ -104,8 +129,8 @@ class CandidateStripViewTest {
         val view = view()
         view.showCandidates(CandidateUiSnapshot(25, listOf("未選択", "選択"), 1))
 
-        assertEquals(Color.rgb(41, 41, 44), (view.textView("未選択").background as ColorDrawable).color)
-        assertEquals(Color.rgb(97, 210, 255), (view.textView("選択").background as ColorDrawable).color)
+        assertEquals(Color.rgb(65, 65, 68), view.textView("未選択").faceColor())
+        assertEquals(Color.rgb(168, 206, 255), view.textView("選択").faceColor())
         assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
     }
 
@@ -115,13 +140,13 @@ class CandidateStripViewTest {
         val events = mutableListOf<CandidateUiEvent>()
         view.setOnCandidateSelected(events::add)
         view.showCandidates(CandidateUiSnapshot(26, listOf("候補"), 0))
-        assertEquals(Color.rgb(23, 78, 166), (view.textView("候補").background as ColorDrawable).color)
+        assertEquals(Color.rgb(23, 78, 166), view.textView("候補").faceColor())
 
         RuntimeEnvironment.setQualifiers("night")
         view.dispatchConfigurationChanged(view.resources.configuration)
         view.textView("候補").performClick()
 
-        assertEquals(Color.rgb(97, 210, 255), (view.textView("候補").background as ColorDrawable).color)
+        assertEquals(Color.rgb(168, 206, 255), view.textView("候補").faceColor())
         assertEquals(listOf(CandidateUiEvent(26, 0)), events)
     }
 
@@ -138,6 +163,10 @@ class CandidateStripViewTest {
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }
+    private fun TextView.layers() = background as LayerDrawable
+    private fun TextView.shadowLayer() = layers().getDrawable(0) as GradientDrawable
+    private fun TextView.faceLayer() = layers().getDrawable(1) as GradientDrawable
+    private fun TextView.faceColor() = faceLayer().color!!.defaultColor
     private fun View.allTextViews(): List<TextView> {
         val result = mutableListOf<TextView>()
         fun visit(view: View) { if (view is TextView) result += view; if (view is ViewGroup) repeat(view.childCount) { visit(view.getChildAt(it)) } }
