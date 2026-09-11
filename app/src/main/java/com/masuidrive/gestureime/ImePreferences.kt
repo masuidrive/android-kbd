@@ -12,6 +12,19 @@ object ImePreferences {
     private const val LABEL_PREFIX = "qwerty_label_"
     private const val TERMINAL_CURSOR = "terminal_cursor_key_events"
     private const val LAST_KEYBOARD_MODE = "last_keyboard_mode"
+    private const val ENGLISH_SUGGESTIONS = "english_suggestions_enabled"
+
+    fun isEnglishSuggestionsEnabled(context: Context): Boolean = runCatching {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .getBoolean(ENGLISH_SUGGESTIONS, false)
+    }.getOrDefault(false)
+
+    fun setEnglishSuggestionsEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(ENGLISH_SUGGESTIONS, enabled)
+            .apply()
+    }
     fun isTerminalCursorEnabled(context: Context) = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).getBoolean(TERMINAL_CURSOR, false)
     fun setTerminalCursorEnabled(context: Context, enabled: Boolean) { context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().putBoolean(TERMINAL_CURSOR, enabled).apply() }
 

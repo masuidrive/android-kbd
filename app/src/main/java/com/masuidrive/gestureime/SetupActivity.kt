@@ -44,6 +44,11 @@ class SetupActivity : AppCompatActivity() {
                 isChecked = ImePreferences.isTerminalCursorEnabled(context)
                 setOnCheckedChangeListener { _, checked -> ImePreferences.setTerminalCursorEnabled(context, checked) }
             }, matchWidth())
+            addView(Switch(context).apply {
+                text = getString(R.string.english_suggestions)
+                isChecked = ImePreferences.isEnglishSuggestionsEnabled(context)
+                setOnCheckedChangeListener { _, checked -> ImePreferences.setEnglishSuggestionsEnabled(context, checked) }
+            }, matchWidth())
             addView(Button(context).apply {
                 text = getString(R.string.adjust_qwerty_labels)
                 setOnClickListener {

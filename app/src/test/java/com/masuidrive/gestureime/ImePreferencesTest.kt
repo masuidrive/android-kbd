@@ -47,6 +47,20 @@ class ImePreferencesTest {
     }
 
     @Test
+    fun englishSuggestionsDefaultOffPersistAndRejectMalformedValue() {
+        val context = RuntimeEnvironment.getApplication()
+        assertFalse(ImePreferences.isEnglishSuggestionsEnabled(context))
+
+        ImePreferences.setEnglishSuggestionsEnabled(context, true)
+        assertTrue(ImePreferences.isEnglishSuggestionsEnabled(context))
+
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
+            .putString("english_suggestions_enabled", "bad")
+            .apply()
+        assertFalse(ImePreferences.isEnglishSuggestionsEnabled(context))
+    }
+
+    @Test
     fun qwertyStylePersistsSanitizesAndResets() {
         val context = RuntimeEnvironment.getApplication()
         val group = com.masuidrive.gestureime.keyboard.QwertyLabelGroup.LETTER_PRIMARY
