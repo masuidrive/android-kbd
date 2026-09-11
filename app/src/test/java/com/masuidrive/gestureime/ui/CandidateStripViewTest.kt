@@ -19,11 +19,11 @@ class CandidateStripViewTest {
     private fun view() = CandidateStripView(RuntimeEnvironment.getApplication())
 
     @Test fun idleShowsCandidatesWithoutAnOldVoiceStartControl() {
-        val view = view(); val candidates = mutableListOf<Int>(); val actions = mutableListOf<VoiceUiEvent>()
+        val view = view(); val candidates = mutableListOf<CandidateUiEvent>(); val actions = mutableListOf<VoiceUiEvent>()
         view.setOnCandidateSelected(candidates::add); view.setOnVoiceActionListener(actions::add)
-        view.showCandidates(listOf("日本語", "日本語の"), 0); view.setVoiceState(VoiceUiSnapshot(1, VoiceUiState.Idle))
+        view.showCandidates(CandidateUiSnapshot(20, listOf("日本語", "日本語の"), 0)); view.setVoiceState(VoiceUiSnapshot(1, VoiceUiState.Idle))
         view.textView("日本語の").performClick()
-        assertEquals(listOf(1), candidates); assertTrue(actions.isEmpty())
+        assertEquals(listOf(CandidateUiEvent(20, 1)), candidates); assertTrue(actions.isEmpty())
         assertTrue(view.allTextViews().none { it.text == "音声" })
     }
 
@@ -49,28 +49,28 @@ class CandidateStripViewTest {
     }
 
     @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); val selected = mutableListOf<Int>()
+        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); val selected = mutableListOf<CandidateUiEvent>()
         view.setOnVoiceActionListener(actions::add); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(listOf("候補"), 0)
+        view.showCandidates(CandidateUiSnapshot(21, listOf("候補"), 0))
         view.setVoiceState(VoiceUiSnapshot(6, VoiceUiState.Unavailable("端末内の日本語モデルがありません")))
         val button = view.textView("非対応")
         assertTrue(button.isEnabled); assertTrue(button.contentDescription.toString().contains("日本語モデル"))
         view.textView("候補").performClick(); button.performClick()
-        assertEquals(listOf(0), selected); assertEquals(listOf(VoiceUiEvent(6, VoiceUiAction.ExplainUnavailable)), actions)
+        assertEquals(listOf(CandidateUiEvent(21, 0)), selected); assertEquals(listOf(VoiceUiEvent(6, VoiceUiAction.ExplainUnavailable)), actions)
     }
 
     @Test fun permissionRequiredPreservesCandidateInput() {
-        val view = view(); val selected = mutableListOf<Int>(); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(listOf("日本語"), 0); view.setVoiceState(VoiceUiSnapshot(7, VoiceUiState.PermissionRequired))
+        val view = view(); val selected = mutableListOf<CandidateUiEvent>(); view.setOnCandidateSelected(selected::add)
+        view.showCandidates(CandidateUiSnapshot(22, listOf("日本語"), 0)); view.setVoiceState(VoiceUiSnapshot(7, VoiceUiState.PermissionRequired))
         view.textView("日本語").performClick()
-        assertEquals(listOf(0), selected); assertTrue(view.textView("許可").isEnabled)
+        assertEquals(listOf(CandidateUiEvent(22, 0)), selected); assertTrue(view.textView("許可").isEnabled)
     }
 
     @Test fun hiddenRemovesVoiceControlsButPreservesCandidateInput() {
-        val view = view(); val selected = mutableListOf<Int>(); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(listOf("候補"), 0); view.setVoiceState(VoiceUiSnapshot(8, VoiceUiState.Hidden))
+        val view = view(); val selected = mutableListOf<CandidateUiEvent>(); view.setOnCandidateSelected(selected::add)
+        view.showCandidates(CandidateUiSnapshot(23, listOf("候補"), 0)); view.setVoiceState(VoiceUiSnapshot(8, VoiceUiState.Hidden))
         assertTrue(view.allTextViews().none { it.text == "音声" }); view.textView("候補").performClick()
-        assertEquals(listOf(0), selected)
+        assertEquals(listOf(CandidateUiEvent(23, 0)), selected)
     }
 
     @Test fun detachedPermissionButtonKeepsItsRenderedSessionToken() {
@@ -93,11 +93,23 @@ class CandidateStripViewTest {
 
     @Test fun showingCandidatesKeepsTheStripBackgroundStable() {
         val view = view()
-        view.showCandidates(listOf("未選択", "選択"), 1)
+        view.showCandidates(CandidateUiSnapshot(24, listOf("未選択", "選択"), 1))
 
         assertEquals(Color.rgb(41, 41, 44), (view.textView("未選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(97, 210, 255), (view.textView("選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
+    }
+
+    @Test fun detachedCandidateKeepsItsRenderedToken() {
+        val view = view(); val events = mutableListOf<CandidateUiEvent>(); view.setOnCandidateSelected(events::add)
+        view.showCandidates(CandidateUiSnapshot(30, listOf("same")))
+        val oldCandidate = view.textView("same")
+
+        view.showCandidates(CandidateUiSnapshot(31, listOf("same")))
+        oldCandidate.performClick()
+        view.textView("same").performClick()
+
+        assertEquals(listOf(CandidateUiEvent(30, 0), CandidateUiEvent(31, 0)), events)
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }

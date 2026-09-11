@@ -21,10 +21,9 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         addView(candidateRow, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
     private val voiceControls = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    private var candidates = emptyList<String>()
-    private var selectedCandidateIndex = -1
+    private var candidateSnapshot = CandidateUiSnapshot(0L, emptyList())
     private var voiceSnapshot = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
-    private var onCandidateSelected: ((Int) -> Unit)? = null
+    private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
     private var onVoiceAction: ((VoiceUiEvent) -> Unit)? = null
 
     init {
@@ -38,18 +37,16 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         render()
     }
 
-    fun setOnCandidateSelected(listener: (Int) -> Unit) { onCandidateSelected = listener }
+    fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
     fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
-    fun showCandidates(candidates: List<String>, selectedIndex: Int) {
-        this.candidates = candidates
-        selectedCandidateIndex = selectedIndex
+    fun showCandidates(snapshot: CandidateUiSnapshot) {
+        candidateSnapshot = snapshot
         render()
     }
 
     fun showStatus(message: String) {
-        candidates = emptyList()
-        selectedCandidateIndex = -1
+        candidateSnapshot = candidateSnapshot.copy(candidates = emptyList(), selectedIndex = -1)
         renderCandidateMessage(message)
     }
 
@@ -77,13 +74,14 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     private fun renderCandidates() {
+        val snapshot = candidateSnapshot
         var selectedView: TextView? = null
-        candidates.forEachIndexed { index, candidate ->
-            candidateRow.addView(label(candidate, index == selectedCandidateIndex).apply {
+        snapshot.candidates.forEachIndexed { index, candidate ->
+            candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
                 isClickable = true; isFocusable = true
                 contentDescription = "候補 ${index + 1}: $candidate"
-                setOnClickListener { onCandidateSelected?.invoke(index) }
-                if (index == selectedCandidateIndex) selectedView = this
+                setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
+                if (index == snapshot.selectedIndex) selectedView = this
             })
         }
         selectedView?.let { view -> post { view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true) } }
