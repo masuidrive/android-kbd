@@ -96,3 +96,4 @@
 [2026/09/11 15:18] QWERTY下swipe補助labelの縦中央化ticketをv0.7完成履歴から開始。現状の固定13dp移動は45dp keyで0.5dp、52dp keyで4dp中央からずれると測定し、実key高に応じた終端と狭幅/広幅Canvas回帰testへ修正する。
 [2026/09/11 15:23] QWERTY下swipe補助labelの終端を実key高から算出し、45dp/52dpの双方で文字visual centerがkey中央へ一致するよう修正。戻りanimation、上swipe、Enter/Pasteは既存testを維持し、fast-check 5件、全unit、lint、APK buildが成功。独立reviewへ進む。
 [2026/09/11 15:28] 下swipe中央化の独立reviewで、ユーザー調整Y±8dpによる終端ずれと、rowSpan Enter/Pasteへ動的移動量が漏れるMajor 2件を検出。QWERTY文字キーだけ中央を強制し、全5layer Enter/Pasteは従来13dpを維持。直接cancel復帰も含むKeyboardView test 31件が成功した。
+[2026/09/11 15:29] 日本語変換候補・英字補完候補がHTML正本の候補faceと一致しない追加指摘を受領。native共通CandidateStripViewと`demo.html`内の`mock.html`を、高さ34/最小幅82/左右14/間隔5/角丸7/下影1、Light/Dark選択色へ揃えるticket `260911-062719-align-candidate-ui-with-html`を起票した。
