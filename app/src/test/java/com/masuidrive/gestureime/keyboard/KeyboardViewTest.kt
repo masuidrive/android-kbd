@@ -38,9 +38,9 @@ class KeyboardViewTest {
         activity.setContentView(view)
         shadowOf(Looper.getMainLooper()).idle()
         view.apply {
-            measure(exact(400), exact(220))
-            layout(0, 0, 400, 220)
-            draw(Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888)))
+            measure(exact(400), exact(228))
+            layout(0, 0, 400, 228)
+            draw(Canvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)))
         }
     }
 
@@ -122,7 +122,7 @@ class KeyboardViewTest {
         }
         view.setQwertyLabelStyle(extreme)
 
-        listOf(412 to 220, 840 to 248).forEach { (width, height) ->
+        listOf(412 to 228, 840 to 248).forEach { (width, height) ->
             view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
             view.draw(Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)))
             val provider = view.accessibilityNodeProvider
@@ -137,7 +137,7 @@ class KeyboardViewTest {
         fun bounds() = Rect().also { view.accessibilityNodeProvider.createAccessibilityNodeInfo(0)!!.getBoundsInParent(it) }
         val before = bounds()
         view.setQwertyLabelStyle(QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_PRIMARY, LabelAdjustment(.7f, -6f, -8f)))
-        view.draw(Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888)))
+        view.draw(Canvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)))
         assertEquals(before, bounds())
     }
 
@@ -182,16 +182,16 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_MOVE, layer.first + 35f, layer.second, 20)
         shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
         touch(MotionEvent.ACTION_UP, layer.first + 35f, layer.second, 1_120)
-        assertTrue(events.isEmpty())
-        assertTrue(actions.contains(KeyAction.SwitchLayer(KeyboardMode.NUMBERS)))
+        assertTrue("events=$events", events.isEmpty())
+        assertTrue(actions.contains(KeyAction.SwitchLayer(KeyboardMode.QWERTY)))
 
         actions.clear(); view.setMode(KeyboardMode.QWERTY)
         multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to layer))
-        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (40f to 20f)))
+        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (20f to 20f)))
         shadowOf(Looper.getMainLooper()).idleFor(KeyboardView.VOICE_HOLD_DELAY_MS, TimeUnit.MILLISECONDS)
-        multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (40f to 20f)))
+        multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (20f to 20f)))
         multiTouch(MotionEvent.ACTION_UP, listOf(0 to layer))
-        assertTrue(events.isEmpty())
+        assertTrue("events after second pointer=$events", events.isEmpty())
     }
 
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `mode change cancels active voice hold and stale ready is inert`() {
@@ -207,38 +207,140 @@ class KeyboardViewTest {
         assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.Cancel(1)), events)
     }
 
-    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `down labels and enter paste visibly animate into their key centers`() {
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty labels preserve css anchors and animate actual canvas frames`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         val looper = shadowOf(Looper.getMainLooper())
         looper.pause()
-        data class TextFrame(val textSize: Float, val baseline: Float)
-        fun textFrame(label: String): TextFrame {
-            val canvas = Canvas(Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888))
-            view.draw(canvas)
-            val shadow = shadowOf(canvas)
-            val event = (0 until shadow.textHistoryCount).map(shadow::getDrawnTextEvent).last { it.text == label }
-            return TextFrame(event.paint.textSize, event.y)
-        }
-        fun animateDown(virtualId: Int, label: String): Triple<TextFrame, TextFrame, TextFrame> {
-            val bounds = Rect().also { view.accessibilityNodeProvider.createAccessibilityNodeInfo(virtualId)!!.getBoundsInParent(it) }
-            touch(MotionEvent.ACTION_DOWN, bounds.centerX().toFloat(), bounds.centerY().toFloat())
-            touch(MotionEvent.ACTION_MOVE, bounds.centerX().toFloat(), bounds.centerY() + 24f, 10)
-            val start = textFrame(label)
-            looper.idleFor(45, TimeUnit.MILLISECONDS); val middle = textFrame(label)
-            looper.idleFor(60, TimeUnit.MILLISECONDS); val end = textFrame(label)
-            touch(MotionEvent.ACTION_CANCEL, bounds.centerX().toFloat(), bounds.centerY().toFloat(), 120)
-            return Triple(start, middle, end)
-        }
+        fun frame() = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
+        val q = keyBounds(0)
+        val idle = frame()
+        val idleMain = idle.draws.last { it.text == "q" }
+        val idleAux = idle.draws.last { it.text == "1" }
+        assertEquals(q.top + 27.5f, center(idleMain), .6f)
+        assertEquals(q.top + 9f, center(idleAux), .6f)
+        assertEquals(22f, idleMain.textSize, .1f)
+        assertEquals(11f, idleAux.textSize, .1f)
+        touch(MotionEvent.ACTION_DOWN, q.centerX().toFloat(), q.centerY().toFloat())
+        val pressed = frame()
+        assertEquals(center(idleMain), center(pressed.draws.last { it.text == "q" }), .1f)
+        assertEquals(center(idleAux), center(pressed.draws.last { it.text == "1" }), .1f)
+        touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY() - 24f, 10)
+        looper.idleFor(100, TimeUnit.MILLISECONDS)
+        val up = frame()
+        val uppercase = up.draws.last { it.text == "Q" }
+        assertEquals(22f, uppercase.textSize, .1f)
+        assertEquals(center(idleMain) - 3f, center(uppercase), .6f)
+        assertEquals(0, up.draws.last { it.text == "1" }.alpha)
+        touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY() + 24f, 120)
+        looper.idleFor(100, TimeUnit.MILLISECONDS)
+        val down = frame()
+        val downAux = down.draws.last { it.text == "1" }
+        assertEquals(center(idleAux) + 13f, center(downAux), .6f)
+        assertEquals(11f * 1.7f, downAux.textSize, .2f)
+        assertEquals(0, down.draws.last { it.text == "q" }.alpha)
+        touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY().toFloat(), 230)
+        val reverseStart = center(frame().draws.last { it.text == "1" })
+        looper.idleFor(45, TimeUnit.MILLISECONDS)
+        val reverseMiddle = center(frame().draws.last { it.text == "1" })
+        looper.idleFor(60, TimeUnit.MILLISECONDS)
+        val reverseEnd = center(frame().draws.last { it.text == "1" })
+        assertTrue(reverseMiddle < reverseStart)
+        assertEquals(center(idleAux), reverseEnd, .6f)
+        touch(MotionEvent.ACTION_CANCEL, q.centerX().toFloat(), q.centerY().toFloat(), 300)
+    }
 
-        val punctuation = animateDown(29, "!")
-        assertTrue("punctuation frames=$punctuation", punctuation.second.baseline > punctuation.first.baseline)
-        assertTrue("punctuation frames=$punctuation", punctuation.third.baseline >= punctuation.second.baseline)
-        val paste = animateDown(33, "paste")
-        // Enter is the final key drawn, so its Paint snapshot still carries the
-        // animated size; the earlier punctuation Paint is reused by later keys.
-        assertTrue("paste frames=$paste", paste.second.textSize > paste.first.textSize)
-        assertTrue("paste frames=$paste", paste.third.baseline > paste.first.baseline)
-        assertTrue(paste.third.baseline <= 220f)
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter down animates paste and dispatches paste only on release`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
+        fun frame() = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
+        val enter = keyBounds(33)
+        val idle = frame()
+        val idleMain = idle.draws.last { it.text == "Enter" }
+        val idleHint = idle.draws.last { it.text == "paste" }
+        assertEquals(enter.top + 29f, center(idleMain), .6f)
+        assertEquals(enter.top + 12.5f, center(idleHint), .6f)
+        touch(MotionEvent.ACTION_DOWN, enter.centerX().toFloat(), enter.centerY().toFloat())
+        touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() + 24f, 10)
+        assertTrue(actions.isEmpty())
+        looper.idleFor(100, TimeUnit.MILLISECONDS)
+        val selected = frame()
+        val paste = selected.draws.last { it.text == "paste" }
+        assertEquals(center(idleHint) + 13f, center(paste), .6f)
+        assertEquals(10f * 1.7f, paste.textSize, .2f)
+        assertEquals(0, selected.draws.last { it.text == "Enter" }.alpha)
+        touch(MotionEvent.ACTION_UP, enter.centerX().toFloat(), enter.centerY() + 24f, 120)
+        assertEquals(listOf(KeyAction.Paste), actions)
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `two pointers keep independent label animation frames`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
+        val q = keyCenter(0)
+        val w = keyCenter(1)
+        multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to q))
+        multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to q, 1 to w))
+        multiTouch(MotionEvent.ACTION_MOVE, listOf(0 to (q.first to q.second + 24f), 1 to (w.first to w.second - 24f)))
+        looper.idleFor(100, TimeUnit.MILLISECONDS)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertEquals(11f * 1.7f, canvas.draws.last { it.text == "1" }.textSize, .2f)
+        assertEquals(22f, canvas.draws.last { it.text == "W" }.textSize, .1f)
+        assertEquals(0, canvas.draws.last { it.text == "2" }.alpha)
+        multiTouch(MotionEvent.ACTION_CANCEL, listOf(0 to q, 1 to w))
+    }
+
+    @Test fun `regular key has one pixel dark edge shadow and preserves open gap`() {
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val q = keyBounds(0)
+        val qShadow = canvas.roundRects.first { it.rect.left == q.left.toFloat() && it.rect.top == q.top + 1f }
+        assertEquals(android.graphics.Color.rgb(20, 20, 22), qShadow.color)
+        assertEquals(q.bottom + 1f, qShadow.rect.bottom, .01f)
+    }
+
+    @Test fun `wide qwerty keeps relative label anchors as rows grow`() {
+        view.measure(exact(840), exact(248))
+        view.layout(0, 0, 840, 248)
+        val q = keyBounds(0)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
+        fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
+        assertEquals(q.exactCenterY() + 5f, center(canvas.draws.last { it.text == "q" }), .6f)
+        assertEquals(q.top + 9f, center(canvas.draws.last { it.text == "1" }), .6f)
+    }
+
+    @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.CURSOR).forEach { mode ->
+            val modeActions = mutableListOf<KeyAction>()
+            val modeView = KeyboardView(Robolectric.buildActivity(Activity::class.java).setup().get()).apply {
+                actionSink = KeyboardActionSink { modeActions += it }
+                setMode(mode)
+                setConversionActive(false)
+                measure(exact(400), exact(228)); layout(0, 0, 400, 228)
+            }
+            val provider = modeView.accessibilityNodeProvider
+            val enterId = KeyboardLayouts.layout(mode, false, false).rows.flatMap { it.keys }
+                .indexOfFirst { it.kind == KeyKind.ENTER }
+            check(enterId >= 0) { "$mode has no Enter key" }
+            val enter = Rect().also { provider.createAccessibilityNodeInfo(enterId)!!.getBoundsInParent(it) }
+            val startX = enter.left + 2f
+            val startY = enter.top + 2f
+            fun modeTouch(action: Int, y: Float, time: Long) = MotionEvent.obtain(0, time, action, startX, y, 0).also {
+                modeView.onTouchEvent(it); it.recycle()
+            }
+            modeTouch(MotionEvent.ACTION_DOWN, startY, 0)
+            modeTouch(MotionEvent.ACTION_MOVE, startY + 24f * modeView.resources.displayMetrics.density, 10)
+            val selectedDirections = KeyboardView::class.java.getDeclaredField("directions").also { it.isAccessible = true }
+                .get(modeView) as Map<*, *>
+            assertEquals("$mode selected direction", Direction.DOWN, selectedDirections[0])
+            val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(modeView::draw)
+            val paste = canvas.draws.lastOrNull { it.text == "paste" } ?: error("$mode did not draw paste")
+            val main = canvas.draws.lastOrNull { it.text == "Enter" } ?: error("$mode did not draw Enter")
+            assertEquals("$mode paste size", 17f, paste.textSize, .2f)
+            assertEquals("$mode Enter hidden", 0, main.alpha)
+            modeTouch(MotionEvent.ACTION_UP, startY + 24f * modeView.resources.displayMetrics.density, 20)
+            assertEquals("$mode action", listOf(KeyAction.Paste), modeActions)
+        }
     }
 
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
@@ -257,8 +359,8 @@ class KeyboardViewTest {
     }
 
     @Test fun `qwerty geometry matches css gaps heights and bottom row proportions`() {
-        view.measure(exact(412), exact(220))
-        view.layout(0, 0, 412, 220)
+        view.measure(exact(412), exact(228))
+        view.layout(0, 0, 412, 228)
         val provider = view.accessibilityNodeProvider
         fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
         val q = bounds(0)
@@ -282,7 +384,7 @@ class KeyboardViewTest {
         val provider = view.accessibilityNodeProvider
         fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
         val first = bounds(0)
-        assertEquals(10, first.left)
+        assertEquals(13, first.left)
         assertEquals(52, first.height())
         assertEquals(6, bounds(5).top - first.bottom)
         assertEquals(6, bounds(1).left - first.right)
@@ -331,10 +433,15 @@ class KeyboardViewTest {
         view.setMode(KeyboardMode.KANA)
         view.measure(exact(400), exact(228))
         view.layout(0, 0, 400, 228)
-        touch(MotionEvent.ACTION_DOWN, 360f, 130f)
-        touch(MotionEvent.ACTION_UP, 360f, 130f, 5)
-        touch(MotionEvent.ACTION_DOWN, 360f, 190f, 10)
-        touch(MotionEvent.ACTION_UP, 360f, 190f, 15)
+        val enterId = KeyboardLayouts.layout(KeyboardMode.KANA, false, false).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ENTER }
+        val enter = keyBounds(enterId)
+        val x = enter.exactCenterX()
+        touch(MotionEvent.ACTION_DOWN, x, enter.top + 2f)
+        touch(MotionEvent.ACTION_UP, x, enter.top + 2f, 5)
+        assertEquals("upper half", listOf(KeyAction.Enter), actions)
+        touch(MotionEvent.ACTION_DOWN, x, enter.bottom - 2f, 10)
+        touch(MotionEvent.ACTION_UP, x, enter.bottom - 2f, 15)
         assertEquals(listOf(KeyAction.Enter, KeyAction.Enter), actions)
     }
 
@@ -342,10 +449,10 @@ class KeyboardViewTest {
         val base = RuntimeEnvironment.getApplication()
         val configuration = Configuration(base.resources.configuration).apply { this.fontScale = fontScale }
         val context = base.createConfigurationContext(configuration)
-        return Bitmap.createBitmap(400, 220, Bitmap.Config.ARGB_8888).also { bitmap ->
+        return Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888).also { bitmap ->
             KeyboardView(context).apply {
-                measure(exact(400), exact(220))
-                layout(0, 0, 400, 220)
+                measure(exact(400), exact(228))
+                layout(0, 0, 400, 228)
                 draw(Canvas(bitmap))
             }
         }
@@ -400,6 +507,33 @@ class KeyboardViewTest {
         assertTrue("$label right=$right key=$key", right <= key.right)
         assertTrue("$label top=${baseline + glyph.top} key=$key", baseline + glyph.top >= key.top)
         assertTrue("$label bottom=${baseline + glyph.bottom} key=$key", baseline + glyph.bottom <= key.bottom)
+    }
+
+    private data class TextDraw(
+        val text: String,
+        val x: Float,
+        val y: Float,
+        val textSize: Float,
+        val alpha: Int,
+        val ascent: Float,
+        val descent: Float,
+    )
+
+    private data class RoundDraw(val rect: android.graphics.RectF, val color: Int)
+
+    private class CaptureCanvas(bitmap: Bitmap) : Canvas(bitmap) {
+        val draws = mutableListOf<TextDraw>()
+        val roundRects = mutableListOf<RoundDraw>()
+
+        override fun drawText(text: String, x: Float, y: Float, paint: Paint) {
+            draws += TextDraw(text, x, y, paint.textSize, paint.alpha, paint.ascent(), paint.descent())
+            super.drawText(text, x, y, paint)
+        }
+
+        override fun drawRoundRect(rect: android.graphics.RectF, rx: Float, ry: Float, paint: Paint) {
+            roundRects += RoundDraw(android.graphics.RectF(rect), paint.color)
+            super.drawRoundRect(rect, rx, ry, paint)
+        }
     }
 
     private fun exact(size: Int) = android.view.View.MeasureSpec.makeMeasureSpec(size, android.view.View.MeasureSpec.EXACTLY)
