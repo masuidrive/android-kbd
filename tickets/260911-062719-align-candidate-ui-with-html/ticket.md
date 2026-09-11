@@ -34,7 +34,7 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 この ticket が終わると、Gesture IME利用者が日本語変換候補と英字補完候補をHTML正本と同じ形状・間隔・選択表現で利用でき、公開demoでも同じ表示を確認できる。
 
-- [ ] AC 1: nativeの日本語変換候補と英字補完候補が、高さ34dp、最小幅82dp、左右padding 14dp、間隔5dp、角丸7dp、1dp下影、15sp文字で表示される。
+- [ ] AC 1: nativeの日本語変換候補と英字補完候補が、高さ34dp、最小幅82dp、左右padding 14dp、間隔5dp、角丸7dp、1dp下影、HTMLの15pxに対応する15dp相当の固定文字で表示される。
 - [ ] AC 2: 未選択候補と選択候補がHTML正本のLight/Dark配色に従い、選択候補だけaccent背景・対応する文字色になる。
 - [ ] AC 3: 候補欄は高さ42dp、左右3dp・下8dpの余白を持ち、横スクロール・選択候補への追従・候補tap確定を維持する。
 - [ ] AC 4: `demo.html`が読み込む`mock.html`でも、日本語候補と英字補完候補を同じ候補部品・同じLight/Dark表現で表示できる。
@@ -53,6 +53,7 @@ canceled_at: null # Do not modify manually
 - 正本は`docs/reference/mock-source.html`のcandidate bar/button定義とする。
 - 日本語候補と英字候補はnativeの同じ`CandidateStripView`と、mockの同じcandidate button表現を使う。
 - 音声状態UIも後続ticketで同じfaceへ統合できる構造にする。
+- HTMLの固定pxをnativeのdpへ写し、キートップ同様に端末fontScaleで候補faceから文字がはみ出さない固定サイズとする。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。

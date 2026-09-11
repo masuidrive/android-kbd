@@ -2,6 +2,7 @@ package com.masuidrive.gestureime.ui
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -33,6 +34,11 @@ class CandidateStripViewTest {
     @Test fun recordingAndRecognizingOfferCancelWithoutStopOrConfirmControls() {
         val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
         view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording))
+        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 400, 50)
+        assertEquals(82, view.textView("取消").width)
+        assertEquals(34, view.textView("取消").height)
+        assertEquals(7f, view.textView("取消").faceLayer().cornerRadius, .1f)
         assertTrue(view.allTextViews().none { it.text == "停止" }); view.textView("取消").performClick()
         view.setVoiceState(VoiceUiSnapshot(3, VoiceUiState.Recognizing))
         assertTrue(view.allTextViews().none { it.text == "停止" || it.text == "確定" }); view.textView("取消").performClick()
@@ -114,6 +120,15 @@ class CandidateStripViewTest {
         assertEquals(Typeface.NORMAL, second.typeface.style)
         assertEquals(7f, first.faceLayer().cornerRadius, .1f)
         assertEquals(Color.rgb(137, 140, 148), first.shadowLayer().color!!.defaultColor)
+    }
+
+    @Test fun candidateTextKeepsHtmlFixedSizeAtLargeSystemFontScale() {
+        val base = RuntimeEnvironment.getApplication()
+        val configuration = Configuration(base.resources.configuration).apply { fontScale = 2f }
+        val view = CandidateStripView(base.createConfigurationContext(configuration))
+        view.showCandidates(CandidateUiSnapshot(24, listOf("candidate")))
+
+        assertEquals(15f * view.resources.displayMetrics.density, view.textView("candidate").textSize, .1f)
     }
 
     @Test fun showingCandidatesKeepsTheStripBackgroundStable() {

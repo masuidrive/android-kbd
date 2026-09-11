@@ -327,7 +327,7 @@
   function englishPrefix() {
     if(language!=='english'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd)return null;
     const end=editor.selectionStart,match=editor.value.slice(0,end).match(/[A-Za-z]+$/);
-    return match&&match[0].length>=2?{raw:match[0],start:end-match[0].length,end}:null;
+    return match&&match[0].length>=1?{raw:match[0],start:end-match[0].length,end}:null;
   }
   function replaceEnglishCandidate(candidate) {
     const prefix=englishPrefix();if(!prefix)return;
@@ -346,7 +346,9 @@
       return;
     }
     const prefix=englishCandidatesEnabled?englishPrefix():null;
-    const candidates=prefix?englishSuggestionWords.filter(word=>word.startsWith(prefix.raw.toLowerCase())&&word!==prefix.raw.toLowerCase()).slice(0,5):[];
+    const candidates=prefix?englishSuggestionWords
+      .filter(word=>word.startsWith(prefix.raw.toLowerCase())&&word!==prefix.raw.toLowerCase()).slice(0,5)
+      .map(word=>prefix.raw===prefix.raw.toUpperCase()?word.toUpperCase():prefix.raw+word.slice(prefix.raw.length)):[];
     candidateBar.hidden=!candidates.length;
     candidates.forEach(candidate=>{
       const button=document.createElement('button');button.type='button';button.dataset.englishCandidate=candidate;
