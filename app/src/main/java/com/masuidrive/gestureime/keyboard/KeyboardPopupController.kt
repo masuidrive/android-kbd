@@ -12,6 +12,7 @@ import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.widget.PopupWindow
+import com.masuidrive.gestureime.R
 import kotlin.math.floor
 
 /**
@@ -100,6 +101,10 @@ class KeyboardPopupController(private val context: Context) {
 
     internal fun isShowingForTest(): Boolean = window?.isShowing == true
     internal fun popupForTest(): PopupWindow? = window
+
+    fun refreshTheme() {
+        renderView?.invalidate()
+    }
 
     private fun observe(anchor: View) {
         if (observedAnchor === anchor) return
@@ -322,8 +327,8 @@ internal class KeyboardPopupRenderView(
     private fun drawKana(canvas: Canvas, currentSpec: KeySpec) {
         val tiles = Direction.entries.associateWith { geometry.tileRect(it, popupSize, contentOffsetX, contentOffsetY) }
         val silhouette = Path().apply { tiles.values.forEach { addRoundRect(it, geometry.dp(6f), geometry.dp(6f), Path.Direction.CW) } }
-        fill.color = POPUP
-        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), SHADOW)
+        fill.color = context.getColor(R.color.keyboard_popup)
+        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), context.getColor(R.color.keyboard_popup_shadow))
         canvas.drawPath(silhouette, fill)
         fill.clearShadowLayer()
         Direction.entries.forEach { tileDirection ->
@@ -335,14 +340,14 @@ internal class KeyboardPopupRenderView(
     private fun drawLetter(canvas: Canvas, currentKind: PopupKind, currentSpec: KeySpec) {
         val rect = geometry.contentRect(currentKind, popupSize, contentOffsetX, contentOffsetY)
         val modifier = currentKind == PopupKind.MODIFIER
-        fill.color = if (modifier) SELECTED else POPUP
-        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), SHADOW)
+        fill.color = if (modifier) context.getColor(R.color.keyboard_selected) else context.getColor(R.color.keyboard_popup)
+        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), context.getColor(R.color.keyboard_popup_shadow))
         canvas.drawPath(letterPath(rect), fill)
         fill.clearShadowLayer()
-        border.color = if (modifier) SELECTED else POPUP_BORDER
+        border.color = if (modifier) context.getColor(R.color.keyboard_selected) else context.getColor(R.color.keyboard_popup_border)
         canvas.drawPath(letterPath(RectF(rect).apply { inset(geometry.dp(.5f), geometry.dp(.5f)) }), border)
         val label = currentSpec.value(direction)?.label ?: currentSpec.center?.label ?: return
-        text.color = if (modifier) SELECTED_INK else POPUP_INK
+        text.color = if (modifier) context.getColor(R.color.keyboard_selected_text) else context.getColor(R.color.keyboard_popup_text)
         text.textSize = sp(if (modifier) 24f else 40f)
         drawCentered(canvas, label, rect, rect.width() - geometry.dp(20f))
     }
@@ -351,11 +356,11 @@ internal class KeyboardPopupRenderView(
         if (accents.isEmpty()) return
         val parentWidth = geometry.accentTile * accents.size + geometry.accentPadding * 2
         val parent = RectF(contentOffsetX, contentOffsetY, contentOffsetX + parentWidth, contentOffsetY + geometry.dp(54f))
-        fill.color = POPUP
-        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), SHADOW)
+        fill.color = context.getColor(R.color.keyboard_popup)
+        fill.setShadowLayer(geometry.dp(7f), 0f, geometry.dp(3f), context.getColor(R.color.keyboard_popup_shadow))
         canvas.drawRoundRect(parent, geometry.dp(8f), geometry.dp(8f), fill)
         fill.clearShadowLayer()
-        border.color = POPUP_BORDER
+        border.color = context.getColor(R.color.keyboard_popup_border)
         canvas.drawRoundRect(RectF(parent).apply { inset(geometry.dp(.5f), geometry.dp(.5f)) }, geometry.dp(8f), geometry.dp(8f), border)
         accents.forEachIndexed { index, label ->
             val rect = RectF(parent.left + geometry.accentPadding + geometry.accentTile * index, parent.top + geometry.accentPadding,
@@ -365,13 +370,13 @@ internal class KeyboardPopupRenderView(
     }
 
     private fun drawTile(canvas: Canvas, rect: RectF, label: String, selected: Boolean, textSize: Float, bordered: Boolean) {
-        fill.color = if (selected) SELECTED else POPUP
+        fill.color = if (selected) context.getColor(R.color.keyboard_selected) else context.getColor(R.color.keyboard_popup)
         canvas.drawRoundRect(rect, geometry.dp(6f), geometry.dp(6f), fill)
         if (bordered) {
-            border.color = if (selected) SELECTED else POPUP_BORDER
+            border.color = if (selected) context.getColor(R.color.keyboard_selected) else context.getColor(R.color.keyboard_popup_border)
             canvas.drawRoundRect(RectF(rect).apply { inset(geometry.dp(.5f), geometry.dp(.5f)) }, geometry.dp(6f), geometry.dp(6f), border)
         }
-        text.color = if (selected) SELECTED_INK else POPUP_INK
+        text.color = if (selected) context.getColor(R.color.keyboard_selected_text) else context.getColor(R.color.keyboard_popup_text)
         text.textSize = sp(textSize)
         drawCentered(canvas, label, rect, rect.width() - geometry.dp(6f))
     }
@@ -390,12 +395,4 @@ internal class KeyboardPopupRenderView(
 
     private fun sp(value: Float) = value * resources.displayMetrics.density
 
-    private companion object {
-        const val POPUP = 0xff55555a.toInt()
-        const val POPUP_INK = 0xfff4f4f6.toInt()
-        const val POPUP_BORDER = 0xff74747a.toInt()
-        const val SELECTED = 0xffa8ceff.toInt()
-        const val SELECTED_INK = 0xff102844.toInt()
-        const val SHADOW = 0x88000000.toInt()
-    }
 }

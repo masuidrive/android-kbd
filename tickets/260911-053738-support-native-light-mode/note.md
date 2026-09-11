@@ -1,6 +1,6 @@
 # Work Notes: 260911-053738-support-native-light-mode
 
-## Status: PDH-ticket-human-review (Approved)
+## Status: PDH-implement (In progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,7 +11,7 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -55,6 +55,15 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `[PDH-ticket-human-review] -> [PDH-implement]` — ユーザ承認済みACとRequired Probesを確認した。
+- 実装前の仮定: Androidの`values`/`values-night`はIMEサービスとActivityの双方で端末`uiMode`に従う。Robolectricのqualifier切替で色選択を測り、実機相当AVDでもLight/Darkを確認する。
+- 実装前の仮定: テーマ変更時にIME input viewが再生成されない場合がある。Custom Viewの`onConfigurationChanged`で既存Viewを再描画し、候補の子Viewも再生成する。
+- 反例の基準: Darkテーマ時の既存色（背景`#29292c`、通常キー`#414144`、特殊キー`#303034`、選択キー`#a8ceff`）を変更前出力として固定する。
+- `values`/`values-night`へHTML正本のLight配色と既存Dark配色を定義し、KeyboardView、CandidateStripView、KeyboardPopupRenderViewの描画をresource参照へ変更した。
+- `onConfigurationChanged`でKeyboardViewと表示中popupをinvalidateし、CandidateStripViewは子Viewを再renderする。
+- 重複検出 skip: `similarity-generic`が環境にinstallされていないため。色resource参照は既存3描画classへ直接適用し、新規utilityは追加していない。
+- Targeted tests: `./gradlew testDebugUnitTest --tests '...KeyboardThemeTest' --tests '...KeyboardPopupControllerTest' --tests '...CandidateStripViewTest'` → BUILD SUCCESSFUL。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

@@ -87,13 +87,22 @@ class CandidateStripViewTest {
 
     @Test fun bottomGapUsesTheKeyboardBackgroundColor() {
         val view = view()
-        assertEquals(Color.rgb(41, 41, 44), (view.background as ColorDrawable).color)
+        assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
         assertEquals(8, view.paddingBottom)
     }
 
     @Test fun showingCandidatesKeepsTheStripBackgroundStable() {
         val view = view()
         view.showCandidates(CandidateUiSnapshot(24, listOf("未選択", "選択"), 1))
+
+        assertEquals(Color.rgb(211, 213, 219), (view.textView("未選択").background as ColorDrawable).color)
+        assertEquals(Color.rgb(23, 78, 166), (view.textView("選択").background as ColorDrawable).color)
+        assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
+    }
+
+    @Test @Config(qualifiers = "night") fun darkThemeKeepsExistingCandidateColors() {
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(25, listOf("未選択", "選択"), 1))
 
         assertEquals(Color.rgb(41, 41, 44), (view.textView("未選択").background as ColorDrawable).color)
         assertEquals(Color.rgb(97, 210, 255), (view.textView("選択").background as ColorDrawable).color)

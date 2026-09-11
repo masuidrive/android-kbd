@@ -87,3 +87,4 @@
 [2026/09/11 14:34] ユーザーの明示承認を受け、owner_only site https://h3qwrv2c.aboutme.style/ へv0.5/v0.6の製品紹介・マニュアル・Dual Flickデモ・画像8点・APK ZIP 2本を公開した。全15ファイル、41,164,699 bytesのremote size/SHA-256が `docs/verification/v0.6-site-manifest.sha256` と一致し、v0.6 ZIPは20,056,780 bytes、SHA-256 `d24e50f30080d5b468fd4a4655e1c4bacdc1a3dbd80b3e42d6dc392acefb41dc`。公開ページとマニュアルのv0.6ダウンロード導線をowner認証済みブラウザで確認した。
 [2026/09/11 14:34] Webデモは端末テーマに応じたLight/Dark表示に対応しているが、Android nativeキーボードはdark固定であることを確認。公開・GitHub push完了後の次作業として、端末テーマ連動のnative Light Modeをチケット化して実装する。
 [2026/09/11 14:37] Android nativeはDayNightテーマを使用しているが、キーボード・候補欄・ポップアップの色がDark固定でLight Mode未対応と確認。チケット260911-053738-support-native-light-modeを作成し、端末uiMode自動追従で実装開始。
+[2026/09/11 14:43] HTML正本のLight配色と既存Dark配色をAndroidのvalues/values-nightへ定義し、キーボード・候補欄・フリックpopup・設定プレビューが端末uiModeへ追従する実装を追加。Light/Darkの描画テストを含む対象unit testが成功。

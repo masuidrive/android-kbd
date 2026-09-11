@@ -2,8 +2,8 @@ package com.masuidrive.gestureime.keyboard
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.provider.Settings
@@ -16,6 +16,7 @@ import android.view.animation.PathInterpolator
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
+import com.masuidrive.gestureime.R
 import kotlin.math.min
 
 class KeyboardView @JvmOverloads constructor(
@@ -221,7 +222,7 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawColor(Color.rgb(41, 41, 44))
+        canvas.drawColor(context.getColor(R.color.keyboard_background))
         hitTargets.forEach { target ->
             if (target.spec.kind == KeyKind.EMPTY) return@forEach
             drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
@@ -268,18 +269,22 @@ class KeyboardView @JvmOverloads constructor(
         val selected = pointerId != null
         val modifierActive = target.spec.kind == KeyKind.MODIFIER && state.pendingModifier != null
         val faceColor = when {
-            selected || modifierActive -> Color.rgb(168, 206, 255)
-            target.spec.dark && target.spec.kind != KeyKind.ACCENT -> Color.rgb(48, 48, 52)
-            else -> Color.rgb(65, 65, 68)
+            selected || modifierActive -> context.getColor(R.color.keyboard_selected)
+            target.spec.dark && target.spec.kind != KeyKind.ACCENT -> context.getColor(R.color.keyboard_special)
+            else -> context.getColor(R.color.keyboard_key)
         }
-        keyPaint.color = Color.rgb(20, 20, 22)
+        keyPaint.color = context.getColor(R.color.keyboard_shadow)
         canvas.drawRoundRect(RectF(target.bounds).apply { offset(0f, dp(1f)) }, dp(5f), dp(5f), keyPaint)
         keyPaint.color = faceColor
         keyPaint.alpha = 255
         canvas.drawRoundRect(target.bounds, dp(5f), dp(5f), keyPaint)
         val textSave = canvas.save()
         canvas.clipRect(target.bounds)
-        textPaint.color = if (selected || modifierActive) Color.rgb(16, 40, 68) else Color.rgb(244, 244, 246)
+        textPaint.color = if (selected || modifierActive) {
+            context.getColor(R.color.keyboard_selected_text)
+        } else {
+            context.getColor(R.color.keyboard_text)
+        }
         textPaint.alpha = 255
         val primaryAdjustment = labelAdjustment(target.spec, secondary = false)
         textPaint.textSize = sp(mainTextSize(target.spec)) * primaryAdjustment.scale
@@ -336,7 +341,7 @@ class KeyboardView @JvmOverloads constructor(
             val secondaryAdjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(11f) * secondaryAdjustment.scale * frame.secondaryScale
             val baseline = baselineAtVisualCenter(target.bounds.top + dp(9f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
-            textPaint.color = Color.rgb(16, 40, 68)
+            textPaint.color = context.getColor(R.color.keyboard_selected_text)
             textPaint.alpha = (255 * frame.secondaryAlpha).toInt()
             canvas.drawText(secondaryLabel, target.bounds.centerX() + dp(secondaryAdjustment.xOffsetDp), baseline, textPaint)
             textPaint.textSize = sp(22f) * primaryAdjustment.scale
@@ -350,16 +355,16 @@ class KeyboardView @JvmOverloads constructor(
             val adjustment = labelAdjustment(spec, secondary = direction == Direction.DOWN)
             textPaint.textSize = sp(11f) * adjustment.scale
             val centered = visualCenterBaseline(target.bounds) + dp(adjustment.yOffsetDp)
-            textPaint.color = Color.rgb(16, 40, 68)
+            textPaint.color = context.getColor(R.color.keyboard_selected_text)
             drawFittedText(canvas, label, target.bounds.centerX() + dp(adjustment.xOffsetDp), safeBaseline(target.bounds, centered), availableWidth(target.bounds, adjustment.xOffsetDp))
         } else if (secondary != null) {
             val adjustment = labelAdjustment(spec, secondary = true)
             textPaint.textSize = sp(secondaryTextSize(spec)) * adjustment.scale
             val isStackHint = spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE)
             textPaint.color = when {
-                selected -> Color.rgb(16, 40, 68)
-                isStackHint -> Color.rgb(244, 244, 246)
-                else -> Color.rgb(181, 181, 191)
+                selected -> context.getColor(R.color.keyboard_selected_text)
+                isStackHint -> context.getColor(R.color.keyboard_text)
+                else -> context.getColor(R.color.keyboard_muted_text)
             }
             textPaint.alpha = if (isStackHint) (255 * .7f).toInt() else 255
             textPaint.letterSpacing = if (isStackHint) dp(.7f * adjustment.scale) / textPaint.textSize else 0f
@@ -389,7 +394,7 @@ class KeyboardView @JvmOverloads constructor(
     ) {
         val secondaryAdjustment = labelAdjustment(spec, secondary = true)
         textPaint.textSize = sp(10f) * secondaryAdjustment.scale * frame.secondaryScale
-        textPaint.color = Color.rgb(16, 40, 68)
+        textPaint.color = context.getColor(R.color.keyboard_selected_text)
         textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
         textPaint.letterSpacing = dp(.7f * secondaryAdjustment.scale * frame.secondaryScale) / textPaint.textSize
         val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy + secondaryAdjustment.yOffsetDp))
@@ -412,6 +417,12 @@ class KeyboardView @JvmOverloads constructor(
             else -> QwertyLabelGroup.COMPOSITE_SMALL
         }
         return qwertyLabelStyle[group]
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        popupController.refreshTheme()
+        invalidate()
     }
 
     private fun availableWidth(bounds: RectF, xOffsetDp: Float): Float =

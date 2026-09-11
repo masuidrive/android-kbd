@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="app_background">#FFFFFF</color>
+    <color name="app_accent">#007AFF</color>
+    <color name="keyboard_background">#D3D5DB</color>
+    <color name="keyboard_key">#FFFFFF</color>
+    <color name="keyboard_special">#AEB3BD</color>
+    <color name="keyboard_text">#19191B</color>
+    <color name="keyboard_muted_text">#73737B</color>
+    <color name="keyboard_selected">#174EA6</color>
+    <color name="keyboard_selected_text">#FFFFFF</color>
+    <color name="keyboard_shadow">#898C94</color>
+    <color name="keyboard_popup">#FFFFFF</color>
+    <color name="keyboard_popup_text">#19191B</color>
+    <color name="keyboard_popup_border">#D0D2D8</color>
+    <color name="keyboard_popup_shadow">#88000000</color>
+    <color name="candidate_selected">#174EA6</color>
+    <color name="candidate_selected_text">#FFFFFF</color>
+</resources>

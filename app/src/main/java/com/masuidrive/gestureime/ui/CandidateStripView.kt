@@ -1,7 +1,7 @@
 package com.masuidrive.gestureime.ui
 
 import android.content.Context
-import android.graphics.Color
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.util.AttributeSet
@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.masuidrive.gestureime.R
 
 class CandidateStripView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     LinearLayout(context, attrs) {
@@ -30,8 +31,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         setPadding(0, 0, 0, dp(8))
-        setBackgroundColor(GAP_BACKGROUND)
-        candidateRow.setBackgroundColor(GAP_BACKGROUND)
+        applyThemeColors()
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
         render()
@@ -51,6 +51,20 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     fun setVoiceState(snapshot: VoiceUiSnapshot) { voiceSnapshot = snapshot; render() }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyThemeColors()
+        render()
+    }
+
+    private fun applyThemeColors() {
+        val background = context.getColor(R.color.keyboard_background)
+        setBackgroundColor(background)
+        candidateRow.setBackgroundColor(background)
+        candidateScroll.setBackgroundColor(background)
+        voiceControls.setBackgroundColor(background)
+    }
 
     private fun render() {
         candidateRow.removeAllViews()
@@ -107,17 +121,11 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         setTextSize(TypedValue.COMPLEX_UNIT_PX, 15f * resources.displayMetrics.density)
         gravity = Gravity.CENTER
         setPadding(dp(18), dp(6), dp(18), dp(6))
-        setTextColor(if (selected) SELECTED_INK else Color.WHITE)
-        setBackgroundColor(if (selected) SELECTED else GAP_BACKGROUND)
+        setTextColor(context.getColor(if (selected) R.color.candidate_selected_text else R.color.keyboard_text))
+        setBackgroundColor(context.getColor(if (selected) R.color.candidate_selected else R.color.keyboard_background))
         setTypeface(typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
         maxLines = 1
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-
-    private companion object {
-        val GAP_BACKGROUND = Color.rgb(41, 41, 44)
-        val SELECTED = Color.rgb(97, 210, 255)
-        val SELECTED_INK = Color.rgb(0, 25, 35)
-    }
 }

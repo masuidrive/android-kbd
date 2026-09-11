@@ -68,7 +68,7 @@ class KeyboardPopupControllerTest {
         ))
     }
 
-    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE) fun `kana popup is five independent tiles with transparent corner`() {
+    @Test @Config(qualifiers = "night") @GraphicsMode(GraphicsMode.Mode.NATIVE) fun `dark kana popup keeps its existing colors`() {
         val spec = KeyboardLayouts.layout(KeyboardMode.KANA).rows[0].keys[1]
         val size = geometry.windowSize(PopupKind.KANA, 0)
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
@@ -86,6 +86,24 @@ class KeyboardPopupControllerTest {
         val up = geometry.tileRect(Direction.UP, size)
         assertEquals(0xff55555a.toInt(), bitmap.getPixel((left.left + 6f).toInt(), left.centerY().toInt()))
         assertEquals(0xffa8ceff.toInt(), bitmap.getPixel((up.left + 6f).toInt(), up.centerY().toInt()))
+    }
+
+    @Test @Config(qualifiers = "notnight") @GraphicsMode(GraphicsMode.Mode.NATIVE) fun `light kana popup uses the reference colors`() {
+        val spec = KeyboardLayouts.layout(KeyboardMode.KANA).rows[0].keys[1]
+        val size = geometry.windowSize(PopupKind.KANA, 0)
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = KeyboardPopupRenderView(activity, geometry)
+        view.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
+        view.bind(PopupKind.KANA, spec, Direction.UP, emptyList(), 0, size, 7f, 7f)
+        activity.setContentView(view)
+        view.measure(exact(size.width), exact(size.height)); view.layout(0, 0, size.width, size.height)
+        val bitmap = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
+        view.draw(Canvas(bitmap))
+
+        val left = geometry.tileRect(Direction.LEFT, size)
+        val up = geometry.tileRect(Direction.UP, size)
+        assertEquals(0xffffffff.toInt(), bitmap.getPixel((left.left + 6f).toInt(), left.centerY().toInt()))
+        assertEquals(0xff174ea6.toInt(), bitmap.getPixel((up.left + 6f).toInt(), up.centerY().toInt()))
     }
 
     @Test fun `letter and modifier use separate source dimensions`() {
