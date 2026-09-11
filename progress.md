@@ -92,3 +92,4 @@
 [2026/09/11 14:57] 追加依頼を3チケット化: レイヤーキー左スワイプの音声入力、設定可能な最大6件のスラッシュコマンド候補（既定/compact,/clear,/quit）、QWERTY下スワイプ補助ラベルの縦中央移動。Light Mode版の公開後に順次実装する。
 [2026/09/11 15:02] 音声認識は現在`onPartialResults`を無視していると確認。途中結果を候補・確定エリアへ一時表示し、取消・非対応・許可UIをキートップ/候補の角丸・影・Light/Dark配色へ揃えるticket 260911-060238-align-voice-status-ui-and-show-partialsを作成。
 [2026/09/11 15:10] Light Mode v0.7の独立再reviewで追加Critical/Majorなし。候補Light背景の正本差を修正し、runtime候補token・popup再描画を回帰testへ追加した。最終fast-check 5件、unit 127件、lint、APK build、connected 7件が成功。Light/Dark実画面と設定preview、製品紹介・マニュアルを確認し、owner_only Sites公開用18ファイルmanifestを確定した。
+[2026/09/11 15:17] Gesture IME v0.7.0をowner_only Sites `https://h3qwrv2c.aboutme.style/`へ公開した。製品紹介・マニュアル・Light/Dark画像・APK ZIPを更新し、公開18ファイル・61,540,258 bytesのpath/size/SHA-256はローカルmanifestと全件一致。認証済み実ブラウザでv0.7製品ページとマニュアルのダウンロード導線を確認した。

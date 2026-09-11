@@ -1,6 +1,6 @@
 # Work Notes: 260911-053738-support-native-light-mode
 
-## Status: PDH-verify (Verified; awaiting publication evidence)
+## Status: PDH-human-review (Published; awaiting close approval)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -110,6 +110,9 @@
 - AC 2: Dark AVDで既存paletteを`dark-mode-keyboard.png`とDark resource assertionで確認。
 - AC 3: theme切替後にIMEを再focusしQWERTYを表示。unit 127件とconnected 7件で候補token、popup draw、既存入力動作の回帰なし。
 - Surface Observer: API 36.1 AVDとローカル製品紹介/マニュアルを実ブラウザで観察。Light/Dark比較画像、v0.7導線、画像欠落0、横overflowなし。
+- Sites publication: owner_onlyの`https://h3qwrv2c.aboutme.style/`へv0.7を更新。18ファイル・61,540,258 bytesのpath/size/SHA-256が`docs/verification/v0.7-site-manifest.sha256`と全件一致した。
+- Remote browser: 製品紹介とマニュアルの見出し、v0.7 ZIP導線、Light/Dark画像を認証済み実ブラウザで確認した。
+- `[PDH-verify] -> [PDH-human-review]` — AC裏取り、Surface観察、文書更新、公開物照合が完了。後続ticket作業は継続し、このticketのcloseだけ明示承認まで保留する。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
