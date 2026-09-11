@@ -964,7 +964,6 @@
     root.dataset.theme=button.dataset.theme;
     root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
     persistState();
-    parent.postMessage({type:'gesture-ime-demo-theme',theme:root.dataset.theme},location.origin);
   }));
   $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
   $('[data-english-candidates]').addEventListener('click',()=>{cancelGestures();englishCandidatesEnabled=!englishCandidatesEnabled;render();});
@@ -973,7 +972,6 @@
   $('.device-size').textContent=displayModes[root.dataset.device].label;
   updateCount();
   render();
-  parent.postMessage({type:'gesture-ime-demo-theme',theme:root.dataset.theme},location.origin);
   parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin);
 })();
 </script>

@@ -67,7 +67,6 @@
     addEventListener('message',event=>{
       if(event.source!==heroFrame.contentWindow||event.origin!==location.origin)return;
       if(event.data?.type==='gesture-ime-demo-height'&&Number(event.data.height)>0)heroFrame.style.height=Math.ceil(Number(event.data.height))+'px';
-      if(event.data?.type==='gesture-ime-demo-theme'&&['light','dark'].includes(event.data.theme))document.documentElement.dataset.theme=event.data.theme;
     });
   </script>
 </body>

@@ -1,35 +1,18 @@
 :root {
-  color-scheme: light dark;
-  --bg: #f4f5f8;
+  color-scheme: light;
+  --bg: #f4f4f4;
   --surface: #ffffff;
   --surface-2: #e5e8ef;
-  --ink: #17191d;
-  --body: #3f444d;
-  --muted: #646a75;
-  --line: #d9dde5;
+  --ink: #212529;
+  --body: #343a40;
+  --muted: #6c757d;
+  --line: #dee2e6;
   --blue: #3159a8;
   --blue-deep: #3159a8;
   --counter: #737986;
   --shot-shadow: #20273533;
   --max: 1180px;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0b0d;
-    --surface: #131519;
-    --surface-2: #1b1e24;
-    --ink: #f4f4f1;
-    --body: #d7d8dd;
-    --muted: #a7abb4;
-    --line: #2a2e36;
-    --blue: #8db0ff;
-    --blue-deep: #3159a8;
-    --counter: #636975;
-    --shot-shadow: #0009;
-  }
-}
-html[data-theme="light"] { color-scheme:light; --bg:#f4f5f8; --surface:#fff; --surface-2:#e5e8ef; --ink:#17191d; --body:#3f444d; --muted:#646a75; --line:#d9dde5; --blue:#3159a8; --blue-deep:#3159a8; --counter:#737986; --shot-shadow:#20273533; }
-html[data-theme="dark"] { color-scheme:dark; --bg:#0a0b0d; --surface:#131519; --surface-2:#1b1e24; --ink:#f4f4f1; --body:#d7d8dd; --muted:#a7abb4; --line:#2a2e36; --blue:#8db0ff; --blue-deep:#3159a8; --counter:#636975; --shot-shadow:#0009; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; background: var(--bg); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, "Noto Sans JP", system-ui, sans-serif; line-height: 1.75; }
@@ -87,7 +70,6 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 
 /* The product home borrows the restrained hierarchy of masuidrive.jp/resume
    without importing its Bootstrap layout. */
-html:not([data-theme="dark"]) .home-page { --bg:#f4f4f4; --surface:#fff; --ink:#212529; --body:#343a40; --muted:#6c757d; --line:#dee2e6; }
 .home-page { background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; line-height:1.5; }
 .home-page .profile-header { margin:0; }
 .home-page .home-nav { background:color-mix(in srgb,var(--surface) 95%,transparent); }
