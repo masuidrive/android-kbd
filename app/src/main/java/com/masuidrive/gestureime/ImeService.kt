@@ -15,6 +15,8 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
+import com.masuidrive.gestureime.keyboard.VoiceHoldSink
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoiceUiAction
 import com.masuidrive.gestureime.ui.VoiceUiEvent
@@ -30,11 +32,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class ImeService : InputMethodService(), KeyboardActionSink {
+class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val actionMutex = Mutex()
     private val editorSession = EditorSessionGate()
-    private val conversionEngine: ConversionEngine by lazy { MozcConversionEngine(applicationContext) }
+    private val productionConversionEngine: ConversionEngine by lazy { MozcConversionEngine(applicationContext) }
+    private var testConversionEngine: ConversionEngine? = null
+    private val conversionEngine: ConversionEngine get() = testConversionEngine ?: productionConversionEngine
     private lateinit var textController: TextInputController
     private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
@@ -46,6 +50,11 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     private var conversionPreview: String? = null
     private var voiceUiToken = 0L
     private var latestVoiceUnavailableMessage: String? = null
+    private var voiceHoldRequestId: Long? = null
+    private var voiceHoldEditorToken = 0L
+    private var voiceHoldReady = false
+    private var voiceHoldReleased = false
+    private var voiceHoldGeneration = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -58,10 +67,11 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onCreateInputView(): View {
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
+            it.voiceHoldSink = this
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             it.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
             keyboardView = it
@@ -80,7 +90,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         setVoiceUi(VoiceUiState.Hidden)
         keyboardView?.cancelActiveGestures()
         super.onFinishInputView(finishingInput)
@@ -88,7 +98,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         keyboardView?.setQwertyLabelStyle(ImePreferences.getQwertyLabelStyle(this))
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
     }
@@ -96,7 +106,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         textController.beginInput(attribute)
         candidateStrip?.visibility = if (textController.isPrivateField) View.GONE else View.VISIBLE
@@ -108,7 +118,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
 
     override fun onFinishInput() {
         editorSession.advance()
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         keyboardView?.cancelActiveGestures()
         textController.finishComposition()
@@ -131,7 +141,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onKeyAction(action: KeyAction) {
-        voiceController.cancel(notify = false)
+        cancelVoiceHold()
         if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         if (action is KeyAction.SwitchLayer) {
             keyboardView?.setMode(action.target)
@@ -151,6 +161,41 @@ class ImeService : InputMethodService(), KeyboardActionSink {
                     }
             }
         }
+    }
+
+    override fun onVoiceHold(event: VoiceHoldEvent) {
+        when (event) {
+            is VoiceHoldEvent.Begin -> {
+                cancelVoiceHold()
+                if (textController.isPrivateField) return
+                val token = editorSession.capture()
+                voiceHoldRequestId = event.requestId
+                voiceHoldEditorToken = token
+                serviceScope.launch {
+                    actionMutex.withLock {
+                        if (voiceHoldRequestId != event.requestId || !editorSession.isCurrent(token)) return@withLock
+                        resetConversion(clearComposing = false)
+                        if (voiceHoldRequestId == event.requestId && editorSession.isCurrent(token)) voiceController.start(token)
+                    }
+                }
+            }
+            is VoiceHoldEvent.End -> {
+                if (voiceHoldRequestId != event.requestId) return
+                voiceHoldReleased = true
+                val text = voiceController.confirm(voiceHoldEditorToken)
+                if (text != null) commitVoiceHold(event.requestId, voiceHoldEditorToken, text)
+                else if (voiceHoldReady) voiceController.stop() else cancelVoiceHold()
+            }
+            is VoiceHoldEvent.Cancel -> if (voiceHoldRequestId == event.requestId) cancelVoiceHold()
+        }
+    }
+
+    private fun cancelVoiceHold() {
+        voiceHoldGeneration++
+        voiceHoldRequestId = null
+        voiceHoldReady = false
+        voiceHoldReleased = false
+        voiceController.cancel(notify = false)
     }
 
     private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
@@ -356,9 +401,47 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         }
     }
 
-    private fun onVoiceState(state: VoiceBackendState, token: Long) {
+    internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
+        val holdId = voiceHoldRequestId
+        if (holdId != null && token == voiceHoldEditorToken) {
+            when (state) {
+                VoiceBackendState.Recording -> {
+                    voiceHoldReady = true
+                    keyboardView?.onVoiceRecordingReady(holdId)
+                    if (voiceHoldReleased) voiceController.stop()
+                }
+                is VoiceBackendState.Preview -> {
+                    if (!voiceHoldReleased) return
+                    val text = voiceController.confirm(token) ?: return
+                    commitVoiceHold(holdId, token, text)
+                    return
+                }
+                is VoiceBackendState.Unavailable -> {
+                    voiceHoldRequestId = null
+                    voiceHoldReady = false
+                    voiceHoldReleased = false
+                }
+                else -> Unit
+            }
+        }
         setVoiceUi(state.toUiState())
+    }
+
+    private fun commitVoiceHold(requestId: Long, token: Long, text: String) {
+        if (voiceHoldRequestId != requestId) return
+        val generation = voiceHoldGeneration
+        voiceHoldRequestId = null
+        voiceHoldReady = false
+        serviceScope.launch {
+            actionMutex.withLock {
+                if (generation != voiceHoldGeneration || !editorSession.isCurrent(token) || textController.isPrivateField) return@withLock
+                resetConversion(clearComposing = false)
+                if (generation != voiceHoldGeneration || !editorSession.isCurrent(token)) return@withLock
+                editorSession.runIfCurrent(token) { textController.commitText(text) }
+                setVoiceUi(voiceController.initialState().toUiState())
+            }
+        }
     }
 
     private fun setVoiceUi(state: VoiceUiState) {
@@ -370,6 +453,16 @@ class ImeService : InputMethodService(), KeyboardActionSink {
         voiceController.destroy()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    internal fun installTestDependencies(
+        voice: VoiceRecognitionController,
+        text: TextInputController,
+        conversion: ConversionEngine,
+    ) {
+        voiceController = voice
+        textController = text
+        testConversionEngine = conversion
     }
 }
 
