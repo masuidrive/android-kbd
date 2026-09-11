@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-055701-center-qwerty-down-swipe-label
 description: "Align Japanese, English, and demo candidate UI with the HTML reference"
 created_at: "2026-09-11T06:27:19Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T06:29:26Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
