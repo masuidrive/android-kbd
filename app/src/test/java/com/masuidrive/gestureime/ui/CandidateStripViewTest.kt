@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,33 +18,34 @@ import org.robolectric.annotation.Config
 class CandidateStripViewTest {
     private fun view() = CandidateStripView(RuntimeEnvironment.getApplication())
 
-    @Test fun idleCoexistsWithCandidatesAndDispatchesActions() {
+    @Test fun idleShowsCandidatesWithoutAnOldVoiceStartControl() {
         val view = view(); val candidates = mutableListOf<Int>(); val actions = mutableListOf<VoiceUiEvent>()
         view.setOnCandidateSelected(candidates::add); view.setOnVoiceActionListener(actions::add)
         view.showCandidates(listOf("日本語", "日本語の"), 0); view.setVoiceState(VoiceUiSnapshot(1, VoiceUiState.Idle))
-        view.textView("日本語の").performClick(); view.textView("音声").performClick()
-        assertEquals(listOf(1), candidates); assertEquals(listOf(VoiceUiEvent(1, VoiceUiAction.Start)), actions)
-        assertEquals("音声入力を開始", view.textView("音声").contentDescription)
+        view.textView("日本語の").performClick()
+        assertEquals(listOf(1), candidates); assertTrue(actions.isEmpty())
+        assertTrue(view.allTextViews().none { it.text == "音声" })
     }
 
-    @Test fun recordingRecognizingAndPermissionExposeOnlyValidAction() {
+    @Test fun recordingAndRecognizingOfferCancelWithoutStopOrConfirmControls() {
         val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
-        view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording)); view.textView("停止").performClick()
-        view.textView("取消").performClick()
-        view.setVoiceState(VoiceUiSnapshot(3, VoiceUiState.Recognizing)); assertFalse(view.textView("処理中").isEnabled)
-        view.textView("取消").performClick()
-        view.setVoiceState(VoiceUiSnapshot(4, VoiceUiState.PermissionRequired)); view.textView("許可").performClick()
-        assertEquals(listOf(VoiceUiEvent(2, VoiceUiAction.Stop), VoiceUiEvent(2, VoiceUiAction.Cancel), VoiceUiEvent(3, VoiceUiAction.Cancel), VoiceUiEvent(4, VoiceUiAction.RequestPermission)), actions)
+        view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording))
+        assertTrue(view.allTextViews().none { it.text == "停止" }); view.textView("取消").performClick()
+        view.setVoiceState(VoiceUiSnapshot(3, VoiceUiState.Recognizing))
+        assertTrue(view.allTextViews().none { it.text == "停止" || it.text == "確定" }); view.textView("取消").performClick()
+        assertEquals(listOf(VoiceUiEvent(2, VoiceUiAction.Cancel), VoiceUiEvent(3, VoiceUiAction.Cancel)), actions)
     }
 
-    @Test fun previewKeepsFullTextForScrollingAndAccessibilityUntilChoice() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); val transcript = "これは横幅より長い日本語の音声認識結果です"
-        view.setOnVoiceActionListener(actions::add); view.setVoiceState(VoiceUiSnapshot(5, VoiceUiState.Preview(transcript)))
-        val preview = view.textView(transcript)
-        assertEquals(transcript, preview.text.toString()); assertEquals("認識結果: $transcript", preview.contentDescription)
-        assertEquals(1, preview.maxLines)
-        view.textView("確定").performClick(); view.textView("取消").performClick()
-        assertEquals(listOf(VoiceUiEvent(5, VoiceUiAction.Confirm), VoiceUiEvent(5, VoiceUiAction.Cancel)), actions)
+    @Test fun permissionStillOffersItsRequiredSetupAction() {
+        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
+        view.setVoiceState(VoiceUiSnapshot(4, VoiceUiState.PermissionRequired)); view.textView("許可").performClick()
+        assertEquals(listOf(VoiceUiEvent(4, VoiceUiAction.RequestPermission)), actions)
+    }
+
+    @Test fun backendPreviewHasNoManualConfirmationControls() {
+        val view = view(); view.setVoiceState(VoiceUiSnapshot(5, VoiceUiState.Preview("自動入力される結果")))
+        assertEquals("音声を認識しました", view.textView("音声を認識しました").text.toString())
+        assertTrue(view.allTextViews().none { it.text == "確定" || it.text == "取消" })
     }
 
     @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
@@ -73,16 +73,16 @@ class CandidateStripViewTest {
         assertEquals(listOf(0), selected)
     }
 
-    @Test fun detachedPreviewButtonKeepsItsRenderedSessionToken() {
+    @Test fun detachedPermissionButtonKeepsItsRenderedSessionToken() {
         val view = view(); val events = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(events::add)
-        view.setVoiceState(VoiceUiSnapshot(10, VoiceUiState.Preview("古い結果")))
-        val oldConfirm = view.textView("確定")
+        view.setVoiceState(VoiceUiSnapshot(10, VoiceUiState.PermissionRequired))
+        val oldPermission = view.textView("許可")
 
-        view.setVoiceState(VoiceUiSnapshot(11, VoiceUiState.Preview("新しい結果")))
-        oldConfirm.performClick()
-        view.textView("確定").performClick()
+        view.setVoiceState(VoiceUiSnapshot(11, VoiceUiState.PermissionRequired))
+        oldPermission.performClick()
+        view.textView("許可").performClick()
 
-        assertEquals(listOf(VoiceUiEvent(10, VoiceUiAction.Confirm), VoiceUiEvent(11, VoiceUiAction.Confirm)), events)
+        assertEquals(listOf(VoiceUiEvent(10, VoiceUiAction.RequestPermission), VoiceUiEvent(11, VoiceUiAction.RequestPermission)), events)
     }
 
     @Test fun bottomGapUsesTheKeyboardBackgroundColor() {

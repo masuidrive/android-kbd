@@ -59,16 +59,11 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         candidateRow.removeAllViews()
         voiceControls.removeAllViews()
         val snapshot = voiceSnapshot
-        voiceControls.visibility = if (snapshot.state == VoiceUiState.Hidden) View.GONE else View.VISIBLE
         when (val state = snapshot.state) {
             VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
-            VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("停止", "音声入力を停止", VoiceUiAction.Stop) }
-            VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("処理中", "音声を認識しています", null); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
-            is VoiceUiState.Preview -> {
-                renderCandidateMessage(state.text, "認識結果: ${state.text}")
-                addVoiceButton("確定", "認識結果を確定", VoiceUiAction.Confirm, snapshot.sessionToken)
-                addVoiceButton("取消", "認識結果を取り消す", VoiceUiAction.Cancel, snapshot.sessionToken)
-            }
+            VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
+            VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
+            is VoiceUiState.Preview -> renderCandidateMessage("音声を認識しました")
             is VoiceUiState.Unavailable -> {
                 renderCandidates()
                 addVoiceButton("非対応", "音声入力を利用できない理由を表示。${state.message}", VoiceUiAction.ExplainUnavailable, snapshot.sessionToken)
@@ -78,8 +73,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
                 addVoiceButton("許可", "マイクの使用を許可", VoiceUiAction.RequestPermission, snapshot.sessionToken)
             }
         }
-        if (snapshot.state == VoiceUiState.Idle) addVoiceButton("音声", "音声入力を開始", VoiceUiAction.Start, snapshot.sessionToken)
-        if (snapshot.state == VoiceUiState.Recording) addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel, snapshot.sessionToken)
+        voiceControls.visibility = if (voiceControls.childCount == 0) View.GONE else View.VISIBLE
     }
 
     private fun renderCandidates() {
