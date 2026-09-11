@@ -1,6 +1,6 @@
 # Work Notes: 260911-055701-center-qwerty-down-swipe-label
 
-## Status: PDH-implement (In progress)
+## Status: PDH-human-review (Verified; awaiting close approval)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Canvas描画だけの変更で外部provider経路がない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み - Robolectric native-graphicsで実Canvas frameを狭幅/広幅、調整±8dp、直接cancelまで観測
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -78,10 +78,16 @@
 | 3 | cancel evidence | Minor | 下swipe中の直接cancel後を描画testが観測していない | 採用・修正 | 広幅down選択から直接cancelし、調整済みidle位置への復帰とactionなしを確認 |
 
 - 修正後targeted `KeyboardViewTest` → 31件成功。
+- `[PDH-review-2]` Terra限定再reviewで前回Major 2件とMinorの解消を確認し、新規Critical/Majorなし。
+- 壊していない側の反例: QWERTY以外を含む全5layerのEnter/Pasteは、変更前後ともidle位置+13dp、main alpha 0、release時Paste 1回をCanvas/action testで確認。
+- `[PDH-review] -> [PDH-verify]` — 採用findingを全て修正し、ACごとの描画・action evidenceが揃った。
+- `[PDH-verify] -> [PDH-human-review]` — full suiteと独立reviewが成功。後続ticketを継続し、このticketのcloseだけ明示承認まで保留する。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- `technical-reference.md`へQWERTY文字下swipeの動的中央化、label Y調整の終端扱い、Enter/Paste非退行を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
