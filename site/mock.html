@@ -540,7 +540,7 @@
       escape:'ESC',
       cursor:'カーソルレイヤーへ切り替える',
       space:'Space。フリックでカーソル移動',
-      return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
+      return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':language==='kana'?'Enter、下スワイプでPaste':'Enter、下スワイプでPaste',
       numbers:'テンキーへ切り替える',
       kana:'タップで日本語。'+layerDirections,
       symbols:language==='kana'?'記号へ切り替える':layer==='letters'?'記号へ切り替える':'QWERTYへ戻る',
