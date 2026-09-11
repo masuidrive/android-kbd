@@ -1,17 +1,18 @@
 ---
 priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
-description: "Make the public-site hero an interactive device and theme preview"
-created_at: "2026-09-11T15:36:53Z"
+description: "Add a dedicated voice-input layer with partial results and selectable hypotheses"
+created_at: "2026-09-11T16:01:14Z"
 started_at: null  # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
-## 260911-153653-refresh-public-site-hero-mock
+## 260911-160113-voice-input-layer
 
 ### Why
-公開トップがFold7専用品の静的紹介に見え、実際の入力操作とスマホ・タブレット双方への対応が伝わらない。一般Android向けフリックキーボードとして位置づけ、最初の画面で操作と表示幅を試せるようにする。
+現在の押下保持型の音声入力は、長文を話して候補を確認してから確定する操作が分かりにくい。
+左フリックで専用面へ入り、端末内認識の途中結果と複数候補を確認して送信できるようにする。
 
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
@@ -30,31 +31,34 @@ canceled_at: null # Do not modify manually
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-このticketが終わると、公開サイトの閲覧者がトップ画面だけで製品の対象と操作感を理解し、入力と表示条件を試せる。
+このticketが終わると、キーボード利用者が左フリックから音声入力を開始し、認識内容を確認・選択してから入力欄へ送信できる。
 
-- [x] AC 1: トップは「Android Flick Keyboard by masuidrive」を主軸に表示し、ブランド短縮名として`md-kbd`を使う。
-- [x] AC 2: ナビゲーション直後に実際にキー入力できるモックを表示し、入力欄には初期文として「ここは入力できるよ」を表示する。
-- [x] AC 3: トップの操作でLight/Darkを明示的に切り替え、ページと埋め込みモックを同じテーマへ切り替えられる。
-- [x] AC 4: トップの操作でMobile/Tabletを切り替え、Tablet時はDual FlickのON/OFFを切り替えて左右2組のかなキーを確認できる。
-- [x] AC 5: 製品をFold専用とは表現せず一般Android向けとし、Foldは閉じたスマホ幅と開いたタブレット幅の両方で使える対応例として記載する。
-- [x] AC 6: デスクトップとスマホ幅で横overflowや操作不能がなく、既存の独立した操作モックページも引き続き使える。
+- [ ] AC 1: レイヤーキーを左へフリックすると音声入力面へ切り替わり、その時点で端末内音声認識を開始する。
+- [ ] AC 2: 認識中は途中結果を音声入力面へ表示し、更新される内容を入力欄へはまだ確定しない。
+- [ ] AC 3: 認識エンジンが複数の最終候補を返した場合は候補欄へ順序どおり表示し、1件の場合も同じUIで扱う。
+- [ ] AC 4: 候補をタップすると送信対象を選べ、「送信」で選択候補を入力欄へ確定して直前の文字レイヤーへ戻る。
+- [ ] AC 5: 「キャンセル」で認識を停止し、認識文字を入力せず直前の文字レイヤーへ戻る。
+- [ ] AC 6: マイク権限拒否、端末内認識非対応、無音、認識エラーをキーボード内で表示し、キャンセルまたは再試行できる。
+- [ ] AC 7: 音声データと認識結果を保存せず、ネットワーク認識へのfallbackを行わない。
 
 ### Architectural Invariants check
-公開用静的HTML/CSS/JavaScriptと説明文の変更で、IME本体の端末内完結を定めるAI-1〜AI-4と矛盾しない。
+端末内完結とネットワーク権限なしを定めるAI-1〜AI-4を維持する。音声は端末内`SpeechRecognizer`だけを使用する。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- ブランド表示は`md-kbd`、説明は「Android Flick Keyboard by masuidrive」とする。
-- 端末幅の名称はMobile/Tabletとし、Foldは両方を使う具体例として扱う。
-- ヒーロー内モックは既存`mock.html`の入力・レイヤー・Dual Flick挙動を再利用し、独立demoも維持する。
+- 左フリック成立時に専用面へ遷移し、認識を開始する。押下保持と1秒待機は廃止する。
+- `SpeechRecognizer.RESULTS_RECOGNITION`は最有力候補を先頭に複数文字列を返せるが、実装依存で1件の場合もあるため可変件数で表示する。
+- `RecognizerIntent.EXTRA_PARTIAL_RESULTS`を要求するが、認識サービスが途中結果を返さない場合も最終結果だけで操作を完了できるようにする。
+- 候補欄は日本語変換候補と同じ視覚言語を使い、音声入力面には送信とキャンセルを常時表示する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- Androidアプリ名、package、アイコン画像の変更。
-- Sites本番への公開。今回はローカル確認までとする。
+- ネットワーク音声認識へのfallback。
+- 音声や認識履歴の保存。
+- API 34の単語区間ごとの代替候補を編集するUI。まず発話全体の候補を扱う。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 

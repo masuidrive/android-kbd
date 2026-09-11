@@ -1,6 +1,6 @@
 # Work Notes: 260911-153653-refresh-public-site-hero-mock
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,19 +11,19 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: ローカル静的サイトだけの変更で外部provider pathがない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: 独立reviewで採用findingなし
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み。実ブラウザの390x844と840x900で先頭demoと操作を確認
+- [x] PDH-verify: ドキュメント更新の要否を確認済み。README、product-brief.md、technical-reference.md、site/manual.htmlを更新
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -36,12 +36,17 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出した: desktop/mobile viewportの横overflow、初期文、theme同期、Mobile/Tablet幅、Tablet Dual Flick、既存demo動作を実装後にブラウザで測る。
+- [x] 測る対象を洗い出した: 390x844はMobile初期選択、840x900はTablet初期選択。両方とも横overflow 0、初期文あり。Tablet Dualは4行各8キー、Light/Darkは親ページと同期、iframeとrootは同高、独立demoも操作可能。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+- `1fa58ee`: 一般Android向けの製品位置づけをREADME、product brief、technical referenceへ反映。
+- `ee46193`: 既存mockをトップへ埋め込み、初期文、テーマ同期、表示幅自動選択と切替、Dual Flickを追加。
+- `bdfa41c`: 操作demoをmain先頭へ移し、「QWERTYも、Flickで。」へコピーを調整。旧テーマ静止画セクションを削除。
+- 初期表示は保存状態ではなく実viewport幅で決め、600px未満をMobile、600px以上をTabletとした。操作後の切替は明示ボタンを優先する。
+- `scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/apkの2群がPASS。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -56,16 +61,19 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 独立review | - | Critical/Major/Minorなし | 採用findingなし | 390x844と840x900の実ブラウザ操作、コード差分、独立demoを確認 |
+| 2 | scope | Major候補 | manualのLight/Dark手順も削除する案 | 非採用 | ユーザ指定はトップの「明るい場所でも、暗い場所でも。」節。manualはAndroid設定への追従手順として必要 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+製品をFold専用とせずスマホ・タブレットに対応するAndroidキーボードとして記述し、412dp/840dpを代表確認幅、Foldを両幅の利用例へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+`http://127.0.0.1:4173/`を開き、先頭のmockで文字入力、Light/Dark、Mobile/Tablet、Tablet時のDual Flickを確認する。製品コピー、Foldの表現、モック直下の余白も確認対象とする。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
