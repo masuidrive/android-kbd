@@ -145,30 +145,23 @@ class KeyboardViewTest {
     }
 
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `center layer hold no longer starts voice and release performs its tap action`() {
-        val events = mutableListOf<VoiceHoldEvent>()
-        view.voiceHoldSink = VoiceHoldSink(events::add)
         val layer = keyCenter(31)
         touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
         shadowOf(Looper.getMainLooper()).idleFor(1_500, TimeUnit.MILLISECONDS)
-        assertTrue(events.isEmpty())
+        assertTrue(actions.isEmpty())
         touch(MotionEvent.ACTION_UP, layer.first, layer.second, 1_510)
 
-        assertTrue(events.isEmpty())
         assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
     }
 
-    @Test fun `left layer swipe begins voice immediately and release ends without layer action`() {
-        val events = mutableListOf<VoiceHoldEvent>()
-        view.voiceHoldSink = VoiceHoldSink(events::add)
+    @Test fun `left layer swipe enters voice once and release does not switch layer`() {
         val layer = keyCenter(31)
 
         touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
-        assertTrue(events.isEmpty())
         touch(MotionEvent.ACTION_MOVE, layer.first - 35f, layer.second, 20)
-        assertEquals(listOf(VoiceHoldEvent.Begin(1)), events)
+        assertEquals(listOf(KeyAction.VoiceHold), actions)
         touch(MotionEvent.ACTION_UP, layer.first - 35f, layer.second, 30)
-        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.End(1)), events)
-        assertTrue(actions.isEmpty())
+        assertEquals(listOf(KeyAction.VoiceHold), actions)
     }
 
     @Test fun `accessibility does not advertise an unexecutable voice hold flick`() {
@@ -183,38 +176,48 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
-    @Test fun `right layer swipe stays qwerty and second pointer cancels active voice`() {
+    @Test fun `voice layer keeps four row geometry and cancel key switches or cancels`() {
+        view.setMode(KeyboardMode.VOICE)
+        val cancel = keyBounds(3)
+        touch(MotionEvent.ACTION_DOWN, cancel.exactCenterX(), cancel.exactCenterY())
+        touch(MotionEvent.ACTION_UP, cancel.exactCenterX(), cancel.exactCenterY(), 10)
+        assertEquals(listOf(KeyAction.CancelVoice), actions)
+
+        actions.clear()
+        view.setMode(KeyboardMode.VOICE)
+        touch(MotionEvent.ACTION_DOWN, cancel.exactCenterX(), cancel.exactCenterY(), 20)
+        touch(MotionEvent.ACTION_MOVE, cancel.exactCenterX(), cancel.exactCenterY() - 30f, 30)
+        touch(MotionEvent.ACTION_UP, cancel.exactCenterX(), cancel.exactCenterY() - 30f, 40)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
+        assertEquals(228, view.measuredHeight)
+    }
+
+    @Test fun `right layer swipe stays qwerty and second pointer does not duplicate voice entry`() {
         val events = mutableListOf<VoiceHoldEvent>()
         view.voiceHoldSink = VoiceHoldSink(events::add)
         val layer = keyCenter(31)
         touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
         touch(MotionEvent.ACTION_MOVE, layer.first + 35f, layer.second, 20)
         touch(MotionEvent.ACTION_UP, layer.first + 35f, layer.second, 30)
-        assertTrue("events=$events", events.isEmpty())
         assertTrue(actions.contains(KeyAction.SwitchLayer(KeyboardMode.QWERTY)))
 
         actions.clear(); view.setMode(KeyboardMode.QWERTY)
         touch(MotionEvent.ACTION_DOWN, layer.first, layer.second, 100)
         touch(MotionEvent.ACTION_MOVE, layer.first - 35f, layer.second, 120)
-        assertEquals(listOf(VoiceHoldEvent.Begin(1)), events)
+        assertEquals(listOf(KeyAction.VoiceHold), actions)
         multiTouch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (20f to 20f)))
         multiTouch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(0 to layer, 1 to (20f to 20f)))
         multiTouch(MotionEvent.ACTION_UP, listOf(0 to layer))
-        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.Cancel(1)), events)
-        assertTrue(actions.isEmpty())
+        assertEquals(listOf(KeyAction.VoiceHold), actions)
     }
 
-    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `mode change cancels active voice hold and stale ready is inert`() {
-        val events = mutableListOf<VoiceHoldEvent>()
-        view.voiceHoldSink = VoiceHoldSink(events::add)
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `mode change after voice entry does not dispatch a stale layer action`() {
         val layer = keyCenter(31)
         touch(MotionEvent.ACTION_DOWN, layer.first, layer.second)
         touch(MotionEvent.ACTION_MOVE, layer.first - 35f, layer.second, 20)
 
         view.setMode(KeyboardMode.KANA)
-        view.onVoiceRecordingReady(1)
-
-        assertEquals(listOf(VoiceHoldEvent.Begin(1), VoiceHoldEvent.Cancel(1)), events)
+        assertEquals(listOf(KeyAction.VoiceHold), actions)
     }
 
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty labels preserve css anchors and animate actual canvas frames`() {

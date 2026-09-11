@@ -53,13 +53,19 @@ class KeyboardLayoutsTest {
     }
 
     @Test fun `layer keys expose voice left and the fixed up right down layer map`() {
-        KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.LAYER_SWITCH }.forEach { key ->
+        KeyboardLayouts.all.filterKeys { it != KeyboardMode.VOICE }.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.LAYER_SWITCH }.forEach { key ->
             assertEquals("音声", key.left?.label)
             assertEquals(KeyAction.VoiceHold, key.left?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), key.up?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), key.right?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.down?.action)
         }
+        val voice = keys(KeyboardMode.VOICE).single { it.kind == KeyKind.LAYER_SWITCH }
+        assertEquals(KeyAction.CancelVoice, voice.center?.action)
+        assertNull(voice.left)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), voice.up?.action)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), voice.right?.action)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), voice.down?.action)
         KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.MODE }.forEach { key ->
             assertNull(key.left); assertNull(key.up); assertNull(key.right); assertNull(key.down)
         }
@@ -129,7 +135,7 @@ class KeyboardLayoutsTest {
     }
 
     @Test fun `nonconverting enter exposes control j only on up`() {
-        KeyboardMode.entries.forEach { mode ->
+        KeyboardMode.entries.filter { it != KeyboardMode.VOICE }.forEach { mode ->
             val enter = keys(mode).single { it.kind == KeyKind.ENTER }
             assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.up)
             assertEquals(KeyAction.Paste, enter.down?.action)

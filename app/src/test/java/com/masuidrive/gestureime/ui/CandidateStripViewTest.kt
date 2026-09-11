@@ -36,18 +36,12 @@ class CandidateStripViewTest {
         assertTrue(view.allTextViews().none { it.text == "音声" })
     }
 
-    @Test fun recordingAndRecognizingOfferCancelWithoutStopOrConfirmControls() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
+    @Test fun recordingAndRecognizingKeepTheCandidateAreaEmptyWithoutLegacyControls() {
+        val view = view()
         view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording))
-        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
-        view.layout(0, 0, 400, 50)
-        assertEquals(82, view.textView("取消").width)
-        assertEquals(34, view.textView("取消").height)
-        assertEquals(7f, view.textView("取消").faceLayer().cornerRadius, .1f)
-        assertTrue(view.allTextViews().none { it.text == "停止" }); view.textView("取消").performClick()
+        assertTrue(view.allTextViews().isEmpty())
         view.setVoiceState(VoiceUiSnapshot(3, VoiceUiState.Recognizing))
-        assertTrue(view.allTextViews().none { it.text == "停止" || it.text == "確定" }); view.textView("取消").performClick()
-        assertEquals(listOf(VoiceUiEvent(2, VoiceUiAction.Cancel), VoiceUiEvent(3, VoiceUiAction.Cancel)), actions)
+        assertTrue(view.allTextViews().isEmpty())
     }
 
     @Test fun permissionStillOffersItsRequiredSetupAction() {
@@ -62,21 +56,17 @@ class CandidateStripViewTest {
         assertTrue(view.allTextViews().none { it.text == "確定" || it.text == "取消" })
     }
 
-    @Test fun partialResultUsesCandidateFaceAndOffersTheSameCancelControl() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
+    @Test fun partialResultUsesCandidateFaceWithoutLegacyCancelControl() {
+        val view = view()
         view.setVoiceState(VoiceUiSnapshot(12, VoiceUiState.Partial("認識途中の文章")))
         view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, 400, 50)
 
         val partial = view.textView("認識途中の文章")
-        val cancel = view.textView("取消")
         assertEquals(34, partial.height)
         assertEquals(7f, partial.faceLayer().cornerRadius, .1f)
-        assertEquals(34, cancel.height)
-        assertEquals(7f, cancel.faceLayer().cornerRadius, .1f)
         assertEquals("認識途中: 認識途中の文章", partial.contentDescription)
-        cancel.performClick()
-        assertEquals(listOf(VoiceUiEvent(12, VoiceUiAction.Cancel)), actions)
+        assertTrue(view.allTextViews().none { it.text == "取消" })
     }
 
     @Test fun permissionAndUnavailableControlsShareCandidateGeometryAndThemeColors() {

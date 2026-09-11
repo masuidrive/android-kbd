@@ -46,6 +46,11 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+- 2026-09-12: 既存の押下保持経路から、左フリック成立時に4行高のVOICE面へ遷移する経路へ変更。VOICE面左下は取消、上/右/下は日本語/QWERTY/テンキー切替とした。
+- 2026-09-12: SpeechRecognizerの最終候補を重複除去した可変長リストで保持し、通常CandidateStripへ同じfaceで表示。描画snapshot tokenを経由した候補tapだけが選択候補を1回確定し、直前レイヤーへ戻る。
+- 2026-09-12: 認識開始/認識中は余分な状態見出しや旧右端取消を表示せず、途中結果だけを候補面へ表示する。permission/unavailableの既存案内は維持。
+- 2026-09-12: 関連Robolectric 86件PASS、`scripts/test-all.sh --parallel` fast-checks / android unit・lint・apk PASS。重複検出は`similarity-generic`未導入のためskip。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の

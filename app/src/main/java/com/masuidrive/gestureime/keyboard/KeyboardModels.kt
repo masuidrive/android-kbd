@@ -1,7 +1,7 @@
 package com.masuidrive.gestureime.keyboard
 
 enum class KeyboardMode(val displayName: String) {
-    KANA("日本語"), NUMBERS("テンキー"), CURSOR("カーソル"), QWERTY("QWERTY"), SYMBOLS("記号")
+    KANA("日本語"), NUMBERS("テンキー"), CURSOR("カーソル"), QWERTY("QWERTY"), SYMBOLS("記号"), VOICE("音声")
 }
 
 enum class Direction { CENTER, LEFT, UP, RIGHT, DOWN }
@@ -55,6 +55,7 @@ sealed interface KeyAction {
     data object Enter : KeyAction
     data object Paste : KeyAction
     data object VoiceHold : KeyAction
+    data object CancelVoice : KeyAction
 }
 
 fun interface KeyboardActionSink {

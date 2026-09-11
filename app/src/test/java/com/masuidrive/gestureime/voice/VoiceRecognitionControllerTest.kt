@@ -34,7 +34,7 @@ class VoiceRecognitionControllerTest {
         recognizer.listener?.onReady()
         recognizer.listener?.onResults(listOf("日本語"))
 
-        assertEquals(VoiceBackendState.Preview("日本語") to 7L, states.last())
+        assertEquals(VoiceBackendState.Preview(listOf("日本語")) to 7L, states.last())
         assertEquals("日本語", controller.confirm(7))
         assertTrue(recognizer.destroyed)
     }
@@ -91,7 +91,7 @@ class VoiceRecognitionControllerTest {
         assertTrue(recognizer.stopped)
         assertEquals(VoiceBackendState.Recognizing to 5L, states.last())
         recognizer.listener?.onResults(listOf("停止後"))
-        assertEquals(VoiceBackendState.Preview("停止後") to 5L, states.last())
+        assertEquals(VoiceBackendState.Preview(listOf("停止後")) to 5L, states.last())
     }
 
     @Test
@@ -102,7 +102,7 @@ class VoiceRecognitionControllerTest {
         recognizer.listener?.onResults(listOf("元の欄"))
 
         assertNull(controller.confirm(22))
-        assertEquals(VoiceBackendState.Preview("元の欄") to 21L, states.last())
+        assertEquals(VoiceBackendState.Preview(listOf("元の欄")) to 21L, states.last())
     }
 
     private fun controller(

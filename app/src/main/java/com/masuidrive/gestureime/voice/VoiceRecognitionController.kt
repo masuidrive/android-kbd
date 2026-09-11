@@ -21,7 +21,7 @@ sealed interface VoiceBackendState {
     data object Recording : VoiceBackendState
     data object Recognizing : VoiceBackendState
     data class Partial(val text: String) : VoiceBackendState
-    data class Preview(val text: String) : VoiceBackendState
+    data class Preview(val candidates: List<String>) : VoiceBackendState
     data class Unavailable(val message: String) : VoiceBackendState
 }
 
@@ -71,7 +71,7 @@ class VoiceRecognitionController internal constructor(
     private var editorToken = 0L
     private var recognizer: VoiceRecognizer? = null
     private var partial: String? = null
-    private var preview: String? = null
+    private var preview: List<String>? = null
 
     fun initialState(): VoiceBackendState = when {
         sdkInt < Build.VERSION_CODES.S -> VoiceBackendState.Unavailable("Android 12以降で利用できます")
@@ -100,11 +100,11 @@ class VoiceRecognitionController internal constructor(
             }
             override fun onResults(results: List<String>) {
                 if (activeGeneration != generation) return
-                val text = results.firstOrNull { it.isNotBlank() }
-                if (text == null) finishWith(activeGeneration, VoiceBackendState.Unavailable("認識結果がありません"))
+                val candidates = results.filter { it.isNotBlank() }.distinct()
+                if (candidates.isEmpty()) finishWith(activeGeneration, VoiceBackendState.Unavailable("認識結果がありません"))
                 else {
-                    preview = text
-                    deliver(activeGeneration, VoiceBackendState.Preview(text))
+                    preview = candidates
+                    deliver(activeGeneration, VoiceBackendState.Preview(candidates))
                 }
             }
             override fun onError(error: Int) = finishWith(activeGeneration, VoiceBackendState.Unavailable(errorMessage(error)))
@@ -136,10 +136,10 @@ class VoiceRecognitionController internal constructor(
         onState(partialState(), editorToken)
     }
 
-    fun confirm(token: Long): String? {
+    fun confirm(token: Long, index: Int = 0): String? {
         requireMainThread()
         if (token != editorToken) return null
-        val result = preview ?: return null
+        val result = preview?.getOrNull(index) ?: return null
         invalidate(destroy = true)
         onState(VoiceBackendState.Idle, token)
         return result

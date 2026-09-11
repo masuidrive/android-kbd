@@ -63,6 +63,7 @@ class KeyboardView @JvmOverloads constructor(
     private var voiceHoldRequestId = 0L
     private var voiceHoldMultiPointer = false
     private val voiceGestureCancelledPointers = mutableSetOf<Int>()
+    private var voiceEntryPointer: Int? = null
     private var voiceReadyRequestId: Long? = null
     private var secondVoiceHaptic: Runnable? = null
     private val popupController = KeyboardPopupController(context)
@@ -157,6 +158,7 @@ class KeyboardView @JvmOverloads constructor(
         secondVoiceHaptic = null
         voiceHoldMultiPointer = false
         voiceGestureCancelledPointers.clear()
+        voiceEntryPointer = null
         timers.values.forEach(::removeCallbacks)
         timers.clear()
         labelAnimators.values.forEach(ValueAnimator::cancel)
@@ -589,6 +591,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun pointerDown(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)
+        if (voiceEntryPointer != null) return
         val hit = hitTargets.getOrNull(hitTargetIndexAt(event.getX(index), event.getY(index))) ?: return
         if (active.isNotEmpty()) {
             voiceHoldMultiPointer = true
@@ -679,6 +682,7 @@ class KeyboardView @JvmOverloads constructor(
             if (active.isEmpty()) {
                 voiceHoldMultiPointer = false
                 voiceGestureCancelledPointers.clear()
+                voiceEntryPointer = null
             }
             dismissPopup()
             active.keys.firstOrNull()?.let(::syncPopup)
@@ -697,10 +701,10 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun beginVoiceGesture(id: Int, hit: HitTarget) {
         if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || voiceHoldOwner != null) return
-        val requestId = ++voiceHoldRequestId
-        voiceHoldOwner = id to requestId
+        voiceGestureCancelledPointers += id
+        voiceEntryPointer = id
         interpreter.cancel(id)
-        voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Begin(requestId))
+        actionSink?.onKeyAction(KeyAction.VoiceHold)
     }
 
     private fun cancelVoiceGesture() {

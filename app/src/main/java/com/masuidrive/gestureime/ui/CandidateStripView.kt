@@ -77,9 +77,8 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         val snapshot = voiceSnapshot
         when (val state = snapshot.state) {
             VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
-            VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
-            VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
-            is VoiceUiState.Partial -> { renderCandidateMessage(state.text, "認識途中: ${state.text}"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
+            VoiceUiState.Recording, VoiceUiState.Recognizing -> renderCandidates()
+            is VoiceUiState.Partial -> renderCandidateMessage(state.text, "認識途中: ${state.text}")
             is VoiceUiState.Preview -> renderCandidateMessage("音声を認識しました")
             is VoiceUiState.Unavailable -> {
                 renderCandidates()

@@ -9,6 +9,7 @@ import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.voice.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.*
@@ -17,6 +18,24 @@ import kotlinx.coroutines.CompletableDeferred
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class ImeServiceVoiceHoldTest {
+    @Test fun voiceLayerShowsMultipleCandidatesAndCommitsTappedChoiceBeforeReturning() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold)
+        h.idle()
+        h.recognizer.support?.invoke(true)
+        h.recognizer.ready()
+        h.recognizer.result("第一候補", "第二候補", "第三候補")
+        h.idle()
+
+        assertEquals("", h.input.text)
+        assertTrue(h.root.allText().containsAll(listOf("第一候補", "第二候補", "第三候補")))
+        h.root.findText("第二候補").performClick()
+        h.idle()
+
+        assertEquals("第二候補", h.input.text)
+        assertEquals("QWERTYキーボード", (h.root as android.view.ViewGroup).getChildAt(1).contentDescription)
+    }
+
     @Test fun earlyResultWaitsForReleaseAndCommitsOnce() {
         val h = Harness(); h.begin(); h.recognizer.result("日本語"); assertEquals("", h.input.text)
         h.service.onVoiceHold(VoiceHoldEvent.End(1)); h.idle(); assertEquals("日本語", h.input.text)
@@ -60,8 +79,9 @@ class ImeServiceVoiceHoldTest {
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
     private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; override fun commitText(t:CharSequence?,n:Int):Boolean { text+=t?.toString() ?: ""; return true } }
-    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(s:String)=listener?.onResults(listOf(s)) }
+    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 
     private fun View.allText():List<String> { val result=mutableListOf<String>(); fun visit(v:View){ if(v is android.widget.TextView) result+=v.text.toString(); if(v is android.view.ViewGroup) repeat(v.childCount){visit(v.getChildAt(it))} }; visit(this); return result }
+    private fun View.findText(text:String):android.widget.TextView { if(this is android.widget.TextView && this.text.toString()==text)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findText(text)}}; error("missing $text") }
 }

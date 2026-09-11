@@ -9,6 +9,7 @@ object KeyboardLayouts {
         KeyboardMode.KANA -> kana(dualKana, conversionActive)
         KeyboardMode.NUMBERS -> numbers()
         KeyboardMode.CURSOR -> cursor()
+        KeyboardMode.VOICE -> voice()
     }
 
     private fun text(label: String, secondary: String? = null, kind: KeyKind = KeyKind.CHARACTER) =
@@ -61,6 +62,13 @@ object KeyboardLayouts {
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(), cursor(Direction.DOWN), empty()))
     ))
 
+    private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
+        KeyboardRow(listOf(empty(10f))),
+        KeyboardRow(listOf(empty(10f))),
+        KeyboardRow(listOf(empty(10f))),
+        KeyboardRow(listOf(voiceLayerKey(), empty(8.55f))),
+    ))
+
     private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
         "kana-$center", KeyKind.KANA, kanaValue(center), kanaValue(left), kanaValue(up), kanaValue(right), kanaValue(down)
     )
@@ -100,7 +108,7 @@ object KeyboardLayouts {
     private fun punct() = KeySpec("punct", KeyKind.KANA, kanaValue("、"), left = kanaValue("。"),
         up = kanaValue("？"), right = kanaValue("！"))
 
-    private fun empty() = KeySpec("empty", KeyKind.EMPTY, null)
+    private fun empty(width: Float = 1f) = KeySpec("empty", KeyKind.EMPTY, null, widthUnits = width)
 
     private fun boundary(label: String, boundary: CursorBoundary) = KeySpec("boundary-$boundary", KeyKind.CURSOR,
         FlickValue(label, KeyAction.MoveToBoundary(boundary)))
@@ -132,6 +140,15 @@ object KeyboardLayouts {
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), widthUnits = width, dark = true)
+
+    private fun voiceLayerKey() = KeySpec("voice-cancel", KeyKind.LAYER_SWITCH,
+        FlickValue("取消", KeyAction.CancelVoice),
+        up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
+        right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
+        down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
+        widthUnits = 1.45f,
+        dark = true,
+    )
 
     private fun arrow(direction: Direction) = when (direction) {
         Direction.LEFT -> "←"; Direction.UP -> "↑"; Direction.RIGHT -> "→"; Direction.DOWN -> "↓"; Direction.CENTER -> "•"

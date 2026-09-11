@@ -68,6 +68,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var slashBufferActive = false
     private var slashGeneration = 0L
     private var keyboardMode = KeyboardMode.QWERTY
+    private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
     private var latestVoiceUnavailableMessage: String? = null
@@ -182,8 +183,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     override fun onKeyAction(action: KeyAction) {
-        cancelVoiceHold()
-        if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
+        val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
+        if (!voiceCandidateSelection) {
+            cancelVoiceHold()
+            if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
+        }
         val queuedForEditor = editorSession.capture()
         val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) candidateSnapshot() else null
         serviceScope.launch {
@@ -363,19 +367,58 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             is KeyAction.SwitchLayer -> {
                 finishEnglishRaw()
+                if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession()
                 ImePreferences.setLastKeyboardMode(this, action.target)
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
             }
             is KeyAction.SelectCandidate -> {
-                if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
+                if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
+                else if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
                 else if (candidateSource == CandidateSource.SLASH) commitSlashCandidate(action.index)
                 else commitCandidate(action.index)
             }
             KeyAction.CycleCandidate -> cycleCandidate()
             is KeyAction.SetModifier -> finishEnglishRaw()
-            KeyAction.VoiceHold -> Unit
+            KeyAction.VoiceHold -> startVoiceLayer(editorToken)
+            KeyAction.CancelVoice -> cancelVoiceSession()
         }
+    }
+
+    private suspend fun startVoiceLayer(editorToken: Long) {
+        if (textController.isPrivateField || keyboardMode == KeyboardMode.VOICE) return
+        finishEnglishRaw()
+        finishSlashRaw()
+        resetConversion(clearComposing = false)
+        voiceReturnMode = keyboardMode
+        keyboardMode = KeyboardMode.VOICE
+        keyboardView?.setMode(KeyboardMode.VOICE)
+        candidateSource = CandidateSource.VOICE
+        candidates = emptyList()
+        showCandidateStrip(emptyList(), -1)
+        voiceController.start(editorToken)
+    }
+
+    private fun commitVoiceCandidate(index: Int, token: Long) {
+        val text = voiceController.confirm(token, index) ?: return
+        editorSession.runIfCurrent(token) { textController.commitText(text) }
+        leaveVoiceLayer()
+    }
+
+    private fun cancelVoiceSession() {
+        voiceController.cancel(notify = false)
+        leaveVoiceLayer()
+    }
+
+    private fun leaveVoiceLayer() {
+        candidateSource = CandidateSource.NONE
+        candidates = emptyList()
+        showCandidateStrip(emptyList(), -1)
+        if (keyboardMode == KeyboardMode.VOICE) {
+            keyboardMode = voiceReturnMode
+            keyboardView?.setMode(voiceReturnMode)
+        }
+        if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
     }
 
     private fun shouldBufferEnglish(text: String): Boolean =
@@ -623,6 +666,22 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
 
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
+        if (keyboardMode == KeyboardMode.VOICE) {
+            when (state) {
+                is VoiceBackendState.Partial -> {
+                    candidateSource = CandidateSource.VOICE
+                    candidates = listOf(state.text)
+                    showCandidateStrip(candidates, -1)
+                }
+                is VoiceBackendState.Preview -> {
+                    candidateSource = CandidateSource.VOICE
+                    candidates = state.candidates
+                    showCandidateStrip(candidates, -1)
+                }
+                else -> setVoiceUi(state.toUiState())
+            }
+            return
+        }
         val holdId = voiceHoldRequestId
         if (holdId != null && token == voiceHoldEditorToken) {
             when (state) {
@@ -688,7 +747,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 }
 
-private enum class CandidateSource { NONE, JAPANESE, ENGLISH, SLASH }
+private enum class CandidateSource { NONE, JAPANESE, ENGLISH, SLASH, VOICE }
 
 private data class CandidateSnapshot(
     val source: CandidateSource,
@@ -720,7 +779,7 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Recording -> VoiceUiState.Recording
     VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
     is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
-    is VoiceBackendState.Preview -> VoiceUiState.Recognizing
+    is VoiceBackendState.Preview -> VoiceUiState.Preview(candidates.firstOrNull().orEmpty())
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
 }
 
