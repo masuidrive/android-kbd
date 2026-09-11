@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-003916-add-english-candidate-buffer
 description: "Android native keyboard follows the device Light/Dark theme"
 created_at: "2026-09-11T05:37:38Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T05:39:32Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
