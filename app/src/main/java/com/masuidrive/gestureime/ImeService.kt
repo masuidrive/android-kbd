@@ -58,6 +58,7 @@ class ImeService : InputMethodService(), KeyboardActionSink {
     }
 
     override fun onCreateInputView(): View {
+        voiceController.cancel(notify = false)
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
@@ -75,6 +76,13 @@ class ImeService : InputMethodService(), KeyboardActionSink {
             addView(strip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight))
             addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         }
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        voiceController.cancel(notify = false)
+        setVoiceUi(VoiceUiState.Hidden)
+        keyboardView?.cancelActiveGestures()
+        super.onFinishInputView(finishingInput)
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
