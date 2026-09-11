@@ -10,7 +10,9 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Switch
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +21,7 @@ class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val padding = (24 * resources.displayMetrics.density).toInt()
-        setContentView(LinearLayout(this).apply {
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(padding, padding, padding, padding)
@@ -49,6 +51,27 @@ class SetupActivity : AppCompatActivity() {
                 isChecked = ImePreferences.isEnglishSuggestionsEnabled(context)
                 setOnCheckedChangeListener { _, checked -> ImePreferences.setEnglishSuggestionsEnabled(context, checked) }
             }, matchWidth())
+            addView(TextView(context).apply {
+                text = getString(R.string.slash_commands)
+                textSize = 18f
+                setPadding(0, padding, 0, padding / 3)
+            }, matchWidth())
+            val slashInputs = ImePreferences.getSlashCommands(context).mapIndexed { index, command ->
+                EditText(context).apply {
+                    setText(command)
+                    hint = getString(R.string.slash_command_hint, index + 1)
+                    isSingleLine = true
+                    contentDescription = getString(R.string.slash_command_description, index + 1)
+                    addView(this, matchWidth())
+                }
+            }
+            addView(Button(context).apply {
+                text = getString(R.string.save_slash_commands)
+                setOnClickListener {
+                    ImePreferences.setSlashCommands(context, slashInputs.map { input -> input.text.toString() })
+                    slashInputs.zip(ImePreferences.getSlashCommands(context)).forEach { (input, value) -> input.setText(value) }
+                }
+            }, matchWidth())
             addView(Button(context).apply {
                 text = getString(R.string.adjust_qwerty_labels)
                 setOnClickListener {
@@ -73,7 +96,8 @@ class SetupActivity : AppCompatActivity() {
                 text = getString(R.string.licenses)
                 setOnClickListener { startActivity(Intent(context, LicenseActivity::class.java)) }
             }, matchWidth())
-        })
+        }
+        setContentView(ScrollView(this).apply { addView(content) })
         if (intent.getBooleanExtra(EXTRA_REQUEST_MICROPHONE_PERMISSION, false) &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED

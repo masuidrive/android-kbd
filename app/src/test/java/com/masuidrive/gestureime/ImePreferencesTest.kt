@@ -61,6 +61,30 @@ class ImePreferencesTest {
     }
 
     @Test
+    fun slashCommandsDefaultToThreeValuesNormalizeSixSlotsAndHideDuplicates() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        assertEquals(
+            listOf("/compact", "/clear", "/quit", "", "", ""),
+            ImePreferences.getSlashCommands(context),
+        )
+
+        ImePreferences.setSlashCommands(
+            context,
+            listOf(" compact ", "/clear", "", "/clear", "quit", "  ", "/ignored"),
+        )
+
+        assertEquals(
+            listOf("/compact", "/clear", "", "/clear", "/quit", ""),
+            ImePreferences.getSlashCommands(context),
+        )
+        assertEquals(
+            listOf("/compact", "/clear", "/quit"),
+            ImePreferences.getSlashCommandCandidates(context),
+        )
+    }
+
+    @Test
     fun qwertyStylePersistsSanitizesAndResets() {
         val context = RuntimeEnvironment.getApplication()
         val group = com.masuidrive.gestureime.keyboard.QwertyLabelGroup.LETTER_PRIMARY
