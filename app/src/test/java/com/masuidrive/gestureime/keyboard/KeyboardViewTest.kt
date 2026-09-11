@@ -441,6 +441,30 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `enter up reveals enlarged control j and dispatches it without an idle hint`() {
+        Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        val provider = view.accessibilityNodeProvider
+        val enterId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ENTER }
+        val enter = Rect().also { provider.createAccessibilityNodeInfo(enterId)!!.getBoundsInParent(it) }
+        val x = enter.centerX().toFloat()
+        val y = enter.centerY().toFloat()
+
+        val idle = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertTrue(idle.draws.none { it.text == "C-j" })
+
+        touch(MotionEvent.ACTION_DOWN, x, y, 0)
+        touch(MotionEvent.ACTION_MOVE, x, y - 24f * view.resources.displayMetrics.density, 10)
+        val selected = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val controlJ = selected.draws.single { it.text == "C-j" }
+        assertEquals(17f, controlJ.textSize, .2f)
+        assertEquals(enter.centerY().toFloat(), controlJ.y + (controlJ.ascent + controlJ.descent) / 2f, .6f)
+        assertTrue(actions.isEmpty())
+
+        touch(MotionEvent.ACTION_UP, x, y - 24f * view.resources.displayMetrics.density, 20)
+        assertEquals(listOf(KeyAction.ModifiedKey("j", Modifier.CTRL)), actions)
+    }
+
     @Test fun `conversion start discards only a held Enter and the next Enter commits`() {
         view.setMode(KeyboardMode.KANA)
         view.setDualFlickEnabled(true)

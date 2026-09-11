@@ -120,6 +120,7 @@ object KeyboardLayouts {
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
             up = FlickValue("無変換", KeyAction.CommitWithoutConversion), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),
+        up = FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)),
         down = FlickValue("paste", KeyAction.Paste), widthUnits = width, rowSpan = rowSpan)
 
     private fun modeKey(label: String, tap: KeyboardMode) = KeySpec("mode-$label", KeyKind.MODE,

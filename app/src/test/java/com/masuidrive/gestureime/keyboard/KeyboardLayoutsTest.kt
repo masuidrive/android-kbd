@@ -128,5 +128,17 @@ class KeyboardLayoutsTest {
         assertNull(enter.right); assertNull(enter.down)
     }
 
+    @Test fun `nonconverting enter exposes control j only on up`() {
+        KeyboardMode.entries.forEach { mode ->
+            val enter = keys(mode).single { it.kind == KeyKind.ENTER }
+            assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.up)
+            assertEquals(KeyAction.Paste, enter.down?.action)
+        }
+
+        val converting = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true)
+            .rows.flatMap { it.keys }.single { it.kind == KeyKind.ENTER }
+        assertEquals(FlickValue("無変換", KeyAction.CommitWithoutConversion), converting.up)
+    }
+
     private fun keys(mode: KeyboardMode) = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
 }

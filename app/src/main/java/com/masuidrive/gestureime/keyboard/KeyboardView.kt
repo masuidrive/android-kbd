@@ -303,6 +303,8 @@ class KeyboardView @JvmOverloads constructor(
             secondary != null && (downLike || upLike)
         val animatedEnterPaste = selected && spec.kind == KeyKind.ENTER &&
             downLike && secondary != null
+        val selectedEnterControlJ = selected && !state.conversionActive && spec.kind == KeyKind.ENTER &&
+            direction == Direction.UP && spec.up?.action == KeyAction.ModifiedKey("j", Modifier.CTRL)
         val animatedSpecial = selected && direction != Direction.CENTER &&
             spec.kind in setOf(KeyKind.SPACE, KeyKind.MODIFIER)
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
@@ -323,7 +325,7 @@ class KeyboardView @JvmOverloads constructor(
             val aX = safeCenterX(target.bounds, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), "A")
             canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f + primaryAdjustment.yOffsetDp)), textPaint)
             canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f - primaryAdjustment.yOffsetDp)), textPaint)
-        } else if (!animatedEnglish && !animatedEnterPaste && !animatedSpecial) {
+        } else if (!animatedEnglish && !animatedEnterPaste && !selectedEnterControlJ && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
                 primaryAdjustment.xOffsetDp, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
         }
@@ -342,6 +344,16 @@ class KeyboardView @JvmOverloads constructor(
             drawFittedText(canvas, main, target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp), mainBaseline, availableWidth(target.bounds, primaryAdjustment.xOffsetDp))
         } else if (animatedEnterPaste) {
             drawDownLabelTransition(canvas, target.bounds, spec, spec.center?.label.orEmpty(), secondary, primaryAdjustment, frame)
+        } else if (selectedEnterControlJ) {
+            textPaint.textSize = sp(17f) * primaryAdjustment.scale
+            textPaint.color = context.getColor(R.color.keyboard_selected_text)
+            drawFittedText(
+                canvas,
+                requireNotNull(spec.up).label,
+                target.bounds.centerX() + dp(primaryAdjustment.xOffsetDp),
+                safeBaseline(target.bounds, visualCenterBaseline(target.bounds) + dp(primaryAdjustment.yOffsetDp)),
+                availableWidth(target.bounds, primaryAdjustment.xOffsetDp),
+            )
         } else if (animatedSpecial) {
             val adjustment = labelAdjustment(spec, secondary = direction == Direction.DOWN)
             textPaint.textSize = sp(11f) * adjustment.scale
