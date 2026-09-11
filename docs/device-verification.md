@@ -131,13 +131,13 @@ v0.3 evidence:
 
 ## v0.5 visual fidelity verification
 
-The Android Chrome reference captures use the same API 36 AVD and display density as the native captures. DOM geometry remains the numeric source of truth; Android captures are used to compare platform-font baselines, shadows, and visible spacing. The preserved HTML Kana height is 51px and is intentionally superseded by the later requirement that native Kana and QWERTY key heights match.
+The Android Chrome reference captures used the earlier API 36 AVD; final native captures used the isolated API 36.1 AVD. Both used the same 1080px/420dpi 412dp profile (and the same 2205px override for 840dp). DOM geometry remains the numeric source of truth; Android captures are used to compare platform-font baselines, shadows, and visible spacing. The preserved HTML Kana height is 51px and is intentionally superseded by the later requirement that native Kana and QWERTY key heights match.
 
 | Width | Font scale | Reference/native evidence | Result |
 |---|---:|---|---|
 | 412dp | 1.0 | `v0.5/html-qwerty-412-dark.png`, `v0.5/native-qwerty-412.png` | Key faces, shadows, labels, BS and navigation-bar inset visible without clipping. |
 | 412dp | 1.3 | `v0.5/native-qwerty-412-font130.png` | All glyphs remained inside their key faces. |
-| 412dp | 2.0 | `v0.5/native-qwerty-412-font200.png` | All glyphs remained inside their key faces; Android font scaling makes primary/secondary glyphs visually dense. |
+| 412dp | 2.0 | `v0.5/native-qwerty-412-font200.png` | All glyphs remained inside their key faces; the existing keyboard font cap kept key glyph sizes unchanged. |
 | 840dp | 1.0 | `v0.5/html-qwerty-840.png`, `v0.5/native-qwerty-840.png` | Wide QWERTY fit without clipping. |
 | 840dp | 1.3 | `v0.5/native-qwerty-840-font130.png` | All glyphs remained inside their key faces. |
 | 840dp | 2.0 | `v0.5/native-qwerty-840-font200.png` | All glyphs remained inside their key faces. |
