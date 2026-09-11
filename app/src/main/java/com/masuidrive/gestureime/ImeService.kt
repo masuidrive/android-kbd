@@ -61,6 +61,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var candidateSource = CandidateSource.NONE
     private var englishBuffer = ""
     private var englishGeneration = 0L
+    private var slashBufferActive = false
+    private var slashGeneration = 0L
     private var keyboardMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
@@ -110,6 +112,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     override fun onFinishInputView(finishingInput: Boolean) {
         cancelVoiceHold()
         finishEnglishRaw()
+        finishSlashRaw()
         setVoiceUi(VoiceUiState.Hidden)
         keyboardView?.cancelActiveGestures()
         super.onFinishInputView(finishingInput)
@@ -128,6 +131,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         invalidateEnglish(clearComposing = false)
+        invalidateSlash(clearComposing = false)
         textController.beginInput(attribute)
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         candidateStrip?.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
@@ -141,6 +145,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     override fun onFinishInput() {
         cancelVoiceHold()
         finishEnglishRaw()
+        finishSlashRaw()
         editorSession.advance()
         invalidateConversion(clearComposing = false)
         keyboardView?.cancelActiveGestures()
@@ -167,6 +172,10 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         ) {
             textController.finishComposition()
             invalidateEnglish(clearComposing = false)
+        }
+        if (slashBufferActive && (candidatesStart < 0 || newSelStart != newSelEnd || newSelEnd != candidatesEnd)) {
+            textController.finishComposition()
+            invalidateSlash(clearComposing = false)
         }
     }
 
@@ -205,6 +214,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                     actionMutex.withLock {
                         if (voiceHoldRequestId != event.requestId || !editorSession.isCurrent(token)) return@withLock
                         finishEnglishRaw()
+                        finishSlashRaw()
                         resetConversion(clearComposing = false)
                         if (voiceHoldRequestId == event.requestId && editorSession.isCurrent(token)) voiceController.start(token)
                     }
@@ -230,9 +240,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
+        if (slashBufferActive && action !is KeyAction.SelectCandidate && action !is KeyAction.Backspace) {
+            finishSlashRaw()
+        }
         when (action) {
             is KeyAction.CommitText -> {
-                if (shouldBufferEnglish(action.text)) appendEnglish(action.text, editorToken)
+                if (shouldStartSlashCandidates(action.text)) startSlashCandidates()
+                else if (shouldBufferEnglish(action.text)) appendEnglish(action.text, editorToken)
                 else if (action.text == " " && reading.isNotEmpty()) cycleCandidate()
                 else {
                     finishEnglishRaw()
@@ -251,6 +265,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 updateReading(textController.transformKana(action.transform))
             }
             is KeyAction.Backspace -> {
+                if (slashBufferActive) {
+                    textController.backspace()
+                    invalidateSlash(clearComposing = false)
+                    return
+                }
                 if (englishBuffer.isNotEmpty()) {
                     val remaining = textController.backspace()
                     englishBuffer = remaining
@@ -326,6 +345,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             is KeyAction.SelectCandidate -> {
                 if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
+                else if (candidateSource == CandidateSource.SLASH) commitSlashCandidate(action.index)
                 else commitCandidate(action.index)
             }
             KeyAction.CycleCandidate -> cycleCandidate()
@@ -338,6 +358,46 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         ImePreferences.isEnglishSuggestionsEnabled(this) &&
             !textController.isPrivateField &&
             text.length == 1 && text[0].isAsciiLetterOrDigit()
+
+    private fun shouldStartSlashCandidates(text: String): Boolean =
+        text == "/" && !textController.isPrivateField
+
+    private suspend fun startSlashCandidates() {
+        finishEnglishRaw()
+        if (reading.isNotEmpty()) textController.finishComposition()
+        resetConversion(clearComposing = false)
+        textController.appendComposing("/")
+        slashBufferActive = true
+        slashGeneration++
+        candidateSource = CandidateSource.SLASH
+        candidates = ImePreferences.getSlashCommandCandidates(this)
+        selectedCandidate = -1
+        showCandidateState()
+    }
+
+    private fun commitSlashCandidate(index: Int) {
+        if (!slashBufferActive || candidateSource != CandidateSource.SLASH || index !in candidates.indices) return
+        textController.commitCandidate(candidates[index])
+        invalidateSlash(clearComposing = false)
+    }
+
+    private fun finishSlashRaw() {
+        if (!slashBufferActive) return
+        textController.finishComposition()
+        invalidateSlash(clearComposing = false)
+    }
+
+    private fun invalidateSlash(clearComposing: Boolean) {
+        slashGeneration++
+        slashBufferActive = false
+        if (clearComposing) textController.cancelComposition()
+        if (candidateSource == CandidateSource.SLASH) {
+            candidateSource = CandidateSource.NONE
+            candidates = emptyList()
+            selectedCandidate = -1
+            showCandidateState()
+        }
+    }
 
     private fun appendEnglish(text: String, editorToken: Long) {
         if (reading.isNotEmpty()) {
@@ -410,6 +470,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         conversionGeneration = conversionGeneration,
         englishGeneration = englishGeneration,
         englishBuffer = englishBuffer,
+        slashGeneration = slashGeneration,
+        slashBufferActive = slashBufferActive,
     )
 
     private suspend fun updateReading(newReading: String) {
@@ -501,6 +563,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private fun clearCandidateState() {
         englishGeneration++
         englishBuffer = ""
+        slashGeneration++
+        slashBufferActive = false
         reading = ""
         candidates = emptyList()
         selectedCandidate = -1
@@ -598,7 +662,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 }
 
-private enum class CandidateSource { NONE, JAPANESE, ENGLISH }
+private enum class CandidateSource { NONE, JAPANESE, ENGLISH, SLASH }
 
 private data class CandidateSnapshot(
     val source: CandidateSource,
@@ -606,6 +670,8 @@ private data class CandidateSnapshot(
     val conversionGeneration: Long,
     val englishGeneration: Long,
     val englishBuffer: String,
+    val slashGeneration: Long,
+    val slashBufferActive: Boolean,
 )
 
 private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'

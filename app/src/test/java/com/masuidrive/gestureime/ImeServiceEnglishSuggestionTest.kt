@@ -41,6 +41,52 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
+    fun slashShowsDistinctConfiguredCandidatesAndTapReplacesTheComposingSlash() {
+        val harness = Harness(
+            english = { _, _ -> emptyList() },
+            slashCommands = listOf("compact", "/clear", "/clear", "", "/quit", ""),
+        )
+
+        harness.key("/")
+        harness.idle()
+
+        assertEquals("/", harness.input.visibleText)
+        assertEquals("", harness.input.committed)
+        assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 4: /quit" })
+        harness.root.findView { it.contentDescription?.toString() == "候補 2: /clear" }!!.performClick()
+        harness.idle()
+
+        assertEquals("/clear", harness.input.visibleText)
+        assertEquals("/clear", harness.input.committed)
+    }
+
+    @Test
+    fun privateEditorCommitsSlashDirectlyWithoutCandidates() {
+        val harness = Harness(english = { _, _ -> emptyList() }, privateEditor = true)
+
+        harness.key("/")
+        harness.idle()
+
+        assertEquals("/", harness.input.committed)
+        assertEquals(null, harness.root.findView { it.contentDescription?.toString()?.startsWith("候補 ") == true })
+    }
+
+    @Test
+    fun typingAfterSlashKeepsTheRawSlashAndInvalidatesItsCandidateTap() {
+        val harness = Harness(english = { _, _ -> emptyList() })
+        harness.key("/")
+        harness.idle()
+        val stale = harness.root.findView { it.contentDescription?.toString() == "候補 1: /compact" }
+
+        harness.key("x")
+        harness.idle()
+        stale!!.performClick()
+        harness.idle()
+
+        assertEquals("/x", harness.input.visibleText)
+    }
+
+    @Test
     fun enterCommitsRawBufferWithoutAddingNewlineAndSpaceCommitsThenInsertsSpace() {
         val enter = Harness { _, _ -> emptyList() }
         enter.key("h")
@@ -165,7 +211,11 @@ class ImeServiceEnglishSuggestionTest {
         assertEquals("a".repeat(65), harness.input.committed)
     }
 
-    private class Harness(english: suspend (String, Int) -> List<String>) {
+    private class Harness(
+        slashCommands: List<String>? = null,
+        privateEditor: Boolean = false,
+        english: suspend (String, Int) -> List<String>,
+    ) {
         private val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
         val input = RecordingConnection(View(RuntimeEnvironment.getApplication()))
@@ -173,6 +223,7 @@ class ImeServiceEnglishSuggestionTest {
 
         init {
             ImePreferences.setEnglishSuggestionsEnabled(service, true)
+            ImePreferences.setSlashCommands(service, slashCommands ?: ImePreferences.DEFAULT_SLASH_COMMANDS)
             val text = TextInputController(
                 connection = { input },
                 context = service,
@@ -192,7 +243,9 @@ class ImeServiceEnglishSuggestionTest {
                     override suspend fun suggest(prefix: String, limit: Int) = english(prefix, limit)
                 },
             )
-            service.onStartInput(EditorInfo(), false)
+            service.onStartInput(EditorInfo().apply {
+                if (privateEditor) inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }, false)
             root = service.onCreateInputView()
             idle()
         }
