@@ -85,6 +85,38 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .meta { margin-top: 1rem; color: var(--muted); font: .78rem/1.6 ui-monospace, monospace; }
 .footer { width: min(var(--max), calc(100% - 2rem)); margin: auto; padding: 2rem 0 3rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: .8rem; }
 
+/* The product home borrows the restrained hierarchy of masuidrive.jp/resume
+   without importing its Bootstrap layout. */
+html:not([data-theme="dark"]) .home-page { --bg:#f4f4f4; --surface:#fff; --ink:#212529; --body:#343a40; --muted:#6c757d; --line:#dee2e6; }
+.home-page { background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; line-height:1.5; }
+.home-page .profile-header { margin:0; }
+.home-page .home-nav { background:color-mix(in srgb,var(--surface) 95%,transparent); }
+html.nav-enhanced .home-page .home-nav { position:fixed; inset:0 0 auto; z-index:20; transform:translateY(-105%); opacity:0; pointer-events:none; transition:transform .22s ease,opacity .18s ease; }
+html.nav-enhanced .home-page .home-nav.is-visible { transform:translateY(0); opacity:1; pointer-events:auto; }
+.home-page .hero { min-height:0; padding:15px 0 56px; gap:32px; }
+.home-page .hero-demo { box-shadow:none; border-radius:0; border-color:var(--line); }
+.home-page .hero-demo-intro { background:var(--surface); }
+.home-page .hero > div { padding:32px; background:var(--surface); border:1px solid var(--line); }
+.home-page .hero > div h1 { max-width:none; font-size:clamp(2.25rem,5vw,3.75rem); font-weight:600; letter-spacing:-.055em; }
+.home-page .lead { margin-top:1.25rem; line-height:1.65; }
+.home-page .section { width:min(1100px,calc(100% - 2rem)); margin:15px auto; padding:32px; border:1px solid var(--line); background:var(--surface); scroll-margin-top:80px; }
+.home-page .section-head { display:block; margin-bottom:24px; }
+.home-page .section h2 { max-width:none; margin:0 0 24px; padding:5px 0 4px 10px; border-left:6px solid #e02613; border-bottom:1px solid #e02613; font-size:clamp(1.65rem,3vw,2rem); font-weight:700; letter-spacing:-.02em; }
+.home-page .section-intro { max-width:52rem; line-height:1.7; }
+.home-page .feature-grid { display:block; overflow:visible; border:0; border-radius:0; background:transparent; }
+.home-page .feature { display:grid; grid-template-columns:48px minmax(180px,260px) minmax(0,1fr); align-items:start; gap:16px; min-height:0; padding:18px 0; border-bottom:1px solid var(--line); background:transparent; }
+.home-page .feature:first-child { border-top:1px solid var(--line); }
+.home-page .feature .number { padding-top:.35rem; color:#e02613; }
+.home-page .feature h3 { margin:0; padding-top:.05rem; font-size:1.08rem; letter-spacing:-.015em; }
+.home-page .feature p { margin:0; max-width:48rem; line-height:1.65; }
+.home-page .privacy { display:block; overflow:visible; border:0; border-radius:0; background:transparent; }
+.home-page .privacy > div { padding:18px 0; border-top:1px solid var(--line); background:transparent; }
+.home-page .privacy > div:last-child { border-bottom:1px solid var(--line); }
+.home-page .cta { text-align:left; }
+.home-page .cta h2 { max-width:none; }
+.home-page .cta .actions { justify-content:flex-start!important; }
+.home-page .footer { width:min(1100px,calc(100% - 2rem)); margin-top:15px; }
+
 .manual-shell { width: min(1080px, calc(100% - 2rem)); margin: auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: clamp(2rem, 6vw, 6rem); padding: 4rem 0 7rem; }
 .toc { position: sticky; top: 94px; align-self: start; }
 .toc p { color: var(--muted); font: 650 .68rem/1.4 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
@@ -125,6 +157,13 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
   .profile-heading h1 { font-size:30px; }
   .profile-heading p { margin-top:.35rem; font-size:11.5px; white-space:nowrap; }
   .profile-bear { right:4px; width:64px; height:65px; }
+  .home-page .hero { padding-top:15px; }
+  .home-page .hero > div, .home-page .section { padding:20px 16px; }
+  .home-page .feature { grid-template-columns:36px minmax(0,1fr); gap:10px; }
+  .home-page .feature .number { grid-row:1 / span 2; }
+  .home-page .feature h3 { grid-column:2; }
+  .home-page .feature p { grid-column:2; }
+  .home-page .section { scroll-margin-top:96px; }
   .hero-demo { scroll-margin-top:96px; }
   .nav-inner { min-height: 56px; padding: .45rem 0; flex-wrap: wrap; gap: .35rem 1rem; }
   .nav-links { flex: 1 1 100%; justify-content: space-between; gap: .55rem; font-size: .75rem; }
@@ -135,4 +174,4 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
   .toc ol { columns: 1; }
   .gesture-table { display: block; overflow-x: auto; }
 }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } html.nav-enhanced .home-page .home-nav { transition:none; } }
