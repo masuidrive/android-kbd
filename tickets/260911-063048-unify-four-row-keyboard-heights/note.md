@@ -1,6 +1,6 @@
 # Work Notes: 260911-063048-unify-four-row-keyboard-heights
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (In progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,9 +9,9 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -32,6 +32,11 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- ユーザが4行の高さ差を指摘し、続けて「キーの隙間」と原因箇所を明示した。
+- 外/内ともkey face高は45/52dpで一致し、差はQWERTY pitch-gap=55-10/62-10、かな=51-6/58-6にある。
+- 縦gapだけを10dpへ揃え、横gap6dp、face高、action/layoutを維持するため未確定判断はない。
+- `[PDH-open] -> [PDH-ticket-review] -> [PDH-ticket-human-review] -> [PDH-implement]` — 直接指示を承認として開始。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -39,12 +44,20 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+- 変更前: かな縦gapは外/内とも6dp、QWERTYは10dp。4行pitch合計で16dp差がある。
+- 変更後は外55dp/内62dp pitchと10dp gapをQWERTY/SYMBOLS/KANAで共有し、かなface高45/52dpをassertする。
+- 反例基準: 横gap6dp、縦長Enterが2 face+1 gap、Dual左右key非重複、tap/flick actionを維持する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `KeyboardView`のKANAをQWERTY/SYMBOLSと同じrow gap 10dp、外55dp/内62dp pitchへ統合。face高はpitch-gapで45/52dpのまま。
+- 狭幅412dp/広幅840dpについてQWERTY/SYMBOLS/KANAのmeasured height、face高、次行gapが一致するtestを追加。既存Dual/Enter overlapとaction testも対象suiteで成功。
+- Targeted `KeyboardViewTest` → 32件成功。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

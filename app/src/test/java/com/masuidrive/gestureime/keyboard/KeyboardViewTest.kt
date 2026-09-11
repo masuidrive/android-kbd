@@ -9,6 +9,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.content.res.Configuration
 import android.view.MotionEvent
+import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -477,7 +478,7 @@ class KeyboardViewTest {
         assertTrue("half-width delete icon remains readable", canvas.draws.last { it.text == "⌫" }.textSize >= 11f)
     }
 
-    @Test fun `inner width uses css outer inset and taller kana keys`() {
+    @Test fun `kana uses qwerty vertical gap and face height at inner width`() {
         view.setMode(KeyboardMode.KANA)
         view.measure(exact(840), exact(256))
         view.layout(0, 0, 840, 256)
@@ -486,8 +487,26 @@ class KeyboardViewTest {
         val first = bounds(0)
         assertEquals(13, first.left)
         assertEquals(52, first.height())
-        assertEquals(6, bounds(5).top - first.bottom)
+        assertEquals(10, bounds(5).top - first.bottom)
         assertEquals(6, bounds(1).left - first.right)
+    }
+
+    @Test fun `four row qwerty symbols and kana share outer height and vertical gaps`() {
+        listOf(412 to 228, 840 to 256).forEach { (width, height) ->
+            val geometry = listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA).associateWith { mode ->
+                view.setMode(mode)
+                view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
+                val measuredHeight = view.measuredHeight
+                view.layout(0, 0, width, measuredHeight)
+                val first = keyBounds(0)
+                val nextRowId = KeyboardLayouts.layout(mode, false, false).rows.first().keys.size
+                val secondRow = keyBounds(nextRowId)
+                Triple(measuredHeight, first.height(), secondRow.top - first.bottom)
+            }
+            assertEquals("$width outer heights", 1, geometry.values.map { it.first }.distinct().size)
+            assertTrue("$width key faces", geometry.values.all { it.second == if (width >= 600) 52 else 45 })
+            assertTrue("$width vertical gaps", geometry.values.all { it.third == 10 })
+        }
     }
 
     @Test fun `kana popup leaves surrounding key backgrounds undimmed`() {

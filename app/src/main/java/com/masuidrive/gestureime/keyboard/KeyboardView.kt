@@ -236,7 +236,7 @@ class KeyboardView @JvmOverloads constructor(
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
         val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
         val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, dp(rowPitchDp(width / density)))
-        val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 10f else 6f)
+        val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA)) 10f else 6f)
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         val keyboardInset = dp(if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) 10f else 3f)
         val contentLeft = paddingLeft + keyboardInset
@@ -258,11 +258,9 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun rowPitchDp(widthDp: Float) = when {
-        widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 62f
-        widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode == KeyboardMode.KANA -> 58f
+        widthDp >= DUAL_FLICK_MIN_WIDTH_DP && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA) -> 62f
         widthDp >= DUAL_FLICK_MIN_WIDTH_DP -> 64f
-        state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 55f
-        state.mode == KeyboardMode.KANA -> 51f
+        state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA) -> 55f
         else -> 57f
     }
 

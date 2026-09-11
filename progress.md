@@ -100,3 +100,4 @@
 [2026/09/11 15:31] QWERTYとかなはキー面高が外45dp/内52dpで一致する一方、縦gapが10dp対6dpのため4行全体で16dp差が出ると確認。ユーザー補足に従い、かな・Dual Flickの縦gapをQWERTYの10dpへ揃えるticket `260911-063048-unify-four-row-keyboard-heights`を起票した。
 [2026/09/11 15:39] アプリ入力時にIME上部の空きが過大になりキー群が下へずれることがある実画面報告を受領。添付画像を`docs/verification/intermittent-keyboard-vertical-offset.jpg`へ保存し、保存layer復元・候補欄固定高・KeyboardView再計測・bottom inset順を通常起動/hide-show/入力欄切替/候補状態別に再現するticket `260911-063912-fix-intermittent-keyboard-vertical-offset`を起票した。
 [2026/09/11 15:45] 日本語/英字候補faceをHTMLの34高/82最小幅/14余白/5間隔/R7/下影1へ揃え、Dark通常/選択色もkey paletteへ修正。demo mockは英字候補toggleと1文字prefix、tap置換、大文字保持に対応した。独立reviewのMajor 2件・Minor 2件を解消し、fast-check 5件、unit 129件、lint、APK build、実ブラウザCSS/入力確認が成功。
+[2026/09/11 15:50] かな・Dual Flickの縦gapを6dpからQWERTYと同じ10dpへ変更し、row pitchも外55dp/内62dpへ統合。キー面高45/52dpと横gap6dpは維持。412/840幅のQWERTY・記号・かなで4行総高/face高/gap一致、既存Enter/Dual hit targetを含むKeyboardView test 32件が成功。
