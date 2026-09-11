@@ -20,6 +20,7 @@ sealed interface VoiceBackendState {
     data object PermissionRequired : VoiceBackendState
     data object Recording : VoiceBackendState
     data object Recognizing : VoiceBackendState
+    data class Partial(val text: String) : VoiceBackendState
     data class Preview(val text: String) : VoiceBackendState
     data class Unavailable(val message: String) : VoiceBackendState
 }
@@ -39,6 +40,7 @@ internal fun interface VoiceRecognizerFactory {
 internal interface VoiceRecognizerListener {
     fun onReady()
     fun onEndOfSpeech()
+    fun onPartialResults(results: List<String>)
     fun onResults(results: List<String>)
     fun onError(error: Int)
 }
@@ -68,6 +70,7 @@ class VoiceRecognitionController internal constructor(
     private var generation = 0L
     private var editorToken = 0L
     private var recognizer: VoiceRecognizer? = null
+    private var partial: String? = null
     private var preview: String? = null
 
     fun initialState(): VoiceBackendState = when {
@@ -88,7 +91,13 @@ class VoiceRecognitionController internal constructor(
         val activeGeneration = generation
         val created = runCatching { factory.create(object : VoiceRecognizerListener {
             override fun onReady() = deliver(activeGeneration, VoiceBackendState.Recording)
-            override fun onEndOfSpeech() = deliver(activeGeneration, VoiceBackendState.Recognizing)
+            override fun onEndOfSpeech() = deliver(activeGeneration, partialState())
+            override fun onPartialResults(results: List<String>) {
+                if (activeGeneration != generation || preview != null) return
+                val text = results.firstOrNull { it.isNotBlank() } ?: return
+                partial = text
+                deliver(activeGeneration, VoiceBackendState.Partial(text))
+            }
             override fun onResults(results: List<String>) {
                 if (activeGeneration != generation) return
                 val text = results.firstOrNull { it.isNotBlank() }
@@ -124,7 +133,7 @@ class VoiceRecognitionController internal constructor(
             finishWith(activeGeneration, VoiceBackendState.Unavailable("音声認識を停止できません"))
             return
         }
-        onState(VoiceBackendState.Recognizing, editorToken)
+        onState(partialState(), editorToken)
     }
 
     fun confirm(token: Long): String? {
@@ -161,6 +170,7 @@ class VoiceRecognitionController internal constructor(
 
     private fun invalidate(destroy: Boolean) {
         generation++
+        partial = null
         preview = null
         recognizer?.let {
             runCatching { it.cancel() }
@@ -172,6 +182,9 @@ class VoiceRecognitionController internal constructor(
     private fun requireMainThread() {
         check(Looper.myLooper() == Looper.getMainLooper()) { "Voice recognition must run on the main thread" }
     }
+
+    private fun partialState(): VoiceBackendState =
+        partial?.let(VoiceBackendState::Partial) ?: VoiceBackendState.Recognizing
 
     private fun errorMessage(error: Int) = when (error) {
         SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
@@ -193,6 +206,7 @@ private class AndroidVoiceRecognizer(
         putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
     }
 
     override fun checkJapaneseSupport(callback: (Boolean?) -> Unit) {
@@ -218,6 +232,8 @@ private class AndroidVoiceRecognizer(
     override fun onBeginningOfSpeech() = Unit
     override fun onRmsChanged(rmsdB: Float) = Unit
     override fun onBufferReceived(buffer: ByteArray?) = Unit
-    override fun onPartialResults(partialResults: Bundle?) = Unit
+    override fun onPartialResults(partialResults: Bundle?) = listener.onPartialResults(
+        partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty(),
+    )
     override fun onEvent(eventType: Int, params: Bundle?) = Unit
 }

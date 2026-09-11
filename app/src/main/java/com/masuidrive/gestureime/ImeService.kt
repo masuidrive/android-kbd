@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.masuidrive.gestureime.conversion.ConversionCandidate
+import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionEngine
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.MozcConversionEngine
@@ -20,6 +22,7 @@ import com.masuidrive.gestureime.keyboard.VoiceHoldSink
 import com.masuidrive.gestureime.suggestion.BundledEnglishSuggestionEngine
 import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
 import com.masuidrive.gestureime.ui.CandidateUiEvent
+import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoiceUiAction
@@ -56,6 +59,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var conversionGeneration = 0L
     private var reading = ""
     private var candidates = emptyList<String>()
+    private var conversionCandidates = emptyList<ConversionCandidate>()
     private var selectedCandidate = -1
     private var conversionPreview: String? = null
     private var candidateSource = CandidateSource.NONE
@@ -97,6 +101,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         }
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
+            it.setOnCandidateLongPressed(::onCandidateLongPressed)
             it.setOnVoiceActionListener(::onVoiceAction)
             it.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
             candidateStrip = it
@@ -202,6 +207,21 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         onKeyAction(KeyAction.SelectCandidate(event.index))
     }
 
+    private fun onCandidateLongPressed(event: CandidateUiLongPressEvent): Boolean {
+        if (!isEligibleHistoryLongPress(event, candidateUiToken, candidateSource == CandidateSource.JAPANESE, conversionCandidates)) return false
+        val editorToken = editorSession.capture()
+        serviceScope.launch {
+            actionMutex.withLock {
+                if (!editorSession.isCurrent(editorToken) ||
+                    !isEligibleHistoryLongPress(event, candidateUiToken, candidateSource == CandidateSource.JAPANESE, conversionCandidates)
+                ) return@withLock
+                val state = conversionEngine.deleteCandidateFromHistory(event.index) ?: return@withLock
+                if (event.token == candidateUiToken && editorSession.isCurrent(editorToken)) applyConversion(state)
+            }
+        }
+        return true
+    }
+
     override fun onVoiceHold(event: VoiceHoldEvent) {
         when (event) {
             is VoiceHoldEvent.Begin -> {
@@ -225,9 +245,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 voiceHoldReleased = true
                 val text = voiceController.confirm(voiceHoldEditorToken)
                 if (text != null) commitVoiceHold(event.requestId, voiceHoldEditorToken, text)
-                else if (voiceHoldReady) voiceController.stop() else cancelVoiceHold()
+                else if (voiceHoldReady) voiceController.stop() else cancelVoiceHoldAndResetUi()
             }
-            is VoiceHoldEvent.Cancel -> if (voiceHoldRequestId == event.requestId) cancelVoiceHold()
+            is VoiceHoldEvent.Cancel -> if (voiceHoldRequestId == event.requestId) cancelVoiceHoldAndResetUi()
         }
     }
 
@@ -237,6 +257,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         voiceHoldReady = false
         voiceHoldReleased = false
         voiceController.cancel(notify = false)
+    }
+
+    private fun cancelVoiceHoldAndResetUi() {
+        cancelVoiceHold()
+        if (::textController.isInitialized && !textController.isPrivateField) {
+            setVoiceUi(voiceController.initialState().toUiState())
+        }
     }
 
     private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
@@ -535,6 +562,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
 
     private fun applyConversion(state: ConversionState) {
         candidateSource = CandidateSource.JAPANESE
+        conversionCandidates = state.candidates
         candidates = state.candidates.map { it.value }
         selectedCandidate = state.selectedIndex
         showCandidateStrip(candidates, selectedCandidate)
@@ -567,6 +595,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         slashBufferActive = false
         reading = ""
         candidates = emptyList()
+        conversionCandidates = emptyList()
         selectedCandidate = -1
         conversionPreview = null
         candidateSource = CandidateSource.NONE
@@ -676,6 +705,15 @@ private data class CandidateSnapshot(
 
 private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'
 
+internal fun isEligibleHistoryLongPress(
+    event: CandidateUiLongPressEvent,
+    currentToken: Long,
+    isJapaneseCandidateSource: Boolean,
+    conversionCandidates: List<ConversionCandidate>,
+): Boolean =
+    event.token == currentToken && isJapaneseCandidateSource &&
+        conversionCandidates.getOrNull(event.index)?.source == ConversionCandidateSource.MOZC
+
 private const val MAX_ENGLISH_BUFFER = 64
 private const val MAX_ENGLISH_CANDIDATES = 5
 
@@ -684,6 +722,7 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.PermissionRequired -> VoiceUiState.PermissionRequired
     VoiceBackendState.Recording -> VoiceUiState.Recording
     VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
+    is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
     is VoiceBackendState.Preview -> VoiceUiState.Recognizing
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
 }

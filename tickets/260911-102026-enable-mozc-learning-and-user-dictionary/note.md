@@ -1,6 +1,6 @@
-# Work Notes: 260911-060238-align-voice-status-ui-and-show-partials
+# Work Notes: 260911-102026-enable-mozc-learning-and-user-dictionary
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,21 +9,21 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -39,7 +39,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 実JNIで学習・新sessionで先頭化・履歴削除後の順位復元を確認。選択中IMEとしてAndroid UserDictionary Providerへ一時登録したSHORTCUTを実読み出しできることを確認した
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -60,6 +60,8 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
+| 1 | 学習検証 | Major | 設定値だけで順位変化と削除効果が未検証 | 採用・修正済み | 実JNIの恒久計装testで学習・削除後復元を確認 |
+| 2 | Provider制約 | Major | 利用不可時の仕様説明不足 | 採用・修正済み | 実Provider確認、fallbackをmanualへ追記 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -81,3 +83,8 @@
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
+Product Briefの端末内完結条件を更新し、ユーザの直接指示を承認済み契約として確認した。
+- `ecb112b`: Mozc通常学習、candidate長押し履歴削除、明示ONのAndroid個人辞書候補を実装。
+- private/incognito欄では既存境界で変換engineへreadingを渡さず、学習・個人辞書参照を止める。
+端末内Mozc学習、履歴削除、明示ONのAndroid個人辞書参照とprivate欄除外をdecision 22-23へ記録した。
+設定画面スクリーンショット、実Mozc計装9件、実Provider確認結果を提示する。ユーザのクローズ承認待ち。

@@ -4,7 +4,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Switch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +19,20 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class SetupActivitySlashCommandsTest {
+    @Test
+    fun androidUserDictionarySwitchDefaultsOffAndRecordsExplicitConsent() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        val root = activity.findViewById<View>(android.R.id.content)
+        val toggle = root.descendants().filterIsInstance<Switch>()
+            .single { it.text.toString() == "Android 個人辞書を使う（既定OFF）" }
+
+        assertFalse(toggle.isChecked)
+        toggle.isChecked = true
+        assertTrue(ImePreferences.isAndroidUserDictionaryEnabled(activity))
+    }
+
     @Test
     fun setupShowsSixEditableSlotsAndSavePersistsNormalizedCommands() {
         val context = RuntimeEnvironment.getApplication()

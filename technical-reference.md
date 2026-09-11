@@ -46,6 +46,11 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 17. IME入力Viewは候補欄を固定50dp、`KeyboardView`をintrinsic `WRAP_CONTENT`として縦LinearLayoutへ積み、windowの`AT_MOST`初回計測でも4行key clusterをroot desired heightへ含める。候補内容や音声状態の変更は候補欄内だけで描画し、IME root高を変えない。（2026-09-11 / 260911-063912-fix-intermittent-keyboard-vertical-offset）
 18. QWERTY＋Symbolsは空白から`~`までの印字可能ASCII 95文字を網羅する。SymbolsではESCをtapのまま維持し、重複していた`"`位置をバッククォート、`/`位置を`-`の直接tapへ割り当てる。`"`と`/`はQWERTYの`l`下・`b`下へ残し、Symbolsの文字keyに方向gestureは設けない。（2026-09-11 / 260911-072234-complete-qwerty-symbol-ascii）
 19. スラッシュコマンド候補は端末内設定へ6slotで保存し、初期値を`/compact`, `/clear`, `/quit`, 空3件とする。保存時はtrimし、非空で先頭`/`がなければ補う。通常欄で`/`をcomposing保持して空欄・完全一致重複を除く最大6候補を表示し、candidate token/source/generation/editor sessionが一致するtapだけで置換確定する。private欄では候補化せず`/`を直接確定する。（2026-09-11 / 260911-055701-configure-slash-command-candidates）
+20. 端末内音声認識はpartial resultsを要求し、同一recognizer generationの最新非空先頭候補を候補欄の共通faceへ一時表示する。partialはend-of-speechとrelease後もfinal到着まで保持するが、入力欄へは確定せず、final previewだけをeditor session一致時に自動確定する。取消、error、IME終了、入力欄切替ではpartialを破棄する。取消・許可・非対応は候補と同じ34dp高、最小82dp、角丸7dp、1dp下影とLight/Dark paletteを使う。（2026-09-11 / 260911-060238-align-voice-status-ui-and-show-partials）
+21. 変換中でないEnterは上フリックでCtrl+Jを同一gesture内のkey eventとして送り、待機中に上方向ラベルを出さず、選択中だけ`C-j`を17sp相当で中央表示する。下フリックPaste、tap Enter、変換中の上無変換・左カタカナを維持する。（2026-09-11 / 260911-102026-add-enter-up-flick-ctrl-j）
+22. Mozcは通常欄で`incognitoMode=false`と`DEFAULT_HISTORY`を使い、確定結果を端末内profileへ学習する。Mozc候補の長押しは描画token・候補source・index・editor sessionを再検証して`DELETE_CANDIDATE_FROM_HISTORY`を送る。private欄は変換engineへ入力を渡さない。（2026-09-11 / 260911-102026-enable-mozc-learning-and-user-dictionary）
+23. Android個人辞書はSetupの既定OFF toggleを利用者がONにした場合だけ`UserDictionary.Words`を参照し、shortcutがreadingと完全一致し、localeが日本語または未指定の語を頻度順で最大6件、Mozc候補の前へ重複なく加える。Android個人辞書候補の長押しではprovider rowを削除しない。（2026-09-11 / 260911-102026-enable-mozc-learning-and-user-dictionary）
+24. 候補barはcandidate sourceと表示文字列の並びが変わった時だけ横scrollを0へ戻し、同じ内容でtokenまたは選択indexだけが変わる候補巡回では現在位置を維持する。（2026-09-11 / 260911-102706-reset-candidate-scroll-on-content-change）
 
 ## 実装の注意・地雷
 

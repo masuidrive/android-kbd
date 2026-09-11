@@ -1,18 +1,19 @@
 ---
 priority: 2
-base_branch: features/260911-055701-configure-slash-command-candidates
-description: "Align voice status controls with the keyboard UI and show partial recognition text"
-created_at: "2026-09-11T06:02:38Z"
-started_at: 2026-09-11T08:35:24Z # Do not modify manually
+base_branch: default  # Override base branch for start/close (default: use default_branch from config)
+description: "Reset the candidate strip scroll when candidate content changes"
+created_at: "2026-09-11T10:27:06Z"
+started_at: null  # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
-## 260911-060238-align-voice-status-ui-and-show-partials
+## 260911-102706-reset-candidate-scroll-on-content-change
 
 ### Why
 <!-- ユーザ価値・解きたい問題を 1〜3 行で書く。
-音声認識中の状態と操作を他のキーと同じ見た目で読み取りやすくし、認識途中の内容を確認できるようにする。
+     Product Brief の Problem / Solution のどの部分を担うか明記する。 -->
+横へスクロールした後に読みや入力prefixが変わると、新しい候補の先頭が画面外に残り、第一候補を見つけにくい。
 
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
@@ -31,30 +32,30 @@ canceled_at: null # Do not modify manually
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-この ticket が終わると、Gesture IME利用者が候補・確定エリアで音声認識の途中内容と操作状態を確認できる。
+このticketが終わると、Gesture IME利用者が候補内容の更新ごとに先頭候補から確認できる。
 
-- [ ] AC 1: 端末内認識エンジンが途中結果を返した場合、最新の認識途中テキストが候補・確定エリアへ表示される。
-- [ ] AC 2: 途中結果を返さない間は「音声を聞いています」または「音声を認識しています」が表示される。
-- [ ] AC 3: 「取消」「非対応」「許可」の表示はキートップ・候補と形状、角丸、影、Light/Dark配色を揃える。
-- [ ] AC 4: 最終結果は既存どおり指を離した後にそのまま入力し、途中結果は入力欄へ確定しない。
+- [x] AC 1: 日本語変換・英字補完・スラッシュ候補の内容が変わると、候補欄の横スクロール位置が先頭へ戻る。
+- [x] AC 2: 候補内容が同じまま選択候補だけ変わる場合は、現在のスクロール位置を維持する。
+- [x] AC 3: 公開demoでも同じ動作になる。
 
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
      矛盾しない場合: 「Hub stateless / Process immutable と矛盾しない」等。
-端末内`SpeechRecognizer`だけを使い、途中結果を保存・送信せず、AI-1〜AI-4と矛盾しない。
+     新規 Invariant を要求する場合: 実装を止めて Product Brief 更新から始める。 -->
+表示位置だけを端末内で更新し、AI-1〜AI-4と矛盾しない。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- `RecognizerIntent.EXTRA_PARTIAL_RESULTS`を有効にし、`onPartialResults`の最新候補だけを一時表示する。
-- 認識セッション終了、取消、エラー、入力欄切替で途中表示を破棄する。
+- 候補sourceと表示文字列の並びを内容identityとして比較する。
+- 選択indexだけの変更は内容変更とみなさない。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- 途中結果の入力欄への逐次commit。
-- クラウド認識へのfallback、途中結果の保存。
+- 候補選択時の自動追従そのものの廃止。
+- 候補順位や生成規則の変更。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 

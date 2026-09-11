@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime.ui
 
 import android.graphics.Color
+import android.app.Activity
 import android.graphics.Typeface
 import android.content.res.Configuration
 import android.graphics.drawable.ColorDrawable
@@ -9,12 +10,16 @@ import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.HorizontalScrollView
+import android.os.Looper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -55,6 +60,49 @@ class CandidateStripViewTest {
         val view = view(); view.setVoiceState(VoiceUiSnapshot(5, VoiceUiState.Preview("自動入力される結果")))
         assertEquals("音声を認識しました", view.textView("音声を認識しました").text.toString())
         assertTrue(view.allTextViews().none { it.text == "確定" || it.text == "取消" })
+    }
+
+    @Test fun partialResultUsesCandidateFaceAndOffersTheSameCancelControl() {
+        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
+        view.setVoiceState(VoiceUiSnapshot(12, VoiceUiState.Partial("認識途中の文章")))
+        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 400, 50)
+
+        val partial = view.textView("認識途中の文章")
+        val cancel = view.textView("取消")
+        assertEquals(34, partial.height)
+        assertEquals(7f, partial.faceLayer().cornerRadius, .1f)
+        assertEquals(34, cancel.height)
+        assertEquals(7f, cancel.faceLayer().cornerRadius, .1f)
+        assertEquals("認識途中: 認識途中の文章", partial.contentDescription)
+        cancel.performClick()
+        assertEquals(listOf(VoiceUiEvent(12, VoiceUiAction.Cancel)), actions)
+    }
+
+    @Test fun permissionAndUnavailableControlsShareCandidateGeometryAndThemeColors() {
+        val view = view()
+        listOf(
+            VoiceUiState.PermissionRequired to "許可",
+            VoiceUiState.Unavailable("利用不可") to "非対応",
+        ).forEach { (state, text) ->
+            view.setVoiceState(VoiceUiSnapshot(13, state))
+            view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, 400, 50)
+            val control = view.textView(text)
+            assertEquals(82, control.width)
+            assertEquals(34, control.height)
+            assertEquals(7f, control.faceLayer().cornerRadius, .1f)
+            assertEquals(Color.rgb(23, 78, 166), control.faceColor())
+            assertEquals(Color.rgb(137, 140, 148), control.shadowLayer().color!!.defaultColor)
+        }
+    }
+
+    @Test @Config(qualifiers = "night") fun voiceControlUsesDarkCandidateFaceAndShadow() {
+        val view = view(); view.setVoiceState(VoiceUiSnapshot(14, VoiceUiState.PermissionRequired))
+        val control = view.textView("許可")
+        assertEquals(Color.rgb(168, 206, 255), control.faceColor())
+        assertEquals(Color.rgb(20, 20, 22), control.shadowLayer().color!!.defaultColor)
+        assertEquals(Color.rgb(16, 40, 68), control.currentTextColor)
     }
 
     @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
@@ -175,6 +223,53 @@ class CandidateStripViewTest {
         view.textView("same").performClick()
 
         assertEquals(listOf(CandidateUiEvent(30, 0), CandidateUiEvent(31, 0)), events)
+    }
+
+    @Test fun longPressUsesRenderedTokenAndOnlyConsumesWhenTheServiceAcceptsIt() {
+        val view = view()
+        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
+        val events = mutableListOf<CandidateUiLongPressEvent>()
+        view.setOnCandidateLongPressed { event -> events += event; event.index == 0 }
+        view.showCandidates(CandidateUiSnapshot(32, listOf("履歴", "個人辞書")))
+        val oldHistory = view.textView("履歴")
+
+        assertTrue(oldHistory.performLongClick())
+        assertEquals(listOf(CandidateUiLongPressEvent(32, 0)), events)
+        assertTrue(!view.textView("個人辞書").performLongClick())
+        assertEquals(listOf(CandidateUiLongPressEvent(32, 0), CandidateUiLongPressEvent(32, 1)), events)
+
+        view.showCandidates(CandidateUiSnapshot(33, listOf("履歴")))
+        assertTrue(oldHistory.performLongClick())
+        assertEquals(CandidateUiLongPressEvent(32, 0), events.last())
+    }
+
+    @Test fun candidateContentChangeResetsScrollButSelectionOnlyChangeKeepsIt() {
+        val view = view()
+        val candidates = listOf("alpha", "bravo", "charlie", "delta", "echo")
+        fun layout() {
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(180, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY),
+            )
+            view.layout(0, 0, 180, 50)
+        }
+
+        view.showCandidates(CandidateUiSnapshot(40, candidates, 0))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        val scroll = view.getChildAt(0) as HorizontalScrollView
+        scroll.scrollTo(140, 0)
+        assertEquals(140, scroll.scrollX)
+
+        view.showCandidates(CandidateUiSnapshot(41, candidates, 3))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(140, scroll.scrollX)
+
+        view.showCandidates(CandidateUiSnapshot(42, listOf("foxtrot", "golf", "hotel", "india"), 0))
+        layout()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, scroll.scrollX)
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }

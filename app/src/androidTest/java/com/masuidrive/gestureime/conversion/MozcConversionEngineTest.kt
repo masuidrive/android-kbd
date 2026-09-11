@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,4 +65,48 @@ class MozcConversionEngineTest {
         assertEquals(-1, state.selectedIndex)
         engine.reset()
     }
+
+    @Test
+    fun deletingMozcCandidateHistoryKeepsTheActiveReading() = runBlocking {
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext(), userDictionaryEnabled = { false })
+        val state = engine.update("にほんご")
+        val index = state.candidates.indexOfFirst { it.source == ConversionCandidateSource.MOZC }
+        assertTrue("Mozc returned no deletable candidate", index >= 0)
+
+        val updated = requireNotNull(engine.deleteCandidateFromHistory(index))
+
+        assertEquals("にほんご", updated.reading)
+        assertTrue("Mozc removed the complete candidate window", updated.candidates.isNotEmpty())
+        engine.reset()
+    }
+
+    @Test
+    fun committedCandidateIsLearnedAndDeletingHistoryRestoresItsRank() = runBlocking {
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext(), userDictionaryEnabled = { false })
+        val reading = "にほんご"
+        val initial = engine.update(reading)
+        val learnedValue = initial.candidates.drop(1).firstOrNull {
+            it.source == ConversionCandidateSource.MOZC
+        }?.value
+        requireNotNull(learnedValue) {
+            "Mozc returned fewer than two candidates: ${initial.candidates.map { it.value }}"
+        }
+
+        repeat(3) {
+            val state = engine.update(reading)
+            val learnedIndex = state.candidates.indexOfFirst { it.value == learnedValue }
+            assertTrue("Mozc no longer returned $learnedValue", learnedIndex >= 0)
+            assertEquals(learnedValue, requireNotNull(engine.commit(learnedIndex)).value)
+        }
+
+        val learned = engine.update(reading)
+        assertEquals(learnedValue, learned.candidates.first().value)
+        val learnedIndex = learned.candidates.indexOfFirst { it.value == learnedValue }
+        requireNotNull(engine.deleteCandidateFromHistory(learnedIndex))
+
+        val restored = engine.update(reading)
+        assertNotEquals(learnedValue, restored.candidates.first().value)
+        engine.reset()
+    }
+
 }

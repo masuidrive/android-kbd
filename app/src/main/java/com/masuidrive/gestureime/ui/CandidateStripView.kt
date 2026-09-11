@@ -2,7 +2,6 @@ package com.masuidrive.gestureime.ui
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -27,6 +26,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     private var candidateSnapshot = CandidateUiSnapshot(0L, emptyList())
     private var voiceSnapshot = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
+    private var onCandidateLongPressed: ((CandidateUiLongPressEvent) -> Boolean)? = null
     private var onVoiceAction: ((VoiceUiEvent) -> Unit)? = null
 
     init {
@@ -40,11 +40,14 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
+    fun setOnCandidateLongPressed(listener: (CandidateUiLongPressEvent) -> Boolean) { onCandidateLongPressed = listener }
     fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
+        val contentChanged = candidateSnapshot.candidates != snapshot.candidates
         candidateSnapshot = snapshot
         render()
+        if (contentChanged) candidateScroll.scrollTo(0, 0)
     }
 
     fun showStatus(message: String) {
@@ -76,6 +79,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
             VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
             VoiceUiState.Recording -> { renderCandidateMessage("音声を聞いています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
             VoiceUiState.Recognizing -> { renderCandidateMessage("音声を認識しています"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
+            is VoiceUiState.Partial -> { renderCandidateMessage(state.text, "認識途中: ${state.text}"); addVoiceButton("取消", "音声入力を取り消す", VoiceUiAction.Cancel) }
             is VoiceUiState.Preview -> renderCandidateMessage("音声を認識しました")
             is VoiceUiState.Unavailable -> {
                 renderCandidates()
@@ -91,16 +95,16 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     private fun renderCandidates() {
         val snapshot = candidateSnapshot
-        var selectedView: TextView? = null
         snapshot.candidates.forEachIndexed { index, candidate ->
             candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
                 isClickable = true; isFocusable = true
                 contentDescription = "候補 ${index + 1}: $candidate"
                 setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
-                if (index == snapshot.selectedIndex) selectedView = this
+                setOnLongClickListener {
+                    onCandidateLongPressed?.invoke(CandidateUiLongPressEvent(snapshot.token, index)) ?: false
+                }
             }, candidateLayout(hasLeadingGap = index > 0))
         }
-        selectedView?.let { view -> post { view.requestRectangleOnScreen(Rect(0, 0, view.width, view.height), true) } }
     }
 
     private fun renderCandidateMessage(message: String, description: String = message) {

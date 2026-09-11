@@ -13,6 +13,7 @@ object ImePreferences {
     private const val TERMINAL_CURSOR = "terminal_cursor_key_events"
     private const val LAST_KEYBOARD_MODE = "last_keyboard_mode"
     private const val ENGLISH_SUGGESTIONS = "english_suggestions_enabled"
+    private const val ANDROID_USER_DICTIONARY = "android_user_dictionary_enabled"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
@@ -26,6 +27,18 @@ object ImePreferences {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(ENGLISH_SUGGESTIONS, enabled)
+            .apply()
+    }
+
+    fun isAndroidUserDictionaryEnabled(context: Context): Boolean = runCatching {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .getBoolean(ANDROID_USER_DICTIONARY, false)
+    }.getOrDefault(false)
+
+    fun setAndroidUserDictionaryEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(ANDROID_USER_DICTIONARY, enabled)
             .apply()
     }
 

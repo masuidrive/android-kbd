@@ -10,3 +10,8 @@ data class CandidateUiEvent(
     val token: Long,
     val index: Int,
 )
+
+data class CandidateUiLongPressEvent(
+    val token: Long,
+    val index: Int,
+)
