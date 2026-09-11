@@ -157,6 +157,24 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.KanaInput("あ")), actions)
     }
 
+    @Test fun `single and dual kana targets never overlap spanning enter`() {
+        view.setMode(KeyboardMode.KANA)
+        assertNoVisibleTargetsOverlap(width = 400, height = 228, expectedCount = 19)
+        view.setDualFlickEnabled(true)
+        assertNoVisibleTargetsOverlap(width = 840, height = 228, expectedCount = 31)
+    }
+
+    @Test fun `both halves of spanning kana enter dispatch enter`() {
+        view.setMode(KeyboardMode.KANA)
+        view.measure(exact(400), exact(228))
+        view.layout(0, 0, 400, 228)
+        touch(MotionEvent.ACTION_DOWN, 360f, 130f)
+        touch(MotionEvent.ACTION_UP, 360f, 130f, 5)
+        touch(MotionEvent.ACTION_DOWN, 360f, 190f, 10)
+        touch(MotionEvent.ACTION_UP, 360f, 190f, 15)
+        assertEquals(listOf(KeyAction.Enter, KeyAction.Enter), actions)
+    }
+
     private fun renderAtFontScale(fontScale: Float): Bitmap {
         val base = RuntimeEnvironment.getApplication()
         val configuration = Configuration(base.resources.configuration).apply { this.fontScale = fontScale }
@@ -176,6 +194,21 @@ class KeyboardViewTest {
         MotionEvent.obtain(0, 0, action, pointers.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, 0, 0).also {
             view.onTouchEvent(it)
             it.recycle()
+        }
+    }
+
+    private fun assertNoVisibleTargetsOverlap(width: Int, height: Int, expectedCount: Int) {
+        view.measure(exact(width), exact(height))
+        view.layout(0, 0, width, height)
+        view.draw(Canvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)))
+        val provider = view.accessibilityNodeProvider
+        val bounds = (0 until expectedCount).map { id ->
+            Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
+        }
+        bounds.forEachIndexed { index, first ->
+            bounds.drop(index + 1).forEach { second ->
+                assertTrue("virtual key bounds overlap: $first and $second", !Rect.intersects(first, second))
+            }
         }
     }
 

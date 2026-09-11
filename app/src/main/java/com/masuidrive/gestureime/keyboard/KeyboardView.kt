@@ -164,8 +164,11 @@ class KeyboardView @JvmOverloads constructor(
         val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
         val rowPitch = (height - top - paddingBottom) / 4f
         val rowGap = dp(if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) 10f else 6f)
+        val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         rows.forEachIndexed { rowIndex, row ->
-            val layoutUnits = row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
+            val layoutUnits = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
+                row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
+            } else sharedUnits
             val unit = (width - paddingLeft - paddingRight) / layoutUnits
             var x = paddingLeft.toFloat()
             row.keys.forEach { key ->
