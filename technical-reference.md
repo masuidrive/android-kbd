@@ -1,4 +1,4 @@
-# Technical Reference: Galaxy Z Fold7 向け Android 日本語キーボード
+# Technical Reference: Android Flick Keyboard by masuidrive
 
 Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technical-reference.md
 
@@ -31,8 +31,8 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 2. compileSdk/targetSdk 36、minSdk 28、Java 17、arm64-v8aをv1の基準とする。（2026-09-11 / 260910-163036）
 3. 候補待ちを含む入力actionは順序を保つ。Editor lifecycle generationと変換generationが一致しない非同期結果は破棄する。（2026-09-11 / 260910-163036）
 4. Mozcはincognito/learning無効で利用し、入力内容を永続化しない。secret欄では変換処理そのものを呼ばない。（2026-09-11 / 260910-163036）
-5. Fold7実機がない検証では412dpと840dp相当のエミュレータ幅を使い、実機未確認と区別して報告する。（2026-09-11 / 260910-163036）
-6. Dual Flickは設定default OFFとし、利用可能幅600dp以上の日本語かなレイヤーだけ中央12キーを左右2組にする。候補・編集・レイヤー切替キーとcompositionは共有する。（2026-09-11 / 260911-000706）
+5. スマホ・タブレットの代表値として412dpと840dp相当のエミュレータ幅を使い、Fold実機を使っていない確認は実機検証と区別して報告する。（2026-09-11 / 260910-163036, 260911-153653）
+6. Dual Flickは設定default OFFとし、利用可能幅600dp以上の日本語かなレイヤーだけ中央12キーを左右2組にする。候補・編集・レイヤー切替キーとcompositionは共有する。Foldでは閉じたスマホ幅で1組、開いたタブレット幅で2組を使える。（2026-09-11 / 260911-000706, 260911-153653）
 7. Spaceとカーソルレイヤーの上下移動は、現在Editorから得た`ExtractedText`の改行区切りlogical line間を同じ列で移動し、文書内へclampする。視覚上のsoft wrapは別行として扱わず、抽出不能時はfocus越境を避けるためno-opにする。（2026-09-11 / 260910-233809）
 8. 変換中Enterは候補確定を表示し、上で原ひらがな、左でカタカナをpreviewする。previewの確定はEnter tapで行い、raw readingは変換・復元用に保持する。（2026-09-11 / 260910-233809）
 9. 音声入力はAPI 31以降の`createOnDeviceSpeechRecognizer()`だけを使用し、`ja-JP`モデルの対応を確認する。通常のnetwork recognizerへのfallbackとモデルの自動downloadは行わない。（2026-09-11 / 260910-233205）
