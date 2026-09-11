@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260910-233205-add-on-device-voice-input
 description: "実キーボードのプレビューを見ながらQWERTYラベルのサイズと位置を調整できるようにする"
 created_at: "2026-09-11T01:10:16Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T01:28:59Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
