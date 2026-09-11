@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-055701-assign-layer-left-swipe-to-voice
 description: "Let users configure up to six slash command candidates"
 created_at: "2026-09-11T05:57:01Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-11T08:15:40Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
