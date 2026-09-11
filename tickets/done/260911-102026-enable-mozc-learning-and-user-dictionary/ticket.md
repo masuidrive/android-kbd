@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "Enable Mozc conversion learning and integrate supported personal dictionary entries"
 created_at: "2026-09-11T10:20:26Z"
 started_at: null  # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-11T11:55:48Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
