@@ -34,10 +34,10 @@ QWERTYと日本語は同じ4行でキー面高も同じだが、縦のキー間�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 この ticket が終わると、Gesture IME利用者が4行レイアウトを切り替えても同じ縦間隔とキー領域高で操作できる。
 
-- [ ] AC 1: 外画面相当のQWERTY・記号・日本語4行で、縦のキー間隔が10dpに揃う。
-- [ ] AC 2: Fold内画面相当のQWERTY・日本語・Dual Flickでも、縦のキー間隔が10dpに揃う。
-- [ ] AC 3: 同じ画面幅では4行のキー領域全体高がレイヤー切替で変わらず、キー面高45dp/52dpを維持する。
-- [ ] AC 4: 日本語の縦長Enter、Dual Flickの左右配列、フリックhit targetが重ならず既存入力を維持する。
+- [x] AC 1: 外画面相当のQWERTY・記号・日本語4行で、縦のキー間隔が10dpに揃う。
+- [x] AC 2: Fold内画面相当のQWERTY・日本語・Dual Flickでも、縦のキー間隔が10dpに揃う。
+- [x] AC 3: 同じ画面幅では4行のキー領域全体高がレイヤー切替で変わらず、キー面高45dp/52dpを維持する。
+- [x] AC 4: 日本語の縦長Enter、Dual Flickの左右配列、フリックhit targetが重ならず既存入力を維持する。
 
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。

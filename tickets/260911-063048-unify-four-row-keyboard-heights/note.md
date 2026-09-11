@@ -1,6 +1,6 @@
 # Work Notes: 260911-063048-unify-four-row-keyboard-heights
 
-## Status: PDH-implement (In progress)
+## Status: PDH-human-review (Verified; awaiting close approval)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -12,17 +12,17 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: native geometryだけで外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み - native accessibility bounds/Canvasで外・内・Dualのgeometryを観測
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -58,6 +58,9 @@
 - `KeyboardView`のKANAをQWERTY/SYMBOLSと同じrow gap 10dp、外55dp/内62dp pitchへ統合。face高はpitch-gapで45/52dpのまま。
 - 狭幅412dp/広幅840dpについてQWERTY/SYMBOLS/KANAのmeasured height、face高、次行gapが一致するtestを追加。既存Dual/Enter overlapとaction testも対象suiteで成功。
 - Targeted `KeyboardViewTest` → 32件成功。
+- `a4186d0`: KANAのgap/pitch実装と外/内3layout統合test。
+- `f02fefe`: review追補として840dp Dual KANAの52dp face/10dp gapを直接固定。
+- Full `scripts/test-all.sh` → fast-check 5件、unit 130件、lint、APK build成功。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -75,9 +78,15 @@
 | 1 | Dual geometry evidence | Minor | 新規統合testはwide非DualだけでAC2のDual 52dp/10dpを直接assertしない | 採用・修正 | 840dp Dual KANAを有効化しface高と次行gapを直接固定 |
 | 2 | constrained parent | Minor | 親がintrinsic height未満をEXACTLY指定すると既存min計算でfaceが縮む | 後続ticketで調査 | 添付報告の`260911-063912-fix-intermittent-keyboard-vertical-offset`がIME親高・再計測を扱う。本ticketはレイヤー間gap分岐の統一に限定 |
 
+- `[PDH-review-2]` Terra限定再reviewでDual evidence追補と新規Critical/Majorなしを確認。
+- 壊していない側の反例: NUMBERS/CURSORは分岐外で従来pitch 57/64・gap6を保持し、全layer Enter/Paste offset testも成功。
+- `[PDH-review] -> [PDH-verify] -> [PDH-human-review]` — full suite、独立review、geometry観測が成功。closeは明示承認まで保留する。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- `technical-reference.md`へ3種4行layoutの共通pitch/gap、face高、Dual/Enter適用を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
