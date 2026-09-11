@@ -164,8 +164,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 candidatesStart < 0 || newSelStart != newSelEnd || newSelEnd != candidatesEnd
             )
         ) {
+            textController.finishComposition()
             invalidateEnglish(clearComposing = false)
-            textController.abandonComposition()
         }
     }
 

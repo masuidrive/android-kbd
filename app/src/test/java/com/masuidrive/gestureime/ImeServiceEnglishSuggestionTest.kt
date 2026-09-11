@@ -133,12 +133,13 @@ class ImeServiceEnglishSuggestionTest {
         harness.idle()
         val staleCandidate = harness.root.findView { it.contentDescription?.toString() == "候補 1: hello" }
 
-        harness.service.onUpdateSelection(2, 2, 1, 1, 0, 2)
+        harness.input.setSelection(0, 0)
+        harness.service.onUpdateSelection(2, 2, 0, 0, 0, 2)
         harness.key("x")
         staleCandidate!!.performClick()
         harness.idle()
 
-        assertEquals("x", harness.input.visibleText)
+        assertEquals("xhe", harness.input.visibleText)
     }
 
     @Test
@@ -211,24 +212,48 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     private class RecordingConnection(view: View) : BaseInputConnection(view, true) {
-        var committed = ""
-        private var composing = ""
-        val visibleText get() = committed + composing
+        private val text = StringBuilder()
+        private var composingStart = -1
+        private var composingEnd = -1
+        private var selectionStart = 0
+        private var selectionEnd = 0
+        val visibleText get() = text.toString()
+        val committed: String get() = if (composingStart < 0) text.toString() else
+            text.substring(0, composingStart) + text.substring(composingEnd)
 
         override fun setComposingText(text: CharSequence?, newCursorPosition: Int): Boolean {
-            composing = text?.toString().orEmpty()
+            val start = if (composingStart >= 0) composingStart else minOf(selectionStart, selectionEnd)
+            val end = if (composingEnd >= 0) composingEnd else maxOf(selectionStart, selectionEnd)
+            val replacement = text?.toString().orEmpty()
+            this.text.replace(start, end, replacement)
+            composingStart = start
+            composingEnd = start + replacement.length
+            selectionStart = composingEnd
+            selectionEnd = composingEnd
             return true
         }
 
         override fun finishComposingText(): Boolean {
-            committed += composing
-            composing = ""
+            composingStart = -1
+            composingEnd = -1
             return true
         }
 
         override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-            committed += text?.toString().orEmpty()
-            composing = ""
+            val start = if (composingStart >= 0) composingStart else minOf(selectionStart, selectionEnd)
+            val end = if (composingEnd >= 0) composingEnd else maxOf(selectionStart, selectionEnd)
+            val replacement = text?.toString().orEmpty()
+            this.text.replace(start, end, replacement)
+            selectionStart = start + replacement.length
+            selectionEnd = selectionStart
+            composingStart = -1
+            composingEnd = -1
+            return true
+        }
+
+        override fun setSelection(start: Int, end: Int): Boolean {
+            selectionStart = start.coerceIn(0, text.length)
+            selectionEnd = end.coerceIn(0, text.length)
             return true
         }
     }
