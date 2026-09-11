@@ -1,6 +1,6 @@
-# Work Notes: 260911-000706-add-dual-flick-wide-layout
+# Work Notes: 260911-003916-add-english-candidate-buffer
 
-## Status: PDH-review (implementation and emulator verification complete)
+## Status: PDH-open (ticket drafted; implementation not started)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,14 +11,14 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
@@ -39,10 +39,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
-
-- [x] Fold7展開相当840dpと外画面相当412dpを測り、600dpを境界として840dp dual/412dp singleを実画面確認した。Fold7物理実機は未接続。
-- [x] 左右12キーはAndroidのUP到着順で同じsinkへdispatchする。reentrant/multi-pointerとcomposition保持をunit testで確認し、左右キーから同じreadingへ入力できることをエミュレーターで確認した。物理二人差し同時touchはFold7実機probeとして残る。
+- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -63,12 +60,6 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
-
-| 1 | kana layout geometry | Major | 行ごとのunit幅変更により2行spanのEnter下半分と4行目の句読点が重なる | 採用・解消 | `aa423a8`でmode共通unitへ戻し、単一/dualの非重複とEnter上下hitを回帰test化。840dp実画面でも非重複を確認 |
-| 2 | inner-screen sizing | Major | 840dpでも英字45dp・かな51dpのままで正本CSSの52dp/58dpにならない | 採用・解消 | `f104cf2`で600dp以上を52dp/58dpへ変更し、840dp実画面を確認 |
-| 3 | composite label | Major | 「あん」のghostが主文字より前面かつopacity 1で正本CSSの背面・0.72と異なる | 採用・解消 | `f104cf2`で描画順とalphaを正本へ揃え、412dp実画面を確認 |
-
-`128edac`に対する限定再reviewでは追加Critical/Majorなし。小文字previewの復元、方向別transform、Mozc更新までの接続も確認された。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -91,13 +82,6 @@
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 
-- 調整ticketを親として標準`ticket.sh start`を実行し、同一delivery履歴で実装した。
-- 「テンキーレイアウト3×4」は日本語かな入力12キー部分という解釈。数字モード、候補strip、周辺編集キーは複製対象と確定していない。
-- default OFFと幅thresholdは未承認の仮定を含むため、ticket reviewと実機probeを経てから実装する。
-- 複製範囲は日本語12キー「あ・か・さ / た・な・は / ま・や・ら / 小・わ・句読点」に固定し、candidate strip、編集キー、レイヤー切替キーは1セットを維持する。
-- 左右同時操作はAndroidのUPイベント到着順にdispatchし、既存の変換直列化経路へ渡す。
-- 本体側: SharedPreferencesにDual Flick toggleをdefault OFFで永続化し、SetupActivityとImeServiceから同じ値を読み書きする。KeyboardViewへ設定を明示して、幅判定・描画はkeyboard担当へ委譲する。
-`95c2a32`で設定永続化・変換中action・候補stripを統合し、`35cf876`でCSS寸法とDual Flickを実装した。`aa423a8`で縦長Enterのrow span、`f104cf2`で840dp寸法・複合ラベル・方向別小キー、`128edac`でService/controllerの方向別かな変換を接続した。
-
-最終UI統合`128edac`後、Space上下のeditor越境を`7cf0f3f`で修正した。fast-check 5件、unit 48件、lint、assemble、connected 5件が成功。APK SHA-256は`fcd9a3cdac964d80c852d7f48abda50b97bb1ad6f3cc1b46da7f416ead08cc78`。
-`docs/device-verification.md`へDual Flickの412/840dp、実Mozc変換、Space移動、かな変換、設定永続化の端末結果を追記し、`docs/build-verification.md`を最終revision・test数・APK hashへ更新した。
+- ユーザーの明示指示により、英数字候補の将来作業を起票した。`./ticket.sh start`、ブランチ切替、実装、設定追加は未実行。
+- 実装を検討する順序は、調整ticketとDual Flickの残作業、APK公開、音声入力の公開後とする。このticketを現在の作業へ混ぜない。
+- 英数字候補の辞書・生成方式、対象言語・文字種、単語境界、設定の既定ON/OFFは未決であり、ticket reviewで決定する。ネットワーク候補を追加しない。

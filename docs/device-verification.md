@@ -39,6 +39,21 @@ No user text or personal data was used. The only test strings were fixed values 
 
 After verification the emulator was restored to 1080 × 2400 px, 420 dpi, portrait rotation `0`, font scale `1.0`, and animation scales `1`.
 
+## v0.2 adjustment and Dual Flick verification
+
+Revision `7cf0f3fb189ee121914935dfd127fcdb4be6ec8c` was installed on the same AVD. At 412dp, QWERTY and the single Kana layout displayed without clipping. At 840dp with Dual Flick enabled, the two copies of the central Kana 3×4 keys displayed side by side; the candidate strip, cursor/layer keys, Backspace, Space and the two-row Enter remained single. The tall Enter did not overlap the bottom-row punctuation key.
+
+The following journeys were exercised through the real IME and normal `EditText`:
+
+- Kana flicks entered `にほんご`; Mozc showed candidates and tapping the conversion Enter committed `日本語`.
+- Space left and right flicks moved the cursor across `日本語`; the next QWERTY character appeared at the resulting insertion point. Initial testing found that an oversized down flick could emit several DPAD events and move focus to the password field. Revision `7cf0f3f` changed vertical movement to clamped, newline-delimited logical-line movement through `setSelection`; an oversized up/down round trip then kept the normal editor focused. Soft-wrapped visual lines within one paragraph are treated as one logical line.
+- The Kana transform key produced `は→ば` with left, `は→ぱ` with right, and `つ→っ` with up.
+- Conversion Enter up showed the original hiragana preview and tap committed it. Conversion Enter left showed `ハ` for a `は` reading and tap committed it.
+- QWERTY Backspace tap removed the preceding committed `ハ`. Its down-to-ESC dispatch is covered by the consumer unit test because the test `EditText` has no visible ESC behavior.
+- The Dual Flick switch remained ON after returning from the test activity, demonstrating persistence. It was then restored to OFF. The emulator width was restored from 840dp to its physical 1080 × 2400 profile.
+
+These are emulator observations. Physical vibration strength and the Galaxy Z Fold7 hardware layout remain unverified because no physical device was connected. Multi-pointer ordering and the 599/600dp layout boundary are covered by `KeyboardViewTest`; physical simultaneous two-hand touch remains a Fold7 probe.
+
 ## Mozc latency
 
 `MozcLatencyTest` ran alone in a new instrumentation process. The Mozc data asset had already been copied by earlier tests, so this is a new-process initialization measurement with a warm on-disk asset, not a factory-install asset-copy measurement.
@@ -62,6 +77,16 @@ This did not show a sustained or multi-second Mozc stall. The Service still seri
 ## Screenshot manifest
 
 All images below were opened and checked against their filenames.
+
+v0.2 evidence:
+
+- `v0.2/setup.png`: Setup screen with the persisted Dual Flick switch, restored OFF
+- `v0.2/qwerty-412.png`: 412dp QWERTY with BS label and CSS-aligned spacing
+- `v0.2/kana-412.png`: 412dp single Kana layout
+- `v0.2/dual-kana-840.png`: 840dp Dual Flick Kana layout
+- `v0.2/kana-candidates-840.png`: real `にほんご` composition, Mozc candidates and conversion Enter labeled `確定`
+- `v0.2/unconverted-preview-840.png`: conversion Enter up preview
+- `v0.2/katakana-preview-840.png`: conversion Enter left Katakana preview
 
 - `setup.png`: Setup and activation controls
 - `qwerty-cover.png`: cover-width QWERTY layer

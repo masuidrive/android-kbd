@@ -45,3 +45,8 @@
 [2026/09/11 09:07] Dual Flick設定をONにした広幅画面で、日本語12キー3×4を左右2セット表示して両手入力を試す未着手ticket `260911-000706-add-dual-flick-wide-layout` を起票した。Fold7展開画面を対象とし、OFF/狭幅は単一配列、幅変化時はcomposition保持を要件候補にした。thresholdと周辺キー配置は未確定で、実装・probeは開始していない。
 [2026/09/11 09:11] ユーザーの段階1実装・公開指示を受け、調整とDual Flickを同じdeliveryで開始準備。C/A待機色をCSS一致として採用し、無変換/カタカナはpreview切替後に「確定」tapで挿入するdefaultで進める。音声入力は段階1公開後まで未着手を維持する。
 [2026/09/11 09:16] 調整ticketを旧native featureから、Dual Flick ticketを調整featureから標準PDH手順で開始し、両方を同一delivery履歴へ接続した。設定default OFFの永続化、候補placeholder削除、ESC送出、変換中ひらがな/カタカナpreviewと確定、v0.2.0化を本体側へ実装し、対象単体テストが成功した。
+[2026/09/11 09:25] UI初回35cf876を統合し、fast-check 5件・unit 41件・lint・APK build・実Mozc connected 5件が成功。その後の独立reviewで、かな縦長Enterと句読点の重なり、840dp行高、あん副文字の重なり順・濃さのMajor 3件を採用し、rowspan修正aa423a8と追加修正を進めている。初回テスト結果はbaselineとし、最終UIで再検証する。
+[2026/09/11 09:41] 最終統合128edacでreview Major 3件を解消し、限定再reviewは追加Critical/Majorなし。fast-check 5件・unit 45件・lint・APK build・connected 5件が全て成功。APK SHA-256は77b99a39375a86caa506222c8503c92fcd4cf1c665e553f6870e7fac0b90241b。
+[2026/09/11 09:41] エミュレーターで412dp QWERTY/単一かな、840dp Dualかな、実入力「にほんご」からMozc候補・「確定」・「日本語」挿入を確認。Space左右と複数行上/下、小キーの濁点・半濁点・小文字、無変換/カタカナpreview、BS tap削除、Dual設定永続化を実操作し、画面幅・設定を既定へ復元した。Galaxy Z Fold7実機と物理振動は未確認として区別する。
+[2026/09/11 09:39] 将来作業として英数字候補buffer ticket `260911-003916-add-english-candidate-buffer` を起票。調整・Dual Flick・APK公開・音声公開の後に検討し、今回の実装には含めない。候補辞書、対象範囲、単語境界、既定ON/OFFは未決で、ネットワーク候補は追加しない。
+[2026/09/11 09:47] Space下フリックの過大移動で次の入力欄へfocusが越境する不具合を端末で検出。上下移動を現在editor内の改行区切りlogical lineへclampする修正7cf0f3fを適用し、過大な上/下往復後も通常欄のfocusが維持されることを確認した。最終fast-check 5件・unit 48件・lint・build・connected 5件が成功し、APK SHA-256はfcd9a3cdac964d80c852d7f48abda50b97bb1ad6f3cc1b46da7f416ead08cc78。

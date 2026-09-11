@@ -61,6 +61,9 @@
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
 
+- 独立Terraが95c2a32のService/controller/settings/candidate差分を確認し、Critical/Majorなし。原reading復元、候補Space、preview単回commit、actionMutexとeditor session token境界を確認した。
+- 95c2a32単体では未commitのkeyboard APIへ依存してcompileできないという中間指摘は、同時実装中UIとの分割commitに由来するため出荷findingとして棄却する。UI統合後の最終buildで必ず確認する。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->

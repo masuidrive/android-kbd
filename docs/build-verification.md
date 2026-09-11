@@ -2,11 +2,11 @@
 
 ## Verified revision
 
-- Git commit: `bbe40aaf2e6583a0afc79367577a1b0a1d1024b9`
+- Git commit: `7cf0f3fb189ee121914935dfd127fcdb4be6ec8c`
 - Verified on: 2026-09-11 (Asia/Tokyo)
 - APK: `app/build/outputs/apk/debug/app-debug.apk`
-- APK size: 34,645,297 bytes
-- APK SHA-256: `87ccb6734b22b6bb940995c169fcc4c36457fd95f8c583420ae84ade0e554d0b`
+- APK size: 34,654,677 bytes
+- APK SHA-256: `fcd9a3cdac964d80c852d7f48abda50b97bb1ad6f3cc1b46da7f416ead08cc78`
 
 ## Local verification
 
@@ -21,7 +21,7 @@ scripts/test-all.sh
 Result: PASS.
 
 - PDH fast checks: 5 passed
-- Android unit tests: 32 passed, 0 failed, 0 errors, 0 skipped
+- Android unit tests: 48 passed, 0 failed, 0 errors, 0 skipped
 - Android lint: PASS
 - Debug APK assembly: PASS
 - Gradle: `BUILD SUCCESSFUL`
