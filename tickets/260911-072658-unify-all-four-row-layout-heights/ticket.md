@@ -33,9 +33,9 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 この ticket が終わると、Gesture IME利用者がどの4行レイヤーへ切り替えても同じ高さと縦位置でキーを操作できる。
 
-- [ ] AC 1: QWERTY、記号、日本語、テンキー、カーソルの4行全体高が外画面と内画面の各幅で一致する。
-- [ ] AC 2: 全レイヤーのkey face高と縦gapが外画面45dp/10dp、内画面52dp/10dpで一致する。
-- [ ] AC 3: 縦長Enter、Space、カーソル、Dual Flickのhit targetと描画位置が一致する。
+- [x] AC 1: QWERTY、記号、日本語、テンキー、カーソルの4行全体高が外画面と内画面の各幅で一致する。
+- [x] AC 2: 全レイヤーのkey face高と縦gapが外画面45dp/10dp、内画面52dp/10dpで一致する。
+- [x] AC 3: 縦長Enter、Space、カーソル、Dual Flickのhit targetと描画位置が一致する。
 描画geometryだけを統一し、入力action・保存データ・外部通信を変えずAI-1〜AI-4と矛盾しない。
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
