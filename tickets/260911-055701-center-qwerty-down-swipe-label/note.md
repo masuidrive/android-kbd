@@ -73,7 +73,11 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | label adjustment | Major | 補助labelのY調整±8dpが下swipe終端にも加算され中央からずれる | 採用・修正 | 終端deltaからY調整値を差し引き、狭幅+8dp/広幅-8dpのtestを追加 |
+| 2 | other animations | Major | height依存deltaがrowSpan Enter/Pasteにも適用される | 採用・修正 | QWERTY CHARACTERだけを動的計算し、他keyは従来13dpを維持。全5layerでpaste offsetを固定 |
+| 3 | cancel evidence | Minor | 下swipe中の直接cancel後を描画testが観測していない | 採用・修正 | 広幅down選択から直接cancelし、調整済みidle位置への復帰とactionなしを確認 |
+
+- 修正後targeted `KeyboardViewTest` → 31件成功。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

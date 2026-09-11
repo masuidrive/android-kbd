@@ -233,6 +233,9 @@ class KeyboardViewTest {
         assertEquals(22f, uppercase.textSize, .1f)
         assertEquals(center(idleMain) - 3f, center(uppercase), .6f)
         assertEquals(0, up.draws.last { it.text == "1" }.alpha)
+        view.setQwertyLabelStyle(
+            QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_SECONDARY, LabelAdjustment(yOffsetDp = 8f)),
+        )
         touch(MotionEvent.ACTION_MOVE, q.centerX().toFloat(), q.centerY() + 24f, 120)
         looper.idleFor(100, TimeUnit.MILLISECONDS)
         val down = frame()
@@ -248,7 +251,7 @@ class KeyboardViewTest {
         looper.idleFor(60, TimeUnit.MILLISECONDS)
         val reverseEnd = center(frame().draws.last { it.text == "1" })
         assertTrue(reverseMiddle < reverseStart)
-        assertEquals(center(idleAux), reverseEnd, .6f)
+        assertEquals(center(idleAux) + 8f, reverseEnd, .6f)
         touch(MotionEvent.ACTION_CANCEL, q.centerX().toFloat(), q.centerY().toFloat(), 300)
     }
 
@@ -330,12 +333,20 @@ class KeyboardViewTest {
         fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
         assertEquals(q.exactCenterY() + 5f, center(canvas.draws.last { it.text == "q" }), .6f)
         assertEquals(q.top + 9f, center(canvas.draws.last { it.text == "1" }), .6f)
+        view.setQwertyLabelStyle(
+            QwertyLabelStyle.DEFAULT.with(QwertyLabelGroup.LETTER_SECONDARY, LabelAdjustment(yOffsetDp = -8f)),
+        )
+        val adjustedIdle = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val adjustedIdleCenter = center(adjustedIdle.draws.last { it.text == "1" })
         touch(MotionEvent.ACTION_DOWN, q.exactCenterX(), q.exactCenterY())
         touch(MotionEvent.ACTION_MOVE, q.exactCenterX(), q.exactCenterY() + 24f, 10)
         looper.idleFor(KeyboardView.LABEL_ANIMATION_MS + 10, TimeUnit.MILLISECONDS)
         val down = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
         assertEquals(q.exactCenterY(), center(down.draws.last { it.text == "1" }), .6f)
         touch(MotionEvent.ACTION_CANCEL, q.exactCenterX(), q.exactCenterY(), 120)
+        val canceled = CaptureCanvas(Bitmap.createBitmap(840, 248, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertEquals(adjustedIdleCenter, center(canceled.draws.last { it.text == "1" }), .6f)
+        assertTrue(actions.isEmpty())
     }
 
     @Test fun `kana punctuation key shows its four choices while idle`() {
@@ -381,6 +392,9 @@ class KeyboardViewTest {
             val enter = Rect().also { provider.createAccessibilityNodeInfo(enterId)!!.getBoundsInParent(it) }
             val startX = enter.left + 2f
             val startY = enter.top + 2f
+            fun center(draw: TextDraw) = draw.y + (draw.ascent + draw.descent) / 2f
+            val idleCanvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(modeView::draw)
+            val idlePasteCenter = center(idleCanvas.draws.last { it.text == "paste" })
             fun modeTouch(action: Int, y: Float, time: Long) = MotionEvent.obtain(0, time, action, startX, y, 0).also {
                 modeView.onTouchEvent(it); it.recycle()
             }
@@ -393,6 +407,7 @@ class KeyboardViewTest {
             val paste = canvas.draws.lastOrNull { it.text == "paste" } ?: error("$mode did not draw paste")
             val main = canvas.draws.lastOrNull { it.text == "Enter" } ?: error("$mode did not draw Enter")
             assertEquals("$mode paste size", 17f, paste.textSize, .2f)
+            assertEquals("$mode paste offset", idlePasteCenter + 13f, center(paste), .6f)
             assertEquals("$mode Enter hidden", 0, main.alpha)
             modeTouch(MotionEvent.ACTION_UP, startY + 24f * modeView.resources.displayMetrics.density, 20)
             assertEquals("$mode action", listOf(KeyAction.Paste), modeActions)

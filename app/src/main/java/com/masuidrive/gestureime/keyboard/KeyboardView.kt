@@ -776,9 +776,12 @@ class KeyboardView @JvmOverloads constructor(
         labelAnimators.remove(id)?.cancel()
         val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
         val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
-        val downSecondaryDy = active[id]?.bounds?.let {
-            it.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
-        } ?: 0f
+        val downSecondaryDy = active[id]?.takeIf { target ->
+            state.mode == KeyboardMode.QWERTY && target.spec.kind == KeyKind.CHARACTER
+        }?.let { target ->
+            target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP -
+                labelAdjustment(target.spec, secondary = true).yOffsetDp
+        } ?: 13f
         val end = when (direction) {
             Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
             Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = downSecondaryDy, secondaryScale = 1.7f)
