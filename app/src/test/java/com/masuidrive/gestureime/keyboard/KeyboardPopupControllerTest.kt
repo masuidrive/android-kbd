@@ -56,10 +56,16 @@ class KeyboardPopupControllerTest {
         assertTrue(up.bottom <= size.height)
     }
 
-    @Test fun `screen-clamped popup position is converted to IME window coordinates`() {
+    @Test fun `screen-clamped popup position is converted through the anchor window origin`() {
         val surfaceScreenPosition = PopupPosition(236, 1_540)
 
-        assertEquals(PopupPosition(236, 116), geometry.windowPosition(surfaceScreenPosition, 0, 1_424))
+        assertEquals(PopupPosition(236, 90), geometry.windowPosition(
+            surfaceScreenPosition,
+            anchorScreenLeft = 10,
+            anchorScreenTop = 1_500,
+            anchorWindowLeft = 10,
+            anchorWindowTop = 50,
+        ))
     }
 
     @Test @GraphicsMode(GraphicsMode.Mode.NATIVE) fun `kana popup is five independent tiles with transparent corner`() {

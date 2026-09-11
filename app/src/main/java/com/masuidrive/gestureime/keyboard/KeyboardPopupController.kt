@@ -228,14 +228,26 @@ internal class PopupGeometry(private val density: Float) {
             unclampedX.toInt().coerceIn(visibleFrame.left, maxX),
             unclampedY.toInt().coerceIn(visibleFrame.top, maxY),
         )
-        val position = windowPosition(surfaceScreenPosition, windowLocation[0], windowLocation[1])
+        val position = windowPosition(
+            surfaceScreenPosition,
+            screenLocation[0], screenLocation[1],
+            windowLocation[0], windowLocation[1],
+        )
         val contentOffsetX = contentScreenX - surfaceScreenPosition.x
         val contentOffsetY = contentScreenY - surfaceScreenPosition.y
         return PopupPlacement(position, contentOffsetX, contentOffsetY, surfaceScreenPosition.x + contentOffsetX)
     }
 
-    internal fun windowPosition(surfaceScreenPosition: PopupPosition, windowLeftOnScreen: Int, windowTopOnScreen: Int) =
-        PopupPosition(surfaceScreenPosition.x - windowLeftOnScreen, surfaceScreenPosition.y - windowTopOnScreen)
+    internal fun windowPosition(
+        surfaceScreenPosition: PopupPosition,
+        anchorScreenLeft: Int,
+        anchorScreenTop: Int,
+        anchorWindowLeft: Int,
+        anchorWindowTop: Int,
+    ) = PopupPosition(
+        surfaceScreenPosition.x - (anchorScreenLeft - anchorWindowLeft),
+        surfaceScreenPosition.y - (anchorScreenTop - anchorWindowTop),
+    )
 
     fun tileRect(direction: Direction, size: PopupSize, contentOffsetX: Float = shadowHorizontalInset, contentOffsetY: Float = shadowTopInset): RectF {
         val left = contentOffsetX
