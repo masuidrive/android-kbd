@@ -538,14 +538,22 @@ class KeyboardViewTest {
         assertEquals(viewportTop, keyBounds(8).top)
     }
 
-    @Test fun `emoji viewport offers TalkBack one-row forward and backward scrolling`() {
+    @Test fun `emoji viewport advertises and performs only available TalkBack scrolling`() {
         view.setMode(KeyboardMode.EMOJI)
         val provider = view.accessibilityNodeProvider
         val viewportTop = keyBounds(0).top
-        assertTrue(provider.createAccessibilityNodeInfo(-1)!!.isScrollable)
+        fun hostActions() = requireNotNull(provider.createAccessibilityNodeInfo(-1)).actionList.map { it.id }
+
+        assertTrue(requireNotNull(provider.createAccessibilityNodeInfo(-1)).isScrollable)
+        assertTrue(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD in hostActions())
+        assertFalse(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD in hostActions())
+        assertFalse(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null))
 
         assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
         assertEquals(viewportTop, keyBounds(8).top)
+        assertFalse(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD in hostActions())
+        assertTrue(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD in hostActions())
+        assertFalse(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
         assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null))
         assertEquals(viewportTop, keyBounds(0).top)
     }

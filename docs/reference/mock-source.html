@@ -782,7 +782,13 @@
     popup.style.left=p.accentLeft-base.x+'px';popup.style.top=rect.y-base.y-56+'px';
   }
   function clearTimers(p) { clearTimeout(p.timer);clearInterval(p.repeat); }
+  function cancelEmojiViewportGestures() {
+    const pointerIds=[...emojiViewportStarts.keys()];
+    emojiViewportStarts.clear();emojiViewportDrags.clear();
+    pointerIds.forEach(pointerId=>{if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);});
+  }
   function cancelAll() {
+    cancelEmojiViewportGestures();
     for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');}
     active.clear();pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
@@ -884,20 +890,19 @@
     if(keyboard.hasPointerCapture(e.pointerId))keyboard.releasePointerCapture(e.pointerId);
     render();
   }
-  function finishEmojiViewportGesture(pointerId) {
+  function finishEmojiViewportGesture(pointerId,commit) {
     const gesture=emojiViewportStarts.get(pointerId);if(!gesture)return;
     emojiViewportStarts.delete(pointerId);
-    if(!emojiViewportDrags.has(pointerId)&&gesture.key.text&&!applyModified(gesture.key.text,currentModifier())) {
+    if(commit&&!emojiViewportDrags.has(pointerId)&&gesture.key.text&&!applyModified(gesture.key.text,currentModifier())) {
       if(gesture.key.emoji) { emojiRecents=[gesture.key.text,...emojiRecents.filter(value=>value!==gesture.key.text)].slice(0,8);persistEmojiRecents(); }
       insert(gesture.key.text);
     }
-    emojiViewportDrags.add(pointerId);
+    if(commit) {emojiViewportDrags.add(pointerId);setTimeout(()=>emojiViewportDrags.delete(pointerId),0);}else emojiViewportDrags.delete(pointerId);
     if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);
-    setTimeout(()=>emojiViewportDrags.delete(pointerId),0);
   }
-  keyboard.addEventListener('pointerup',e=>{finishEmojiViewportGesture(e.pointerId);finish(e)});
-  keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
-  keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
+  keyboard.addEventListener('pointerup',e=>{finishEmojiViewportGesture(e.pointerId,true);finish(e)});
+  keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
+  keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
   root.addEventListener('click',e=>{
     const candidate=e.target.closest('button[data-candidate-index]');
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}

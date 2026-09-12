@@ -379,13 +379,14 @@ class KeyboardView @JvmOverloads constructor(
         return if (!target.scrollable) target.bounds else RectF(target.bounds).apply { intersect(emojiViewport) }
     }
 
-    private fun scrollEmojiTo(offset: Float) {
+    private fun scrollEmojiTo(offset: Float): Boolean {
         val clamped = offset.coerceIn(0f, emojiScrollRange())
-        if (emojiScrollOffset == clamped) return
+        if (emojiScrollOffset == clamped) return false
         emojiScrollOffset = clamped
         if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
         accessibilityHelper.invalidateRoot()
         invalidate()
+        return true
     }
 
     private fun rowPitch() = dp(state.heightPreset.rowPitchDp)
@@ -637,8 +638,12 @@ class KeyboardView @JvmOverloads constructor(
         super.onInitializeAccessibilityNodeInfo(info)
         if (state.mode == KeyboardMode.EMOJI && emojiScrollRange() > 0f) {
             info.isScrollable = true
-            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
-            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+            if (emojiScrollOffset < emojiScrollRange()) {
+                info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+            }
+            if (emojiScrollOffset > 0f) {
+                info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+            }
         }
     }
 
@@ -648,8 +653,7 @@ class KeyboardView @JvmOverloads constructor(
                 AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD,
             )) {
             val delta = if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) currentEmojiRowPitch() else -currentEmojiRowPitch()
-            scrollEmojiTo(emojiScrollOffset + delta)
-            return true
+            return scrollEmojiTo(emojiScrollOffset + delta)
         }
         return super.performAccessibilityAction(action, arguments)
     }
