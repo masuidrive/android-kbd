@@ -157,3 +157,4 @@
 [2026/09/12 10:10] v0.10設定画面を4つの角丸カードへ整理し、Light/Darkのsurface、細い赤accent、48dp操作領域、BuildConfig由来version表示をAPI36.1とRobolectricで確認。最新Light/Dark画像をmanualへ反映し、fast-check・unit・lint・APK buildがPASS。音声面は既存native契約を維持し、実発話partial/finalは日本語モデルのある実機確認待ちとして記録。
 [2026/09/12 10:16] API 36.1の現行APKでQWERTY左下を左フリックし、音声候補欄の「非対応」、固定4行面、通常キー形状の左下「キャンセル」を同時確認してv0.10画像へ更新。manualの旧v0.9音声画像を置換し、操作モックのpartial/final確認導線を追記。
 [2026/09/12 10:20] 音声Permission/Unavailable controlが選択候補の青faceを誤用していたreview Majorを修正。操作可能性を保った通常candidate faceへ分離し、Light/Darkの色・shadow・click/focusをRobolectricで固定、API 36.1のLight/Dark実画面を確認してv0.10音声画像を再撮影した。
+[2026/09/12 10:27] v0.10.0 APKをGitHub Releasesへ公開し、認証済み再download・GitHub asset・ローカルのSHA-256 `2698891f37285d53eca0313625c3a2662687e0f0ac8db725115f2cbbddb55eed`が一致した。owner-only Sites `https://fez69vft.aboutme.style/`へ39ファイル・4,314,331 bytesを公開し、全path/SHA-256一致、live demo入力欄、v0.10 manual画像、横overflowなし、console errorなしを確認した。

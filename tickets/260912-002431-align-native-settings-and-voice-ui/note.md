@@ -84,7 +84,7 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | 音声status face | Major | Permission/Unavailableがselectedの青faceを誤用 | 採用・解消 | `608a1bf`で通常candidate faceとclick/focus/actionを分離し、Light/Dark回帰とAVD画像を更新 |
-| 2 | 公開readiness | Major | 公開前のv0.10 APK URLが404 | 採用・release gate | v0.10.0 Release公開後にHTTP 200とasset digestを確認する |
+| 2 | 公開readiness | Major | 公開前のv0.10 APK URLが404 | 採用・解消 | v0.10.0 Releaseへassetを公開し、認証済み再downloadとGitHub APIでsize 35,144,030 bytes・SHA-256一致を確認。repositoryはprivateのため匿名URLはGitHub仕様上404 |
 
 ### AC verification
 
@@ -95,6 +95,8 @@
 - AC 5: キャンセルキーの上=日本語、右=QWERTY、下=テンキーと切替後mode永続化をlayout/service testで確認した。
 - AC 6: v0.10のLight/Dark設定画像と音声画像をmanualへ反映し、docs/siteの音声画像SHA-256 `7abb83edd26def35aea43547b0d700f6a917978beaccf9dc54d5aff4d407e40c`一致、390px横overflow 0・全画像loadを確認した。
 - 最終suite: `scripts/test-all.sh --parallel` PASS（`/var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.GMU10Bz08r`、fast-checks / Android unit・lint・APK 2/2 PASS）。
+- Release: `v0.10.0`の`gesture-ime-v0.10.0.apk`を公開し、GitHub asset digestと認証済み再downloadがローカルAPKのSHA-256 `2698891f37285d53eca0313625c3a2662687e0f0ac8db725115f2cbbddb55eed`へ一致した。
+- Sites: owner-only `https://fez69vft.aboutme.style/`へ39ファイル・4,314,331 bytesを公開し、ローカル/remoteのpath・SHA-256が39/39一致。live topはv0.10.0、埋め込み入力欄は初期値「ここは入力できるよ」、manualのv0.10画像4件は全てloadし、console errorと横overflowなしを確認した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
