@@ -7,7 +7,7 @@
 | ファイル | 役割 |
 |---|---|
 | `src/keyboard.html` | キーボード本体。HTML断片、CSS、JavaScriptを1ファイルに収録 |
-| `scripts/build_demo.py` | 単体で開ける `site/demo.html` を生成 |
+| `site/index.html#demo` | 製品トップへ埋め込む `site/mock.html` を表示 |
 | `scripts/build_site.py` | モックとAndroid仕様を組み込んだSites用ページを生成 |
 | `docs/android-native-implementation.md` | Android Native実装仕様 |
 | `docs/html-mock-implementation.md` | この作成ガイド |
@@ -111,4 +111,4 @@ npm test
 npm run test:browser
 ```
 
-`npm run build` はソース断片から単体デモとSitesページを作ります。ローカル配布用には生成した `site/demo.html` を `outputs/index.html` としてコピーします。ブラウザ確認では日本語5方向、英字上下、C/A、BS、候補変換、Spaceカーソルの軸固定、Fold7内外、ライト・ダーク、横はみ出し、実行時エラーを確認します。
+`npm run build` はソース断片からSitesページを作ります。操作mockは製品トップの `site/index.html#demo` に埋め込みます。ブラウザ確認では日本語5方向、英字上下、C/A、BS、候補変換、Spaceカーソルの軸固定、Fold7内外、ライト・ダーク、横はみ出し、実行時エラーを確認します。

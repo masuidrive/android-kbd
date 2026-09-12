@@ -21,8 +21,8 @@
   </div>
   <div class="phone">
     <div class="editor-wrap">
-      <label class="editor-label" for="ios-typing-area">入力を試す<span class="count">0 文字</span></label>
-      <textarea id="ios-typing-area" aria-label="入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに入力されます" rows="4" readonly></textarea>
+      <label class="editor-label" for="ios-typing-area">キーをタップ、または指で上下左右へフリックして入力を試す<span class="count">0 文字</span></label>
+      <textarea id="ios-typing-area" aria-label="キーをタップ、または指で上下左右へフリックして入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" rows="4" readonly>ここで実際に下のキーボードを操作できます</textarea>
     </div>
     <div class="sr-status" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
     <div class="keyboard" role="group" aria-label="画面キーボード">
@@ -283,8 +283,12 @@
   if(heroEmbed) {
     root.dataset.embed='hero';
   }
-  let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
-  let dualEnabled = false, englishCandidatesEnabled = false;
+  const demoStateVersion=2;
+  const isDesktopVisitor=matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const defaultDevice=isDesktopVisitor?'inner':root.getBoundingClientRect().width>=600?'inner':'cover';
+  let device=defaultDevice;
+  let language = isDesktopVisitor?'kana':'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
+  let dualEnabled = isDesktopVisitor, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
   const emojiCategories=[
     ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏','😅','🤣','😉','🙂','🙃','😇','🥳','😴','🤗','🤩','😋','😜','😡','🥺','😱','🤭']],
@@ -302,16 +306,25 @@
   let renderedCandidateContentKey=null;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
-    if(saved&&['english','kana'].includes(saved.language))language=saved.language;
-    if(saved&&['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
-    if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,100);
-    if(Number.isFinite(saved?.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
-    dualEnabled=Boolean(saved?.dualEnabled);
-    englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
-    if(['light','dark'].includes(saved?.theme))root.dataset.theme=saved.theme;
+    if(saved?.version===demoStateVersion) {
+      if(['cover','inner'].includes(saved.device))device=saved.device;
+      if(['english','kana'].includes(saved.language))language=saved.language;
+      if(['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
+      if(Array.isArray(saved.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,100);
+      if(Number.isFinite(saved.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
+      dualEnabled=Boolean(saved.dualEnabled);
+      englishCandidatesEnabled=Boolean(saved.englishCandidatesEnabled);
+      if(['light','dark'].includes(saved.theme))root.dataset.theme=saved.theme;
+    }
   } catch (_) {}
-  if(heroEmbed)editor.value='ここは入力できるよ';
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
+  root.dataset.device=device;
+  const initialDemoText=editor.value;
+  let showingInitialDemoText=editor.value===initialDemoText;
+  function clearInitialDemoTextForInput() {
+    if(!showingInitialDemoText)return;
+    editor.value='';editor.setSelectionRange(0,0);showingInitialDemoText=false;
+  }
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({version:demoStateVersion,device,language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
@@ -349,6 +362,7 @@
     if(!composition.reading||!composition.candidates.length)return false;
     const choice=composition.candidates[(index+composition.candidates.length)%composition.candidates.length];
     preserveComposition=true;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});
     editor.setRangeText(choice,composition.start,composition.end,'end');
     composition.end=composition.start+choice.length;composition.index=(index+composition.candidates.length)%composition.candidates.length;composition.converted=true;
@@ -360,6 +374,7 @@
   function commitCompositionValue(value) {
     if(!composition.reading)return false;
     preserveComposition=true;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});
     editor.setRangeText(value,composition.start,composition.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;
@@ -373,6 +388,7 @@
   }
   function replaceEnglishCandidate(candidate) {
     const prefix=englishPrefix();if(!prefix)return;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));announce('候補を確定：'+candidate);render();
   }
@@ -383,6 +399,7 @@
   }
   function replaceSlashCommand(candidate) {
     const prefix=slashPrefix();if(!prefix)return;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));announce('コマンドを確定：'+candidate);render();
   }
@@ -424,6 +441,7 @@
     const text=voiceDemo.candidates[index];if(!text)return;
     voiceDemo.committed=true;clearVoiceTimers();
     preserveComposition=true;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;clearComposition();
     voiceDemo.turn++;
@@ -497,6 +515,7 @@
     if (!text) return;
     if(composition.converted)clearComposition();
     preferredCursorX=null;
+    clearInitialDemoTextForInput();
     editor.focus({preventScroll:true});
     editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
@@ -512,6 +531,7 @@
     preferredCursorX=null;
     const start=editor.selectionStart,end=editor.selectionEnd;
     if(start===end && start===0)return;
+    showingInitialDemoText=false;
     const previous=segments(editor.value.slice(0,start)).at(-1);
     editor.setRangeText('',start===end ? previous.index : start,end,'end');
     editor.focus({preventScroll:true});editor.dispatchEvent(new Event('input',{bubbles:true}));lastSpace=-Infinity;announce('削除');
@@ -1086,9 +1106,8 @@
     cover:{label:'スマホ幅 · 412 dp'},
     inner:{label:'タブレット幅 · 840 dp'}
   };
-  root.dataset.device=root.getBoundingClientRect().width>=600?'inner':'cover';
   root.querySelectorAll('.device-picker [data-device]').forEach(button=>button.addEventListener('click',()=>{
-    cancelGestures();root.dataset.device=button.dataset.device;
+    cancelGestures();device=button.dataset.device;root.dataset.device=device;
     root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
     $('.device-size').textContent=displayModes[button.dataset.device].label;
     render();

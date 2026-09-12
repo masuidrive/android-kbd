@@ -43,10 +43,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 .button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .phone-shot { position: relative; padding: .75rem; border: 1px solid var(--line); border-radius: 1.7rem; background: linear-gradient(150deg, var(--surface-2), var(--surface)); box-shadow: 0 35px 90px var(--shot-shadow); }
 .phone-shot img { width: 100%; height: 520px; object-fit: cover; object-position: center bottom; border-radius: 1.05rem; }
-.hero-demo { width:100%; min-width:600px; scroll-margin-top:80px; overflow:hidden; border:1px solid var(--line); border-radius:1.25rem; background:var(--surface); box-shadow:0 35px 90px var(--shot-shadow); }
-.hero-demo-intro { display:flex; align-items:baseline; flex-wrap:wrap; gap:.35rem 1rem; padding:.9rem 1rem; border-bottom:1px solid var(--line); }
-.hero-demo-intro strong { font-size:.95rem; }
-.hero-demo-intro span { color:var(--muted); font-size:.78rem; }
+.hero-demo { width:100%; min-width:600px; scroll-margin-top:80px; overflow:hidden; border:0; border-radius:0; background:#fff; box-shadow:none; }
 .hero-demo iframe { display:block; width:100%; height:610px; border:0; }
 .section { width: min(var(--max), calc(100% - 2rem)); margin: auto; padding: clamp(4rem, 8vw, 7rem) 0; border-top: 1px solid var(--line); }
 .section-head { display: grid; grid-template-columns: .75fr 1.25fr; gap: 2rem; margin-bottom: 3rem; }
@@ -76,8 +73,7 @@ h1 { max-width: 13ch; margin: 0; font-size: clamp(3.1rem, 6.5vw, 6.3rem); line-h
 html.nav-enhanced .home-page .home-nav { position:fixed; inset:0 0 auto; z-index:20; transform:translateY(-105%); opacity:0; pointer-events:none; transition:transform .22s ease,opacity .18s ease; }
 html.nav-enhanced .home-page .home-nav.is-visible { transform:translateY(0); opacity:1; pointer-events:auto; }
 .home-page .hero { min-height:0; padding:15px 0 56px; gap:32px; }
-.home-page .hero-demo { box-shadow:none; border-radius:0; border-color:var(--line); }
-.home-page .hero-demo-intro { background:var(--surface); }
+.home-page .hero-demo { background:#fff; }
 .home-page .hero > div { padding:32px; background:var(--surface); border:1px solid var(--line); }
 .home-page .hero > div h1 { max-width:none; font-size:clamp(2.25rem,5vw,3.75rem); font-weight:600; letter-spacing:-.055em; }
 .home-page .lead { margin-top:1.25rem; line-height:1.65; }
