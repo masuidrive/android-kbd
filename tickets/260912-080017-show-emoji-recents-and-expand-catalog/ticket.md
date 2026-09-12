@@ -12,7 +12,7 @@ canceled_at: null # Do not modify manually
 
 ### Why
 最近使った絵文字が一覧本体へ混ざるため、再利用する場所と全体から探す場所が分かれておらず、固定32件しか選べない。
-候補欄を最近使った絵文字の近道にし、Android標準の選択UIでカテゴリ・variationを含む一覧から選べるようにする。
+候補欄を最近使った絵文字の近道にし、Android公式ライブラリの選択UIでカテゴリ・variationを含む一覧から選べるようにする。
 <!-- ユーザ価値・解きたい問題を 1〜3 行で書く。
      Product Brief の Problem / Solution のどの部分を担うか明記する。 -->
 
