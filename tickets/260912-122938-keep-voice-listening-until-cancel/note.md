@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内`SpeechRecognizer`だけを使い、外部provider/APIはticketのinvariantで禁止される。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -48,6 +48,12 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+[2026/09/12 21:42 JST] 実装前調査: `VoiceRecognitionController.confirm()` は preview を無効化して Idle を通知し、`ImeService.commitVoiceCandidate()` は現在その後に元レイヤーへ戻す。候補確定後の同editor token再開始は service 側で commit 成功を確認してから controller を start する。controller の generation は start/cancel/confirm で旧callbackを破棄できる。表示は固定4行の `KeyboardView` 最下段で、通常認識状態だけへ追加する。private・editor/layer/IME境界と Unavailable は既存停止経路を維持する。git log/blame を確認済み。仮定: recognizer の `start()` を同一 editor token で呼ぶことで新generationが作られ、前session callbackは controller と service token guard の双方で拒否される。
+
+[2026/09/12 21:54 JST] 実装: `ImeService`に連続音声session generationを置き、最終候補は`confirm()`の同期Idle callbackで候補を消した後、editor token・layer・private・generationを再確認して成功した`commitText`のときだけ同じtokenのrecognizerを開始するよう変更した。Cancel/別layer/onStartInput/IME終了はgenerationを無効化してcontrollerをcancelする。`KeyboardView`はCancel右の既存empty領域へ非actionの「認識中」を描画し、4行・Cancel/flick/tap/accessibility key nodeを変えない。公開mockもgeneration付きtimerで同じ2周フロー、Cancel後の旧timer破棄を再現する。native commit: `3f26b69`。
+
+[2026/09/12 21:54 JST] 検証: focused Gradle `VoiceRecognitionControllerTest`、`ImeServiceVoiceHoldTest`、`KeyboardViewTest` PASS。controllerはconfirm→同token再startと旧listener結果の破棄、serviceは2回連続確定、Cancel/editor切替/error後のcommit/restart拒否、viewは認識中描画と非action・不変geometryを固定した。`scripts/test-all.sh --parallel` は fast-checks と Android unit/lint/APK の2/2 PASS。browserでは`site/mock.html`を412/840相当で実pointer swipeし、候補→1回commit→2周目候補→Cancel/QWERTY復帰を確認した。`node --check`、mock source mirror一致、fast-checksもPASS。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -65,7 +71,9 @@
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
-     他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+[2026/09/12 21:54 JST] `technical-reference.md` decision 10/21、native/reference spec、README、manual、demo、公開mockを連続認識・Cancel右状態表示・停止境界へ同期した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

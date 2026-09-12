@@ -65,9 +65,9 @@
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
   #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:38px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
-  #ios-keyboard-demo .candidate-bar.emoji-category-bar { padding:0 5px; gap:2px; overflow-x:auto; }
-  #ios-keyboard-demo .candidate-bar.emoji-category-bar button { min-width:46px; width:46px; height:46px; padding:0; border-radius:0; background:transparent; box-shadow:none; font-size:20px; color:var(--ik-key-muted); }
-  #ios-keyboard-demo .candidate-bar.emoji-category-bar button[aria-pressed=true] { color:var(--ik-blue); border-bottom:2px solid var(--ik-blue); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar { padding:0 5px; gap:1px; overflow-x:auto; }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button { flex:0 0 48px; min-width:48px; width:48px; height:48px; padding:0; border-radius:0; background:transparent; box-shadow:none; font-size:20px; color:var(--ik-key-muted); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button[aria-selected=true] { color:var(--ik-blue); border-bottom:2px solid var(--ik-blue); }
   #ios-keyboard-demo .candidate-bar button.voice-candidate { max-width:100%; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:15px; padding-block:2px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .keys { position:relative; }
@@ -143,6 +143,8 @@
   #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 0; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
   #ios-keyboard-demo .voice .key.voice-cancel .key-face { font-size:13px; }
+  #ios-keyboard-demo .voice .voice-bottom { position:relative; }
+  #ios-keyboard-demo .voice-status { position:absolute; left:calc(20% + 8px); top:0; height:45px; display:flex; align-items:center; color:var(--ik-muted); font-size:13px; pointer-events:none; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -284,11 +286,14 @@
     ['people','👋',['👋','👍','👎','👏','🙏','💪','👀','🧑','👩','👨','👶','👵','🧠','🫶','🤝','✍️','🙋','🙆','🙇','🤷','💁','🧑‍💻','👩‍🍳','👨‍🚀','🧑‍🎓','👮','👷','🕵️','💂','🥷','🤴','👸']],
     ['nature','🌿',['🌸','🍀','🌈','🌞','🌙','⭐','🐶','🐱','🦊','🌳','🌊','🔥','❄️','🌍','🪴','🐝','🐼','🐸','🐵','🦁','🐯','🐨','🐰','🐻','🐙','🐳','🦋','🌵','🌴','🍁','🌻','🌧️']],
     ['food','🍣',['🍣','☕','🍜','🍙','🍺','🍰','🍎','🍓','🥑','🍕','🍔','🍩','🧃','🍷','🥂','🍫','🍇','🍉','🍌','🍒','🥝','🍋','🥕','🥦','🌽','🥐','🍞','🧀','🥗','🍛','🍱','🍤']],
+    ['travel','🏙️',['🚗','🚕','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚲','🛵','🏍️','🚂','🚆','🚇','✈️','🚀','🚁','⛵','🚢','🏠','🏢','🏫','🏥','🏰','🗼','🗽','⛩️','🌋','🏖️']],
+    ['activities','🏆',['⚽','🏀','🏈','⚾','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🥅','⛳','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','🏂','🏋️','🤸','🎯','🎮','🎲','🏆']],
     ['objects','💡',['💡','📌','🚀','🎈','📷','💻','📱','⌚','🎵','🎁','📚','✏️','🔑','💎','🧸','🛠️','💰','💳','💊','🧪','🔬','💡','🔋','🖥️','🖨️','📺','🎧','🎸','🏆','⚙️','🧲','🪄']],
     ['symbols','✓',['✅','❌','⚽','💯','🧡','♻️','⚠️','❓','‼️','💤','💬','🔔','🔒','❤️‍🔥','➕','⭐','☑️','⭕','🚫','🔴','🟢','🔵','🟡','⬆️','⬇️','⬅️','➡️','↗️','♠️','♥️','♦️','♣️']],
+    ['flags','🏳️',['🏳️','🏴','🏁','🚩','🏳️‍🌈','🏳️‍⚧️','🇯🇵','🇺🇸','🇬🇧','🇫🇷','🇩🇪','🇮🇹','🇨🇦','🇦🇺','🇨🇳','🇰🇷','🇮🇳','🇧🇷','🇲🇽','🇪🇸','🇹🇼','🇭🇰','🇸🇬','🇹🇭','🇻🇳','🇵🇭','🇮🇩','🇲🇾','🇳🇿','🇿🇦','🇪🇺','🏴‍☠️']],
   ];
   let emojiRecents=[], emojiScrollTop=0, emojiCategory='recent';
-  const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
+  const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false,generation:0,turn:0};
   let renderedCandidateContentKey=null;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
@@ -377,23 +382,34 @@
     editor.dispatchEvent(new Event('input',{bubbles:true}));announce('コマンドを確定：'+candidate);render();
   }
   function clearVoiceTimers() {voiceDemo.timers.forEach(clearTimeout);voiceDemo.timers=[];}
+  function startVoiceDemoRecognition() {
+    const generation=++voiceDemo.generation;
+    const turn=voiceDemo.turn;
+    const results=turn%2===0
+      ?['こんにちは、音声入力を試しています','こんにちは。音声入力を試しています','音声入力を試しています']
+      :['続けて入力しています','続けて、入力しています','音声入力を続けています'];
+    Object.assign(voiceDemo,{phase:'listening',partial:'聞き取っています…',candidates:[],index:0,committed:false});
+    clearVoiceTimers();
+    const isCurrent=()=>voiceDemo.active&&voiceDemo.generation===generation;
+    voiceDemo.timers=[
+      setTimeout(()=>{if(!isCurrent())return;voiceDemo.partial='こんにちは';render(true);announce('認識途中：こんにちは');},450),
+      setTimeout(()=>{if(!isCurrent())return;voiceDemo.partial='こんにちは、音声入力を';render(true);announce('認識途中：'+voiceDemo.partial);},950),
+      setTimeout(()=>{if(!isCurrent())return;voiceDemo.phase='ready';voiceDemo.partial=results[0];voiceDemo.candidates=results;voiceDemo.index=0;render(true);announce('認識結果を選べます');},1500)
+    ];
+  }
   function beginVoiceDemo(p) {
     if(voiceDemo.active)return;
     p.voiceTriggered=true;
-    Object.assign(voiceDemo,{active:true,phase:'listening',partial:'聞き取っています…',candidates:[],index:0,returnState:{language,layer},committed:false});
+    Object.assign(voiceDemo,{active:true,returnState:{language,layer},turn:0});
     navigator.vibrate?.([35,45,35]);announce('模擬音声認識を開始');
-    voiceDemo.timers=[
-      setTimeout(()=>{voiceDemo.partial='こんにちは';render(true);announce('認識途中：こんにちは');},450),
-      setTimeout(()=>{voiceDemo.partial='こんにちは、音声入力を';render(true);announce('認識途中：'+voiceDemo.partial);},950),
-      setTimeout(()=>{voiceDemo.phase='ready';voiceDemo.partial='こんにちは、音声入力を試しています';voiceDemo.candidates=['こんにちは、音声入力を試しています','こんにちは。音声入力を試しています','音声入力を試しています'];voiceDemo.index=0;render(true);announce('認識結果を選べます');},1500)
-    ];
+    startVoiceDemoRecognition();
     render(true);
   }
   function leaveVoiceDemo(canceled) {
     if(!voiceDemo.active)return;
     clearVoiceTimers();
     const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
-    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null,generation:voiceDemo.generation+1});
     language=previous.language;layer=previous.layer;
     announce(canceled?'音声入力を取り消し':'音声入力を終了');render(true);
   }
@@ -401,18 +417,17 @@
     if(!voiceDemo.active||voiceDemo.phase!=='ready'||voiceDemo.committed)return;
     const text=voiceDemo.candidates[index];if(!text)return;
     voiceDemo.committed=true;clearVoiceTimers();
-    const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
-    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
-    language=previous.language;layer=previous.layer;
     preserveComposition=true;
     editor.focus({preventScroll:true});editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;clearComposition();
-    announce('音声入力：'+text);render();
+    voiceDemo.turn++;
+    announce('音声入力：'+text+'。次の認識を開始');
+    startVoiceDemoRecognition();render(true);
   }
   function leaveVoiceForLayer(actionId) {
     if(!voiceDemo.active)return;
     clearVoiceTimers();
-    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null,committed:false});
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null,committed:false,generation:voiceDemo.generation+1});
     if(actionId==='english') {language='english';layer='letters';}
     else if(actionId==='kana-numbers') {language='kana';layer='numbers';}
     else {language='kana';layer='letters';}
@@ -820,7 +835,7 @@
         ...[1,2,3,4].map(()=>makeKey(null,''))
       ]];
       keyMap=new Map();keys.replaceChildren();keys.className='keys kana voice';
-      for(const row of rows) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
+      rows.forEach((row,index)=>{const line=document.createElement('div');line.className='key-row'+(index===3?' voice-bottom':'');line.append(...row.map(createKeyElement));if(index===3&&voiceDemo.phase!=='idle'){const status=document.createElement('span');status.className='voice-status';status.textContent='認識中';status.setAttribute('role','status');line.append(status);}keys.append(line);});
       return;
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
