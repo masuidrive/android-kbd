@@ -160,6 +160,14 @@
 
 [2026/09/13 02:33 JST] 再reviewで前回のMajor 3件・Minor 1件の解消を確認した後、上記modifier Majorを追加検出して修正した。修正後はmock JS syntax、similarity、正本mirror、fast-checks、実ブラウザ再現がPASS。Android実装・APK bytesは変更していない。
 
+### Findings (PDH-review-7)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+|   |      |     | 指摘なし | 承認 | exact HEAD `1c29b0f`でCritical 0、Major 0、Minor 0。modifier解除、全角句読点、画像説明を再確認した。 |
+
+[2026/09/13 02:36 JST] 最終独立reviewはmockのpending・held modifier解除、native/mock正本一致、v0.15文書の全角表記、権限未許可画像のalt/captionを確認した。fast-checks 5/5、mock JS syntax、相対link、diff checkもPASSし、AC 11の追加差し戻しはない。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -192,6 +200,8 @@ Passed: 2 / 2
 
 [2026/09/13 02:27 JST] release metadataを含むSHA `d42363f`で`scripts/test-all.sh --parallel`を実行し、fast-checksとAndroid全unit・lint・APKが2/2 PASS。API 36 arm64 AVDの`connectedDebugAndroidTest`は11/11 PASS。生成したv0.15.0はpackage `com.masuidrive.gestureime`、versionCode 16、versionName 0.15.0、minSdk 28、targetSdk 36、arm64-v8a、38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`で、`INTERNET`権限なしを確認した。
 
+[2026/09/13 02:36 JST] v0.15.0 GitHub ReleaseからAPKを再取得し、38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `ac851a9`でGitHub Pages built。公開index・mock・manual・v0.15画像を再取得して同commitとbyte一致し、公開browserでv0.15.0導線、画像欠落0、840px横overflow 0、ready候補3件と「認識中」、全角句読点・Space・Enterを確認した。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -218,6 +228,8 @@ Passed: 2 / 2
 [2026/09/13 00:38 JST] v0.14.0をGitHub ReleaseへAPK単体で公開し、認証済みGitHub API経由の再downloadが38,583,304 bytes、SHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`でlocalと一致した。repository `masuidrive/android-kbd`はprivateなので、未認証の直接download URLは404となる。Hanger Sitesはdisplay nameをv0.14.0、access modeをpublicへ更新し、48ファイル全件のhashと公開index/demo/manualのbyte一致を確認した。APK/ZIPはsiteに含めていない。対応実機で10秒以上発話し、縦候補から2回連続確定、Cancel停止を確認後にclose承認を依頼する。
 
 [2026/09/13 01:47 JST] 追加のサイトfeedbackを反映した製品トップ・操作mock・manualを`https://masuidrive.jp/products/md-kbd/`へ公開した。独立`demo.html`は配信せず、トップ`#demo`で操作できる。GitHub Pagesの最新build、HTTP 200、公開browserの初期Dual Flick日本語、初回入力置換、横overflow 0、画像欠落0を確認済み。ticketは引き続き、対応実機での長発話と連続確定を含むユーザ確認および明示close承認を待つ。
+
+[2026/09/13 02:36 JST] v0.15.0をGitHub ReleaseへAPK単体で公開し、公式`https://masuidrive.jp/products/md-kbd/`も音声最下段5列とv0.15実画面へ更新した。repositoryはprivateのためAPK直接URLはGitHub認証が必要。対応実機では、認識中と候補表示中に句読点・Space・Enterを使っても候補が残ること、Cancel後に次の文字へCtrl/Altが漏れないことを確認する。ユーザの明示close承認まではticketを閉じない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
