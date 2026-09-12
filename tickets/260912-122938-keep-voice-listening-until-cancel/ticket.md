@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-080017-show-emoji-recents-and-expand-catalog
 description: "Keep voice recognition active until cancel"
 created_at: "2026-09-12T12:29:38Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T12:41:26Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
