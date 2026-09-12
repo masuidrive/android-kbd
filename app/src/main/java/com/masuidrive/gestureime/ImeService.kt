@@ -267,9 +267,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         setBackgroundColor(getColor(R.color.keyboard_background))
         emojiGridColumns = 8
         emojiGridRows = 3f
-        // AndroidX marks its Recent group for refresh before invoking this callback. The
-        // action below persists the value first, so that refresh reads publicRecentProvider;
-        // replacing the provider here would rebuild the picker asynchronously.
+        // AndroidX invokes this listener before it records its selection and marks Recent
+        // dirty. A successful public commit therefore installs a fresh provider afterward.
         setOnEmojiPickedListener(Consumer { item -> onKeyAction(KeyAction.CommitEmoji(item.emoji)) })
         setRecentEmojiProvider(provider)
         setOnHierarchyChangeListener(object : ViewGroup.OnHierarchyChangeListener {
@@ -740,6 +739,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 resetConversion(clearComposing = false)
                 if (editorSession.isCurrent(editorToken) && textController.commitText(action.text) && !textController.isPrivateField) {
                     keyboardView?.setEmojiRecents(ImePreferences.recordEmojiRecent(this, action.text))
+                    // Refresh the visible Recent group only after the guarded editor commit
+                    // and preference write; AndroidX's listener runs before both.
+                    publicEmojiPicker?.setRecentEmojiProvider(publicRecentProvider())
                 }
             }
             is KeyAction.KanaInput -> {

@@ -7,6 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
+import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.emoji2.emojipicker.RecentEmojiProvider
 import com.masuidrive.gestureime.conversion.ConversionEngine
 import com.masuidrive.gestureime.conversion.ConversionCommit
 import com.masuidrive.gestureime.conversion.ConversionCandidate
@@ -22,7 +24,9 @@ import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.voice.VoiceRecognitionController
 import com.masuidrive.gestureime.voice.VoiceRecognizerFactory
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -384,12 +388,20 @@ class ImeServiceEnglishSuggestionTest {
         harness.idle()
         harness.key("a")
         harness.idle()
+        val publicPicker = harness.root.findView { it is EmojiPickerView } as EmojiPickerView
+        val recentProvider = EmojiPickerView::class.java.getDeclaredField("recentEmojiProvider").apply {
+            isAccessible = true
+        }
+        val providerBeforeCommit = recentProvider.get(publicPicker) as RecentEmojiProvider
         harness.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         harness.service.onKeyAction(KeyAction.CommitEmoji("❤️"))
         harness.idle()
 
         assertEquals("かa❤️", harness.input.visibleText)
         assertEquals(listOf("❤️"), ImePreferences.getEmojiRecents(harness.service))
+        val providerAfterCommit = recentProvider.get(publicPicker) as RecentEmojiProvider
+        assertNotSame(providerBeforeCommit, providerAfterCommit)
+        assertEquals(listOf("❤️"), runBlocking { providerAfterCommit.getRecentEmojiList() })
         val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
         assertEquals("タップ AZ、上 日本語、右 QWERTY、下 テンキー", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(3)?.contentDescription)
 
