@@ -201,6 +201,14 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
+        // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
+        // The latter must not be clamped by Faces' previous actual viewport.
+        assertEquals(155, boundedEmojiViewport(173, 155))
+        assertEquals(173, boundedEmojiViewport(173, 173))
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout

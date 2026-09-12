@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -74,7 +75,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var emojiPickerBottomMask: View? = null
     private val pickerLayoutSignatures = mutableMapOf<EmojiPickerView, Pair<Int, Int>>()
     private val pickerViewportHeights = mutableMapOf<EmojiPickerView, Int>()
+    private val pickerViewportMaximums = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportLocked = mutableSetOf<EmojiPickerView>()
+    private val pickerViewportAwaitingCategoryScroll = mutableSetOf<EmojiPickerView>()
     private val pickerBodies = mutableMapOf<EmojiPickerView, RecyclerView>()
     private val pickerHeaders = mutableMapOf<EmojiPickerView, RecyclerView>()
     private var emojiPickerHeaderHeight = 0
@@ -122,7 +125,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         // A fresh input view owns fresh pickers; do not retain its detached predecessors.
         pickerLayoutSignatures.clear()
         pickerViewportHeights.clear()
+        pickerViewportMaximums.clear()
         pickerViewportLocked.clear()
+        pickerViewportAwaitingCategoryScroll.clear()
         pickerBodies.clear()
         pickerHeaders.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
@@ -157,6 +162,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val privatePicker = createEmojiPicker(privateRecentProvider()).also { privateEmojiPicker = it }
         pickerViewportHeights[publicPicker] = initialPickerViewportHeight
         pickerViewportHeights[privatePicker] = initialPickerViewportHeight
+        pickerViewportMaximums[publicPicker] = initialPickerViewportHeight
+        pickerViewportMaximums[privatePicker] = initialPickerViewportHeight
         val pickerBottomMask = View(this).apply {
             id = R.id.emoji_picker_bottom_mask
             setBackgroundColor(getColor(R.color.keyboard_background))
@@ -228,6 +235,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         emojiPickerControlTop = candidateHeight + viewportHeight
         listOfNotNull(publicEmojiPicker, privateEmojiPicker).forEach { picker ->
             pickerViewportHeights[picker] = viewportHeight
+            pickerViewportMaximums[picker] = viewportHeight
             // Keyboard width/height or a preset can change the AndroidX cell geometry.
             pickerViewportLocked.remove(picker)
             picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return@forEach).apply {
@@ -293,6 +301,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             // AndroidX's default manager divides phone width among all ten categories, which
             // produces 40dp targets. Keep all categories but let the 48dp holders scroll.
             header.layoutManager = LinearLayoutManager(this, RecyclerView.HORIZONTAL, false)
+            installEmojiCategoryTapListeners(picker, header)
             pickerHeaders[picker] = header
         }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
@@ -309,15 +318,62 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (body.childCount > 0) body.post { applyEmojiPickerViewport(picker, body) }
     }
 
-    private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
-        val presetViewport = pickerViewportHeights[picker]
-        val observedViewport = emojiThreeRowViewport(body)?.let { observed ->
-            presetViewport?.let { observed.coerceAtMost(it) } ?: observed
+    private fun installEmojiCategoryTapListeners(picker: EmojiPickerView, header: RecyclerView) {
+        fun install(holder: View) {
+            var downX = 0f
+            var downY = 0f
+            val touchSlop = ViewConfiguration.get(holder.context).scaledTouchSlop
+            holder.setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        downX = event.x
+                        downY = event.y
+                    }
+                    android.view.MotionEvent.ACTION_UP -> {
+                        if (kotlin.math.abs(event.x - downX) <= touchSlop &&
+                            kotlin.math.abs(event.y - downY) <= touchSlop
+                        ) {
+                            beginEmojiCategoryTransition(picker, view)
+                        }
+                    }
+                }
+                // AndroidX owns the holder click listener that changes the selected group.
+                false
+            }
         }
+        header.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+            override fun onChildViewAttachedToWindow(view: View) = install(view)
+            override fun onChildViewDetachedFromWindow(view: View) = Unit
+        })
+        repeat(header.childCount) { install(header.getChildAt(it)) }
+    }
+
+    private fun beginEmojiCategoryTransition(picker: EmojiPickerView, holder: View) {
+        pickerViewportLocked.remove(picker)
+        pickerViewportAwaitingCategoryScroll += picker
+        // AndroidX scrolls its body from the holder's existing click listener after this
+        // non-consuming touch callback. Wait through that layout before measuring its new
+        // complete third row. A normal body drag never enters this path.
+        holder.postOnAnimation {
+            holder.postOnAnimation {
+                if (pickerViewportAwaitingCategoryScroll.remove(picker)) {
+                    pickerBodies[picker]?.let { applyEmojiPickerViewport(picker, it) }
+                }
+            }
+        }
+    }
+
+    private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
+        val presetViewport = pickerViewportMaximums[picker]
+        val observedViewport = boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
         val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
         val viewportHeight = resolveEmojiViewport(lockedViewport, observedViewport)
             ?: pickerViewportHeights[picker]
             ?: return
+        if (picker in pickerViewportAwaitingCategoryScroll) {
+            body.clipBounds = Rect(0, 0, body.width, viewportHeight)
+            return
+        }
         // Let AndroidX create its cells from the one-spacer-taller parent first. The actual
         // EmojiView bounds, rather than a preset estimate, then define the three-row body.
         if (observedViewport == null) {
@@ -1218,6 +1274,10 @@ internal fun thirdEmojiRowBottomAtCategoryStart(bounds: List<Rect>, categorySpac
 
 internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?): Int? =
     lockedViewport ?: observedViewport
+
+/** The physical keyboard preset caps every category; a prior category's actual height does not. */
+internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?): Int? =
+    observedViewport?.let { observed -> maximumViewport?.let { observed.coerceAtMost(it) } ?: observed }
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
