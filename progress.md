@@ -198,3 +198,4 @@
 [2026/09/12 17:16] 更新後の絵文字レイヤー契約を独立AC読み手が再確認し、50dpカテゴリ行・一覧3行・固定control 1行の高さ固定、Recent更新、private履歴非表示を含むAC 1〜8を承認した。
 [2026/09/12 17:54] AndroidX Emoji Picker 1.6.0を導入し、候補欄位置をRecent先頭のカテゴリicon行、下を3行scroll一覧、最下段をlayer切替・削除へ変更した。Recentを24件へ拡張し、mockもカテゴリ切替・縦scroll・入力反映へ対応した。
 [2026/09/12 17:54] reviewで通常Recentがprivate欄へ一時表示され得る非同期競合を検出したため、通常用とprivate用のpickerを分離した。Fold幅・高さpreset変更時のgrid再計測、背景色、非表示カテゴリ名のTalkBack除外も修正し、全test 2/2を通過した。
+[2026/09/12 18:16] 絵文字レイヤーの通常候補欄を完全に非表示にし、同じ50dp位置をRecentの履歴iconを先頭とするAndroidXカテゴリicon行へ置換した。API 36 Light実画面でカテゴリ名文字なし、一覧3行、部分的な4行目なし、固定control行を確認。操作mockもRecentをiconで示し、412px LightとTablet Darkで横overflowなし、全test 2/2 PASSを確認した。
