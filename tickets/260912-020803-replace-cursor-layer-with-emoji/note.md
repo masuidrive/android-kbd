@@ -1,6 +1,6 @@
 # Work Notes: 260912-020803-replace-cursor-layer-with-emoji
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review (Verification complete)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: APK内catalogと端末内SharedPreferencesだけを使い、外部providerを設けないticketである。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -121,6 +121,15 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 Attempt 3結論: **No Critical/Major**。Attempt 2の4 findingはすべて解消し、修正による入力・page・accessibility・referenceの退行は見つからなかった。full suiteは重複実行せず、実装者のexact-code-state PASS記録を確認した。
 
 - attempt3 focused: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew :app:testDebugUnitTest --rerun-tasks --tests com.masuidrive.gestureime.ImeServiceEnglishSuggestionTest --tests com.masuidrive.gestureime.ImePreferencesTest --tests com.masuidrive.gestureime.keyboard.KeyboardLayoutsTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` — `BUILD SUCCESSFUL`、4 classes PASS。Gradle summaryに件数は出力されなかったため、件数は記録しない。
+
+## PDH-verify. AC・Surface裏取り
+
+- target `b4f3d762ecf1cb354e0280d307d7d567fc5fd080`（contract correction `48bc46e`を含む）でAC 1〜6をcode、fresh test XML、API 36 AVD capture、docs、実行時browserから独立に突合し、全件`VERIFIED`、blockerなしと判定した。詳細は`tmp/verify-result.md`。
+- fresh XMLは`ImePreferencesTest` 7件、`ImeServiceEnglishSuggestionTest` 25件、`KeyboardLayoutsTest` 13件、`KeyboardViewTest` 44件の計89件がskip/failure/errorなし。実装者のfull suiteはfast-checksとAndroid unit/lint/APKがPASSしており、重複実行していない。
+- API 36 arm64 AVDの`emoji-api36-recent.png`を原寸確認した。通常editorへ😀が直接入力され、同じ😀がrecent先頭に現れ、候補欄・recent・catalog 2行・navigation行・bottom safe areaが同時に見える。`b4f3d76`はpage indicatorの操作/action説明だけを変更してこの画像の表示・入力・recent証拠へ影響しないため、その範囲でfreshと判断した。page tapはtarget SHAのunit/browserで別途確認した。
+- `agent-browser`で実配信構成の`site/demo.html`を操作した。日本語とテンキー左上から絵文字へ入り、中央の頁表示tapで1/2→2/2、2頁目☕の直接入力、💯入力後に☕をrecentから再入力してrecentが`☕, 💯`の新しい順・重複なしとなること、reload後も同じ順と2/2が復元すること、4行・overflow 0を確認した。
+- 絵文字レイヤー最下段キーを実フリックし、上=日本語、右=QWERTY、下=テンキー、左=音声入力へ到達した。日本語Spaceの左フリックでは値`ab`を変えずcaretが2から0へ移動した。nativeはlayout/view testsで同じaction mappingとSpace四方向を確認した。
+- `KeyboardMode.CURSOR`、専用カーソルレイヤー文言、mockのcursor stateは現行app/product/site/referenceから消えている。旧保存文字列`CURSOR`だけはmigration入力としてKANA fallbackへ残る。README、Product Brief、manual、site/mock、canonical references、`technical-reference.md` decisions 16/17は6レイヤー、4行、2ページ、recent、Space cursorと一致する。物理Galaxy Z Fold7は未所持で、実機開閉・hinge・physical multi-touchは未観察。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
