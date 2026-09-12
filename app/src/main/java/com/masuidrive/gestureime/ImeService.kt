@@ -383,7 +383,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val currentBaseline = EmojiViewportBaseline(
             viewportHeight = pickerViewportHeights[picker],
             wasLocked = picker in pickerViewportLocked,
-            bodyHeight = body.layoutParams?.height,
             clipBounds = body.clipBounds?.let { Rect(it) },
         )
         val baseline = nextEmojiCategoryBaseline(
@@ -443,11 +442,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (emptyRecentVisible) {
             pickerViewportHeights[picker] = viewportHeight
             pickerViewportLocked += picker
-            val params = body.layoutParams ?: return
-            if (params.height != viewportHeight) {
-                params.height = viewportHeight
-                body.layoutParams = params
-            }
             body.clipBounds = Rect(0, 0, body.width, viewportHeight)
             updateEmojiPickerMask()
             return
@@ -463,11 +457,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (lockedViewport != null) return
         pickerViewportHeights[picker] = viewportHeight
         pickerViewportLocked += picker
-        val params = body.layoutParams ?: return
-        if (params.height != viewportHeight) {
-            params.height = viewportHeight
-            body.layoutParams = params
-        }
         body.clipBounds = Rect(0, 0, body.width, viewportHeight)
         updateEmojiPickerMask()
     }
@@ -1320,7 +1309,6 @@ private data class EmojiCategoryTransition(
 internal data class EmojiViewportBaseline(
     val viewportHeight: Int?,
     val wasLocked: Boolean,
-    val bodyHeight: Int?,
     val clipBounds: Rect?,
 )
 
@@ -1434,18 +1422,21 @@ internal fun isEmojiCategoryAtBodyStart(
 ): Boolean = firstVisiblePosition == categoryTitlePositions.getOrNull(targetCategory)
 
 private fun isTargetEmojiCategoryAtBodyStart(body: RecyclerView, targetCategory: Int): Boolean {
-    val adapter = body.adapter ?: return false
     val manager = body.layoutManager as? GridLayoutManager ?: return false
-    val categoryTitlePositions = buildList {
+    return isEmojiCategoryAtBodyStart(
+        firstVisiblePosition = manager.findFirstVisibleItemPosition(),
+        categoryTitlePositions = emojiCategoryTitlePositions(body),
+        targetCategory = targetCategory,
+    )
+}
+
+private fun emojiCategoryTitlePositions(body: RecyclerView): List<Int> {
+    val adapter = body.adapter ?: return emptyList()
+    return buildList {
         repeat(adapter.itemCount) { position ->
             if (adapter.getItemViewType(position) == EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE) add(position)
         }
     }
-    return isEmojiCategoryAtBodyStart(
-        firstVisiblePosition = manager.findFirstVisibleItemPosition(),
-        categoryTitlePositions = categoryTitlePositions,
-        targetCategory = targetCategory,
-    )
 }
 
 internal fun isEmojiPlaceholderInViewport(visibility: Int, bounds: Rect, viewport: Rect): Boolean =

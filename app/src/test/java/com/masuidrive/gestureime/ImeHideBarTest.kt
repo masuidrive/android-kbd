@@ -174,10 +174,13 @@ class ImeHideBarTest {
             val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
             val density = service.resources.displayMetrics.density
             val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+            val measurementSpacer = (8 * density).toInt()
             assertEquals(10, header.adapter!!.itemCount)
             val headerWidths = (0 until header.childCount).map { header.getChildAt(it).width }
             assertTrue("header widths=$headerWidths", headerWidths.filter { it > 0 }.all { it >= (48 * density).toInt() })
-            assertTrue(body.height >= expectedViewport)
+            // AndroidX cells are measured from the preset maximum plus one spacer. Category
+            // viewport changes must only alter the clip/mask, never this physical body height.
+            assertEquals(expectedViewport + measurementSpacer, body.height)
             assertEquals(expectedViewport, body.clipBounds!!.bottom)
             // BodyAdapter calculates a cell from (measured body - two spacers) / 3. The
             // measured one-spacer overscan makes this exactly the preset pitch; the actual
@@ -284,13 +287,11 @@ class ImeHideBarTest {
         val stable = EmojiViewportBaseline(
             viewportHeight = 155,
             wasLocked = true,
-            bodyHeight = 163,
             clipBounds = Rect(0, 0, 412, 155),
         )
         val unlockedIntermediate = EmojiViewportBaseline(
             viewportHeight = 155,
             wasLocked = false,
-            bodyHeight = 163,
             clipBounds = Rect(0, 0, 412, 155),
         )
 
