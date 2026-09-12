@@ -2,6 +2,11 @@
 <resources>
     <color name="app_background">#FFFFFF</color>
     <color name="app_accent">#007AFF</color>
+    <color name="setup_page">#F4F4F4</color>
+    <color name="setup_surface">#FFFFFF</color>
+    <color name="setup_heading">#212529</color>
+    <color name="setup_divider">#E02613</color>
+    <color name="setup_control">#F3F4F7</color>
     <color name="keyboard_background">#D3D5DB</color>
     <color name="keyboard_key">#FFFFFF</color>
     <color name="keyboard_special">#AEB3BD</color>

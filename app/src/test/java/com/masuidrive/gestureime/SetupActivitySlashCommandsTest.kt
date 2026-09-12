@@ -6,6 +6,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.LinearLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -71,6 +72,10 @@ class SetupActivitySlashCommandsTest {
         val minimum = (48 * activity.resources.displayMetrics.density).toInt()
         descendants.filter { it is Button || it is Switch || it is EditText }
             .forEach { assertTrue("${it.javaClass.simpleName} touch target", it.minimumHeight >= minimum) }
+
+        val sectionCards = descendants.filterIsInstance<LinearLayout>().filter { it.elevation > 0f }
+        assertEquals("four visually distinct setting sections", 4, sectionCards.size)
+        assertTrue(sectionCards.all { it.background != null && it.paddingLeft > 0 })
     }
 
     private fun View.descendants(): List<View> {
