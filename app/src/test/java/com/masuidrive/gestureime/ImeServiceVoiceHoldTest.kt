@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.*
 import org.robolectric.annotation.Config
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class ImeServiceVoiceHoldTest {
@@ -83,6 +84,39 @@ class ImeServiceVoiceHoldTest {
         h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
         assertTrue(!h.root.findKeyboard().voiceSessionActive())
         assertEquals(2, h.recognizer.startCount)
+    }
+
+    @Test fun rapidDoubleTapOfOneVoicePreviewCommitsAndRestartsOnlyOnce() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("一回だけ"); h.idle()
+        val candidate = h.root.findText("一回だけ")
+
+        candidate.performClick(); candidate.performClick(); h.idle()
+        h.recognizer.support?.invoke(true); h.idle()
+
+        assertEquals("一回だけ", h.input.text)
+        assertEquals(2, h.recognizer.startCount)
+        assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
+    }
+
+    @Test fun queuedVoicePreviewTapCannotCommitOrRestartAfterCancelInvalidatesItsSession() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("古い候補"); h.idle()
+        val mutex = ImeService::class.java.getDeclaredField("actionMutex").apply { isAccessible = true }.get(h.service) as kotlinx.coroutines.sync.Mutex
+        runBlocking { mutex.lock() }
+        try {
+            h.service.onKeyAction(KeyAction.SelectCandidate(0))
+            h.service.onKeyAction(KeyAction.CancelVoice)
+        } finally {
+            mutex.unlock()
+        }
+        h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
     }
 
     @Test fun earlyResultWaitsForReleaseAndCommitsOnce() {
