@@ -1,6 +1,6 @@
 # Work Notes: 260912-002431-stabilize-ime-height-after-app-switch
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,20 +9,20 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部providerを経由しないnative layout変更
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -41,7 +41,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
 - [x] API 36.1 AVDで修正前相当の通常表示を観察し、見えていた約131物理pxはdensity 420の固定50dp候補欄と一致した。追加offsetは実切替では常時再現しなかった。
 - [x] `KeyboardView.onMeasure`へ前入力先由来を模した500px `EXACTLY`を与えると、旧実装はintrinsic 228pxでなく500pxを採用するrace条件をコードと回帰testで固定した。
@@ -72,6 +72,37 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | 親の小さい高さ制約 | Major | 初版がheight MeasureSpecを全て捨て、小さい利用可能高でもintrinsic高を返す | 採用・解消 | intrinsicを上限にし、AT_MOST/EXACTLYは小さいspecSizeを尊重。全5modeの160px計測とa11y boundsを回帰化 |
+
+### Findings (PDH-review-2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | 高さ制約・全5レイヤー | - | Critical/Majorなし | 解消済み | `16c85fc`で過大値と小さい制約を両方処理し、a11y boundsと実機10表示を再確認 |
+
+## PDH-verify. 検証結果
+
+- AC 1 VERIFIED: 固定50dp候補欄と正常なkey boundsを維持し、2アプリ間10表示で余分な空白・重なりなし。
+- AC 2 VERIFIED: QWERTY/KANA/NUMBERS/SYMBOLS/VOICEで過大EXACTLYをintrinsic高へ制限し、小さいAT_MOST/EXACTLYは親高へ収めた。
+- AC 3 VERIFIED: Settings検索欄と内蔵入力テストを5往復した保存10frameすべてでkeyboard背景上端`y=1545`。
+- Surface Observer: `docs/verification/260912-002431-app-switch/`の10往復画像と5mode画像で候補欄・4行キー・下段操作にずれなし。
+- Documentation: `technical-reference.md` Decision 17を更新。PDH配布物の更新は不要。
+
+最終suite:
+
+```text
+$ scripts/test-all.sh --parallel
+Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.2vpxIFvGx4
+  Starting: fast-checks (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.2vpxIFvGx4/fast-checks.log)
+  Starting: android unit, lint, apk (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.2vpxIFvGx4/android_unit,_lint,_apk.log)
+
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+
+Passed: 2 / 2
+```
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
