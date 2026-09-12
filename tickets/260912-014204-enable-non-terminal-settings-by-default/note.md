@@ -23,7 +23,7 @@
 - [x] PDH-verify: Surface Observer観察済み
 - [x] PDH-verify: ドキュメント更新の要否を確認済み
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -97,6 +97,9 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 確認手順: 新規インストール相当の設定画面でDual Flick・英数字候補・Android個人辞書がON、ターミナル向けカーソル操作がOFFであることを確認する。任意のswitchをOFFにして設定画面を開き直し、OFFが維持されることを確認する。
+- 実装・自動検証・API 36.1 Light/Dark観察を提示し、ユーザ確認待ち。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
