@@ -53,14 +53,15 @@ class ImeHideBarTest {
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, mask.importantForAccessibility)
         assertEquals(2, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
 
-        val expectedMaskHeight = (8 * service.resources.displayMetrics.density).toInt()
         KeyboardHeightPreset.entries.forEach { preset ->
             keyboard.setHeightPreset(preset)
             root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
             Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
             root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
-            assertEquals(expectedMaskHeight, mask.height)
-            assertEquals((picker.layoutParams as FrameLayout.LayoutParams).height, mask.top + mask.height)
+            assertEquals(0, mask.height)
+            assertEquals((50 * service.resources.displayMetrics.density).toInt() +
+                (8 * service.resources.displayMetrics.density).toInt() +
+                (preset.rowPitchDp * service.resources.displayMetrics.density * 3).toInt(), mask.top)
         }
     }
 
@@ -164,17 +165,28 @@ class ImeHideBarTest {
             assertEquals(10, header.adapter!!.itemCount)
             val headerWidths = (0 until header.childCount).map { header.getChildAt(it).width }
             assertTrue("header widths=$headerWidths", headerWidths.filter { it > 0 }.all { it >= (48 * density).toInt() })
-            assertEquals(expectedViewport, body.height)
+            assertTrue(body.height >= expectedViewport)
             assertEquals(expectedViewport, body.clipBounds!!.bottom)
             // BodyAdapter calculates a cell from (measured body - two spacers) / 3. The
             // measured one-spacer overscan makes this exactly the preset pitch; the actual
             // RecyclerView child is shrunk and clips touch/drawing/A11y at three rows.
             val rowPitch = (preset.rowPitchDp * density).toInt()
-            assertEquals(3, (body.height - (8 * density).toInt()) / rowPitch)
+            assertEquals(3, (expectedViewport - (8 * density).toInt()) / rowPitch)
             assertTrue(rowPitch >= (48 * density).toInt())
             assertTrue(body.clipChildren && body.clipToPadding)
             assertTrue(body.adapter != null)
         }
+    }
+
+    @Test
+    fun attachedEmojiRowsDefineTheExactThreeRowViewport() {
+        val bounds = listOf(
+            Rect(0, 8, 50, 58), Rect(50, 8, 100, 58),
+            Rect(0, 58, 50, 108), Rect(50, 58, 100, 108),
+            Rect(0, 108, 50, 158), Rect(50, 108, 100, 158),
+            Rect(0, 158, 50, 208),
+        )
+        assertEquals(158, thirdEmojiRowBottom(bounds))
     }
 
     @Test
