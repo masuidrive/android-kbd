@@ -68,6 +68,14 @@ class ImeHideBarTest {
 
         assertEquals(View.GONE, publicPicker.visibility)
         assertEquals(View.VISIBLE, privatePicker.visibility)
+
+        // A second editor switch must synchronously restore the public instance;
+        // the private provider is never swapped onto the public picker.
+        service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertEquals(View.VISIBLE, publicPicker.visibility)
+        assertEquals(View.GONE, privatePicker.visibility)
     }
 
     @Test
