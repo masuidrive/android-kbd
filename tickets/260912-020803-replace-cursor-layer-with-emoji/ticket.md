@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-112512-align-candidate-strip-spacing
 description: "Replace the cursor layer with a recent-first emoji layer"
 created_at: "2026-09-12T02:08:03Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T04:08:34Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
