@@ -384,7 +384,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             observer.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
                 override fun onPreDraw(): Boolean {
                     if (observer.isAlive) observer.removeOnPreDrawListener(this)
-                    completeEmojiCategoryTransition(picker, body, generation)
+                    // RecyclerView can still expose a partially recycled old row during its
+                    // pre-draw callback. Measure on the next animation callback instead.
+                    body.postOnAnimation { completeEmojiCategoryTransition(picker, body, generation) }
                     return true
                 }
             })
@@ -1293,7 +1295,7 @@ internal fun isEligibleHistoryLongPress(
 private const val MAX_ENGLISH_BUFFER = 64
 private const val MAX_ENGLISH_CANDIDATES = 5
 private const val EMOJI_PICKER_BODY_SPACER_DP = 8f
-private const val EMOJI_CATEGORY_TRANSITION_FALLBACK_MS = 100L
+private const val EMOJI_CATEGORY_TRANSITION_FALLBACK_MS = 200L
 
 /** Returns the body-coordinate lower edge of three attached AndroidX emoji rows. */
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
