@@ -187,6 +187,7 @@ class ImeHideBarTest {
             Rect(0, 158, 50, 208),
         )
         assertEquals(158, thirdEmojiRowBottom(bounds))
+        assertEquals(158, resolveEmojiViewport(158, 150))
     }
 
     @Test

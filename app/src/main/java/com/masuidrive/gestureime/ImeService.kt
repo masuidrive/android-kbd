@@ -74,6 +74,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var emojiPickerBottomMask: View? = null
     private val pickerLayoutSignatures = mutableMapOf<EmojiPickerView, Pair<Int, Int>>()
     private val pickerViewportHeights = mutableMapOf<EmojiPickerView, Int>()
+    private val pickerViewportLocked = mutableSetOf<EmojiPickerView>()
     private val pickerBodies = mutableMapOf<EmojiPickerView, RecyclerView>()
     private val pickerHeaders = mutableMapOf<EmojiPickerView, RecyclerView>()
     private var emojiPickerHeaderHeight = 0
@@ -121,6 +122,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         // A fresh input view owns fresh pickers; do not retain its detached predecessors.
         pickerLayoutSignatures.clear()
         pickerViewportHeights.clear()
+        pickerViewportLocked.clear()
         pickerBodies.clear()
         pickerHeaders.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
@@ -226,6 +228,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         emojiPickerControlTop = candidateHeight + viewportHeight
         listOfNotNull(publicEmojiPicker, privateEmojiPicker).forEach { picker ->
             pickerViewportHeights[picker] = viewportHeight
+            // Keyboard width/height or a preset can change the AndroidX cell geometry.
+            pickerViewportLocked.remove(picker)
             picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return@forEach).apply {
                 height = pickerHeight
             }
@@ -305,18 +309,25 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
-        val viewportHeight = emojiThreeRowViewport(body)
+        val presetViewport = pickerViewportHeights[picker]
+        val observedViewport = emojiThreeRowViewport(body)?.let { observed ->
+            presetViewport?.let { observed.coerceAtMost(it) } ?: observed
+        }
+        val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
+        val viewportHeight = resolveEmojiViewport(lockedViewport, observedViewport)
             ?: pickerViewportHeights[picker]
             ?: return
         // Let AndroidX create its cells from the one-spacer-taller parent first. The actual
         // EmojiView bounds, rather than a preset estimate, then define the three-row body.
-        if (emojiThreeRowViewport(body) == null) {
+        if (observedViewport == null) {
             // Robolectric and the first loader frame can have an adapter before it attaches
             // EmojiViews. Keep its measurement for cell creation but clip its visible area.
             body.clipBounds = Rect(0, 0, body.width, viewportHeight)
             return
         }
+        if (lockedViewport != null) return
         pickerViewportHeights[picker] = viewportHeight
+        pickerViewportLocked += picker
         val params = body.layoutParams ?: return
         if (params.height != viewportHeight) {
             params.height = viewportHeight
@@ -1195,6 +1206,9 @@ internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
 
 internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
     bounds.groupBy { it.top }.toSortedMap().values.toList().getOrNull(2)?.maxOf { it.bottom }
+
+internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?): Int? =
+    lockedViewport ?: observedViewport
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
