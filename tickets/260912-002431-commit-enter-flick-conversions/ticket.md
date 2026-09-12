@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-002431-stabilize-ime-height-after-app-switch
 description: "Commit unconverted and katakana text directly from Enter flicks"
 created_at: "2026-09-12T00:24:31Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T00:49:51Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
