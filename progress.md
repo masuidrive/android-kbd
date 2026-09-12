@@ -166,3 +166,4 @@
 [2026/09/12 11:09] Mozc `REQUEST_NWP`で日本語確定後の次単語候補を既存候補欄へ出すticket `260912-020555-add-mozc-next-word-prediction` を作成。候補タップ後の連続予測、入力・選択・欄切替時のclear、private欄での文脈取得禁止を契約化した。カーソル専用レイヤーをrecent-first絵文字レイヤーへ置換するticket `260912-020803-replace-cursor-layer-with-emoji` も後続として作成した。
 [2026/09/12 11:18] target SDK 36のedge-to-edgeでSetupがstatus barへ入り込む原因をinset未処理と特定。固定トップアプリバー「masuidrive-kbd 設定」、戻る操作、systemBars/displayCutout safe area、Light/Dark system iconを整えるticket `260912-021714-fix-setup-safe-area-and-app-bar` を作成し、高さ設定ticketの先行依存にした。
 [2026/09/12 11:19] Mozc `REQUEST_NWP`へ通常欄の有限周辺文脈を渡し、確定後の次単語候補を既存候補欄へ接続した。候補tapは`SUBMIT_CANDIDATE`で直前文字を置換せず確定して再予測し、private/学習禁止欄では周辺文字列を取得しない。API 36.1 arm64 AVDで同梱辞書の`あけまして`文脈が非空候補を返し、submit結果も非空であることをinstrumentationで確認した。
+[2026/09/12 11:25] 候補欄と最上段キーの縦間隔をキー行間隔へ揃え、先頭候補の左側にも同じ外周余白を設けるticket `260912-112512-align-candidate-strip-spacing` を作成。固定高さの後、nativeと公開demoを同じ寸法基準で更新する。

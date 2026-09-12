@@ -1,6 +1,6 @@
 ---
 priority: 2
-base_branch: features/260912-014943-fixed-keyboard-height
+base_branch: features/260912-112512-align-candidate-strip-spacing
 description: "Replace the cursor layer with a recent-first emoji layer"
 created_at: "2026-09-12T02:08:03Z"
 started_at: null  # Do not modify manually
@@ -73,7 +73,7 @@ Spaceフリックと日本語左列でカーソル移動できるため、専用
      PM が自主的に実装詳細を書いてはならない (下流の自由度を奪う)。 -->
 
 ### Dependencies
-`260912-014943-fixed-keyboard-height`。絵文字一覧のページングを追加する前に4行高を安定させる。
+`260912-112512-align-candidate-strip-spacing`。固定高さと候補欄の外周余白が揃った後で、絵文字一覧のページングを追加する。
 <!-- この ticket に着手するために完了が必要な他の ticket。
      「参考情報」ではなく「ブロッカー」だけ書く。なければ省略。
      ブロッカー = これが未完了だと実装・テストが物理的にできない依存。
