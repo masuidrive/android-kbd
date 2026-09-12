@@ -178,3 +178,4 @@
 [2026/09/12 13:56] 絵文字レイヤーreview attempt2を修正し、中央の頁表示キーを先頭で次・最終で前へ進む操作にした。かなcomposition直結とconversion reset中のeditor切替でemojiを誤確定・recent更新しないservice回帰test、現行レイヤー遷移のreferenceを追加した。
 [2026/09/12 14:02] 絵文字レイヤーreview attempt3のfocused証跡を指定4クラスでfresh再実行し、Gradle `BUILD SUCCESSFUL`を確認した。summaryに件数がないため、4 classes PASSとしてnoteとresultへ記録した。
 [2026/09/12 14:11] v0.11.0公開準備としてAPK versionCodeを12、versionNameを0.11.0へ更新し、製品siteのAPKリンク、現行表記、safe-area・高さ・候補余白・絵文字recentの画像参照、release notesを同期した。公開・push・GitHub releaseは未実施。
+[2026/09/12 14:19] release reviewで変換中Enterの上・左フリック即時確定がv0.10公開済みと確認し、v0.11.0 release notesとmanualの新規変更一覧から削除した。公開・push・GitHub releaseは未実施。

@@ -9,6 +9,7 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
+- [ ] ユーザー承認済みのv0.11.0 APKをZIP化せずGitHub Releasesへ公開し、Sitesの製品紹介・操作モック・マニュアルを更新してGitHubへpushする。
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
@@ -121,6 +122,14 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 Attempt 3結論: **No Critical/Major**。Attempt 2の4 findingはすべて解消し、修正による入力・page・accessibility・referenceの退行は見つからなかった。full suiteは重複実行せず、実装者のexact-code-state PASS記録を確認した。
 
 - attempt3 focused: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew :app:testDebugUnitTest --rerun-tasks --tests com.masuidrive.gestureime.ImeServiceEnglishSuggestionTest --tests com.masuidrive.gestureime.ImePreferencesTest --tests com.masuidrive.gestureime.keyboard.KeyboardLayoutsTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` — `BUILD SUCCESSFUL`、4 classes PASS。Gradle summaryに件数は出力されなかったため、件数は記録しない。
+
+### Findings (release review / v0.11 preparation)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Release review | Major | v0.11 release notesとmanualの変更一覧が、変換中Enterの上・左フリック即時確定をv0.11の新規機能としていた。 | 修正 | `docs/v0.11-release-notes.md`とmanualのv0.11変更一覧から当該項目を削除した。 |
+
+- release review counterexample: `dc8a221`は変換中Enterの即時確定を実装したv0.10公開前のcommitであり、`progress.md`の[2026/09/12 10:01]にも同じ変更を記録している。v0.10.0は同日10:27に公開済みのため、v0.11新規項目にはできない。
 
 ## PDH-verify. AC・Surface裏取り
 
