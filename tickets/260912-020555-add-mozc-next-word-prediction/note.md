@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み - skip: Mozcと辞書はAPK同梱であり、外部provider/APIを使用しない。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -77,6 +77,17 @@
 | 2 | async prediction | Major | NWP待機中のselection変更で古い結果が再表示される | 修正済み | `predictionRequestInFlight`中も予期しないselectionでgenerationを無効化し、遅延fakeで再表示しないことを確認した。 |
 | 3 | technical reference | Major | 予測候補の長押し削除可否が実装と矛盾 | 修正済み | Mozc予測候補の履歴削除とstate再表示、Android個人辞書候補の除外を明記した。 |
 
+### Findings (PDH-review-2)
+
+- 対象commit `d27b2dddd69b46fb45bc6b957c494a35819debe4`。Critical/Majorなし。3件のMajorが解消し、focused unit 62件とdiff checkがPASSした。
+- 修正前はcomposing置換量と確定文字数の不一致、およびNWP待機中selectionで予測が誤消去・再表示し得た。修正後は`にほんご→日本語`、同長かな/カタカナ、予測追記、遅延NWP中の外部selectionを個別に通し、壊していないprivate欄の周辺文字列非取得も継続してPASSした。
+
+## PDH-verify. AC裏取り
+
+- AC 1〜5を独立Verifierが`d27b2dd`でVERIFIED。focused JVM test 62/62、API 36.1 arm64 AVDのconnected test 11/11がPASSした。
+- 同梱`mozc.data`で`REQUEST_NWP`、`SUBMIT_CANDIDATE`、予測履歴削除を確認した。パスワード/学習禁止欄は周辺文字列APIの呼出回数0を確認した。
+- 物理Foldは未接続。system IMEとしての手動tap journeyは、既知の初回高さ問題でAVDの4行が画面外へ溢れたため未完了とし、後続の固定高さticketで再確認する。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -88,7 +99,7 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
-
+- 実装・競合修正・独立review・AC検証までは完了。後続の設定safe areaと固定高さを直したAPKで、利用者に確定後予測の手動確認を依頼する。
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
 例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
