@@ -15,7 +15,8 @@
         android:theme="@style/Theme.GestureIme">
         <activity
             android:name=".SetupActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.GestureIme.Setup">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

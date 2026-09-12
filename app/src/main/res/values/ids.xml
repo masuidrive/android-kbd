@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="setup_root" type="id" />
+    <item name="setup_app_bar" type="id" />
+    <item name="setup_back" type="id" />
+    <item name="setup_app_bar_title" type="id" />
+    <item name="setup_scroll" type="id" />
+    <item name="setup_content" type="id" />
+</resources>
