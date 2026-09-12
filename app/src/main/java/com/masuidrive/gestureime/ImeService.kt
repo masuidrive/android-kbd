@@ -426,7 +426,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         // category. Its three rows are valid geometry for the old category only.
         if (!isTargetEmojiCategoryAtBodyStart(body, transition.targetCategory)) return
         val placeholderVisible = hasVisibleEmojiEmptyCategoryPlaceholder(body)
-        val observedViewport = if (placeholderVisible) null else emojiThreeRowViewport(body)
+        val observedViewport = if (placeholderVisible) {
+            emptyRecentViewport(body)
+        } else {
+            emojiThreeRowViewport(body)
+        }
         if (isEmojiCategoryContentReady(transition.targetCategory, observedViewport, placeholderVisible)) {
             pickerViewportCategoryTransitions.remove(picker)
             applyEmojiPickerViewport(picker, body)
@@ -439,7 +443,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
         val presetViewport = pickerViewportMaximums[picker]
         val emptyRecentVisible = hasVisibleEmojiEmptyCategoryPlaceholder(body)
-        val observedViewport = if (emptyRecentVisible) null else {
+        val observedViewport = if (emptyRecentVisible) {
+            boundedEmojiViewport(presetViewport, emptyRecentViewport(body))
+        } else {
             boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
         }
         val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
@@ -451,6 +457,15 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (pickerViewportCategoryTransitions.containsKey(picker)) {
             body.clipBounds = Rect(0, 0, body.width, viewportHeight)
             updateEmojiPickerCellAccessibility(body, viewportHeight)
+            return
+        }
+        // The empty Recent placeholder is followed by the next category. Wait until both
+        // complete rows after that placeholder are attached before establishing the clip.
+        if (emptyRecentVisible && observedViewport == null && lockedViewport == null) {
+            val temporaryViewport = presetViewport ?: viewportHeight
+            body.clipBounds = Rect(0, 0, body.width, temporaryViewport)
+            updateEmojiPickerCellAccessibility(body, temporaryViewport)
+            updateEmojiPickerMask()
             return
         }
         if (emptyRecentVisible) {
@@ -1389,10 +1404,35 @@ private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
 private fun hasVisibleEmojiEmptyCategoryPlaceholder(body: RecyclerView): Boolean {
     val placeholder = body.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_empty_category_view)
         ?: return false
-    val bounds = Rect(0, 0, placeholder.width, placeholder.height)
-    body.offsetDescendantRectToMyCoords(placeholder, bounds)
+    val bounds = emojiEmptyPlaceholderBounds(body) ?: return false
     val viewport = body.clipBounds ?: Rect(0, 0, body.width, body.height)
     return isEmojiPlaceholderInViewport(placeholder.visibility, bounds, viewport)
+}
+
+private fun emojiEmptyPlaceholderBounds(body: RecyclerView): Rect? {
+    val placeholder = body.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_empty_category_view)
+        ?: return null
+    return Rect(0, 0, placeholder.width, placeholder.height).also {
+        body.offsetDescendantRectToMyCoords(placeholder, it)
+    }
+}
+
+/** Empty Recent occupies one row; retain exactly its placeholder plus two full emoji rows. */
+private fun emptyRecentViewport(body: RecyclerView): Int? =
+    emptyRecentViewportFromBounds(emojiEmptyPlaceholderBounds(body), emojiPickerRowBounds(body))
+
+internal fun emptyRecentViewportFromBounds(
+    placeholderBounds: Rect?,
+    emojiBounds: List<Rect>,
+    columns: Int = 8,
+): Int? {
+    val placeholder = placeholderBounds ?: return null
+    val rowsAfterPlaceholder = emojiBounds
+        .groupBy { it.top }
+        .toSortedMap()
+        .values
+        .filter { row -> row.first().top >= placeholder.bottom && row.size >= columns }
+    return rowsAfterPlaceholder.getOrNull(1)?.maxOf { it.bottom }
 }
 
 internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
@@ -1416,7 +1456,7 @@ internal fun resolveEmojiViewportWithPlaceholder(
     maximumViewport: Int?,
     observedViewport: Int?,
     emptyPlaceholderVisible: Boolean,
-): Int? = lockedViewport ?: if (emptyPlaceholderVisible) maximumViewport else observedViewport
+): Int? = lockedViewport ?: observedViewport ?: if (emptyPlaceholderVisible) maximumViewport else null
 
 /** The physical keyboard preset caps every category; a prior category's actual height does not. */
 internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?): Int? =
@@ -1448,8 +1488,8 @@ internal fun isEmojiCategoryContentReady(
     targetCategory: Int,
     observedViewport: Int?,
     emptyPlaceholderVisible: Boolean,
-): Boolean = observedViewport != null ||
-    (targetCategory == EMOJI_RECENT_CATEGORY_POSITION && emptyPlaceholderVisible)
+): Boolean = observedViewport != null &&
+    (!emptyPlaceholderVisible || targetCategory == EMOJI_RECENT_CATEGORY_POSITION)
 
 /** AndroidX scrolls a header selection to its matching category-title adapter item. */
 internal fun isEmojiCategoryAtBodyStart(

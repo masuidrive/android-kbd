@@ -264,6 +264,19 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun emptyRecentViewportEndsAfterItsPlaceholderAndTwoCompleteFollowingRows() {
+        fun row(top: Int) = List(8) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
+        val placeholder = Rect(0, 21, 412, 165)
+        val first = row(186)
+        val second = row(316)
+        val fourth = row(446)
+
+        assertEquals(446, emptyRecentViewportFromBounds(placeholder, first + second + fourth))
+        assertNull(emptyRecentViewportFromBounds(placeholder, first))
+        assertNull(emptyRecentViewportFromBounds(placeholder, first + second.take(7)))
+    }
+
+    @Test
     fun onlyFullyVisibleEmojiCellsRemainAccessibilityTargets() {
         val viewport = Rect(0, 0, 412, 173)
         assertTrue(isEmojiCellFullyVisibleInViewport(Rect(0, 8, 50, 58), viewport))
@@ -275,15 +288,18 @@ class ImeHideBarTest {
 
     @Test
     fun visibleEmptyRecentDoesNotExpandAnExistingCategoryViewportLock() {
-        assertEquals(155, resolveEmojiViewportWithPlaceholder(155, 173, null, true))
-        assertEquals(173, resolveEmojiViewportWithPlaceholder(null, 173, null, true))
+        assertEquals(155, resolveEmojiViewportWithPlaceholder(155, 453, 446, true))
+        assertEquals(446, resolveEmojiViewportWithPlaceholder(null, 453, 446, true))
+        // Before the two rows attach, maximum is a temporary clip rather than a lock.
+        assertEquals(453, resolveEmojiViewportWithPlaceholder(null, 453, null, true))
     }
 
     @Test
     fun categoryTransitionWaitsForTargetContentInsteadOfSettlingThePreviousPlaceholder() {
         assertFalse(isEmojiCategoryContentReady(1, null, true))
         assertTrue(isEmojiCategoryContentReady(1, 411, false))
-        assertTrue(isEmojiCategoryContentReady(0, null, true))
+        assertFalse(isEmojiCategoryContentReady(0, null, true))
+        assertTrue(isEmojiCategoryContentReady(0, 446, true))
     }
 
     @Test
