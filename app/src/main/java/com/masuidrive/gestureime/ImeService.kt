@@ -1315,7 +1315,10 @@ internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
 internal fun thirdEmojiRowBottomAtCategoryStart(bounds: List<Rect>, categorySpacer: Int): Int? {
     val rows = bounds.groupBy { it.top }.toSortedMap().values.toList()
     val firstTop = rows.firstOrNull()?.firstOrNull()?.top ?: return null
-    return if (firstTop in 0..categorySpacer) rows.getOrNull(2)?.maxOf { it.bottom } else null
+    // AndroidX may round a normal category's spacer one pixel past its nominal height.
+    // An empty Recent placeholder begins far below this bounded tolerance.
+    val categoryStartTolerance = maxOf(categorySpacer * 2, 2)
+    return if (firstTop in 0..categoryStartTolerance) rows.getOrNull(2)?.maxOf { it.bottom } else null
 }
 
 internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?): Int? =

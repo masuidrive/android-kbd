@@ -22,6 +22,7 @@ import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -199,6 +200,20 @@ class ImeHideBarTest {
         )
         assertEquals(158, thirdEmojiRowBottom(bounds))
         assertEquals(158, resolveEmojiViewport(158, 150))
+    }
+
+    @Test
+    fun roundedCategoryStartLocksButAnEmptyRecentPlaceholderDoesNot() {
+        fun rowsAt(firstTop: Int) = listOf(
+            Rect(0, firstTop, 50, firstTop + 50),
+            Rect(0, firstTop + 50, 50, firstTop + 100),
+            Rect(0, firstTop + 100, 50, firstTop + 150),
+        )
+
+        // An 8px spacer can round to 9px at the start of a normal category.
+        assertEquals(159, thirdEmojiRowBottomAtCategoryStart(rowsAt(9), 8))
+        // The empty-Recent placeholder puts the next category far below that tolerance.
+        assertNull(thirdEmojiRowBottomAtCategoryStart(rowsAt(71), 8))
     }
 
     @Test
