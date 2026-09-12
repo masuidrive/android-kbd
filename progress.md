@@ -234,3 +234,4 @@
 [2026/09/13 01:49] https://masuidrive.jp/products/md-kbd/ のindex・mock・manual・stylesを公開側から再取得し、masuidrive.jp mainのcommit 396f780と4ファイル全てbyte単位で一致した。
 [2026/09/13 01:57] 音声入力レイヤー最下段の右側へ「、。？！」・Space・Enterを追加し、録音中・認識処理中・候補表示中にも音声sessionと候補を保ったまま使えるようにする追加調整を開始した。キャンセル、認識中領域、右側3キーの5列配置と固定4行高をnative・操作mockで揃える。
 [2026/09/13 02:19] nativeの音声最下段5列、直接入力、Cancel後のqueue破棄、412dp・840dpの固定高はfocused testでPASSした。独立reviewで操作mockの候補表示中status、かな未確定を引き継ぐSpace・Enter、Cancel後に完了する非同期Pasteの3件をMajorとして検出し、公開前の修正へ戻した。API 36 emulatorでは左側2列と右寄せ3キーの配置を確認した。
+[2026/09/13 02:27] review指摘3件を修正し、操作mockで候補3件と「認識中」を表示したまま「、」・Space・Enterを入力できること、入力値が`、 \n`になっても候補とsessionを維持することを確認した。v0.15.0最終SHAのfast-checks・全unit test・lint・APKは2/2 PASS、API 36 connected testは11/11 PASS。APKは38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`。

@@ -181,6 +181,8 @@ Passed: 2 / 2
 
 [2026/09/13 02:23 JST] AC 11を達成と判定した。native focused testは5列の等幅bounds、句読点の直接commit、録音・処理・候補中のsession保持、Cancel・layer切替後のqueue破棄、412/840dp×小・標準・大の固定4行をPASS。API 36 AVDで、端末内モデルなしの固定panel下にCancel、空のstatus列、右寄せの「、。？！」・Space・Enterが同じ高さで並ぶことを確認した。操作mockは840pxでready候補と「認識中」を同時表示し、句読点・Space・Enterの順に入力後も候補3件とstatusを維持して入力値が`、 \n`になり、横overflow 0だった。
 
+[2026/09/13 02:27 JST] release metadataを含むSHA `d42363f`で`scripts/test-all.sh --parallel`を実行し、fast-checksとAndroid全unit・lint・APKが2/2 PASS。API 36 arm64 AVDの`connectedDebugAndroidTest`は11/11 PASS。生成したv0.15.0はpackage `com.masuidrive.gestureime`、versionCode 16、versionName 0.15.0、minSdk 28、targetSdk 36、arm64-v8a、38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`で、`INTERNET`権限なしを確認した。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
