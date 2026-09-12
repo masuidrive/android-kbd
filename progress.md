@@ -238,3 +238,4 @@
 [2026/09/13 02:33] 再reviewで操作mockの保留Ctrl・Altが音声layer進入後も残るnative差を検出し、音声進入時に保留・押下中modifierを解除した。ブラウザでCtrl選択→音声→Cancel→qがCtrl+qにならず`q`を入力することを確認。リリース文書の句読点全角表記と、実画面に合わせたマイク権限状態の画像説明も修正した。
 [2026/09/13 02:36] v0.15.0 APKをGitHub Releaseへ公開し、再downloadのbytesとSHA-256がlocalと完全一致した。masuidrive.jpのcommit `ac851a9`をmainへpushし、GitHub Pagesが同commitでbuilt、公開index・mock・manual・画像のbyte一致、840pxの横overflow 0、画像欠落0、音声候補3件と「認識中」・右寄せ3キーを確認した。最終独立reviewはCritical・Major・Minor 0件。
 [2026/09/13 02:43] 音声入力レイヤーの「、。？！」4記号を全てフリックでも入力できる追加調整を開始した。従来のtap「、」・左「。」・上「？」・右「！」を変えず、未使用の下フリックへ「、」を追加して既存操作との互換性を保つ。native・popup・操作mock・マニュアル・APKを同期する。
+[2026/09/13 02:59] 音声句読点の下フリック「、」を実装し、独立reviewで見つかったnative単一balloonとmock十字popupの不一致、待機面の余分な下補助ラベルも修正した。native・mockとも5方向popupになり、下「、」選択後も候補3件と「認識中」を維持。v0.15.1最終SHAの全unit・lint・APKは2/2 PASS、API 36 connectedは11/11 PASS、最終reviewはCritical・Major・Minor 0件。APKは38,764,442 bytes、SHA-256 `4e98fcb6b2226a7fbea5b7c1a4aa82013f2da3a6e9f80f89ae946714d9c11092`。

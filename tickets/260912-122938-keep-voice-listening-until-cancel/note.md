@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -171,6 +171,14 @@
 
 [2026/09/13 02:36 JST] 最終独立reviewはmockのpending・held modifier解除、native/mock正本一致、v0.15文書の全角表記、権限未許可画像のalt/captionを確認した。fast-checks 5/5、mock JS syntax、相対link、diff checkもPASSし、AC 11の追加差し戻しはない。
 
+### Findings (PDH-review-8)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Popup parity | Major | down追加後のnativeは単一文字balloon、mockは5方向crossで、native待機面に小さいdown「、」も重なる | 採用・修正 | `6ac51d4`でvoice-punctだけを5方向cross popupへ割り当て、待機面のgeneric down補助を抑止。renderer kind・5方向label・DOWN選択と待機面をtestした。 |
+
+[2026/09/13 02:59 JST] `6ac51d4`の独立再reviewはCritical 0、Major 0、Minor 0。voice-punctだけがcross popupとなり、他のCHARACTER/KANA/MODIFIERとACCENT優先順位は不変。center/left/up/right/downの5tile、DOWN選択、待機面に単独「、」なし、generic accessibilityの「下 、」action、mockの同じcrossを確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -204,6 +212,8 @@ Passed: 2 / 2
 [2026/09/13 02:27 JST] release metadataを含むSHA `d42363f`で`scripts/test-all.sh --parallel`を実行し、fast-checksとAndroid全unit・lint・APKが2/2 PASS。API 36 arm64 AVDの`connectedDebugAndroidTest`は11/11 PASS。生成したv0.15.0はpackage `com.masuidrive.gestureime`、versionCode 16、versionName 0.15.0、minSdk 28、targetSdk 36、arm64-v8a、38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`で、`INTERNET`権限なしを確認した。
 
 [2026/09/13 02:36 JST] v0.15.0 GitHub ReleaseからAPKを再取得し、38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `ac851a9`でGitHub Pages built。公開index・mock・manual・v0.15画像を再取得して同commitとbyte一致し、公開browserでv0.15.0導線、画像欠落0、840px横overflow 0、ready候補3件と「認識中」、全角句読点・Space・Enterを確認した。
+
+[2026/09/13 02:59 JST] AC 12を達成と判定した。release metadataを含むSHA `6ac51d4`で`scripts/test-all.sh --parallel`はfast-checksとAndroid全unit・lint・APKの2/2 PASS、API 36 arm64 AVDのconnected testは11/11 PASS。操作mockは840pxの実pointer down flickで入力値「、」、ready候補3件、「認識中」、横overflow 0を確認した。v0.15.1 APKはversionCode 17、versionName 0.15.1、38,764,442 bytes、SHA-256 `4e98fcb6b2226a7fbea5b7c1a4aa82013f2da3a6e9f80f89ae946714d9c11092`。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
