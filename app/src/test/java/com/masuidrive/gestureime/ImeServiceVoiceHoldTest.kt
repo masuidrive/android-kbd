@@ -84,7 +84,7 @@ class ImeServiceVoiceHoldTest {
     private class Harness(private val ready:Boolean=true) {
         val controller=Robolectric.buildService(ImeService::class.java).create(); val service=controller.get()
         val input=RecordingConnection(View(RuntimeEnvironment.getApplication())); val recognizer=FakeRecognizer(); val conversion=FakeConversion(); lateinit var root:View
-        init { val text=TextInputController({input},service,service.getSystemService(ClipboardManager::class.java)); val voice=VoiceRecognitionController(35,{true},{true},{ l->recognizer.listener=l;recognizer },service::onVoiceState); service.installTestDependencies(voice,text,conversion); service.onStartInput(EditorInfo(),false); root=service.onCreateInputView() }
+        init { ImePreferences.setEnglishSuggestionsEnabled(service, false); val text=TextInputController({input},service,service.getSystemService(ClipboardManager::class.java)); val voice=VoiceRecognitionController(35,{true},{true},{ l->recognizer.listener=l;recognizer },service::onVoiceState); service.installTestDependencies(voice,text,conversion); service.onStartInput(EditorInfo(),false); root=service.onCreateInputView() }
         fun begin(){ service.onVoiceHold(VoiceHoldEvent.Begin(1)); idle(); recognizer.support?.invoke(true); if(ready) recognizer.ready(); idle() }
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }

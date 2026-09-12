@@ -22,17 +22,31 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class SetupActivitySlashCommandsTest {
     @Test
-    fun androidUserDictionarySwitchDefaultsOffAndRecordsExplicitConsent() {
+    fun nonTerminalInputSwitchesDefaultOnAndKeepExplicitFalseAfterRecreation() {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
         val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
         val root = activity.findViewById<View>(android.R.id.content)
-        val toggle = root.descendants().filterIsInstance<Switch>()
-            .single { it.text.toString() == "Android 個人辞書を使う（既定OFF）" }
+        val toggles = root.descendants().filterIsInstance<Switch>()
+        val dual = toggles.single { it.text.toString().startsWith("Dual Flick") }
+        val terminal = toggles.single { it.text.toString().startsWith("ターミナル向け") }
+        val english = toggles.single { it.text.toString() == "英数字候補（端末内・既定ON）" }
+        val dictionary = toggles.single { it.text.toString() == "Android 個人辞書を使う（既定ON）" }
 
-        assertFalse(toggle.isChecked)
-        toggle.isChecked = true
-        assertTrue(ImePreferences.isAndroidUserDictionaryEnabled(activity))
+        assertTrue(dual.isChecked)
+        assertFalse(terminal.isChecked)
+        assertTrue(english.isChecked)
+        assertTrue(dictionary.isChecked)
+
+        dual.isChecked = false
+        english.isChecked = false
+        dictionary.isChecked = false
+        activity.recreate()
+
+        val recreated = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<Switch>()
+        assertFalse(recreated.single { it.text.toString().startsWith("Dual Flick") }.isChecked)
+        assertFalse(recreated.single { it.text.toString().startsWith("英数字候補") }.isChecked)
+        assertFalse(recreated.single { it.text.toString().startsWith("Android 個人辞書") }.isChecked)
     }
 
     @Test

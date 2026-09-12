@@ -13,8 +13,8 @@
     <string name="app_information">アプリ情報</string>
     <string name="version_format">バージョン %1$s</string>
     <string name="terminal_cursor">ターミナル向けカーソル操作（矢印キー送信。通常入力ではOFF推奨）</string>
-    <string name="english_suggestions">英数字候補（端末内・既定OFF）</string>
-    <string name="android_user_dictionary">Android 個人辞書を使う（既定OFF）</string>
+    <string name="english_suggestions">英数字候補（端末内・既定ON）</string>
+    <string name="android_user_dictionary">Android 個人辞書を使う（既定ON）</string>
     <string name="slash_commands">スラッシュコマンド候補（最大6件）</string>
     <string name="slash_command_hint">候補 %1$d（例: /compact）</string>
     <string name="slash_command_description">スラッシュコマンド候補 %1$d</string>

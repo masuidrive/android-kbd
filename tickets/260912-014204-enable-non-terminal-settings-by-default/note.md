@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -41,12 +41,24 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+  - SharedPreferencesをclearした新規状態でDual Flick・英数字候補・Android個人辞書=true、terminal cursor=falseを確認した。
+  - 3設定を明示falseへ保存してSetupActivityを再生成し、3つのswitchがfalseのままになることを確認した。
+  - 型不正な保存値は従来の安全側falseへfallbackし、保存値自体を上書きしないことを確認した。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `ImePreferences`の3つの`getBoolean`だけ未保存時fallbackをtrueへ変更した。setter、SharedPreferences key、terminal、slash、last layerには変更なし。
+- Setupの英数字候補・Android個人辞書ラベルを既定ONへ更新し、switchのchecked値は引き続き`ImePreferences`をsingle sourceにした。
+- manualとtechnical referenceの3設定の初期値説明をONへ更新し、terminal OFFは維持した。
+- focused `ImePreferencesTest` / `SetupActivitySlashCommandsTest`は成功した。
+- 初回full suiteでは、英字候補OFFを暗黙前提にした`ImeServiceVoiceHoldTest`が新defaultでraw `x`ではなくcomposition経路へ入り1件失敗した。音声cancelを検証するfixtureで英字候補を明示OFFにし、利用者の保存済みfalseを利用する実条件へ固定した。
+- 再実行した`scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/APK buildが成功した。
+- API 36.1 emulatorのアプリdataをclearした新規状態でSetupを開き、Dual Flick・英数字候補・Android個人辞書がON、terminal cursorがOFFであることをLight/Dark双方で確認した。`docs/screenshots/v0.10/setup-{light,dark}.png`とsite assetsを同画面へ更新し、確認後night modeをLightへ復元した。
+- 重複検出skip: `similarity-generic`が環境にないため。新規production helperは追加していない。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -66,6 +78,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- decisions 6/13/23のDual Flick・英数字候補・Android個人辞書の既定値をONへ更新した。terminal cursorのOFFは変更していない。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

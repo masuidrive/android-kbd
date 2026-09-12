@@ -36,45 +36,41 @@ class ImePreferencesTest {
     }
 
     @Test
-    fun dualFlickDefaultsOffAndPersists() {
+    fun nonTerminalInputSettingsDefaultOnButExplicitFalsePersists() {
         val context = RuntimeEnvironment.getApplication()
-        assertFalse(ImePreferences.isDualFlickEnabled(context))
-
-        ImePreferences.setDualFlickEnabled(context, true)
+        val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
 
         assertTrue(ImePreferences.isDualFlickEnabled(context))
-        ImePreferences.setDualFlickEnabled(context, false)
-    }
-
-    @Test
-    fun englishSuggestionsDefaultOffPersistAndRejectMalformedValue() {
-        val context = RuntimeEnvironment.getApplication()
-        assertFalse(ImePreferences.isEnglishSuggestionsEnabled(context))
-
-        ImePreferences.setEnglishSuggestionsEnabled(context, true)
         assertTrue(ImePreferences.isEnglishSuggestionsEnabled(context))
+        assertTrue(ImePreferences.isAndroidUserDictionaryEnabled(context))
+        assertFalse(ImePreferences.isTerminalCursorEnabled(context))
 
-        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
-            .putString("english_suggestions_enabled", "bad")
-            .apply()
+        ImePreferences.setDualFlickEnabled(context, false)
+        ImePreferences.setEnglishSuggestionsEnabled(context, false)
+        ImePreferences.setAndroidUserDictionaryEnabled(context, false)
+
+        assertFalse(ImePreferences.isDualFlickEnabled(context))
         assertFalse(ImePreferences.isEnglishSuggestionsEnabled(context))
+        assertFalse(ImePreferences.isAndroidUserDictionaryEnabled(context))
+        assertTrue(preferences.contains("dual_flick_enabled"))
+        assertTrue(preferences.contains("english_suggestions_enabled"))
+        assertTrue(preferences.contains("android_user_dictionary_enabled"))
     }
 
     @Test
-    fun androidUserDictionaryDefaultsOffAndPersistsExplicitConsent() {
+    fun malformedBooleanValuesUseSafeOffFallbackWithoutOverwritingStorage() {
         val context = RuntimeEnvironment.getApplication()
-        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
-            .remove("android_user_dictionary_enabled")
-            .apply()
-        assertFalse(ImePreferences.isAndroidUserDictionaryEnabled(context))
-
-        ImePreferences.setAndroidUserDictionaryEnabled(context, true)
-        assertTrue(ImePreferences.isAndroidUserDictionaryEnabled(context))
-
-        context.getSharedPreferences("gesture_ime_preferences", 0).edit()
+        val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit()
+            .putString("english_suggestions_enabled", "bad")
             .putString("android_user_dictionary_enabled", "bad")
             .apply()
+
+        assertFalse(ImePreferences.isEnglishSuggestionsEnabled(context))
         assertFalse(ImePreferences.isAndroidUserDictionaryEnabled(context))
+        assertEquals("bad", preferences.getString("english_suggestions_enabled", null))
+        assertEquals("bad", preferences.getString("android_user_dictionary_enabled", null))
     }
 
     @Test

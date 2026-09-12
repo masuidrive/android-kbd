@@ -159,3 +159,5 @@
 [2026/09/12 10:20] 音声Permission/Unavailable controlが選択候補の青faceを誤用していたreview Majorを修正。操作可能性を保った通常candidate faceへ分離し、Light/Darkの色・shadow・click/focusをRobolectricで固定、API 36.1のLight/Dark実画面を確認してv0.10音声画像を再撮影した。
 [2026/09/12 10:27] v0.10.0 APKをGitHub Releasesへ公開し、認証済み再download・GitHub asset・ローカルのSHA-256 `2698891f37285d53eca0313625c3a2662687e0f0ac8db725115f2cbbddb55eed`が一致した。owner-only Sites `https://fez69vft.aboutme.style/`へ39ファイル・4,314,331 bytesを公開し、全path/SHA-256一致、live demo入力欄、v0.10 manual画像、横overflowなし、console errorなしを確認した。
 [2026/09/12 10:42] ターミナル向けカーソル操作だけ初期OFFに残し、Dual Flick・英数字候補・Android個人辞書を初期ONへ変更するticketを作成。既存の明示保存値は上書きしない契約とした。Mozcの次単語予測は公式session APIと現行JNI実装の差分を調査中。
+[2026/09/12 14:30] SharedPreferences key未保存時だけDual Flick・英数字候補・Android個人辞書を既定ONへ変更し、terminal cursorはOFFを維持。明示false保存後のSetup再生成でも利用者選択が保たれる回帰testとmanual/TRの初期値説明を更新した。
+[2026/09/12 14:48] 新規状態のSetupをAPI 36.1 Light/Darkで確認し、3設定ON・terminal OFFの最新画像へ更新。英字候補OFFを暗黙前提にした音声test fixtureを明示OFFへ直し、full fast-check/unit/lint/APK buildがPASS。

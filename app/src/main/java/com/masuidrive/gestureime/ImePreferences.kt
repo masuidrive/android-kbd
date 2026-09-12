@@ -16,7 +16,7 @@ object ImePreferences {
 
     fun isEnglishSuggestionsEnabled(context: Context): Boolean = runCatching {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
-            .getBoolean(ENGLISH_SUGGESTIONS, false)
+            .getBoolean(ENGLISH_SUGGESTIONS, true)
     }.getOrDefault(false)
 
     fun setEnglishSuggestionsEnabled(context: Context, enabled: Boolean) {
@@ -28,7 +28,7 @@ object ImePreferences {
 
     fun isAndroidUserDictionaryEnabled(context: Context): Boolean = runCatching {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
-            .getBoolean(ANDROID_USER_DICTIONARY, false)
+            .getBoolean(ANDROID_USER_DICTIONARY, true)
     }.getOrDefault(false)
 
     fun setAndroidUserDictionaryEnabled(context: Context, enabled: Boolean) {
@@ -66,7 +66,7 @@ object ImePreferences {
 
     fun isDualFlickEnabled(context: Context): Boolean =
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
-            .getBoolean(DUAL_FLICK, false)
+            .getBoolean(DUAL_FLICK, true)
 
     fun setDualFlickEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
