@@ -395,6 +395,17 @@ class ImeHideBarTest {
 
         assertEquals(48, holder.layoutParams.width)
         assertEquals(48, holder.minimumWidth)
+
+        holder.measure(exact(48), exact(50))
+        holder.layout(0, 0, 48, 50)
+        val normalizedParams = holder.layoutParams
+        assertFalse(holder.isLayoutRequested)
+
+        enforceEmojiCategoryHolderWidth(holder, 48)
+        enforceEmojiCategoryHolderWidth(holder, 48)
+
+        assertSame(normalizedParams, holder.layoutParams)
+        assertFalse(holder.isLayoutRequested)
     }
 
     @Test

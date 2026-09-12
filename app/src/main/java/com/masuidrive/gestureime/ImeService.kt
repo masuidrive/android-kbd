@@ -1537,11 +1537,14 @@ internal fun isEmojiCategoryAccessibilityAction(action: Int): Boolean =
 
 /** AndroidX recycles header holders; every attachment restores the fixed tap-target width. */
 internal fun enforceEmojiCategoryHolderWidth(holder: View, width: Int) {
-    holder.minimumWidth = width
-    val params = holder.layoutParams ?: RecyclerView.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT)
-    if (params.width != width) {
-        params.width = width
-        holder.layoutParams = params
+    if (holder.minimumWidth != width) holder.minimumWidth = width
+    val params = holder.layoutParams
+    when {
+        params == null -> holder.layoutParams = RecyclerView.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT)
+        params.width != width -> {
+            params.width = width
+            holder.layoutParams = params
+        }
     }
 }
 
