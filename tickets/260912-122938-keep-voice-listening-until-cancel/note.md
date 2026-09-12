@@ -151,6 +151,15 @@
 
 [2026/09/13 02:21 JST] `21e1fb5`後は上記findingを全て解消した。focused Android test、mock JavaScript syntax、similarity、正本mirror、fast-checksはPASS。ブラウザでかな未確定からVOICEへ入りSpace・Enterを直接入力できること、ready候補と「認識中」の同時表示、遅延PasteがCancel後に入らないことを確認した。
 
+### Findings (PDH-review-6)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Native / mock modifier lifecycle | Major | mockだけ保留Ctrl・AltをVOICE進入後に残し、Cancel後の文字へ適用する | 採用・修正 | `e7cb876`でVOICE進入時にpendingとactive pointerのmodifier状態を解除した。ブラウザでCtrl→VOICE→Cancel→qが`q`になることを確認した。 |
+| 2 | Release documentation | Minor | キー面の旧ASCII表記と、画像に映る権限未許可状態に合わないalt/caption | 採用・修正 | 「、。？！」へ統一し、画像をマイク権限が必要なplain text状態として説明した。 |
+
+[2026/09/13 02:33 JST] 再reviewで前回のMajor 3件・Minor 1件の解消を確認した後、上記modifier Majorを追加検出して修正した。修正後はmock JS syntax、similarity、正本mirror、fast-checks、実ブラウザ再現がPASS。Android実装・APK bytesは変更していない。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
