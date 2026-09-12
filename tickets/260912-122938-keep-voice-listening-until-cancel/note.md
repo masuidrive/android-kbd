@@ -246,6 +246,8 @@ Passed: 2 / 2
 
 [2026/09/13 02:36 JST] v0.15.0をGitHub ReleaseへAPK単体で公開し、公式`https://masuidrive.jp/products/md-kbd/`も音声最下段5列とv0.15実画面へ更新した。repositoryはprivateのためAPK直接URLはGitHub認証が必要。対応実機では、認識中と候補表示中に句読点・Space・Enterを使っても候補が残ること、Cancel後に次の文字へCtrl/Altが漏れないことを確認する。ユーザの明示close承認まではticketを閉じない。
 
+[2026/09/13 03:04 JST] AC 12を含むv0.15.1をGitHub ReleaseへAPK単体で公開し、ZIPは作成していない。公開assetの再downloadは38,764,442 bytes、SHA-256 `4e98fcb6b2226a7fbea5b7c1a4aa82013f2da3a6e9f80f89ae946714d9c11092`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `0425199`でGitHub Pages builtとなり、公開index・mock・manualは同commitとbyte一致。公開mockの実pointer操作でも音声句読点の下フリック「、」、候補3件、「認識中」、横overflow 0を確認した。対応実機では5方向popupと各記号の確定を確認し、ユーザの明示close承認まではticketを閉じない。
+
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
