@@ -1,18 +1,18 @@
 ---
 priority: 2
-base_branch: features/260912-002431-align-native-settings-and-voice-ui
-description: "Enable all optional input settings except terminal cursor by default"
-created_at: "2026-09-12T01:42:04Z"
-started_at: 2026-09-12T01:43:15Z # Do not modify manually
+base_branch: features/260912-014204-enable-non-terminal-settings-by-default
+description: "Keep keyboard height stable and add a height setting"
+created_at: "2026-09-12T01:49:43Z"
+started_at: null  # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
-## 260912-014204-enable-non-terminal-settings-by-default
+## 260912-014943-fixed-keyboard-height
 
 ### Why
-Dual Flick、英数字候補、Android個人辞書は一般的な入力を助ける機能だが、新規利用者が個別に有効化しないと使えない。
-初期状態で利用できるようにし、ターミナル固有のキー送信だけを安全側のOFFに保つ。
+現在のキー行間隔は画面幅で変わるため、Foldを開くと同じ4行でもキーボード全体が高くなる。
+IME初回表示やアプリ切替では幅・inset確定の順序によって高さが途中で変わり、入力欄を覆う量とキー位置が安定しない。
 <!-- ユーザ価値・解きたい問題を 1〜3 行で書く。
      Product Brief の Problem / Solution のどの部分を担うか明記する。 -->
 
@@ -33,15 +33,16 @@ Dual Flick、英数字候補、Android個人辞書は一般的な入力を助け
 
      runtime で UX/Security invariant を強制する ticket では、AC に「runtime enforce の
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
-このticketが終わると、新規利用者がターミナル固有機能以外の入力支援を最初から利用できる。
+このticketが終わると、利用者がキーボードの高さを選び、Foldの開閉やアプリ切替後も同じ高さで入力できる。
 
-- [x] AC 1: 保存値がない場合、Dual Flick、英数字候補、Android個人辞書がONになる。
-- [x] AC 2: 保存値がない場合、ターミナル向けカーソル操作はOFFのままになる。
-- [x] AC 3: 利用者が各switchを変更した保存値は再起動後も優先され、default変更で上書きされない。
-- [x] AC 4: 設定画面のswitch表示とマニュアルの初期値説明が新しいdefaultに一致する。
+- [ ] AC 1: 設定画面でキーボードの高さを「小・標準・大」から選択でき、選択値が再起動後も維持される。
+- [ ] AC 2: 初期値「標準」では、スマホ幅・タブレット幅、Dual FlickのON/OFF、全レイヤーでキー4行の外形高が同じになる。
+- [ ] AC 3: IME初回表示、アプリ切替、Foldの開閉、画面回転後に、設定した高さからキー位置とタップ領域がずれない。
+- [ ] AC 4: 候補欄の高さ、キー間隔、ポップアップ、フリック判定、音声レイヤーの4行構成を維持する。
+- [ ] AC 5: 設定値が壊れている場合は「標準」へ戻り、IMEが表示不能にならない。
 
 ### Architectural Invariants check
-SharedPreferencesの既存keyと端末内処理を維持し、保存済みの利用者選択を上書きしない。
+端末内SharedPreferencesだけに高さpresetを保存し、入力内容や外部通信の扱いは変更しない。
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
      矛盾しない場合: 「Hub stateless / Process immutable と矛盾しない」等。
      新規 Invariant を要求する場合: 実装を止めて Product Brief 更新から始める。 -->
@@ -50,19 +51,23 @@ SharedPreferencesの既存keyと端末内処理を維持し、保存済みの利
 <!-- 既知の設計判断と理由を箇条書きで明示。
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
-- defaultはSharedPreferencesにkeyが存在しない場合だけ適用する。
-- 「英数字候補」は既存の英字候補設定を指し、候補engineや候補順序は変更しない。
+- 行高さは画面幅とDual Flickの列数から切り離し、「小・標準・大」の3段階とする。
+- 初期値「標準」は現行スマホ表示と同じ4行高を基準にする。
+- Dual Flickは列数だけを変え、高さを変えない。
+- system bottom insetはキー行を伸ばさずsafe areaとして扱い、同じ端末姿勢内で遅れて反映されてもキー位置を動かさない。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- Mozcの次単語予測・zero-query UIの追加。
-- スラッシュコマンド既定値、最終レイヤー、音声権限の変更。
+- 候補欄自体の高さ変更。
+- 5行以上のレイアウト、キーごとの個別高さ設定。
+- Mozcの次単語予測。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
 ### Implementation Notes
-ユーザ指示: 「termunal対応以外はデフォルトオンでいいよ。」
+ユーザ指示: 「キーボードの高さは開いても変わらないようにして。固定でいい。設定画面で高さ指定できるといい。まだ最初の高さはバグる。」
+添付画像ではFold内画面のDual Flickでキー領域が入力欄を大きく覆っている。
 <!-- ユーザの明示指示、またはユーザが会話で言及した事項のみ書く (関数名 / module 名レベルまで)。
      設計判断は「Design Decisions」に書く。
      Coding Engineer は Implementation Notes が空でも実装できる責務を持つ。
