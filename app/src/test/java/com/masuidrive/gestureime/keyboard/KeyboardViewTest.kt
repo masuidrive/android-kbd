@@ -474,45 +474,80 @@ class KeyboardViewTest {
         }.color)
     }
 
-    @Test fun `emoji layer renders its recent row and keeps the fixed four row geometry`() {
+    @Test fun `emoji layer renders continuous recents and keeps the fixed four row geometry`() {
         view.setEmojiRecents(listOf("❤️", "😀"))
         view.setMode(KeyboardMode.EMOJI)
         val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
         assertEquals(25f, canvas.draws.last { it.text == "❤️" }.textSize, .1f)
         assertEquals(25f, canvas.draws.last { it.text == "😀" }.textSize, .1f)
-        assertTrue(canvas.draws.any { it.text == "1/2" })
+        assertFalse(canvas.draws.any { it.text == "1/2" })
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `emoji page indicator toggles pages and describes the available action`() {
+    @Test fun `emoji drag scrolls the clipped three row viewport without dispatching a tap and retains controls`() {
         view.setMode(KeyboardMode.EMOJI)
-        val pageId = KeyboardLayouts.layout(KeyboardMode.EMOJI).rows.flatMap { it.keys }
-            .indexOfFirst { it.id == "emoji-page" }
         val provider = view.accessibilityNodeProvider
+        assertEquals(26, provider.createAccessibilityNodeInfo(-1)!!.childCount)
+        val first = keyCenter(0)
+        touch(MotionEvent.ACTION_DOWN, first.first, first.second)
+        touch(MotionEvent.ACTION_MOVE, first.first, first.second - 80f, 10)
+        touch(MotionEvent.ACTION_UP, first.first, first.second - 80f, 20)
+        assertTrue(actions.isEmpty())
+        assertEquals(26, provider.createAccessibilityNodeInfo(-1)!!.childCount)
 
-        assertTrue(provider.createAccessibilityNodeInfo(pageId)!!.contentDescription.toString().contains("次の絵文字ページ"))
-        assertTrue(provider.performAction(pageId, AccessibilityNodeInfo.ACTION_CLICK, null))
-        assertEquals(listOf(KeyAction.ChangeEmojiPage(1)), actions)
+        val scrolledFirst = keyCenter(8)
+        touch(MotionEvent.ACTION_DOWN, scrolledFirst.first, scrolledFirst.second, 30)
+        touch(MotionEvent.ACTION_UP, scrolledFirst.first, scrolledFirst.second, 40)
+        assertEquals(listOf(KeyAction.CommitEmoji("🎉")), actions)
 
-        view.changeEmojiPage(1)
-        assertTrue(provider.createAccessibilityNodeInfo(pageId)!!.contentDescription.toString().contains("前の絵文字ページ"))
+        actions.clear()
+        val control = keyCenter(32)
+        touch(MotionEvent.ACTION_DOWN, control.first, control.second, 50)
+        touch(MotionEvent.ACTION_UP, control.first, control.second, 60)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
     }
 
-    @Test fun `emoji rows occupy the same full width and catalog tap preserves the emoji string`() {
+    @Test fun `emoji viewport rows occupy the same full width and catalog tap preserves the emoji string`() {
         view.setMode(KeyboardMode.EMOJI)
         view.measure(exact(400), exact(228))
         view.layout(0, 0, 400, 228)
         val expectedLeft = keyBounds(0).left
-        listOf(0 to 7, 8 to 15, 16 to 23, 24 to 28).forEach { (first, last) ->
+        listOf(0 to 7, 8 to 15, 16 to 23, 32 to 34).forEach { (first, last) ->
             val left = keyBounds(first)
             val right = keyBounds(last)
             assertEquals(expectedLeft, left.left)
             assertTrue("row $first reaches the right keyboard edge", right.right > 390)
         }
-        val emoji = keyCenter(15) // ❤️ is preserved as one String, including variation selector.
+        val emoji = keyCenter(15) // The last first-row catalog emoji remains directly tappable.
         touch(MotionEvent.ACTION_DOWN, emoji.first, emoji.second)
         touch(MotionEvent.ACTION_UP, emoji.first, emoji.second, 1)
-        assertEquals(listOf(KeyAction.CommitEmoji("❤️")), actions)
+        assertEquals(listOf(KeyAction.CommitEmoji("✨")), actions)
+    }
+
+    @Test fun `emoji scroll range follows a host constrained row pitch`() {
+        view.setMode(KeyboardMode.EMOJI)
+        view.measure(exact(400), exact(180))
+        view.layout(0, 0, 400, 180)
+        val first = keyCenter(0)
+        val viewportTop = keyBounds(0).top
+
+        touch(MotionEvent.ACTION_DOWN, first.first, first.second)
+        touch(MotionEvent.ACTION_MOVE, first.first, first.second - 80f, 10)
+        touch(MotionEvent.ACTION_UP, first.first, first.second - 80f, 20)
+
+        assertEquals(viewportTop, keyBounds(8).top)
+    }
+
+    @Test fun `emoji viewport offers TalkBack one-row forward and backward scrolling`() {
+        view.setMode(KeyboardMode.EMOJI)
+        val provider = view.accessibilityNodeProvider
+        val viewportTop = keyBounds(0).top
+        assertTrue(provider.createAccessibilityNodeInfo(-1)!!.isScrollable)
+
+        assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
+        assertEquals(viewportTop, keyBounds(8).top)
+        assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null))
+        assertEquals(viewportTop, keyBounds(0).top)
     }
 
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
@@ -673,7 +708,7 @@ class KeyboardViewTest {
         assertEquals(wBefore, keyBounds(1))
     }
 
-    @Test fun `accessibility resolves visual gaps while empty cells remain inert`() {
+    @Test fun `accessibility resolves visual gaps and keeps emoji content outside its viewport inert`() {
         view.measure(exact(412), exact(228))
         view.layout(0, 0, 412, 228)
         val q = keyBounds(0)
@@ -685,9 +720,9 @@ class KeyboardViewTest {
 
         view.setMode(KeyboardMode.EMOJI)
         val emojiMode = keyBounds(0)
-        assertEquals(-1, view.hitTargetIndexAt(emojiMode.right + 20f, emojiMode.exactCenterY()))
-        touch(MotionEvent.ACTION_DOWN, emojiMode.right + 20f, emojiMode.exactCenterY(), 1)
-        touch(MotionEvent.ACTION_UP, emojiMode.right + 20f, emojiMode.exactCenterY(), 2)
+        assertEquals(-1, view.hitTargetIndexAt(emojiMode.exactCenterX(), emojiMode.top - 1f))
+        touch(MotionEvent.ACTION_DOWN, emojiMode.exactCenterX(), emojiMode.top - 1f, 1)
+        touch(MotionEvent.ACTION_UP, emojiMode.exactCenterX(), emojiMode.top - 1f, 2)
         assertTrue(actions.isEmpty())
     }
 

@@ -8,13 +8,12 @@ object KeyboardLayouts {
         dualKana: Boolean = false,
         conversionActive: Boolean = false,
         emojiRecents: List<String> = emptyList(),
-        emojiPage: Int = 0,
     ): KeyboardLayout = when (mode) {
         KeyboardMode.QWERTY -> qwerty()
         KeyboardMode.SYMBOLS -> symbols()
         KeyboardMode.KANA -> kana(dualKana, conversionActive)
         KeyboardMode.NUMBERS -> numbers()
-        KeyboardMode.EMOJI -> emoji(emojiRecents, emojiPage)
+        KeyboardMode.EMOJI -> emoji(emojiRecents)
         KeyboardMode.VOICE -> voice()
     }
 
@@ -61,24 +60,23 @@ object KeyboardLayouts {
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
     ))
 
-    private fun emoji(recents: List<String>, requestedPage: Int): KeyboardLayout {
-        val page = requestedPage.coerceIn(0, EmojiCatalog.pages.lastIndex)
-        val recentKeys = EmojiCatalog.visibleRecents(recents).mapIndexed { index, emoji -> emojiKey("recent-$index", emoji) }
-        val recentRow = KeyboardRow(recentKeys + List(EmojiCatalog.RECENT_LIMIT - recentKeys.size) { empty() })
-        val catalog = EmojiCatalog.pages[page]
-        return KeyboardLayout(KeyboardMode.EMOJI, listOf(
-            recentRow,
-            KeyboardRow(catalog.take(8).mapIndexed { index, emoji -> emojiKey("emoji-$page-$index", emoji) }),
-            KeyboardRow(catalog.drop(8).take(8).mapIndexed { index, emoji -> emojiKey("emoji-$page-${index + 8}", emoji) }),
-            KeyboardRow(listOf(
-                layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
-                emojiPage("‹", -1, 1.6f),
-                emojiPageToggle(page),
-                emojiPage("›", 1, 1.6f),
-                backspace(1.6f),
-            )),
-        ))
-    }
+    private fun emoji(recents: List<String>): KeyboardLayout = KeyboardLayout(
+        KeyboardMode.EMOJI,
+        emojiContentRows(recents).take(3) + emojiControlRow(),
+    )
+
+    /** Consecutive rows for the emoji viewport; the view clips and scrolls these above its fixed controls. */
+    fun emojiContentRows(recents: List<String>): List<KeyboardRow> =
+        (EmojiCatalog.visibleRecents(recents) + EmojiCatalog.entries).chunked(8).mapIndexed { row, emojis ->
+            KeyboardRow(emojis.mapIndexed { column, emoji -> emojiKey("emoji-${row * 8 + column}", emoji) } +
+                List(8 - emojis.size) { empty() })
+        }
+
+    fun emojiControlRow(): KeyboardRow = KeyboardRow(listOf(
+        layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
+        empty(4.8f),
+        backspace(1.6f),
+    ))
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
         KeyboardRow(listOf(empty(10f))),
@@ -134,21 +132,6 @@ object KeyboardLayouts {
         id, KeyKind.CHARACTER, FlickValue(emoji, KeyAction.CommitEmoji(emoji)),
     )
 
-    private fun emojiPage(label: String, delta: Int, width: Float) = KeySpec(
-        "emoji-page-$delta", KeyKind.MODE, FlickValue(label, KeyAction.ChangeEmojiPage(delta)), widthUnits = width, dark = true,
-    )
-
-    private fun emojiPageToggle(page: Int) = KeySpec(
-        "emoji-page",
-        KeyKind.MODE,
-        FlickValue(
-            "${page + 1}/${EmojiCatalog.pages.size}",
-            KeyAction.ChangeEmojiPage(if (page == EmojiCatalog.pages.lastIndex) -1 else 1),
-        ),
-        widthUnits = 1.6f,
-        dark = true,
-    )
-
     private fun space(width: Float = 1f) = KeySpec("space", KeyKind.SPACE,
         FlickValue("Space", KeyAction.CommitText(" ")),
         left = FlickValue("←", KeyAction.MoveCursor(Direction.LEFT)), up = FlickValue("↑", KeyAction.MoveCursor(Direction.UP)),
@@ -186,9 +169,9 @@ object KeyboardLayouts {
 /** Small bundled catalog: no network, search index, skin picker, or GIF dependency. */
 object EmojiCatalog {
     const val RECENT_LIMIT = 8
-    val pages = listOf(
+    val entries = listOf(
         listOf("😀", "😂", "🥹", "😍", "😭", "👍", "🙏", "❤️", "🎉", "🔥", "😊", "🤔", "😎", "🙌", "👏", "✨"),
         listOf("💯", "✅", "📌", "🚀", "🎈", "💡", "🌸", "🍀", "☕", "🍣", "⚽", "🎵", "📷", "💻", "🧡", "🌈"),
-    )
+    ).flatten()
     fun visibleRecents(recents: List<String>): List<String> = recents.filter(String::isNotEmpty).distinct().take(RECENT_LIMIT)
 }

@@ -95,6 +95,8 @@
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
   #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:165px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .kana .key-row { position:relative; }
   #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 10px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
@@ -194,6 +196,7 @@
   };
   const segmenter = new Intl.Segmenter('ja',{granularity:'grapheme'});
   const active = new Map();
+  const emojiViewportStarts = new Map(), emojiViewportDrags = new Set();
   const composition = {reading:'',start:0,end:0,candidates:[],index:0,converted:false};
   let preserveComposition = false;
   // BEGIN KEY FLICK LOGIC
@@ -270,8 +273,8 @@
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
-  const emojiPages=[['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨'],['💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈']];
-  let emojiRecents=[], emojiPage=0;
+  const emojiCatalog=['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨','💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈'];
+  let emojiRecents=[], emojiScrollTop=0;
   const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
   let renderedCandidateContentKey=null;
   try {
@@ -279,13 +282,13 @@
     if(saved&&['english','kana'].includes(saved.language))language=saved.language;
     if(saved&&['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
     if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,8);
-    if(Number.isInteger(saved?.emojiPage))emojiPage=Math.max(0,Math.min(emojiPages.length-1,saved.emojiPage));
+    if(Number.isFinite(saved?.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
     dualEnabled=Boolean(saved?.dualEnabled);
     englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
     if(['light','dark'].includes(saved?.theme))root.dataset.theme=saved.theme;
   } catch (_) {}
   if(heroEmbed)editor.value='ここは入力できるよ';
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiPage,theme:root.dataset.theme}));}catch(_){}};
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
@@ -581,13 +584,10 @@
     else if(id==='symbols') {if(language==='kana'){language='english';layer='symbols';}else layer=layer==='letters'?'symbols':'letters';clearComposition();}
     else if(id==='symbol-layer') {language='english';layer='symbols';pendingModifier=null;clearComposition();}
     else if(id==='kana-numbers') {language='kana';layer='numbers';pendingModifier=null;clearComposition();}
-    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
+    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiScrollTop=0;clearComposition();}
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
-    else if(id==='emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
-    else if(id==='emoji-prev') {emojiPage=Math.max(0,emojiPage-1);}
-    else if(id==='emoji-next') {emojiPage=Math.min(emojiPages.length-1,emojiPage+1);}
-    else if(id==='emoji-page') {emojiPage=emojiPage===emojiPages.length-1?Math.max(0,emojiPage-1):Math.min(emojiPages.length-1,emojiPage+1);}
+    else if(id==='emoji') {language='kana';layer='emoji';emojiScrollTop=0;clearComposition();}
     else if(['english','kana'].includes(id)) {language=id;layer='letters';pendingModifier=null;clearComposition();}
     render();
   }
@@ -600,13 +600,10 @@
   const flickBackspace=()=>makeKey('flick-backspace','⌫',{gestureAlt:'ESC',altAction:'escape',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function emojiRows() {
-    const recent=emojiRecents.map((emoji,index)=>makeKey('emoji-recent-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
-    const catalog=emojiPages[emojiPage].map((emoji,index)=>makeKey('emoji-catalog-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
-    return [
-      [...recent,...Array(Math.max(0,8-recent.length)).fill(null).map(()=>makeKey(null,''))],
-      catalog.slice(0,8), catalog.slice(8,16),
-      [makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey('emoji-prev','‹',{special:true,gridSpan:2}),makeKey('emoji-page',(emojiPage+1)+'/'+emojiPages.length,{special:true,gridSpan:2}),makeKey('emoji-next','›',{special:true,gridSpan:1}),makeKey('backspace','⌫',{special:true,gridSpan:1})]
-    ];
+    const entries=[...emojiRecents,...emojiCatalog].map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const content=[];
+    for(let index=0;index<entries.length;index+=8)content.push([...entries.slice(index,index+8),...Array(Math.max(0,8-entries.slice(index,index+8).length)).fill(null).map(()=>makeKey(null,''))]);
+    return {content,controls:[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey(null,'',{gridSpan:4}),makeKey('backspace','⌫',{special:true,gridSpan:2})]};
   }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
@@ -678,7 +675,6 @@
       end:'文章の末尾へ',
       escape:'ESC',
       emoji:'絵文字レイヤーへ切り替える',
-      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':(emojiPage===emojiPages.length-1?'前の':'次の')+'絵文字ページ',
       space:'Space。フリックでカーソル移動',
       return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':'Enter、上フリックでCtrl+J、下フリックでPaste',
       numbers:'テンキーへ切り替える',
@@ -709,6 +705,7 @@
     if(key.id===null) {
       const slot=document.createElement('span');
       slot.className='key-slot';
+      if(key.gridSpan)slot.style.gridColumn='span '+key.gridSpan;
       slot.setAttribute('aria-hidden','true');
       return slot;
     }
@@ -793,6 +790,16 @@
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='emoji'?' emoji-layer':'')+(dualActive?' dual':'');
+    if(language==='kana'&&layer==='emoji') {
+      const emoji=emojiRows(),viewport=document.createElement('div');
+      viewport.className='emoji-scroll-viewport';
+      for(const row of emoji.content) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));viewport.append(line);}
+      viewport.scrollTop=emojiScrollTop;
+      viewport.addEventListener('scroll',()=>{emojiScrollTop=viewport.scrollTop;persistState();},{passive:true});
+      const controls=document.createElement('div');controls.className='key-row';controls.append(...emoji.controls.map(createKeyElement));
+      keys.append(viewport,controls);
+      return;
+    }
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
   }
   function render(force=false) {
@@ -849,8 +856,10 @@
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
   keyboard.addEventListener('pointerdown',e=>{
     const element=e.target.closest('.key');if(!element||e.button!==0)return;
-    e.preventDefault();editor.focus({preventScroll:true});
     const key=keyMap.get(element.dataset.key);
+    const emojiViewport=element.closest('.emoji-scroll-viewport');
+    if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
+    e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
     const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
@@ -867,6 +876,12 @@
     } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
   });
   keyboard.addEventListener('pointermove',e=>{
+    const emojiStart=emojiViewportStarts.get(e.pointerId);
+    if(emojiStart) {
+      if(Math.abs(e.clientY-emojiStart.y)>12)emojiViewportDrags.add(e.pointerId);
+      if(emojiViewportDrags.has(e.pointerId))emojiStart.viewport.scrollTop=emojiStart.scrollTop+emojiStart.y-e.clientY;
+      e.preventDefault();return;
+    }
     const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
     if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
@@ -945,9 +960,19 @@
     if(keyboard.hasPointerCapture(e.pointerId))keyboard.releasePointerCapture(e.pointerId);
     render();
   }
-  keyboard.addEventListener('pointerup',e=>finish(e));
-  keyboard.addEventListener('pointercancel',e=>finish(e,true));
-  keyboard.addEventListener('lostpointercapture',e=>finish(e,true));
+  function finishEmojiViewportGesture(pointerId) {
+    const gesture=emojiViewportStarts.get(pointerId);if(!gesture)return;
+    emojiViewportStarts.delete(pointerId);
+    if(!emojiViewportDrags.has(pointerId)&&gesture.key.text&&!applyModified(gesture.key.text,currentModifier())) {
+      if(gesture.key.emoji)insertEmoji(gesture.key.text);else insert(gesture.key.text);
+    }
+    emojiViewportDrags.add(pointerId);
+    if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);
+    setTimeout(()=>emojiViewportDrags.delete(pointerId),0);
+  }
+  keyboard.addEventListener('pointerup',e=>{finishEmojiViewportGesture(e.pointerId);finish(e)});
+  keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
+  keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
   root.addEventListener('click',e=>{
     const voiceCancel=e.target.closest('button[data-voice-cancel]');
     if(voiceCancel) {leaveVoiceDemo(true);return;}
@@ -961,7 +986,8 @@
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
-      if(e.detail!==0)return;
+      if(e.detail!==0&&!b.closest('.emoji-scroll-viewport'))return;
+      if(emojiViewportDrags.size)return;
       const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji)insertEmoji(k.text);else insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });

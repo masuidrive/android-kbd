@@ -12,11 +12,13 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.PathInterpolator
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
+import kotlin.math.abs
 import kotlin.math.min
 
 class KeyboardView @JvmOverloads constructor(
@@ -72,10 +74,25 @@ class KeyboardView @JvmOverloads constructor(
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
 
-    private data class HitTarget(val spec: KeySpec, val bounds: RectF, val tapBounds: RectF)
+    private data class HitTarget(
+        val spec: KeySpec,
+        val bounds: RectF,
+        val tapBounds: RectF,
+        val scrollable: Boolean = false,
+    )
+    private data class EmojiScrollGesture(
+        val startY: Float,
+        val startOffset: Float,
+        var scrolling: Boolean = false,
+    )
+
+    private var emojiScrollOffset = 0f
+    private val emojiScrollGestures = mutableMapOf<Int, EmojiScrollGesture>()
+    private val emojiViewport = RectF()
 
     internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
-        it.spec.kind != KeyKind.EMPTY && it.tapBounds.contains(x, y)
+        it.spec.kind != KeyKind.EMPTY && isTargetVisible(it) && it.tapBounds.contains(x, y) &&
+            (!it.scrollable || emojiViewport.contains(x, y))
     }
 
     init {
@@ -88,7 +105,8 @@ class KeyboardView @JvmOverloads constructor(
     fun setMode(mode: KeyboardMode) {
         if (state.mode == mode) return
         cancelActiveGestures()
-        state = state.copy(mode = mode, emojiPage = if (mode == KeyboardMode.EMOJI) 0 else state.emojiPage)
+        if (mode == KeyboardMode.EMOJI) emojiScrollOffset = 0f
+        state = state.copy(mode = mode)
         contentDescription = "${mode.displayName}キーボード"
         rebuildLayout()
     }
@@ -129,15 +147,8 @@ class KeyboardView @JvmOverloads constructor(
         val normalized = EmojiCatalog.visibleRecents(recents)
         if (state.emojiRecents == normalized) return
         state = state.copy(emojiRecents = normalized)
+        emojiScrollOffset = emojiScrollOffset.coerceIn(0f, emojiScrollRange())
         if (state.mode == KeyboardMode.EMOJI) rebuildLayout() else invalidate()
-    }
-
-    fun changeEmojiPage(delta: Int) {
-        if (delta == 0) return
-        val page = (state.emojiPage + delta).coerceIn(0, EmojiCatalog.pages.lastIndex)
-        if (page == state.emojiPage) return
-        state = state.copy(emojiPage = page)
-        rebuildLayout()
     }
 
     fun setPreviewOnly(enabled: Boolean) {
@@ -195,6 +206,7 @@ class KeyboardView @JvmOverloads constructor(
         labelAnimators.clear()
         labelFrames.clear()
         active.clear()
+        emojiScrollGestures.clear()
         directions.clear()
         cursorMoved.clear()
         accentActive.clear()
@@ -259,9 +271,21 @@ class KeyboardView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(context.getColor(R.color.keyboard_background))
-        hitTargets.forEach { target ->
-            if (target.spec.kind == KeyKind.EMPTY) return@forEach
-            drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
+        if (state.mode == KeyboardMode.EMOJI) {
+            val clipped = canvas.save()
+            canvas.clipRect(emojiViewport)
+            hitTargets.filter { it.scrollable && it.spec.kind != KeyKind.EMPTY }.forEach { target ->
+                drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
+            }
+            canvas.restoreToCount(clipped)
+            hitTargets.filter { !it.scrollable && it.spec.kind != KeyKind.EMPTY }.forEach { target ->
+                drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
+            }
+        } else {
+            hitTargets.forEach { target ->
+                if (target.spec.kind == KeyKind.EMPTY) return@forEach
+                drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
+            }
         }
     }
 
@@ -269,13 +293,18 @@ class KeyboardView @JvmOverloads constructor(
         hitTargets.clear()
         val keyboardTop = top + dp(8f)
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
-        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive, state.emojiRecents, state.emojiPage).rows
         val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
         val rowGap = dp(10f)
-        val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         val keyboardInset = dp(if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) 10f else 3f)
         val contentLeft = paddingLeft + keyboardInset
         val contentWidth = width - paddingLeft - paddingRight - keyboardInset * 2
+        if (state.mode == KeyboardMode.EMOJI) {
+            buildEmojiHitTargets(keyboardTop, rowPitch, rowGap, contentLeft, contentWidth)
+            return
+        }
+        emojiViewport.setEmpty()
+        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive, state.emojiRecents).rows
+        val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         rows.forEachIndexed { rowIndex, row ->
             val layoutUnits = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
                 row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
@@ -301,6 +330,62 @@ class KeyboardView @JvmOverloads constructor(
                 x = right
             }
         }
+    }
+
+    private fun buildEmojiHitTargets(
+        keyboardTop: Float,
+        rowPitch: Float,
+        rowGap: Float,
+        contentLeft: Float,
+        contentWidth: Float,
+    ) {
+        emojiScrollOffset = emojiScrollOffset.coerceIn(0f, emojiScrollRange(rowPitch))
+        emojiViewport.set(0f, keyboardTop, width.toFloat(), keyboardTop + rowPitch * 3f - rowGap)
+        val unit = contentWidth / 8f
+        fun addRow(row: KeyboardRow, top: Float, scrollable: Boolean) {
+            var x = contentLeft
+            row.keys.forEach { key ->
+                val right = x + unit * key.widthUnits
+                val bottom = min(height - paddingBottom.toFloat(), top + rowPitch - rowGap)
+                hitTargets += HitTarget(
+                    key,
+                    bounds = RectF(x + dp(3f), top, right - dp(3f), bottom),
+                    tapBounds = RectF(x, top - rowGap / 2f, right, top + rowPitch - rowGap / 2f),
+                    scrollable = scrollable,
+                )
+                x = right
+            }
+        }
+        KeyboardLayouts.emojiContentRows(state.emojiRecents).forEachIndexed { index, row ->
+            addRow(row, keyboardTop + rowPitch * index - emojiScrollOffset, scrollable = true)
+        }
+        addRow(KeyboardLayouts.emojiControlRow(), keyboardTop + rowPitch * 3f, scrollable = false)
+    }
+
+    private fun emojiScrollRange(rowPitch: Float = currentEmojiRowPitch()): Float =
+        ((KeyboardLayouts.emojiContentRows(state.emojiRecents).size - 3).coerceAtLeast(0) * rowPitch)
+
+    private fun currentEmojiRowPitch(): Float {
+        if (height <= 0) return rowPitch()
+        val keyboardTop = paddingTop + dp(8f)
+        return min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
+    }
+
+    private fun isTargetVisible(target: HitTarget): Boolean =
+        !target.scrollable || target.bounds.intersects(emojiViewport.left, emojiViewport.top, emojiViewport.right, emojiViewport.bottom)
+
+    private fun visibleBounds(target: HitTarget): RectF? {
+        if (!isTargetVisible(target)) return null
+        return if (!target.scrollable) target.bounds else RectF(target.bounds).apply { intersect(emojiViewport) }
+    }
+
+    private fun scrollEmojiTo(offset: Float) {
+        val clamped = offset.coerceIn(0f, emojiScrollRange())
+        if (emojiScrollOffset == clamped) return
+        emojiScrollOffset = clamped
+        if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
+        accessibilityHelper.invalidateRoot()
+        invalidate()
     }
 
     private fun rowPitch() = dp(state.heightPreset.rowPitchDp)
@@ -548,17 +633,34 @@ class KeyboardView @JvmOverloads constructor(
         return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
     }
 
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        if (state.mode == KeyboardMode.EMOJI && emojiScrollRange() > 0f) {
+            info.isScrollable = true
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+        }
+    }
+
+    override fun performAccessibilityAction(action: Int, arguments: android.os.Bundle?): Boolean {
+        if (state.mode == KeyboardMode.EMOJI && action in setOf(
+                AccessibilityNodeInfo.ACTION_SCROLL_FORWARD,
+                AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD,
+            )) {
+            val delta = if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) currentEmojiRowPitch() else -currentEmojiRowPitch()
+            scrollEmojiTo(emojiScrollOffset + delta)
+            return true
+        }
+        return super.performAccessibilityAction(action, arguments)
+    }
+
     private fun directionLabel(direction: Direction) = when (direction) {
         Direction.CENTER -> "タップ"; Direction.LEFT -> "左"; Direction.UP -> "上"; Direction.RIGHT -> "右"; Direction.DOWN -> "下"
     }
 
     private fun describe(spec: KeySpec): String = Direction.entries.mapNotNull { direction ->
         spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.label?.let { label ->
-            val actionLabel = when (val action = spec.value(direction)?.action) {
-                is KeyAction.ChangeEmojiPage -> if (action.delta < 0) "前の絵文字ページ" else "次の絵文字ページ"
-                else -> label
-            }
-            "${directionLabel(direction)} $actionLabel"
+            "${directionLabel(direction)} $label"
         }
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
 
@@ -567,15 +669,16 @@ class KeyboardView @JvmOverloads constructor(
             hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
 
         override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
-            hitTargets.indices.filterTo(virtualViewIds) { hitTargets[it].spec.kind != KeyKind.EMPTY }
+            hitTargets.indices.filterTo(virtualViewIds) { hitTargets[it].spec.kind != KeyKind.EMPTY && isTargetVisible(hitTargets[it]) }
         }
 
         override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
             val target = hitTargets.getOrNull(virtualViewId) ?: return
+            val bounds = visibleBounds(target) ?: return
             node.className = "android.widget.Button"
             node.contentDescription = describe(target.spec)
             node.setBoundsInParent(android.graphics.Rect(
-                target.bounds.left.toInt(), target.bounds.top.toInt(), target.bounds.right.toInt(), target.bounds.bottom.toInt()))
+                bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt()))
             target.spec.center?.let {
                 node.isClickable = true
                 node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
@@ -597,6 +700,7 @@ class KeyboardView @JvmOverloads constructor(
         override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: android.os.Bundle?): Boolean {
             if (previewOnly) return false
             val target = hitTargets.getOrNull(virtualViewId) ?: return false
+            if (!isTargetVisible(target)) return false
             val direction = when (action) {
                 AccessibilityNodeInfoCompat.ACTION_CLICK -> Direction.CENTER
                 ACTION_FLICK_LEFT -> Direction.LEFT
@@ -628,6 +732,7 @@ class KeyboardView @JvmOverloads constructor(
             cancelVoiceGesture()
         }
         active[id] = hit
+        if (hit.scrollable) emojiScrollGestures[id] = EmojiScrollGesture(event.getY(index), emojiScrollOffset)
         directions[id] = Direction.CENTER
         labelFrames[id] = LabelFrame()
         val verticalOnly = hit.spec.kind == KeyKind.MODIFIER ||
@@ -647,6 +752,17 @@ class KeyboardView @JvmOverloads constructor(
     private fun pointerMove(event: MotionEvent, index: Int) {
         val id = event.getPointerId(index)
         if (voiceHoldOwner?.first == id) return
+        emojiScrollGestures[id]?.let { gesture ->
+            val dy = event.getY(index) - gesture.startY
+            if (gesture.scrolling || abs(dy) >= dp(12f)) {
+                if (!gesture.scrolling) {
+                    gesture.scrolling = true
+                    discardPointer(id)
+                }
+                scrollEmojiTo(gesture.startOffset - dy)
+                return
+            }
+        }
         if (id in accentActive) {
             val hit = active[id]
             val choices = hit?.spec?.center?.label?.let(::accentChoices)
@@ -682,6 +798,8 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun pointerUp(id: Int) {
+        val emojiGesture = emojiScrollGestures.remove(id)
+        if (emojiGesture?.scrolling == true) return
         cancelTimer(id)
         val hit = active.remove(id) ?: return
         labelAnimators.remove(id)?.cancel()

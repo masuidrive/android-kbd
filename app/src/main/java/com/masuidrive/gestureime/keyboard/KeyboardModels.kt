@@ -49,7 +49,6 @@ sealed interface KeyAction {
     data class MoveCursor(val direction: Direction, val units: Int = 1) : KeyAction
     data class MoveToBoundary(val boundary: CursorBoundary) : KeyAction
     data class SwitchLayer(val target: KeyboardMode) : KeyAction
-    data class ChangeEmojiPage(val delta: Int) : KeyAction
     data class SetModifier(val modifier: Modifier?) : KeyAction
     data class TransformKana(val transform: KanaTransform) : KeyAction
     data object Escape : KeyAction
@@ -89,5 +88,4 @@ data class KeyboardUiState(
     val dualFlickEnabled: Boolean = false,
     val heightPreset: KeyboardHeightPreset = KeyboardHeightPreset.STANDARD,
     val emojiRecents: List<String> = emptyList(),
-    val emojiPage: Int = 0,
 )

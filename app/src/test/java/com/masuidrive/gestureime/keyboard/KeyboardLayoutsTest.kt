@@ -108,26 +108,25 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
-    @Test fun `emoji layer keeps four rows with bounded recents catalog and in-row page controls`() {
+    @Test fun `emoji layer exposes three viewport rows from one bounded continuous list and fixed controls`() {
         val family = "❤️"
+        val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", family, "😀"))
         val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", family, "😀")).rows
         assertEquals(4, rows.size)
-        assertEquals(8, rows.first().keys.size)
-        assertEquals(KeyAction.CommitEmoji(family), rows.first().keys[1].center?.action)
-        assertTrue(rows.first().keys.drop(2).all { it.kind == KeyKind.EMPTY })
-        assertTrue(rows.all { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() == 8f })
-        assertEquals(KeyAction.ChangeEmojiPage(-1), rows[3].keys[1].center?.action)
-        assertEquals(KeyAction.ChangeEmojiPage(1), rows[3].keys[2].center?.action)
-        assertEquals(KeyAction.ChangeEmojiPage(1), rows[3].keys[3].center?.action)
-        assertEquals(KeyAction.Backspace(), rows[3].keys[4].center?.action)
+        assertEquals(5, contentRows.size)
+        assertEquals(KeyAction.CommitEmoji(family), contentRows.first().keys[1].center?.action)
+        assertEquals("😀", contentRows.first().keys[2].center?.label)
+        assertEquals(EmojiCatalog.entries, contentRows.flatMap { row -> row.keys.mapNotNull { it.center?.label } }.drop(2))
+        assertTrue(contentRows.all { row -> row.keys.size == 8 && row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() == 8f })
+        assertEquals(contentRows.take(3), rows.take(3))
+        assertEquals(3, rows[3].keys.size)
+        assertEquals(KeyKind.EMPTY, rows[3].keys[1].kind)
+        assertEquals(KeyAction.Backspace(), rows[3].keys[2].center?.action)
         assertEquals(KeyboardMode.QWERTY, (rows[3].keys[0].center?.action as KeyAction.SwitchLayer).target)
         assertEquals(KeyAction.VoiceHold, rows[3].keys[0].left?.action)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), rows[3].keys[0].up?.action)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), rows[3].keys[0].right?.action)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), rows[3].keys[0].down?.action)
-        val secondPage = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiPage = 1)
-        assertEquals("💯", secondPage.rows[1].keys.first().center?.label)
-        assertEquals(KeyAction.ChangeEmojiPage(-1), secondPage.rows[3].keys[2].center?.action)
     }
 
     @Test fun `dual kana duplicates only the central twelve keys`() {

@@ -407,7 +407,6 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
             }
-            is KeyAction.ChangeEmojiPage -> keyboardView?.changeEmojiPage(action.delta)
             is KeyAction.SelectCandidate -> {
                 if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
                 else if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
