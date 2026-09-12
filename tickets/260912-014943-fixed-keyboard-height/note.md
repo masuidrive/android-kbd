@@ -1,6 +1,6 @@
 # Work Notes: 260912-014943-fixed-keyboard-height
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review (Verification complete)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 高さpresetは端末内SharedPreferencesとView測定だけで完結し、外部provider/APIを持たない。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -71,6 +71,15 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | reference同期 | Minor | `sites-native-spec`、`android-native-implementation`、参照用mockが内画面でキー高さを増やす旧仕様を残していた。 | 採用・修正 | 高さpresetを幅とDual Flickから独立させた実装と矛盾するため、3ファイルを現行仕様へ同期した。 |
+
+## PDH-verify. AC・Surface裏取り
+
+- target `02a36b23b48ea6792263950d579adf88148a7b78`でAC 1〜5をcode、focused test結果、実AVD capture、docsから独立に突合し、全件`VERIFIED`、blockerなしと判定した。詳細は`tmp/verify-result.md`。
+- focused XMLは`ImePreferencesTest` 6件、`SetupActivitySlashCommandsTest` 4件、`KeyboardViewTest` 42件、`ImeServiceVoiceLifecycleTest` 9件の計61件がskip/failure/errorなし。既存full suiteはfast-checksとAndroid unit/lint/APKの2/2 PASS。
+- SurfaceはAPI 36 arm64 AVDで有効な`keyboard-height-standard-phone.png`、`keyboard-height-standard-inner.png`、`keyboard-height-standard-landscape.png`を原寸再確認した。412dp、840dp相当、回転相当の全captureで候補欄、4行キー、navigation safe areaが揃い、標準の行高が幅で増えない。`setup-height-light.png`ではsafe-area app barを維持した設定画面に「小・標準・大」と初期選択「標準」が表示される。
+- 物理Galaxy Z Fold7は未所持のため実機の開閉・hinge・physical multi-touchは未観察。project規則どおりAVDの412dp/840dp幅変更と回転で代替し、物理実機証拠と区別した。
+- reviewのreference同期後も、壊れていないSetup safe area/app bar、48dp操作領域、既存設定保存、候補欄50dp、popup/flick/hit/accessibility、全mode/Dual、`EXACTLY`/`AT_MOST`と遅延insetの回帰証拠を確認した。Critical/Major findingはなく、Minor 1は`02a36b2`で解消済み。
+- README、manual、device verification、`docs/reference/sites-native-spec.txt`、`docs/reference/android-native-implementation.md`、保存mock、現行mock、`technical-reference.md` 16/17/29は、幅とDual Flickから独立したpreset固定高、標準228dp、候補欄とbottom safe areaの外付け、壊れた値の標準fallbackで一致する。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
