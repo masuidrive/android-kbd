@@ -1,12 +1,15 @@
 package com.masuidrive.gestureime.voice
 
 import android.speech.SpeechRecognizer
+import android.os.Looper
+import java.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -40,7 +43,7 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
-    fun latestNonBlankPartialIsDisplayedButCannotBeConfirmedOrLostAtEndOfSpeech() {
+    fun endOfSpeechPromotesTheLatestOfMultipleLongSpeechPartialsAfterGracePeriod() {
         val controller = controller()
         controller.start(8)
         recognizer.supportCallback?.invoke(true)
@@ -53,8 +56,48 @@ class VoiceRecognitionControllerTest {
 
         recognizer.listener?.onEndOfSpeech()
         assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
-        controller.stop()
-        assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
+        assertNull(controller.confirm(8))
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
+        )
+
+        assertEquals(VoiceBackendState.Preview(listOf("最新の途中結果")) to 8L, states.last())
+        assertEquals("最新の途中結果", controller.confirm(8))
+    }
+
+    @Test
+    fun finalResultDuringGraceWinsOverThePartialFallback() {
+        val controller = controller()
+        controller.start(9)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onPartialResults(listOf("途中結果"))
+        recognizer.listener?.onEndOfSpeech()
+        recognizer.listener?.onResults(listOf("遅れて届いた最終結果"))
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
+        )
+
+        assertEquals(VoiceBackendState.Preview(listOf("遅れて届いた最終結果")) to 9L, states.last())
+        assertEquals("遅れて届いた最終結果", controller.confirm(9))
+    }
+
+    @Test
+    fun cancelInvalidatesTheScheduledPartialFallback() {
+        val controller = controller()
+        controller.start(10)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onPartialResults(listOf("破棄される途中結果"))
+        recognizer.listener?.onEndOfSpeech()
+        controller.cancel()
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
+        )
+
+        assertEquals(VoiceBackendState.Idle to 10L, states.last())
+        assertNull(controller.confirm(10))
     }
 
     @Test

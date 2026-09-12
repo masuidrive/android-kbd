@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognitionSupport
@@ -52,6 +53,10 @@ class VoiceRecognitionController internal constructor(
     private val factory: VoiceRecognizerFactory,
     private val onState: (VoiceBackendState, Long) -> Unit,
 ) {
+    companion object {
+        internal const val END_OF_SPEECH_GRACE_MS = 500L
+    }
+
     constructor(context: Context, onState: (VoiceBackendState, Long) -> Unit) : this(
         sdkInt = Build.VERSION.SDK_INT,
         hasPermission = {
@@ -72,6 +77,8 @@ class VoiceRecognitionController internal constructor(
     private var recognizer: VoiceRecognizer? = null
     private var partial: String? = null
     private var preview: List<String>? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var endOfSpeechFallback: Runnable? = null
 
     fun initialState(): VoiceBackendState = when {
         sdkInt < Build.VERSION_CODES.S -> VoiceBackendState.Unavailable("Android 12以降で利用できます")
@@ -91,7 +98,10 @@ class VoiceRecognitionController internal constructor(
         val activeGeneration = generation
         val created = runCatching { factory.create(object : VoiceRecognizerListener {
             override fun onReady() = deliver(activeGeneration, VoiceBackendState.Recording)
-            override fun onEndOfSpeech() = deliver(activeGeneration, partialState())
+            override fun onEndOfSpeech() {
+                deliver(activeGeneration, partialState())
+                scheduleEndOfSpeechFallback(activeGeneration)
+            }
             override fun onPartialResults(results: List<String>) {
                 if (activeGeneration != generation || preview != null) return
                 val text = results.firstOrNull { it.isNotBlank() } ?: return
@@ -100,6 +110,7 @@ class VoiceRecognitionController internal constructor(
             }
             override fun onResults(results: List<String>) {
                 if (activeGeneration != generation) return
+                clearEndOfSpeechFallback()
                 val candidates = results.filter { it.isNotBlank() }.distinct()
                 if (candidates.isEmpty()) finishWith(activeGeneration, VoiceBackendState.Unavailable("認識結果がありません"))
                 else {
@@ -170,6 +181,7 @@ class VoiceRecognitionController internal constructor(
 
     private fun invalidate(destroy: Boolean) {
         generation++
+        clearEndOfSpeechFallback()
         partial = null
         preview = null
         recognizer?.let {
@@ -185,6 +197,23 @@ class VoiceRecognitionController internal constructor(
 
     private fun partialState(): VoiceBackendState =
         partial?.let(VoiceBackendState::Partial) ?: VoiceBackendState.Recognizing
+
+    private fun scheduleEndOfSpeechFallback(activeGeneration: Long) {
+        clearEndOfSpeechFallback()
+        if (partial.isNullOrBlank()) return
+        endOfSpeechFallback = Runnable {
+            endOfSpeechFallback = null
+            if (activeGeneration != generation || preview != null) return@Runnable
+            val candidate = partial?.takeIf(String::isNotBlank) ?: return@Runnable
+            preview = listOf(candidate)
+            deliver(activeGeneration, VoiceBackendState.Preview(listOf(candidate)))
+        }.also { mainHandler.postDelayed(it, END_OF_SPEECH_GRACE_MS) }
+    }
+
+    private fun clearEndOfSpeechFallback() {
+        endOfSpeechFallback?.let(mainHandler::removeCallbacks)
+        endOfSpeechFallback = null
+    }
 
     private fun errorMessage(error: Int) = when (error) {
         SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
