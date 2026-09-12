@@ -89,6 +89,8 @@
 
 [2026/09/12 22:08 JST] decision 10をservice session generationとcontroller recognizer generationの実際の責務、active限定TalkBack状態nodeへ訂正した。
 
+[2026/09/12 22:34 JST] リリース文書準備: `technical-reference.md` decision 10/21と突合し、README、製品紹介、操作モック説明、マニュアルのv0.13.0変更一覧、`docs/v0.13-release-notes.md`へ「認識中」、候補1回確定後の即時再認識、Cancelまでの継続、操作mockの同等フローを記載した。全APK導線は未圧縮の`gesture-ime-v0.13.0.apk`のままとし、site配下にAPK/ZIPを置かないことを確認した。PDH-review / PDH-verify / human reviewの完了判定はこの文書準備では更新しない。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。

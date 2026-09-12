@@ -207,3 +207,4 @@
 [2026/09/12 21:40] 音声レイヤーでキャンセル横に認識状態を表示し、候補確定後に旧候補を消して次の認識を開始し、キャンセルまで繰り返すticket `260912-122938-keep-voice-listening-until-cancel` を作成した。private・editor切替・IME非表示・別layer・errorでは停止し、旧callbackから確定も再開始もしない契約を独立AC読み手が承認した。
 [2026/09/12 22:00] 音声レイヤーへ非actionの「認識中」表示と連続session generationを実装した。候補確定成功後だけ同じeditorで次recognizerを開始し、rapid double tapとmutex待ちCancelはcommit・restart各1回以下、onStartInputでも旧sessionを停止するtestを追加した。native、browser mock、manual、実装referenceを3commitへ分割し、全suiteは2/2 PASS。独立reviewとAPI 36・412/840 mockの最終surface確認を開始した。
 [2026/09/12 22:31] 認識中statusのTalkBack hover/focus終了をExploreByTouchHelperへ正しく反映した。並行してAndroidX絵文字pickerの初回provisional高さが再bindで繰り返されるlayout loopを修正し、最終body/clipをcontrol境界へ固定した。問題test、focused 4対象、全suite（fast-checks、Android unit/lint/APK）はすべてPASS。
+[2026/09/12 22:34] v0.13.0のリリース文書を準備し、連続音声入力の「認識中」、候補確定後の即時再認識、Cancelまでの継続をREADME、製品紹介、操作mock説明、マニュアル、release notesへ同期した。APK導線は未圧縮のgesture-ime-v0.13.0.apkのみで、site配下にAPK/ZIPがないことを確認した。
