@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -37,6 +37,7 @@
 - [x] mock feedback: PC新規表示をTablet・Dual Flick・日本語かな、スマホ新規表示をMobileにする
 - [x] site feedback: `demo.html`を廃止し、操作mock導線をトップ`#demo`へ統一する
 - [x] voice feedback: 最下段右側へ「、。？！」・Space・Enterを配置し、認識中もsessionと候補を保ったまま入力できるようにする
+- [x] voice feedback: 「、。？！」の4記号を全てフリックでも入力できるよう、既存3方向を維持して下フリックへ「、」を追加する
 - [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
@@ -95,6 +96,8 @@
 [2026/09/13 00:12 JST] human review差し戻し実装: 音声recognizerの`onEndOfSpeech`後500msで最終結果がなければ最後の有効partialを選択候補へ昇格し、`NO_MATCH`・`SPEECH_TIMEOUT`・`CLIENT` errorでも同じfallbackを行う。通常横候補欄から音声を分離して上3行相当の固定縦panelへ移し、権限未許可・非対応・errorはtap不能text、候補確定後はpanelを消して認識中へ戻す。絵文字Recentを新しい順・重複なし最大100件へ拡張し、全category holderを再利用・選択後も48dp固定にした。独自hide barをnative/mockから削除し、system bottom insetはKeyboardViewが4行下へ保持する。mockはreadonly・focus outlineなし、外側gray、mode切替上下12pxへ同期した。native focused 8 classは82/82 PASS、mock mirror・JS syntax・fast-checks・412/840pxのbrowser観察もPASS。実装commit: `ddb8e49`, `5e12e77`, `8b5e39d`, `e231515`。
 
 [2026/09/13 02:21 JST] 追加feedbackを`a8feac4`で実装した。VOICE最下段を5等分してCancel、非操作status、句読点、Space、Enterを置き、句読点をMozcへ入れない直接commitにした。VOICE中の文字commit・Enter・Paste・Space cursor・Ctrl+Jは同一voice/editor generationの専用経路で処理し、認識器、panel、候補を変更しない。Cancel・layer切替後にmutex待ちの操作はgeneration不一致で破棄する。独立reviewで見つかったmockのready時status消失、かなcomposition依存、Cancel後の非同期Pasteを`21e1fb5`で修正し、句読点面を全角「、。？！」へ統一した。
+
+[2026/09/13 02:47 JST] `77d0346`でVOICE句読点の未使用downへ直接`CommitText("、")`を追加した。center「、」・left「。」・up「？」・right「！」は維持し、popupとTalkBack説明、native layout/view/service test、操作mockと正本mirror、technical-referenceを同期した。focused Android test、mock JS syntax、similarity、mirror、fast-checksはPASS。ブラウザではready候補3件と「認識中」を保ったままdown flickで入力値が「、」になった。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -217,6 +220,8 @@ Passed: 2 / 2
 [2026/09/13 01:47 JST] 操作mock実装referenceをトップ統合、v2保存state、初回案内置換、`demo.html`廃止へ更新した。正式な製品紹介と操作mockは`https://masuidrive.jp/products/md-kbd/`、マニュアルは同階層の`manual.html`で配信する。
 
 [2026/09/13 02:23 JST] `technical-reference.md`、README、製品紹介、操作mock、マニュアルをVOICE最下段5列、句読点直接入力、Space・Enter各フリック中の連続session保持へ同期した。v0.15.0のリリースノートとAPI 36実画面も追加した。
+
+[2026/09/13 02:47 JST] `technical-reference.md` decision 10、README、操作mock、マニュアル、v0.15.1 release notesをVOICE句読点のdown「、」と、4記号全てをflickで入力できる説明へ同期した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

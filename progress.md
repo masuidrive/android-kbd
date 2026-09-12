@@ -237,3 +237,4 @@
 [2026/09/13 02:27] review指摘3件を修正し、操作mockで候補3件と「認識中」を表示したまま「、」・Space・Enterを入力できること、入力値が`、 \n`になっても候補とsessionを維持することを確認した。v0.15.0最終SHAのfast-checks・全unit test・lint・APKは2/2 PASS、API 36 connected testは11/11 PASS。APKは38,762,814 bytes、SHA-256 `9909709fed43a193c85ca89bd251f405d5bbb4aa31bd4102606ac9c46d530a6b`。
 [2026/09/13 02:33] 再reviewで操作mockの保留Ctrl・Altが音声layer進入後も残るnative差を検出し、音声進入時に保留・押下中modifierを解除した。ブラウザでCtrl選択→音声→Cancel→qがCtrl+qにならず`q`を入力することを確認。リリース文書の句読点全角表記と、実画面に合わせたマイク権限状態の画像説明も修正した。
 [2026/09/13 02:36] v0.15.0 APKをGitHub Releaseへ公開し、再downloadのbytesとSHA-256がlocalと完全一致した。masuidrive.jpのcommit `ac851a9`をmainへpushし、GitHub Pagesが同commitでbuilt、公開index・mock・manual・画像のbyte一致、840pxの横overflow 0、画像欠落0、音声候補3件と「認識中」・右寄せ3キーを確認した。最終独立reviewはCritical・Major・Minor 0件。
+[2026/09/13 02:43] 音声入力レイヤーの「、。？！」4記号を全てフリックでも入力できる追加調整を開始した。従来のtap「、」・左「。」・上「？」・右「！」を変えず、未使用の下フリックへ「、」を追加して既存操作との互換性を保つ。native・popup・操作mock・マニュアル・APKを同期する。
