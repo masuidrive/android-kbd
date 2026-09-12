@@ -556,7 +556,7 @@
     else if(id==='modifier')modify();
     else if(id==='escape')announce('ESC');
     else if(id==='ctrl-j')applyModified('j','Control');
-    else if(id==='voice')announce('音声入力面を開きます');
+    else if(id==='voice')announce('音声入力レイヤーを開きます');
     else if(id==='raw-conversion'&&composition.reading) {commitCompositionValue(composition.reading);}
     else if(id==='katakana-conversion'&&composition.reading) {
       const katakana=composition.reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
@@ -661,7 +661,7 @@
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
-    const layerDirections='左フリックで音声入力面、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
+    const layerDirections='左フリックで音声入力レイヤー、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
     const names={
       backspace:'削除',
       'flick-backspace':'タップで削除、下フリックでESC',

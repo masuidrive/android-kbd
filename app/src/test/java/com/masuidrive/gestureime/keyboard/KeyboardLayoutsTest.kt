@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KeyboardLayoutsTest {
-    @Test fun `all five named layers have four rows`() {
+    @Test fun `all six named modes have four rows`() {
         assertEquals(KeyboardMode.entries.toSet(), KeyboardLayouts.all.keys)
         KeyboardLayouts.all.values.forEach { assertEquals(4, it.rows.size) }
     }

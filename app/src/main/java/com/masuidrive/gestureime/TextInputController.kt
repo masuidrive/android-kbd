@@ -55,9 +55,9 @@ class TextInputController(
         composing = ""
     }
 
-    fun commitText(text: String) {
+    fun commitText(text: String): Boolean {
         finishComposition()
-        connection()?.commitText(text, 1)
+        return connection()?.commitText(text, 1) ?: false
     }
 
     /**

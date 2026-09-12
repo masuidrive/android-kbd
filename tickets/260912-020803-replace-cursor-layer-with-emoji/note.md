@@ -34,6 +34,10 @@
 
 Why は product brief のオフライン入力と、同じキーボード内で編集・入力を完結する方針に接続する。AC 1–4、6 は画面・入力・再表示で観察できる。AC 5 は旧保存値のfallback、AC 3 はページ方式とrecent件数が未指定だったため、承認済みの次の実装判断で復元可能にした。既存の固定4行、Spaceフリック、直接カーソル操作、端末内保存、外部送信なしと矛盾しない。
 
+### Contract correction
+
+ユーザーのカーソルレイヤー削除指示と既存Space操作維持の会話をDirectorが再確認し、AC 5を「専用カーソルレイヤーは表示経路と保存済み最終レイヤーから削除されるが、Spaceフリックによる上下左右移動と`TextInputController`のcursor key処理は維持」へ訂正した。「既存の直接カーソルキー」は専用CURSORレイヤーのUIを残す意味ではない。このnoteは承認済みcontract correctionの実装記録である。
+
 ### Design Decisions
 
 - カテゴリではなく2ページのAPK内emoji catalogを使う。1ページにつき2行のキーを表示し、最下行の前後キーで移動する。
@@ -76,12 +80,25 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | AC reader | Info | AC 1–4/6は復元可能。AC 3の方式・recent件数とAC 5のlegacy fallbackが未指定。 | 採用 | page方式、recent 8件、CURSOR→KANAをDesign Decisionsへ固定した。 |
+| 2 | Review | Major | `CommitEmoji`のservice経路、commit失敗時recent非更新、公開文書の旧5レイヤー表記が未固定。 | 修正 | service integration test、commit成功Boolean、product brief/site/referenceの6レイヤー同期で解消した。 |
+| 3 | Review | Minor | technical referenceの5→6とDecision番号重複、layout test名が旧表記。 | 修正 | architectureを6レイヤーへ変更し、17以降を連番化、test名を6 modeへ更新した。 |
+
+### Findings (PDH-review-2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Review | Major | `CommitEmoji`の成功判定がeditor sessionとcommit resultを一体で固定しておらず、slashのraw composition cleanupもcoverageにない。 | 修正 | 現editor tokenだけで`commitText()`し、成功時だけrecentと`KeyboardView`を更新する実service testを追加した。日本語・英字・slashのcomposition、commit拒否、旧editor queueを固定した。 |
+| 2 | Review | Major | product brief、site、referenceに旧5レイヤー・カーソルレイヤー表記が残る。 | 修正 | product brief、公開mock/manual/index/demo、reference mirrorを絵文字recentを含む現行レイヤーへ同期し、mock sourceにもrecent localStorage永続化を加えた。 |
+| 3 | Review | Minor | 公開文言の「面」がユーザーの用語契約に反する。 | 修正 | 音声入力・絵文字の公開文言を「レイヤー」へ統一した。内部の`KeyboardMode`とlegacy `CURSOR` migration値は保持する。 |
+
+- review-2 focused: `ImeServiceEnglishSuggestionTest`、`ImePreferencesTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` — 87 tests PASS。
+- review-2 full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-`technical-reference.md`にemoji面の8 unit・端末内recent・legacy fallbackを追記し、README、manual、native/mock reference、device verificationをEMOJIへ同期した。manualにはAPI 36のrecent先頭証跡を追加した。
+`technical-reference.md`に絵文字レイヤーの8 unit・端末内recent・legacy fallbackを追記し、README、manual、native/mock reference、device verificationをEMOJIへ同期した。manualにはAPI 36のrecent先頭証跡を追加した。review-2ではarchitectureを6レイヤーへ訂正し、Decision番号を連番化した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

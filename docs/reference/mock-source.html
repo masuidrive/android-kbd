@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="日本語、テンキー、カーソル、QWERTY、記号の5レイヤーを備えたジェスチャーIMEモックとAndroid native実装仕様">
+  <meta name="description" content="日本語、テンキー、絵文字、QWERTY、記号、音声の6レイヤーを備えたジェスチャーIMEモックとAndroid native実装仕様">
   <title>Gesture IME — Android implementation reference</title>
   <style>
     :root {
@@ -115,8 +115,8 @@
     <section class="prototype" aria-labelledby="page-title">
       <p class="eyebrow">Interactive HTML mock</p>
       <h1 id="page-title"><span>Android</span><span>ジェスチャー</span><span>キーボード</span></h1>
-      <p class="lede">日本語、テンキー、カーソル、QWERTY、記号の5レイヤーと、かな漢字変換を確認する実装リファレンスです。</p>
-      <p class="change-note"><strong>UPDATED</strong><span>Fold7の外画面・内画面ではモックを画面幅いっぱいに表示。Enter下段のPasteと5レイヤー表示も反映。</span></p>
+      <p class="lede">日本語、テンキー、絵文字、QWERTY、記号、音声の6レイヤーと、recent絵文字・かな漢字変換を確認する実装リファレンスです。</p>
+      <p class="change-note"><strong>UPDATED</strong><span>Fold7の外画面・内画面ではモックを画面幅いっぱいに表示。Enter下段のPaste、recent絵文字、6レイヤー表示を反映。</span></p>
       <div class="mock-frame"><div id="ios-keyboard-demo" data-device="cover">
   <div class="device-picker" role="group" aria-label="Galaxy Z Fold7の画面">
     <span class="device-name">Galaxy Z Fold7</span>
@@ -365,7 +365,18 @@
   // END KEY FLICK LOGIC
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   const emojiPages=[['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨'],['💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈']];
+  const emojiStorageKey='gesture-ime-demo-state';
   let emojiRecents=[], emojiPage=0;
+  try {
+    const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'null');
+    if(Array.isArray(saved?.emojiRecents)) emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'))].slice(0,8);
+  } catch (_) {}
+  function persistEmojiRecents() {
+    try {
+      const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'{}');
+      localStorage.setItem(emojiStorageKey,JSON.stringify({...saved,emojiRecents}));
+    } catch (_) {}
+  }
   let keyMap = new Map();
   let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
@@ -845,7 +856,7 @@
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
-        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) { if(p.key.emoji) { emojiRecents=[keyOutput(p),...emojiRecents.filter(value=>value!==keyOutput(p))].slice(0,8); } insert(keyOutput(p)); }
+        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) { if(p.key.emoji) { emojiRecents=[keyOutput(p),...emojiRecents.filter(value=>value!==keyOutput(p))].slice(0,8);persistEmojiRecents(); } insert(keyOutput(p)); }
         lastSpace=-Infinity;
       }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
     }
@@ -861,7 +872,7 @@
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
       if(e.detail!==0)return;
-      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji)emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);insert(k.text);}render();}else action(k.id);
+      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji){emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);persistEmojiRecents();}insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });
   editor.addEventListener('input',()=>{preferredCursorX=null;updateCount();if(!preserveComposition)syncComposition();if(!active.size)render();});
@@ -938,7 +949,7 @@
       <h2 id="goal"><a href="#goal">目的</a></h2>
 <p>Galaxy Z Fold7 の外画面と内画面で使う Android IME を実装する。英字は QWERTY の各キーをタップして小文字、上スワイプでその1文字だけ大文字、下フリックで数字または ASCII 記号を入力する。日本語は連打なしの12キーフリックとし、候補列でかな漢字変換を行う。</p>
 <p>HTMLモックは操作、寸法、状態遷移を確認するリファレンスである。製品版では <code>InputMethodService</code>、<code>InputConnection</code>、Mozc などの変換エンジンを使う。</p>
-<p>画面と文書ではレイヤー名を「日本語」「テンキー」「カーソル」「QWERTY」「記号」に統一する。<code>language</code> と <code>layer</code> は実装上の内部状態名として扱う。</p>
+<p>画面と文書ではレイヤー名を「日本語」「テンキー」「絵文字」「QWERTY」「記号」「音声」に統一する。<code>language</code> と <code>layer</code> は実装上の内部状態名として扱う。</p>
 <h2 id="layout"><a href="#layout">キー配列</a></h2>
 <p>英字1〜3行目の基本幅を <code>1w</code> とする。2行目だけ左端と右端に <code>0.5w</code> のジェスチャー専用キーが入る。</p>
 <div class="table-scroll"><table><thead><tr>
@@ -969,7 +980,7 @@
 </tbody></table></div>
 <p><code>C/A</code> は記号の副ラベルと同じ高さになるよう、上側の <code>C</code> と下側の <code>A</code> に少し間を空けて固定する。上スワイプで Alt、下スワイプで Ctrl を次の1キーへ適用する。方向選択中と選択後は上下ラベルを消して、中央に選ばれた <code>A</code> または <code>C</code> を表示する。選択後のタップは修飾状態を解除する。未選択の<code>C/A</code>と<code>BS</code>はタップでも上スワイプでもポップアップを出さない。<code>BS</code>は下フリックだけで候補表示と削除を有効にする。QWERTYレイヤーの <code>#</code> は中央の <code>#</code> と右後ろの淡い <code>!</code> を重ねた <code>#!</code> キーで記号へ入り、記号レイヤーでは中央の <code>A</code> と右後ろの淡い <code>Z</code> を重ねた <code>AZ</code> キーでQWERTYへ戻る。どちらも暗い背景のモードキーとする。記号レイヤーは ASCII 文字だけを収録する。</p>
 <p>4行目のレイヤー切替キーはQWERTY形式では<code>あん</code>、テンキー形式では<code>AZ</code>とする。タップはQWERTY形式から日本語レイヤーへ、テンキー形式からQWERTYレイヤーへ移動する。全レイヤーで左フリックは記号、上フリックは日本語、右フリックはテンキー、下フリックはQWERTYへ移動する。方向選択中は元の補助文字を消し、キー中央に移動先のレイヤー名だけを表示する。<code>#!</code>、<code>あん</code>、<code>AZ</code>、<code>19</code> の補助文字は主ラベルの約75%のサイズで揃える。<code>Enter</code> は上側に小さく <code>paste</code> を常時表示し、下スワイプ中は中央ラベルを小文字の <code>paste</code> へ変える。離すとクリップボード内容を確定する。QWERTYの<code>Space</code>は上側に補助表示 <code>←↓↑→</code> を置き、操作中も同じ記号列を初期表示に使う。</p>
-<p>日本語・テンキー左上の<code>☺</code>は絵文字4行面を開く。最上行はlocalStorageの新しい順・重複なし最大8件、次の2行は16件ずつのページ、最下行は既存layer flick、前頁、頁表示、次頁、削除である。すべての行を8列幅に揃え、空recent枠は空のままにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
+<p>日本語・テンキー左上の<code>☺</code>は絵文字レイヤーを開く。最上行はlocalStorageの新しい順・重複なし最大8件、次の2行は16件ずつのページ、最下行は既存layer flick、前頁、頁表示、次頁、削除である。すべての行を8列幅に揃え、空recent枠は空のままにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
 <h2 id="architecture"><a href="#architecture">推奨するAndroid構成</a></h2>
 <pre><code class="language-text">ImeService : InputMethodService
 ├── KeyboardRootView : ViewGroup

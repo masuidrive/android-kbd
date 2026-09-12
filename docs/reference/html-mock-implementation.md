@@ -41,19 +41,20 @@
 
 ## 状態
 
-ユーザー向けのレイヤー名は「日本語」「テンキー」「カーソル」「QWERTY」「記号」とする。内部状態との対応は次の通り。
+ユーザー向けのレイヤー名は「日本語」「テンキー」「絵文字」「QWERTY」「記号」「音声」とする。絵文字recentは端末内だけに新しい順・重複なしで保存する。内部状態との対応は次の通り。
 
 | 表示するレイヤー名 | 内部状態 |
 |---|---|
 | 日本語 | `language = kana`, `layer = letters` |
 | テンキー | `language = kana`, `layer = numbers` |
-| カーソル | `language = kana`, `layer = cursor` |
+| 絵文字 | `language = kana`, `layer = emoji` |
 | QWERTY | `language = english`, `layer = letters` |
 | 記号 | `language = english`, `layer = symbols` |
+| 音声 | `voiceDemo.active = true` |
 
 ```text
 language          english / kana
-layer             letters / symbols / numbers / cursor
+layer             letters / symbols / numbers / emoji
 pendingModifier   null / Control / Alt
 active             pointerIdごとの押下状態
 composition       reading / range / candidates / selected / converted
@@ -66,9 +67,9 @@ device            cover / inner
 
 QWERTYの1〜3行目は基本キーを `1w` とし、2行目だけ `C/A 0.5w + a〜l 9w + BS 0.5w` にします。3行目は `# + z〜.` で合計10w。`#` は`AZ`と同じ重ね位置に淡い `!` を置く`#!`構成です。4行目の日本語切替キーも中央の `あ` と、同じ位置に重ねる淡い `ん` の`あん`構成にして、Space、Enterと並べます。`#!`、`あん`、`AZ`、`19` の補助文字は主ラベルの約75%に揃えます。記号レイヤーも同じ外形を保ち、`#` の位置は中央の `A` と右後ろの淡い `Z` を重ねたQWERTY復帰キーに変えます。Enterは上側に小さな `paste` を常時表示し、下スワイプ中は中央ラベルを小文字の `paste` へ変えて、離した時に貼り付けを実行します。
 
-日本語・テンキーの左上`☺`は絵文字面を開きます。絵文字面はrecent最大8件の1行、16件ずつの一覧2行、layer flick・前頁・頁表示・次頁・削除の最下行で、すべて8列幅の4行に収めます。recentはlocalStorageで新しい順・重複なしに保存し、空枠は空のままです。日本語とテンキーの空白キーは `Space` と表示し、フリックすると上下左右のカーソル移動に入ります。QWERTYの`Space`は方向表示 `←↓↑→` を主ラベルの上に置き、トラックパッド開始時の中央ステータスにも同じ記号列を表示します。
+日本語・テンキーの左上`☺`は絵文字レイヤーを開きます。絵文字レイヤーはrecent最大8件の1行、16件ずつの一覧2行、layer flick・前頁・頁表示・次頁・削除の最下行で、すべて8列幅の4行に収めます。recentはlocalStorageで新しい順・重複なしに保存し、空枠は空のままです。日本語とテンキーの空白キーは `Space` と表示し、フリックすると上下左右のカーソル移動に入ります。QWERTYの`Space`は方向表示 `←↓↑→` を主ラベルの上に置き、トラックパッド開始時の中央ステータスにも同じ記号列を表示します。
 
-Fold7外画面は最大412px、内画面は最大840pxのコンテナで確認します。内画面では配列を変えず、キー高と余白だけを増やします。
+Fold7外画面は最大412px、内画面は最大840pxのコンテナで確認します。内画面でも配列とキー高を変えず、列と左右余白だけを変えます。
 
 ## ジェスチャー判定
 

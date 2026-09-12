@@ -306,7 +306,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             is KeyAction.CommitEmoji -> {
                 finishEnglishRaw()
                 resetConversion(clearComposing = false)
-                if (editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }) {
+                if (editorSession.isCurrent(editorToken) && textController.commitText(action.text)) {
                     keyboardView?.setEmojiRecents(ImePreferences.recordEmojiRecent(this, action.text))
                 }
             }
@@ -599,7 +599,10 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private suspend fun cycleCandidate() {
-        if (reading.isEmpty()) return textController.commitText(" ")
+        if (reading.isEmpty()) {
+            textController.commitText(" ")
+            return
+        }
         conversionPreview = null
         textController.replaceComposing(reading)
         val generation = ++conversionGeneration

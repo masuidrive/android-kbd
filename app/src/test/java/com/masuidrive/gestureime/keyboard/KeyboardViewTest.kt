@@ -722,7 +722,7 @@ class KeyboardViewTest {
         assertEquals(6, bounds(1).left - first.right)
     }
 
-    @Test fun `all five four row layers share outer height face height and vertical gaps`() {
+    @Test fun `all six four row layers share outer height face height and vertical gaps`() {
         listOf(412 to 228, 840 to 228).forEach { (width, height) ->
             val geometry = KeyboardMode.entries.associateWith { mode ->
                 view.setMode(mode)

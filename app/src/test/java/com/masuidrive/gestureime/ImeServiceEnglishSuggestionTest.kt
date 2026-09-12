@@ -15,6 +15,7 @@ import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
 import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
@@ -364,6 +365,57 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
+    fun emojiCommitFlushesJapaneseEnglishAndSlashCompositionThenUpdatesRecentOnlyAfterSuccessfulCommit() {
+        val harness = Harness { _, _ -> emptyList() }
+        harness.clearEmojiRecents()
+        harness.service.onKeyAction(KeyAction.KanaInput("か"))
+        harness.idle()
+        harness.key("a")
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        harness.service.onKeyAction(KeyAction.CommitEmoji("❤️"))
+        harness.idle()
+
+        assertEquals("かa❤️", harness.input.visibleText)
+        assertEquals(listOf("❤️"), ImePreferences.getEmojiRecents(harness.service))
+        val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
+        assertEquals("タップ ❤️", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)?.contentDescription)
+
+        val slash = Harness(english = { _, _ -> emptyList() })
+        slash.clearEmojiRecents()
+        slash.key("/")
+        slash.idle()
+        slash.service.onKeyAction(KeyAction.CommitEmoji("😀"))
+        slash.idle()
+        assertEquals("/😀", slash.input.visibleText)
+        assertEquals(listOf("😀"), ImePreferences.getEmojiRecents(slash.service))
+
+        val rejected = Harness(commitAccepted = false) { _, _ -> emptyList() }
+        rejected.clearEmojiRecents()
+        rejected.service.onKeyAction(KeyAction.CommitEmoji("😀"))
+        rejected.idle()
+        assertEquals("", rejected.input.visibleText)
+        assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(rejected.service))
+    }
+
+    @Test
+    fun emojiQueuedForAnOldEditorDoesNotCommitOrUpdateRecent() {
+        val pendingStart = CompletableDeferred<Unit>()
+        val harness = Harness(conversion = FakeConversion(startGate = pendingStart)) { _, _ -> emptyList() }
+        harness.clearEmojiRecents()
+
+        harness.service.onKeyAction(KeyAction.KanaInput("か"))
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.CommitEmoji("😀"))
+        harness.service.onStartInput(EditorInfo(), false)
+        pendingStart.complete(Unit)
+        harness.idle()
+
+        assertEquals("か", harness.input.visibleText)
+        assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(harness.service))
+    }
+
+    @Test
     fun externalSelectionMoveInvalidatesCandidateAndNextTextStartsAtNewSelection() {
         val harness = Harness { _, _ -> listOf("hello") }
         harness.key("h")
@@ -441,17 +493,19 @@ class ImeServiceEnglishSuggestionTest {
     private class Harness(
         slashCommands: List<String>? = null,
         privateEditor: Boolean = false,
+        commitAccepted: Boolean = true,
         conversion: FakeConversion = FakeConversion(),
         english: suspend (String, Int) -> List<String>,
     ) {
         private val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
-        val input = RecordingConnection(View(RuntimeEnvironment.getApplication()))
+        val input = RecordingConnection(View(RuntimeEnvironment.getApplication()), commitAccepted)
         lateinit var root: View
 
         init {
             ImePreferences.setEnglishSuggestionsEnabled(service, true)
             ImePreferences.setSlashCommands(service, slashCommands ?: ImePreferences.DEFAULT_SLASH_COMMANDS)
+            clearEmojiRecents()
             val text = TextInputController(
                 connection = { input },
                 context = service,
@@ -483,6 +537,12 @@ class ImeServiceEnglishSuggestionTest {
             service.onKeyAction(KeyAction.CommitText(text))
         }
 
+        fun clearEmojiRecents() {
+            service.getSharedPreferences("gesture_ime_preferences", 0).edit().apply {
+                repeat(ImePreferences.EMOJI_RECENT_LIMIT) { remove("emoji_recent_$it") }
+            }.commit()
+        }
+
         fun idle() = Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
 
@@ -493,7 +553,7 @@ class ImeServiceEnglishSuggestionTest {
         return null
     }
 
-    private class RecordingConnection(view: View) : BaseInputConnection(view, true) {
+    private class RecordingConnection(view: View, private val commitAccepted: Boolean = true) : BaseInputConnection(view, true) {
         private val text = StringBuilder()
         private var composingStart = -1
         private var composingEnd = -1
@@ -523,6 +583,7 @@ class ImeServiceEnglishSuggestionTest {
         }
 
         override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
+            if (!commitAccepted) return false
             val start = if (composingStart >= 0) composingStart else minOf(selectionStart, selectionEnd)
             val end = if (composingEnd >= 0) composingEnd else maxOf(selectionStart, selectionEnd)
             val replacement = text?.toString().orEmpty()
@@ -550,12 +611,14 @@ class ImeServiceEnglishSuggestionTest {
 
     private class FakeConversion(
         private val candidateValues: List<ConversionCandidate> = emptyList(),
+        private val startGate: CompletableDeferred<Unit>? = null,
         private val prediction: suspend (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
     ) : ConversionEngine {
         val deletedIndexes = mutableListOf<Int>()
         val predictionContexts = mutableListOf<PredictionContext>()
         private var predictionActive = false
         override suspend fun start(reading: String): ConversionState {
+            startGate?.await()
             predictionActive = false
             return ConversionState(reading, candidateValues, -1)
         }
