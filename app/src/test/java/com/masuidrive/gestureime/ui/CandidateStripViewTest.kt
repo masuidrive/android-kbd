@@ -112,7 +112,7 @@ class CandidateStripViewTest {
         view.layout(0, 0, 400, 50)
 
         val partial = view.textView("認識途中の文章")
-        assertEquals(34, partial.height)
+        assertEquals(38, partial.height)
         assertEquals(7f, partial.faceLayer().cornerRadius, .1f)
         assertEquals("認識途中: 認識途中の文章", partial.contentDescription)
         assertTrue(view.allTextViews().none { it.text == "取消" })
@@ -129,7 +129,7 @@ class CandidateStripViewTest {
             view.layout(0, 0, 400, 50)
             val control = view.textView(text)
             assertEquals(82, control.width)
-            assertEquals(34, control.height)
+            assertEquals(38, control.height)
             assertEquals(7f, control.faceLayer().cornerRadius, .1f)
             assertEquals(Color.WHITE, control.faceColor())
             assertEquals(Color.rgb(137, 140, 148), control.shadowLayer().color!!.defaultColor)
@@ -197,7 +197,7 @@ class CandidateStripViewTest {
         val view = view()
         assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
         assertEquals(6, view.paddingLeft)
-        assertEquals(14, view.paddingTop)
+        assertEquals(10, view.paddingTop)
         assertEquals(6, view.paddingRight)
         assertEquals(2, view.paddingBottom)
     }
@@ -211,7 +211,7 @@ class CandidateStripViewTest {
         val second = view.textView("two")
 
         assertEquals(82, first.width)
-        assertEquals(34, first.height)
+        assertEquals(38, first.height)
         assertEquals(14, first.paddingLeft)
         assertEquals(14, first.paddingRight)
         assertEquals(5, (second.layoutParams as android.widget.LinearLayout.LayoutParams).marginStart)
@@ -231,9 +231,9 @@ class CandidateStripViewTest {
             fun assertFace(text: String) {
                 val face = view.textView(text)
                 assertEquals("$width $text left", expectedInset, face.leftIn(view))
-                assertEquals("$width $text top", 14, face.topIn(view))
+                assertEquals("$width $text top", 10, face.topIn(view))
                 assertEquals("$width $text bottom", 48, face.bottomIn(view))
-                assertEquals("$width $text height", 34, face.height)
+                assertEquals("$width $text height", 38, face.height)
             }
 
             view.setVoiceState(VoiceUiSnapshot(50, VoiceUiState.Hidden))
@@ -254,9 +254,9 @@ class CandidateStripViewTest {
             layout()
             val control = view.textView("許可")
             assertEquals("$width control right", width - expectedInset, control.rightIn(view))
-            assertEquals("$width control top", 14, control.topIn(view))
+            assertEquals("$width control top", 10, control.topIn(view))
             assertEquals("$width control bottom", 48, control.bottomIn(view))
-            assertEquals("$width control height", 34, control.height)
+            assertEquals("$width control height", 38, control.height)
         }
     }
 

@@ -33,7 +33,7 @@ class ImeServiceVoiceHoldTest {
         h.idle()
 
         assertEquals("第二候補", h.input.text)
-        assertEquals("QWERTYキーボード", (h.root as android.view.ViewGroup).getChildAt(1).contentDescription)
+        assertEquals("QWERTYキーボード", h.root.findKeyboard().contentDescription)
     }
 
     @Test fun earlyResultWaitsForReleaseAndCommitsOnce() {
@@ -94,4 +94,5 @@ class ImeServiceVoiceHoldTest {
 
     private fun View.allText():List<String> { val result=mutableListOf<String>(); fun visit(v:View){ if(v is android.widget.TextView) result+=v.text.toString(); if(v is android.view.ViewGroup) repeat(v.childCount){visit(v.getChildAt(it))} }; visit(this); return result }
     private fun View.findText(text:String):android.widget.TextView { if(this is android.widget.TextView && this.text.toString()==text)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findText(text)}}; error("missing $text") }
+    private fun View.findKeyboard():com.masuidrive.gestureime.keyboard.KeyboardView { if(this is com.masuidrive.gestureime.keyboard.KeyboardView)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findKeyboard()}}; error("missing keyboard") }
 }

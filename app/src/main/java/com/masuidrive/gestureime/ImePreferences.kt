@@ -15,7 +15,7 @@ object ImePreferences {
     private const val EMOJI_RECENT_PREFIX = "emoji_recent_"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
-    const val EMOJI_RECENT_LIMIT = 8
+    const val EMOJI_RECENT_LIMIT = 24
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
 
     fun isEnglishSuggestionsEnabled(context: Context): Boolean = runCatching {

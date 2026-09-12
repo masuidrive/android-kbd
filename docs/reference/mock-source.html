@@ -4,174 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="日本語、テンキー、絵文字、QWERTY、記号、音声の6レイヤーを備えたジェスチャーIMEモックとAndroid native実装仕様">
-  <title>Gesture IME — Android implementation reference</title>
-  <style>
-    :root {
-      color-scheme:light dark;
-      --paper:light-dark(#f6f3ec,#151619);
-      --surface:light-dark(#fffdf8,#1d1f23);
-      --ink:light-dark(#191a1d,#f2f1ed);
-      --muted:light-dark(#666761,#aaa9a2);
-      --line:light-dark(#d7d3c8,#35373c);
-      --accent:light-dark(#2459d3,#8db0ff);
-      --accent-soft:light-dark(#e9efff,#24304d);
-      --code:light-dark(#202226,#0d0e10);
-      --code-ink:#f5f2e9;
-    }
-    * { box-sizing:border-box; }
-    html { scroll-behavior:smooth; background:var(--paper); }
-    body { margin:0; color:var(--ink); background:var(--paper); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif; line-height:1.75; }
-    a { color:var(--accent); text-underline-offset:3px; }
-    .skip { position:absolute; left:-9999px; top:0; z-index:100; padding:10px 14px; background:var(--ink); color:var(--paper); }
-    .skip:focus { left:12px; top:12px; }
-    .masthead { position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:20px; min-height:64px; padding:0 clamp(18px,4vw,56px); border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--paper) 90%,transparent); backdrop-filter:blur(18px); }
-    .brand { display:flex; align-items:baseline; gap:11px; color:var(--ink); text-decoration:none; font-weight:720; letter-spacing:-.02em; }
-    .brand small { color:var(--muted); font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
-    .masthead nav { display:flex; align-items:center; gap:18px; font-size:13px; }
-    .masthead nav a { color:var(--muted); text-decoration:none; }
-    .masthead nav a:hover { color:var(--ink); }
-    .download { border:1px solid var(--line); border-radius:999px; padding:6px 12px; }
-    .workbench { display:grid; grid-template-columns:minmax(340px,460px) minmax(0,760px); align-items:start; gap:clamp(38px,6vw,88px); width:min(1320px,100%); margin:0 auto; padding:clamp(30px,5vw,72px) clamp(16px,4vw,56px) 100px; }
-    .prototype { position:sticky; top:92px; }
-    .eyebrow { margin:0 0 10px; color:var(--accent); font:700 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.14em; text-transform:uppercase; }
-    h1 { margin:0; font-size:clamp(38px,5vw,66px); line-height:.98; letter-spacing:-.055em; font-weight:760; }
-    h1 span { display:block; }
-    .lede { max-width:40rem; margin:22px 0 20px; color:var(--muted); font-size:15px; }
-    .change-note { display:flex; gap:10px; align-items:flex-start; margin:0 0 28px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:12px; line-height:1.55; }
-    .change-note strong { flex:none; color:var(--accent); font:700 10px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.1em; }
-    .mock-frame { padding:10px; border:1px solid var(--line); border-radius:28px; background:var(--surface); box-shadow:0 22px 55px light-dark(#29230f18,#0007); }
-    .mock-frame #ios-keyboard-demo .phone { width:100%; border-color:var(--line); }
-    .try-note { margin:12px 8px 0; color:var(--muted); font-size:12px; }
-    .document { min-width:0; padding-top:6px; }
-    .doc-meta { display:grid; grid-template-columns:repeat(3,1fr); margin:0 0 42px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
-    .doc-meta div { padding:14px 12px; border-right:1px solid var(--line); }
-    .doc-meta div:last-child { border-right:0; }
-    .doc-meta dt { color:var(--muted); font:650 9px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; text-transform:uppercase; }
-    .doc-meta dd { margin:5px 0 0; font-size:13px; font-weight:650; }
-    .guide-links { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 34px; }
-    .guide-links a { display:block; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--ink); text-decoration:none; }
-    .guide-links strong { display:block; font-size:13px; }
-    .guide-links span { display:block; margin-top:3px; color:var(--muted); font-size:11px; }
-    .toc { margin:0 0 54px; padding:0 0 30px; border-bottom:1px solid var(--line); }
-    .toc h2 { margin:0 0 16px; font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
-    .toc ol { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 28px; margin:0; padding:0; list-style:none; counter-reset:toc; }
-    .toc li { counter-increment:toc; display:flex; gap:10px; font-size:13px; }
-    .toc li::before { content:counter(toc,decimal-leading-zero); color:var(--muted); font:500 10px/1.9 ui-monospace,SFMono-Regular,Menlo,monospace; }
-    .toc a { color:var(--ink); text-decoration:none; }
-    .document > h2 { scroll-margin-top:92px; margin:72px 0 18px; padding-top:18px; border-top:1px solid var(--line); font-size:clamp(25px,3vw,34px); line-height:1.15; letter-spacing:-.035em; }
-    .document > h2:first-of-type { margin-top:0; }
-    .document > h2 a { color:inherit; text-decoration:none; }
-    .document p { margin:0 0 19px; color:var(--ink); font-size:15px; }
-    .document ul,.document ol { margin:0 0 24px; padding-left:1.45em; }
-    .document li { margin:7px 0; padding-left:4px; }
-    .document code { padding:.12em .35em; border:1px solid var(--line); border-radius:4px; background:var(--surface); font:500 .88em/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
-    pre { overflow:auto; margin:24px 0 30px; padding:19px 20px; border-radius:10px; background:var(--code); color:var(--code-ink); line-height:1.58; box-shadow:inset 0 0 0 1px #ffffff10; }
-    pre code { padding:0!important; border:0!important; background:transparent!important; color:inherit!important; font:500 12px/1.58 ui-monospace,SFMono-Regular,Menlo,monospace!important; }
-    .table-scroll { overflow-x:auto; margin:24px 0 32px; border-top:1px solid var(--line); }
-    table { width:100%; border-collapse:collapse; min-width:580px; font-size:13px; line-height:1.55; }
-    th,td { padding:12px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-    th { color:var(--muted); font:700 10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; text-transform:uppercase; }
-    .footer { padding:24px clamp(18px,4vw,56px) 42px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; text-align:center; }
-    @media(max-width:920px) {
-      .masthead nav a:not(.download) { display:none; }
-      .workbench { grid-template-columns:1fr; max-width:none; padding-left:0; padding-right:0; }
-      .prototype { position:static; }
-      .prototype > :not(.mock-frame) { margin-left:clamp(18px,5vw,42px); margin-right:clamp(18px,5vw,42px); }
-      .mock-frame { width:100%; max-width:none; margin:0; padding:0; border-left:0; border-right:0; border-radius:0; box-shadow:none; }
-      .mock-frame #ios-keyboard-demo .phone { width:100%; max-width:none; border-left:0; border-right:0; border-radius:0; }
-      .try-note { max-width:none; }
-      .document { padding-left:clamp(24px,5vw,48px); padding-right:clamp(24px,5vw,48px); }
-    }
-    @media(max-width:520px) {
-      .masthead { min-height:56px; }
-      .brand small { display:none; }
-      .workbench { padding:26px 0 72px; gap:58px; }
-      .prototype > :not(.mock-frame) { margin-left:16px; margin-right:16px; }
-      .mock-frame { padding:0; border-left:0; border-right:0; border-radius:0; box-shadow:none; }
-      .mock-frame #ios-keyboard-demo .phone { border:0; border-radius:0; max-width:none; }
-      .document { padding:0 18px; }
-      .doc-meta { grid-template-columns:1fr; }
-      .doc-meta div { border-right:0; border-bottom:1px solid var(--line); }
-      .doc-meta div:last-child { border-bottom:0; }
-      .toc ol { grid-template-columns:1fr; }
-      .guide-links { grid-template-columns:1fr; }
-      .document > h2 { margin-top:58px; }
-    }
-    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
-  </style>
+  <title>masuidrive-kbd 操作モック</title>
+  <style>html,body{margin:0;background:transparent}</style>
 </head>
 <body>
-  <a class="skip" href="#spec">仕様へ移動</a>
-  <header class="masthead">
-    <a class="brand" href="#top">Gesture IME <small>REFERENCE / 0.2</small></a>
-    <nav aria-label="ページ内ナビゲーション">
-      <a href="#gestures">Gestures</a>
-      <a href="#label-animation">Animation</a>
-      <a class="download" href="html-mock-implementation.md">HTML guide</a>
-    </nav>
-  </header>
-  <main id="top" class="workbench">
-    <section class="prototype" aria-labelledby="page-title">
-      <p class="eyebrow">Interactive HTML mock</p>
-      <h1 id="page-title"><span>Android</span><span>ジェスチャー</span><span>キーボード</span></h1>
-      <p class="lede">日本語、テンキー、絵文字、QWERTY、記号、音声の6レイヤーと、recent絵文字・かな漢字変換を確認する実装リファレンスです。</p>
-      <p class="change-note"><strong>UPDATED</strong><span>Fold7の外画面・内画面ではモックを画面幅いっぱいに表示。Enter下段のPaste、recent絵文字、6レイヤー表示を反映。</span></p>
-      <div class="mock-frame"><div id="ios-keyboard-demo" data-device="cover">
-  <div class="device-picker" role="group" aria-label="Galaxy Z Fold7の画面">
-    <span class="device-name">Galaxy Z Fold7</span>
-    <button type="button" data-device="cover" aria-pressed="true">外画面</button>
-    <button type="button" data-device="inner" aria-pressed="false">内画面</button>
+<div id="ios-keyboard-demo" data-device="cover" data-theme="light">
+  <div class="device-picker" role="group" aria-label="モックの表示設定">
+    <span class="device-name">masuidrive-kbd</span>
+    <button type="button" data-theme="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+    <button type="button" data-device="cover" aria-pressed="true">Mobile</button>
+    <button type="button" data-device="inner" aria-pressed="false">Tablet</button>
+    <button type="button" data-dual aria-pressed="false">Dual Flick</button>
+    <button type="button" data-english-candidates aria-pressed="false">英字候補</button>
     <span class="device-size">6.5″ · 2520 × 1080</span>
   </div>
   <div class="phone">
-    <header class="topbar"><span class="app-title">キーボード</span></header>
     <div class="editor-wrap">
       <label class="editor-label" for="ios-typing-area">入力を試す<span class="count">0 文字</span></label>
       <textarea id="ios-typing-area" aria-label="入力を試す" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに入力されます" rows="4"></textarea>
     </div>
-    <div class="feedback" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
+    <div class="sr-status" role="status" aria-live="polite"><span class="mode-label">QWERTY</span><span class="last-input">準備完了</span></div>
     <div class="keyboard" role="group" aria-label="画面キーボード">
-      <div class="candidate-bar" role="listbox" aria-label="日本語変換候補" hidden></div>
+      <div class="candidate-bar" role="listbox" aria-label="入力候補" hidden></div>
       <div class="keys"></div>
+      <button class="keyboard-hide" type="button" data-key="hide" aria-label="キーボードを閉じる">⌄</button>
       <div class="trackpad-status" role="status" aria-live="polite" hidden>←↓↑→</div>
-      <div class="keyboard-bottom"><button type="button" data-key="globe" aria-label="日本語に切り替える">あ</button><span class="language">QWERTY</span><button type="button" data-key="hide" aria-label="キーボードを閉じる">⌄</button></div>
-      <div class="home-indicator" aria-hidden="true"></div>
       <div class="popup" aria-hidden="true" hidden></div>
     </div>
-    <button class="reopen" type="button" data-key="show" hidden>キーボードを表示</button>
   </div>
 </div>
 <style>
-  #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
+  #ios-keyboard-demo { --ik-paper:light-dark(#fff,#1c1c1e); --ik-editor:light-dark(#f3f4f7,#1c1c1e); --ik-ink:light-dark(#19191b,#f4f4f6); --ik-muted:light-dark(#63636b,#b5b5bd); --ik-bg:light-dark(#d3d5db,#29292c); --ik-key:light-dark(#fff,#636366); --ik-special:light-dark(#aeb3bd,#414144); --ik-line:light-dark(#e5e5ea,#38383a); --ik-blue:light-dark(#007aff,#0a84ff); --ik-active:light-dark(#e8f1ff,#263951); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,"Noto Sans JP",sans-serif; color:var(--ik-ink); width:100%; -webkit-tap-highlight-color:transparent; }
+  #ios-keyboard-demo[data-theme=light] { color-scheme:light; }
+  #ios-keyboard-demo[data-theme=dark] { color-scheme:dark; }
+  #ios-keyboard-demo[data-embed=hero] [data-english-candidates], #ios-keyboard-demo[data-embed=hero] .device-size { display:none; }
+  #ios-keyboard-demo[data-embed=hero] .editor-wrap { height:112px; padding:10px 16px 8px; }
+  #ios-keyboard-demo[data-embed=hero] textarea { height:78px; min-height:78px; font-size:20px; }
   #ios-keyboard-demo * { box-sizing:border-box; }
   #ios-keyboard-demo { --ik-key:light-dark(#fff,#414144); --ik-special:light-dark(#aeb3bd,#303034); --ik-key-muted:light-dark(#73737b,#b5b5bf); --ik-selected:light-dark(#174ea6,#a8ceff); --ik-selected-ink:light-dark(#fff,#102844); --ik-popup:light-dark(#fff,#55555a); --ik-popup-ink:light-dark(#19191b,#f4f4f6); --ik-popup-line:light-dark(#d0d2d8,#74747a); }
-  #ios-keyboard-demo .device-picker { display:flex; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
+  #ios-keyboard-demo .device-picker { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; width:max-content; max-width:100%; gap:4px; margin:0 auto 12px; padding:4px; border:1px solid var(--ik-line); border-radius:11px; background:var(--ik-paper); }
   #ios-keyboard-demo .device-picker .device-name { margin:0 8px; color:var(--ik-muted); font-size:11px; white-space:nowrap; }
   #ios-keyboard-demo .device-picker button { border:0; border-radius:7px; padding:7px 12px; background:transparent; color:var(--ik-muted); font-size:12px; }
   #ios-keyboard-demo .device-picker button[aria-pressed=true] { background:var(--ik-active); color:var(--ik-ink); }
   #ios-keyboard-demo .device-size { min-width:126px; margin:0 8px; color:var(--ik-muted); font:500 10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; }
-  #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); min-height:min(960px,calc(100svh - 72px)); margin:0 auto; border:1px solid var(--ik-line); border-radius:22px; background:var(--ik-paper); overflow:hidden; }
-  #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); min-height:min(930px,calc(100svh - 72px)); border-radius:26px; }
+  #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); margin:0 auto; background:var(--ik-paper); overflow:hidden; }
+  #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); }
   #ios-keyboard-demo button { font-family:inherit; cursor:pointer; color:inherit; margin:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   #ios-keyboard-demo .topbar { display:flex; align-items:center; justify-content:space-between; padding:20px 20px 16px; }
   #ios-keyboard-demo .app-title { font-size:19px; font-weight:500; letter-spacing:-.5px; }
-  #ios-keyboard-demo .editor-wrap { flex:1; min-height:190px; padding:22px 20px 12px; }
+  #ios-keyboard-demo .editor-wrap { height:164px; padding:14px 20px 10px; background:var(--ik-editor); }
   #ios-keyboard-demo .editor-label { display:flex; justify-content:space-between; font-size:11px; color:var(--ik-muted); margin-bottom:10px; }
-  #ios-keyboard-demo textarea { display:block; width:100%; height:100%; min-height:144px; resize:none; background:transparent; color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
+  #ios-keyboard-demo textarea { display:block; width:100%; height:124px; min-height:124px; resize:vertical; background:var(--ik-editor); color:var(--ik-ink); border:0; padding:4px 0; font:400 23px/1.65 inherit; font-family:inherit; font-size:23px; line-height:1.65; caret-color:var(--ik-blue); border-radius:0; }
   #ios-keyboard-demo textarea::placeholder { color:var(--ik-muted); opacity:.65; }
-  #ios-keyboard-demo .feedback { display:flex; align-items:center; justify-content:space-between; min-height:40px; padding:8px 16px; font-size:11px; border-top:1px solid var(--ik-line); gap:8px; }
+  #ios-keyboard-demo .sr-status { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
   #ios-keyboard-demo .last-input { color:var(--ik-blue); }
   #ios-keyboard-demo .keyboard { background:var(--ik-bg); position:relative; padding:8px 3px 0; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  #ios-keyboard-demo .candidate-bar { box-sizing:border-box; display:flex; align-items:center; gap:5px; height:50px; padding:6px 3px 10px; overflow-x:auto; scrollbar-width:none; }
+  #ios-keyboard-demo .candidate-bar { box-sizing:border-box; display:flex; align-items:center; gap:5px; height:50px; padding:10px 3px 2px; overflow-x:auto; scrollbar-width:none; }
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
-  #ios-keyboard-demo .candidate-bar[hidden] { display:none; }
-  #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
+  #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:38px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar { padding:0 5px; gap:2px; overflow-x:auto; }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button { min-width:46px; width:46px; height:46px; padding:0; border-radius:0; background:transparent; box-shadow:none; font-size:20px; color:var(--ik-key-muted); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button[aria-pressed=true] { color:var(--ik-blue); border-bottom:2px solid var(--ik-blue); }
+  #ios-keyboard-demo .candidate-bar button.voice-candidate { max-width:100%; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:15px; padding-block:2px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
-  #ios-keyboard-demo .candidate-bar .candidate-empty { flex:1; color:var(--ik-muted); font-size:12px; text-align:center; }
   #ios-keyboard-demo .keys { position:relative; }
-  #ios-keyboard-demo .key-row { display:flex; justify-content:center; height:54px; margin-bottom:7px; gap:0; }
+  #ios-keyboard-demo .keyboard-hide { display:flex; align-items:center; justify-content:center; width:100%; height:28px; padding:0; border:0; background:transparent; color:var(--ik-muted); font-size:25px; line-height:1; touch-action:manipulation; }
+  #ios-keyboard-demo .keyboard-hide:focus-visible { outline:2px solid var(--ik-blue); outline-offset:-2px; }
+  #ios-keyboard-demo .key-row { display:flex; justify-content:center; height:45px; margin-bottom:10px; gap:0; }
   #ios-keyboard-demo .key { display:flex; position:relative; justify-content:center; align-items:center; flex:1; min-width:0; height:100%; background:none; border:0; padding:0 3px; font-size:25px; font-weight:400; touch-action:none; }
   #ios-keyboard-demo .key-face { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--ik-key); border-radius:5px; box-shadow:0 1px 0 light-dark(#898c94,#141416); width:100%; height:100%; pointer-events:none; }
   #ios-keyboard-demo .special .key-face { background:var(--ik-special); font-size:16px; }
@@ -199,13 +101,13 @@
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
   #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
-  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:171px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:165px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
   #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .kana .key-row { position:relative; }
-  #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 6px); z-index:1; }
+  #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 10px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
   #ios-keyboard-demo .kana .punct .key-face, #ios-keyboard-demo .kana .modifier .key-face { font-size:18px; }
-  #ios-keyboard-demo .kana .key-row { height:51px; margin-bottom:6px; }
+  #ios-keyboard-demo .kana .key-row { height:45px; margin-bottom:10px; }
   #ios-keyboard-demo .english .key-row { height:45px; margin-bottom:10px; }
   #ios-keyboard-demo .english .key { font-size:24px; }
   #ios-keyboard-demo .english .key.has-flick { font-size:22px; }
@@ -213,6 +115,7 @@
   #ios-keyboard-demo .english .key-row:nth-child(2) .key { flex:0 0 10%; }
   #ios-keyboard-demo .english .key-row:nth-child(2) .modifier-gesture,
   #ios-keyboard-demo .english .key-row:nth-child(2) .flick-backspace { flex-basis:5%; }
+  #ios-keyboard-demo .english .flick-backspace .key-face { font-size:13px; }
   #ios-keyboard-demo .key.has-flick .key-face { position:relative; overflow:hidden; padding-top:10px; }
   #ios-keyboard-demo .key .key-main { transition:transform .09s ease,opacity .09s ease; }
   #ios-keyboard-demo .key.letter-layer-toggle .key-face { position:relative; }
@@ -221,7 +124,7 @@
   #ios-keyboard-demo .key.pressed .key-ghost, #ios-keyboard-demo .key.mode-on .key-ghost { color:var(--ik-selected-ink); opacity:1; }
   #ios-keyboard-demo .key.letter-layer-toggle.navigation-selected .key-ghost { opacity:0; }
   #ios-keyboard-demo .key .key-alt { position:absolute; top:3px; left:0; right:0; text-align:center; color:var(--ik-key-muted); font-size:11px; line-height:12px; transition:transform .09s ease,color .09s ease; }
-  #ios-keyboard-demo .key .key-hint { order:3; }
+  #ios-keyboard-demo .key .key-hint { order:3; transform-origin:center; transition:transform .09s ease,color .09s ease,opacity .09s ease; }
   #ios-keyboard-demo .key.space .key-hint { order:-1; margin:0 0 2px; }
   #ios-keyboard-demo .key.return .key-hint { order:-1; margin:0 0 2px; }
   #ios-keyboard-demo .key.return.mode-on .key-hint { opacity:0; }
@@ -231,19 +134,15 @@
   #ios-keyboard-demo .key.uppercase-selected .key-main { transform:translateY(-3px); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .key.uppercase-selected .key-alt { opacity:0; }
   #ios-keyboard-demo .trackpad .key-face, #ios-keyboard-demo .trackpad .key-face * { color:transparent!important; }
-  #ios-keyboard-demo .keyboard.popup-active .keys .key:not(.pressed) .key-face { opacity:.42; }
-  @media(prefers-reduced-motion:reduce) { #ios-keyboard-demo .key .key-main, #ios-keyboard-demo .key .key-alt { transition:none; } }
+  @media(prefers-reduced-motion:reduce) { #ios-keyboard-demo .key .key-main, #ios-keyboard-demo .key .key-alt, #ios-keyboard-demo .key .key-hint { transition:none; } }
   #ios-keyboard-demo .english .key.backspace .key-face, #ios-keyboard-demo .english .key.return .key-face { background:var(--ik-key); }
   #ios-keyboard-demo .english .key-row:last-child .key { flex:1.45; }
   #ios-keyboard-demo .english .key-row:last-child .space { flex:4.2; }
   #ios-keyboard-demo .english .space .key-face { font-size:16px; }
   #ios-keyboard-demo .english .key-row:last-child .return { flex:2; }
-  #ios-keyboard-demo .keyboard-bottom { display:flex; align-items:center; justify-content:space-between; height:40px; padding:0 12px; }
-  #ios-keyboard-demo .keyboard-bottom button { padding:0; width:44px; height:38px; border:0; background:transparent; font-size:30px; touch-action:none; }
-  #ios-keyboard-demo .language { font-size:12px; color:var(--ik-muted); }
-  #ios-keyboard-demo .home-indicator { width:118px; height:4px; background:var(--ik-ink); border-radius:4px; margin:6px auto 0; transform:translateY(-3px); opacity:.85; }
-  #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 47px; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
+  #ios-keyboard-demo .trackpad-status { position:absolute; z-index:8; inset:8px 3px 0; display:flex; align-items:center; justify-content:center; color:var(--ik-ink); font-size:22px; font-weight:500; letter-spacing:.08em; pointer-events:none; }
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
+  #ios-keyboard-demo .voice .key.voice-cancel .key-face { font-size:13px; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -252,9 +151,13 @@
   #ios-keyboard-demo .popup.letter { min-width:58px; height:66px; padding:4px 10px; background:var(--ik-popup); color:var(--ik-popup-ink); border:1px solid var(--ik-popup-line); border-radius:9px 9px 5px 5px; text-align:center; font-size:40px; line-height:56px; }
   #ios-keyboard-demo .popup.accents { display:flex; background:var(--ik-popup); border:1px solid var(--ik-popup-line); border-radius:8px; padding:3px; }
   #ios-keyboard-demo .popup.accents span { position:relative; width:34px; height:48px; font-size:25px; border:0; }
-  #ios-keyboard-demo .reopen { border:0; background:var(--ik-active); color:var(--ik-blue); width:100%; min-height:48px; font-size:15px; }
   #ios-keyboard-demo[data-device=inner] .topbar, #ios-keyboard-demo[data-device=inner] .editor-wrap { padding-left:28px; padding-right:28px; }
   #ios-keyboard-demo[data-device=inner] .keyboard { padding-left:10px; padding-right:10px; }
+  #ios-keyboard-demo .kana.dual .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.dual .key.return { width:12.5%; }
+  #ios-keyboard-demo .key.return.has-paste.flick-selected .key-hint { transform:translateY(13px) scale(1.7); color:var(--ik-selected-ink); opacity:1; }
+  #ios-keyboard-demo .key.return.has-paste.flick-selected .key-main { transform:translateY(22px); opacity:0; }
+  #ios-keyboard-demo .key.return.control-j-selected .key-main { transform:scale(1.06); color:var(--ik-selected-ink); }
   @media(max-width:560px) { #ios-keyboard-demo .device-picker .device-name { display:none; } #ios-keyboard-demo .device-size { min-width:0; } }
   @media(max-width:360px) { #ios-keyboard-demo .key { padding:0 2px; } #ios-keyboard-demo .topbar { padding-top:16px; } #ios-keyboard-demo .device-size { display:none; } }
 </style>
@@ -269,7 +172,7 @@
     [['emoji','☺'],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
     [['symbols','#'],['た',['た','ち','つ','て','と']],['な',['な','に','ぬ','ね','の']],['は',['は','ひ','ふ','へ','ほ']],['space','Space']],
     [['numbers','123'],['ま',['ま','み','む','め','も']],['や',['や','（','ゆ','）','よ']],['ら',['ら','り','る','れ','ろ']],['return','Enter']],
-    [['english','ABC',{layerSwitch:true}],['modifier','小゛゜'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
+    [['english','ABC',{layerSwitch:true}],['modifier','小'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
   ];
   const tenkeyRows = [
     [['emoji','☺'],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
@@ -284,8 +187,10 @@
     english:{main:'A',ghost:'Z'},
     symbols:{main:'#',ghost:'!'}
   };
-  const layerNavigation = {left:{label:'記号',action:'symbol-layer'},up:{label:'日本語',action:'kana'},right:{label:'テンキー',action:'kana-numbers'},down:{label:'QWERTY',action:'english'}};
-  const pasteNavigation = {down:{label:'paste',action:'paste'}};
+  const layerNavigation = {left:{label:'音声',action:'voice'},up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
+  const voiceNavigation = {up:{label:'日本語',action:'kana'},right:{label:'QWERTY',action:'english'},down:{label:'テンキー',action:'kana-numbers'}};
+  const pasteNavigation = {up:{label:'C-j',action:'ctrl-j'},down:{label:'paste',action:'paste'}};
+  const conversionNavigation = {up:{label:'無変換',action:'raw-conversion'},left:{label:'カタカナ',action:'katakana-conversion'}};
   const repeatKeys = ['backspace','left','right','up','down'];
   const accents = {a:'àáâäæãåā',e:'èéêëēėę',i:'îïíīįì',o:'ôöòóœøōõ',u:'ûüùúū',c:'çćč',n:'ñń',s:'ßśš',y:'ÿ'};
   const modifierCycles = ['あぁ','いぃ','うぅゔ','えぇ','おぉ','かが','きぎ','くぐ','けげ','こご','さざ','しじ','すず','せぜ','そぞ','ただ','ちぢ','つっづ','てで','とど','はばぱ','ひびぴ','ふぶぷ','へべぺ','ほぼぽ','やゃ','ゆゅ','よょ','わゎ'];
@@ -319,7 +224,7 @@
     return true;
   }
   function keyOutput(p) {
-    if(p.altSelected)return p.key.alt;
+    if(p.altSelected)return p.key.alt||p.key.gestureAlt;
     if(p.variants)return p.variants[p.accentIndex];
     return p.upperSelected||p.upper?p.key.text.toUpperCase():p.key.text;
   }
@@ -366,21 +271,37 @@
     return {pos:row.reduce((best,s)=>Math.abs(s.x-x)<Math.abs(best.x-x)?s:best).pos,x};
   }
   // END KEY FLICK LOGIC
-  let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
-  const emojiCatalog=['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨','💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈'];
-  const emojiStorageKey='gesture-ime-demo-state';
-  let emojiRecents=[], emojiScrollTop=0;
-  try {
-    const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'null');
-    if(Array.isArray(saved?.emojiRecents)) emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'))].slice(0,8);
-    if(Number.isFinite(saved?.emojiScrollTop)) emojiScrollTop=Math.max(0,saved.emojiScrollTop);
-  } catch (_) {}
-  function persistEmojiRecents() {
-    try {
-      const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'{}');
-      localStorage.setItem(emojiStorageKey,JSON.stringify({...saved,emojiRecents,emojiScrollTop}));
-    } catch (_) {}
+  const params=new URLSearchParams(location.search);
+  const heroEmbed=params.get('embed')==='hero';
+  if(heroEmbed) {
+    root.dataset.embed='hero';
   }
+  let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
+  let dualEnabled = false, englishCandidatesEnabled = false;
+  const slashCommands=['/compact','/clear','/quit'];
+  const emojiCategories=[
+    ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏']],
+    ['people','👋',['👋','👍','👎','👏','🙏','💪','👀','🧑','👩','👨','👶','👵','🧠','🫶','🤝','✍️']],
+    ['nature','🌿',['🌸','🍀','🌈','🌞','🌙','⭐','🐶','🐱','🦊','🌳','🌊','🔥','❄️','🌍','🪴','🐝']],
+    ['food','🍣',['🍣','☕','🍜','🍙','🍺','🍰','🍎','🍓','🥑','🍕','🍔','🍩','🧃','🍷','🥂','🍫']],
+    ['objects','💡',['💡','📌','🚀','🎈','📷','💻','📱','⌚','🎵','🎁','📚','✏️','🔑','💎','🧸','🛠️']],
+    ['symbols','✓',['✅','❌','⚽','💯','🧡','♻️','⚠️','❓','‼️','💤','💬','🔔','🔒','❤️‍🔥','➕','⭐']],
+  ];
+  let emojiRecents=[], emojiScrollTop=0, emojiCategory='recent';
+  const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
+  let renderedCandidateContentKey=null;
+  try {
+    const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
+    if(saved&&['english','kana'].includes(saved.language))language=saved.language;
+    if(saved&&['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
+    if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,24);
+    if(Number.isFinite(saved?.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
+    dualEnabled=Boolean(saved?.dualEnabled);
+    englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
+    if(['light','dark'].includes(saved?.theme))root.dataset.theme=saved.theme;
+  } catch (_) {}
+  if(heroEmbed)editor.value='ここは入力できるよ';
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
@@ -426,18 +347,134 @@
     if(commit)clearComposition();
     render();return true;
   }
+  function commitCompositionValue(value) {
+    if(!composition.reading)return false;
+    preserveComposition=true;
+    editor.focus({preventScroll:true});
+    editor.setRangeText(value,composition.start,composition.end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;
+    announce('確定：'+value);clearComposition();render();return true;
+  }
+  const englishSuggestionWords=['compact','clear','quit','project','prompt','program','product','problem','keyboard','gesture','android','candidate'];
+  function englishPrefix() {
+    if(language!=='english'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd)return null;
+    const end=editor.selectionStart,match=editor.value.slice(0,end).match(/[A-Za-z]+$/);
+    return match&&match[0].length>=1?{raw:match[0],start:end-match[0].length,end}:null;
+  }
+  function replaceEnglishCandidate(candidate) {
+    const prefix=englishPrefix();if(!prefix)return;
+    editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));announce('候補を確定：'+candidate);render();
+  }
+  function slashPrefix() {
+    if(language!=='english'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd)return null;
+    const end=editor.selectionStart,match=editor.value.slice(0,end).match(/\/[A-Za-z]*$/);
+    return match?{raw:match[0],start:end-match[0].length,end}:null;
+  }
+  function replaceSlashCommand(candidate) {
+    const prefix=slashPrefix();if(!prefix)return;
+    editor.focus({preventScroll:true});editor.setRangeText(candidate,prefix.start,prefix.end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));announce('コマンドを確定：'+candidate);render();
+  }
+  function clearVoiceTimers() {voiceDemo.timers.forEach(clearTimeout);voiceDemo.timers=[];}
+  function beginVoiceDemo(p) {
+    if(voiceDemo.active)return;
+    p.voiceTriggered=true;
+    Object.assign(voiceDemo,{active:true,phase:'listening',partial:'聞き取っています…',candidates:[],index:0,returnState:{language,layer},committed:false});
+    navigator.vibrate?.([35,45,35]);announce('模擬音声認識を開始');
+    voiceDemo.timers=[
+      setTimeout(()=>{voiceDemo.partial='こんにちは';render(true);announce('認識途中：こんにちは');},450),
+      setTimeout(()=>{voiceDemo.partial='こんにちは、音声入力を';render(true);announce('認識途中：'+voiceDemo.partial);},950),
+      setTimeout(()=>{voiceDemo.phase='ready';voiceDemo.partial='こんにちは、音声入力を試しています';voiceDemo.candidates=['こんにちは、音声入力を試しています','こんにちは。音声入力を試しています','音声入力を試しています'];voiceDemo.index=0;render(true);announce('認識結果を選べます');},1500)
+    ];
+    render(true);
+  }
+  function leaveVoiceDemo(canceled) {
+    if(!voiceDemo.active)return;
+    clearVoiceTimers();
+    const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
+    language=previous.language;layer=previous.layer;
+    announce(canceled?'音声入力を取り消し':'音声入力を終了');render(true);
+  }
+  function commitVoiceCandidate(index) {
+    if(!voiceDemo.active||voiceDemo.phase!=='ready'||voiceDemo.committed)return;
+    const text=voiceDemo.candidates[index];if(!text)return;
+    voiceDemo.committed=true;clearVoiceTimers();
+    const previous=voiceDemo.returnState||{language:'english',layer:'letters'};
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null});
+    language=previous.language;layer=previous.layer;
+    preserveComposition=true;
+    editor.focus({preventScroll:true});editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;clearComposition();
+    announce('音声入力：'+text);render();
+  }
+  function leaveVoiceForLayer(actionId) {
+    if(!voiceDemo.active)return;
+    clearVoiceTimers();
+    Object.assign(voiceDemo,{active:false,phase:'idle',partial:'',candidates:[],index:0,returnState:null,committed:false});
+    if(actionId==='english') {language='english';layer='letters';}
+    else if(actionId==='kana-numbers') {language='kana';layer='numbers';}
+    else {language='kana';layer='letters';}
+    pendingModifier=null;clearComposition();announce('レイヤーを切り替え');render(true);
+  }
   function renderCandidates() {
     candidateBar.replaceChildren();
-    candidateBar.hidden=language!=='kana'||layer!=='letters';
-    if(candidateBar.hidden)return;
-    if(!composition.reading) {
-      const empty=document.createElement('span');empty.className='candidate-empty';empty.textContent='かなを入力すると変換候補を表示';candidateBar.append(empty);return;
+    candidateBar.classList.toggle('emoji-category-bar',language==='kana'&&layer==='emoji');
+    if(language==='kana'&&layer==='emoji') {
+      candidateBar.hidden=false;
+      emojiCategories.forEach(([id,icon])=>{
+        const button=document.createElement('button');button.type='button';button.dataset.emojiCategory=id;
+        button.textContent=icon;button.setAttribute('aria-label',id==='recent'?'最近使った絵文字':id+'カテゴリ');
+        button.setAttribute('aria-pressed',String(id===emojiCategory));candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('emoji-category');return;
     }
-    composition.candidates.forEach((candidate,index)=>{
-      const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
-      button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
-      button.textContent=candidate;candidateBar.append(button);
+    if(voiceDemo.active) {
+      const values=voiceDemo.phase==='ready'?voiceDemo.candidates:(voiceDemo.partial&&voiceDemo.partial!=='聞き取っています…'?[voiceDemo.partial]:[]);
+      candidateBar.hidden=!values.length;
+      values.forEach((candidate,index)=>{
+        const button=document.createElement('button');button.type='button';button.className='voice-candidate';button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;
+        if(voiceDemo.phase==='ready')button.dataset.voiceCandidate=String(index);
+        else {button.tabIndex=-1;button.setAttribute('aria-disabled','true');button.setAttribute('aria-label','認識途中: '+candidate);}
+        candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('voice\0'+voiceDemo.phase+'\0'+values.join('\0'));return;
+    }
+    if(language==='kana'&&layer==='letters'&&composition.reading) {
+      candidateBar.hidden=false;
+      composition.candidates.forEach((candidate,index)=>{
+        const button=document.createElement('button');button.type='button';button.dataset.candidateIndex=String(index);
+        button.setAttribute('role','option');button.setAttribute('aria-selected',String(composition.converted&&index===composition.index));
+        button.textContent=candidate;candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('kana\0'+composition.candidates.join('\0'));return;
+    }
+    const command=slashPrefix();
+    if(command) {
+      const candidates=slashCommands.filter(value=>value.startsWith(command.raw));
+      candidateBar.hidden=!candidates.length;
+      candidates.forEach(candidate=>{
+        const button=document.createElement('button');button.type='button';button.dataset.slashCandidate=candidate;
+        button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('slash\0'+candidates.join('\0'));return;
+    }
+    const prefix=englishCandidatesEnabled?englishPrefix():null;
+    const candidates=prefix?englishSuggestionWords
+      .filter(word=>word.startsWith(prefix.raw.toLowerCase())&&word!==prefix.raw.toLowerCase()).slice(0,5)
+      .map(word=>prefix.raw===prefix.raw.toUpperCase()?word.toUpperCase():prefix.raw+word.slice(prefix.raw.length)):[];
+    candidateBar.hidden=!candidates.length;
+    candidates.forEach(candidate=>{
+      const button=document.createElement('button');button.type='button';button.dataset.englishCandidate=candidate;
+      button.setAttribute('role','option');button.setAttribute('aria-selected','false');button.textContent=candidate;candidateBar.append(button);
     });
+    resetCandidateScrollIfChanged(candidates.length?'english\0'+candidates.join('\0'):'none');
+  }
+  function resetCandidateScrollIfChanged(contentKey) {
+    if(contentKey===renderedCandidateContentKey)return;
+    renderedCandidateContentKey=contentKey;
+    candidateBar.scrollLeft=0;
   }
   function insert(text) {
     if (!text) return;
@@ -447,6 +484,12 @@
     editor.setRangeText(text,editor.selectionStart,editor.selectionEnd,'end');
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     announce(text==='\n'?'改行':text===' '?'空白':text);
+  }
+  function insertEmoji(emoji) {
+    insert(emoji);
+    emojiRecents=[emoji,...emojiRecents.filter(value=>value!==emoji)].slice(0,24);
+    emojiCategory='recent'; emojiScrollTop=0;
+    render();
   }
   function erase() {
     preferredCursorX=null;
@@ -515,15 +558,44 @@
     const next=cycle[(cycle.indexOf(prev.segment)+1)%cycle.length];
     editor.setSelectionRange(prev.index,end);insert(next);
   }
+  function transformKana(kind) {
+    if(kind==='cycle')return modify();
+    const maps={
+      small:'あぁいぃうぅえぇおぉつっやゃゆゅよょわゎ',
+      dakuten:'かがきぎくぐけげこござじすずせぜそぞただちぢつづてでとどはばひびふぶへべほぼうゔ',
+      handakuten:'はぱひぴふぷへぺほぽ'
+    };
+    const end=editor.selectionStart;if(end!==editor.selectionEnd)return;
+    const prev=segments(editor.value.slice(0,end)).at(-1),pairs=maps[kind];if(!prev||!pairs)return;
+    const index=pairs.indexOf(prev.segment);if(index<0)return;
+    const next=pairs[index%2===0?index+1:index-1];editor.setSelectionRange(prev.index,end);insert(next);
+  }
   function action(id,modifier=currentModifier()) {
+    if(voiceDemo.active&&id==='voice-cancel') {leaveVoiceDemo(true);return true;}
+    if(voiceDemo.active&&['kana','english','kana-numbers'].includes(id)) {leaveVoiceForLayer(id);return true;}
     const specialKeys={backspace:'Backspace',space:' ',return:'Enter',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
     if(specialKeys[id]&&applyModified(specialKeys[id],modifier)) {render();return true;}
     if(id!=='space')lastSpace=-Infinity;
-    if(id==='backspace')erase();
+    if(id==='hide') {
+      keyboard.hidden=true;
+      editor.blur();
+      announce('キーボードを閉じました');
+      postDemoHeight();
+      return true;
+    }
+    else if(id==='backspace'||id==='flick-backspace')erase();
     else if(id==='left'||id==='right')moveCursor(id==='left'?-1:1);
     else if(id==='up'||id==='down')moveVertical(id==='up'?-1:1);
     else if(id==='home'||id==='end') {preferredCursorX=null;setCursor(id==='home'?0:editor.value.length,null,id==='home'?'⇤ 先頭':'⇥ 末尾');editor.scrollTop=id==='home'?0:editor.scrollHeight;}
     else if(id==='modifier')modify();
+    else if(id==='escape')announce('ESC');
+    else if(id==='ctrl-j')applyModified('j','Control');
+    else if(id==='voice')announce('音声入力レイヤーを開きます');
+    else if(id==='raw-conversion'&&composition.reading) {commitCompositionValue(composition.reading);}
+    else if(id==='katakana-conversion'&&composition.reading) {
+      const katakana=composition.reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+      commitCompositionValue(katakana);
+    }
     else if(id==='return') {
       if(composition.reading) {announce('確定');clearComposition();}
       else insert('\n');
@@ -547,10 +619,7 @@
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
     else if(id==='emoji') {language='kana';layer='emoji';emojiScrollTop=0;clearComposition();}
-    else if(['english','kana','globe'].includes(id)) {
-      language=id==='globe'?(language==='kana'?'english':'kana'):id;layer='letters';pendingModifier=null;clearComposition();
-    }else if(id==='hide') { keyboard.hidden=true;$('.reopen').hidden=false;editor.blur(); }
-    else if(id==='show') { keyboard.hidden=false;$('.reopen').hidden=true;editor.focus({preventScroll:true}); }
+    else if(['english','kana'].includes(id)) {language=id;layer='letters';pendingModifier=null;clearComposition();}
     render();
   }
   // Layout data, DOM creation and runtime state are kept separate so this
@@ -559,25 +628,30 @@
   const textKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,preview:'press'}));
   const letterKeys=s=>[...s].map(c=>makeKey(c,c,{text:c,alt:flickSymbols[c],preview:'press'}));
   const modifierGesture=()=>makeKey('modifier-gesture','',{modifierFlick:true,preview:'selection'});
-  const flickBackspace=()=>makeKey('flick-backspace','',{alt:'⌫',altAction:'backspace',preview:'selection'});
+  const flickBackspace=()=>makeKey('flick-backspace','⌫',{gestureAlt:'ESC',altAction:'escape',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function emojiRows() {
-    const entries=[...emojiRecents,...emojiCatalog].map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const category=emojiCategories.find(([id])=>id===emojiCategory)||emojiCategories[0];
+    const values=emojiCategory==='recent'?emojiRecents:category[2];
+    const entries=values.map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
     const content=[];
     for(let index=0;index<entries.length;index+=8)content.push([...entries.slice(index,index+8),...Array(Math.max(0,8-entries.slice(index,index+8).length)).fill(null).map(()=>makeKey(null,''))]);
     return {content,controls:[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey(null,'',{gridSpan:4}),makeKey('backspace','⌫',{special:true,gridSpan:2})]};
   }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
-    const flick=Array.isArray(value)?value:null;
+    const transform=id==='modifier'?['小','゛','小','゜','']:null;
+    const flick=transform||Array.isArray(value)?(transform||value):null;
     const toggle=layerToggleLabels[id];
     const text=options.text?value:null;
-    return makeKey(id,toggle?.main??options.label??(flick?flick[0]:value),{
+    const converting=id==='return'&&Boolean(composition.reading);
+    return makeKey(id,converting?'確定':toggle?.main??options.label??(flick?flick[0]:value),{
       flick,
+      transformActions:transform?['cycle','dakuten','small','handakuten',null]:null,
       text,
-      hint:options.hint??null,
+      hint:converting?null:id==='return'?'paste':options.hint??null,
       ghost:toggle?.ghost??null,
-      navigation:options.layerSwitch?layerNavigation:null,
+      navigation:converting?conversionNavigation:id==='return'?pasteNavigation:options.layerSwitch?layerNavigation:null,
       preview:flick||text?'press':null,
       visual:options.visual??null,
       special:index===0||index===4,
@@ -603,19 +677,25 @@
     return [
       textKeys('1234567890'),
       [modifierGesture(),...textKeys('^_\\|~{}[]'),flickBackspace()],
-      [makeKey('symbols','A',{special:true,ghost:'Z'}),...textKeys('`"!?;:<>/')],
+      [makeKey('symbols','A',{special:true,ghost:'Z'}),makeKey('escape','ESC'),...textKeys('`!?;:<>-')],
       englishBottomRow()
     ];
   }
   function keyboardRows() {
-    if(language==='kana')return layer==='emoji'?[]:kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+    if(language==='kana') {
+      if(layer==='emoji') return emojiRows();
+      const rows=kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+      return dualEnabled&&keyboard.getBoundingClientRect().width>=600&&layer==='letters'
+        ?rows.map(row=>[row[0],...row.slice(1,4),...row.slice(1,4),row[4]])
+        :rows;
+    }
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
-    const layerDirections='左フリックで記号、上フリックで日本語、右フリックでテンキー、下フリックでQWERTY';
+    const layerDirections='左フリックで音声入力レイヤー、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー';
     const names={
       backspace:'削除',
-      'flick-backspace':'下フリックで削除、タップと上フリックは無効',
+      'flick-backspace':'タップで削除、下フリックでESC',
       'modifier-gesture':pendingModifier
         ?modifierLabel(pendingModifier)+' 選択中。タップで解除、下スワイプでCtrl、上スワイプでAlt'
         :'下スワイプでCtrl、上スワイプでAlt、タップは無効',
@@ -626,15 +706,15 @@
       down:'カーソルを下の行へ',
       home:'文章の先頭へ',
       end:'文章の末尾へ',
+      escape:'ESC',
       emoji:'絵文字レイヤーへ切り替える',
       space:'Space。フリックでカーソル移動',
-      return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
+      return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':'Enter、上フリックでCtrl+J、下フリックでPaste',
       numbers:'テンキーへ切り替える',
       kana:'タップで日本語。'+layerDirections,
       symbols:language==='kana'?'記号へ切り替える':layer==='letters'?'記号へ切り替える':'QWERTYへ戻る',
       letters:'日本語へ戻る',
       english:key.navigation?'タップでQWERTY。'+layerDirections:'QWERTYへ切り替える',
-      globe:'QWERTYへ切り替える'
     };
     if(names[key.id])return names[key.id];
     const baseLabel=key.flick?key.flick.filter(Boolean).join(' '):key.label;
@@ -669,14 +749,15 @@
       key.special?'special':null,
       key.side?'side':null,
       key.ghost?'letter-layer-toggle':null,
+      key.id==='return'&&key.hint==='paste'?'has-paste':null,
       key.id==='modifier-gesture'&&pendingModifier?'mode-on':null,
-      key.alt?'has-flick':null
+      key.alt||key.gestureAlt?'has-flick':null
     ].filter(Boolean);
     button.type='button';
     button.dataset.key=key.id;
     button.className=classNames.join(' ');
-    button.setAttribute('aria-label',keyAriaLabel(key));
     if(key.gridSpan) button.style.gridColumn='span '+key.gridSpan;
+    button.setAttribute('aria-label',keyAriaLabel(key));
     if(key.id==='emoji') {
       button.classList.toggle('mode-on',layer==='emoji');
       button.setAttribute('aria-pressed',String(layer==='emoji'));
@@ -730,13 +811,24 @@
     return button;
   }
   function renderKeys() {
-    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='emoji'?' emoji-layer':'');
+    if(voiceDemo.active) {
+      const emptyRow=()=>[0,1,2,3,4].map(()=>makeKey(null,''));
+      const rows=[emptyRow(),emptyRow(),emptyRow(),[
+        makeKey('voice-cancel','キャンセル',{special:true,side:true,navigation:voiceNavigation,preview:'selection'}),
+        ...[1,2,3,4].map(()=>makeKey(null,''))
+      ]];
+      keyMap=new Map();keys.replaceChildren();keys.className='keys kana voice';
+      for(const row of rows) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
+      return;
+    }
+    const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
+    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='emoji'?' emoji-layer':'')+(dualActive?' dual':'');
     if(language==='kana'&&layer==='emoji') {
       const emoji=emojiRows(),viewport=document.createElement('div');
       viewport.className='emoji-scroll-viewport';
       for(const row of emoji.content) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));viewport.append(line);}
       viewport.scrollTop=emojiScrollTop;
-      viewport.addEventListener('scroll',()=>{emojiScrollTop=viewport.scrollTop;persistEmojiRecents();},{passive:true});
+      viewport.addEventListener('scroll',()=>{emojiScrollTop=viewport.scrollTop;persistState();},{passive:true});
       const controls=document.createElement('div');controls.className='key-row';controls.append(...emoji.controls.map(createKeyElement));
       keys.append(viewport,controls);
       return;
@@ -746,12 +838,18 @@
   function render(force=false) {
     if(active.size&&!force)return;
     renderCandidates();renderKeys();
-    $('.mode-label').textContent=language==='kana'?(layer==='emoji'?'絵文字':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
+    $('.mode-label').textContent=voiceDemo.active?'音声入力':language==='kana'?(layer==='emoji'?'絵文字':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
     if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
-    $('.language').textContent=language==='kana'?'日本語':'QWERTY';
-    const languageButton=$('.keyboard-bottom [data-key="globe"]');
-    languageButton.textContent=language==='kana'?'':'あ';languageButton.style.visibility=language==='kana'?'hidden':'visible';languageButton.disabled=language==='kana';
-    languageButton.setAttribute('aria-label',language==='kana'?'QWERTYへ切り替える':'日本語へ切り替える');
+    const dualButton=$('[data-dual]');
+    dualButton.setAttribute('aria-pressed',String(dualEnabled));
+    dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
+    $('[data-english-candidates]').setAttribute('aria-pressed',String(englishCandidatesEnabled));
+    persistState();
+    postDemoHeight();
+  }
+
+  function postDemoHeight() {
+    requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin));
   }
   function direction(dx,dy) {
     if(Math.hypot(dx,dy)<18)return 0;
@@ -789,8 +887,14 @@
   }
   function cancelAll() {
     cancelEmojiViewportGestures();
-    for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');}
-    active.clear();pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');}
+    active.clear();if(voiceDemo.active)leaveVoiceDemo(true);pendingModifier=null;popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
+  }
+  function cancelGestures() {
+    cancelEmojiViewportGestures();
+    for(const p of active.values()){clearTimers(p);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');}
+    active.clear();popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
   }
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
@@ -801,7 +905,7 @@
     if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
     e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt?key.id:null,altSelected:false,upperSelected:false};
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -835,7 +939,10 @@
       const selection=p.navigationChoice&&p.key.navigation[p.navigationChoice];
       p.element.classList.toggle('mode-on',Boolean(selection));
       p.element.classList.toggle('navigation-selected',Boolean(selection));
-      p.element.querySelector('.key-main').textContent=selection?.label||p.key.label;
+      p.element.classList.toggle('flick-selected',p.navigationChoice==='down'&&p.key.id==='return');
+      p.element.classList.toggle('control-j-selected',p.navigationChoice==='up'&&p.key.id==='return'&&selection?.action==='ctrl-j');
+      p.element.querySelector('.key-main').textContent=p.key.id==='return'&&p.key.hint&&p.navigationChoice==='down'?p.key.label:selection?.label||p.key.label;
+      if(selection?.action==='voice')beginVoiceDemo(p);
       if(selection)announce(selection.label);
       return;
     }
@@ -875,15 +982,22 @@
   });
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
-    clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected');popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
+    clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');
+    const remaining=[...active.values()].at(-1);
+    if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
+    if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
-    if(!canceled&&!p.trackpad) {
+    if(p.voiceTriggered) { /* The dedicated voice layer owns completion. */ }
+    else if(!canceled&&!p.trackpad) {
       if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
+      else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
-        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) { if(p.key.emoji) { emojiRecents=[keyOutput(p),...emojiRecents.filter(value=>value!==keyOutput(p))].slice(0,8);persistEmojiRecents(); } insert(keyOutput(p)); }
+        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) {
+          if(p.key.emoji)insertEmoji(keyOutput(p));else insert(keyOutput(p));
+        }
         lastSpace=-Infinity;
       }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
     }
@@ -894,8 +1008,7 @@
     const gesture=emojiViewportStarts.get(pointerId);if(!gesture)return;
     emojiViewportStarts.delete(pointerId);
     if(commit&&!emojiViewportDrags.has(pointerId)&&gesture.key.text&&!applyModified(gesture.key.text,currentModifier())) {
-      if(gesture.key.emoji) { emojiRecents=[gesture.key.text,...emojiRecents.filter(value=>value!==gesture.key.text)].slice(0,8);persistEmojiRecents(); }
-      insert(gesture.key.text);
+      if(gesture.key.emoji)insertEmoji(gesture.key.text);else insert(gesture.key.text);
     }
     if(commit) {emojiViewportDrags.add(pointerId);setTimeout(()=>emojiViewportDrags.delete(pointerId),0);}else emojiViewportDrags.delete(pointerId);
     if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);
@@ -904,16 +1017,32 @@
   keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
   keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
   root.addEventListener('click',e=>{
+    const voiceCancel=e.target.closest('button[data-voice-cancel]');
+    if(voiceCancel) {leaveVoiceDemo(true);return;}
+    const voiceCandidate=e.target.closest('button[data-voice-candidate]');
+    if(voiceCandidate) {commitVoiceCandidate(Number(voiceCandidate.dataset.voiceCandidate));return;}
+    const slashCandidate=e.target.closest('button[data-slash-candidate]');
+    if(slashCandidate) {replaceSlashCommand(slashCandidate.dataset.slashCandidate);return;}
+    const englishCandidate=e.target.closest('button[data-english-candidate]');
+    if(englishCandidate) {replaceEnglishCandidate(englishCandidate.dataset.englishCandidate);return;}
     const candidate=e.target.closest('button[data-candidate-index]');
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
+    const emojiCategoryButton=e.target.closest('button[data-emoji-category]');
+    if(emojiCategoryButton) {emojiCategory=emojiCategoryButton.dataset.emojiCategory;emojiScrollTop=0;render();return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
       if(e.detail!==0)return;
       if(emojiViewportDrags.size)return;
-      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji){emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);persistEmojiRecents();}insert(k.text);}render();}else action(k.id);
+      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji)insertEmoji(k.text);else insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });
   editor.addEventListener('input',()=>{preferredCursorX=null;updateCount();if(!preserveComposition)syncComposition();if(!active.size)render();});
+  editor.addEventListener('focus',()=>{
+    if(!keyboard.hidden)return;
+    keyboard.hidden=false;
+    announce('キーボードを表示しました');
+    postDemoHeight();
+  });
   editor.addEventListener('pointerup',()=>{preferredCursorX=null;lastSpace=-Infinity;syncComposition();render();});
   editor.addEventListener('keydown',e=>{
     if(pendingModifier&&!e.isComposing&&!['Shift','Control','Alt','Meta'].includes(e.key)) {
@@ -922,7 +1051,7 @@
       else applyModified(e.key,pendingModifier,e.shiftKey);
       render();return;
     }
-    if(e.key==='Escape'){cancelAll();action('hide');}
+    if(e.key==='Escape')cancelAll();
     lastSpace=-Infinity;
   });
   root.addEventListener('keydown',e=>{
@@ -937,260 +1066,34 @@
   let layoutWidth=root.getBoundingClientRect().width;
   window.addEventListener('resize',()=>{
     const width=root.getBoundingClientRect().width;
-    if(Math.abs(width-layoutWidth)>1)cancelAll();
+    if(Math.abs(width-layoutWidth)>1)cancelGestures();
     layoutWidth=width;
   });
-  const fold7Displays={
-    cover:{label:'6.5″ · 2520 × 1080'},
-    inner:{label:'8.0″ · 2184 × 1968'}
+  const displayModes={
+    cover:{label:'スマホ幅 · 412 dp'},
+    inner:{label:'タブレット幅 · 840 dp'}
   };
+  root.dataset.device=root.getBoundingClientRect().width>=600?'inner':'cover';
   root.querySelectorAll('.device-picker [data-device]').forEach(button=>button.addEventListener('click',()=>{
-    cancelAll();root.dataset.device=button.dataset.device;
+    cancelGestures();root.dataset.device=button.dataset.device;
     root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
-    $('.device-size').textContent=fold7Displays[button.dataset.device].label;
+    $('.device-size').textContent=displayModes[button.dataset.device].label;
+    render();
   }));
+  root.querySelectorAll('.device-picker [data-theme]').forEach(button=>button.addEventListener('click',()=>{
+    root.dataset.theme=button.dataset.theme;
+    root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    persistState();
+  }));
+  $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
+  $('[data-english-candidates]').addEventListener('click',()=>{cancelGestures();englishCandidatesEnabled=!englishCandidatesEnabled;render();});
+  root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.device===root.dataset.device)));
+  root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.theme===root.dataset.theme)));
+  $('.device-size').textContent=displayModes[root.dataset.device].label;
+  updateCount();
   render();
 })();
 </script>
 </div>
-      <p class="try-note">日本語で「にほんご」を入力してspaceを押すと候補を巡回できます。QWERTYのspaceは上下左右へカーソルを移動します。</p>
-    </section>
-    <article id="spec" class="document">
-      <div class="guide-links" aria-label="Markdownドキュメント">
-        <a href="android-native-implementation.md"><strong>Android Native 実装仕様</strong><span>Mozc、InputConnection、レイアウトと検証項目</span></a>
-        <a href="html-mock-implementation.md"><strong>HTMLモック作成ガイド</strong><span>構造、ジェスチャー判定、ラベルアニメーション</span></a>
-      </div>
-      <dl class="doc-meta">
-        <div><dt>Target</dt><dd>Android system IME</dd></div>
-        <div><dt>UI</dt><dd>Custom View + Kotlin</dd></div>
-        <div><dt>Conversion</dt><dd>Mozc via JNI</dd></div>
-      </dl>
-      <nav class="toc" aria-label="実装仕様の目次">
-        <h2>Implementation map</h2>
-        <ol>
-          <li><a href="#goal">目的</a></li>
-          <li><a href="#layout">キー配列</a></li>
-          <li><a href="#architecture">Android構成</a></li>
-          <li><a href="#state">状態モデル</a></li>
-          <li><a href="#conversion-ui">日本語変換UI</a></li>
-          <li><a href="#gestures">ジェスチャー</a></li>
-          <li><a href="#label-animation">ラベルアニメーション</a></li>
-          <li><a href="#input-connection">InputConnection</a></li>
-          <li><a href="#mozc">Mozc</a></li>
-          <li><a href="#dictionary">個人辞書</a></li>
-          <li><a href="#rendering">アクセシビリティ</a></li>
-          <li><a href="#security">セキュリティ</a></li>
-          <li><a href="#testing">検証</a></li>
-          <li><a href="#delivery">実装順序</a></li>
-        </ol>
-      </nav>
-      <h2 id="goal"><a href="#goal">目的</a></h2>
-<p>Galaxy Z Fold7 の外画面と内画面で使う Android IME を実装する。英字は QWERTY の各キーをタップして小文字、上スワイプでその1文字だけ大文字、下フリックで数字または ASCII 記号を入力する。日本語は連打なしの12キーフリックとし、候補列でかな漢字変換を行う。</p>
-<p>HTMLモックは操作、寸法、状態遷移を確認するリファレンスである。製品版では <code>InputMethodService</code>、<code>InputConnection</code>、Mozc などの変換エンジンを使う。</p>
-<p>画面と文書ではレイヤー名を「日本語」「テンキー」「絵文字」「QWERTY」「記号」「音声」に統一する。<code>language</code> と <code>layer</code> は実装上の内部状態名として扱う。</p>
-<h2 id="layout"><a href="#layout">キー配列</a></h2>
-<p>英字1〜3行目の基本幅を <code>1w</code> とする。2行目だけ左端と右端に <code>0.5w</code> のジェスチャー専用キーが入る。</p>
-<div class="table-scroll"><table><thead><tr>
-<th>行</th>
-<th>QWERTYレイヤー</th>
-<th>記号レイヤー</th>
-</tr></thead><tbody>
-<tr>
-<td>1</td>
-<td><code>q w e r t y u i o p</code></td>
-<td><code>1 2 3 4 5 6 7 8 9 0</code></td>
-</tr>
-<tr>
-<td>2</td>
-<td><code>C/A(0.5w) a…l BS(0.5w)</code></td>
-<td>C/A、<code>^ _</code>、backslash、vertical bar、<code>~</code>、波括弧、角括弧、BS</td>
-</tr>
-<tr>
-<td>3</td>
-<td><code># z x c v b n m , .</code></td>
-<td>AZ、backtick、double quote、<code>! ? ; : &lt; &gt; /</code></td>
-</tr>
-<tr>
-<td>4</td>
-<td><code>あん Space Enter</code></td>
-<td><code>あん Space Enter</code></td>
-</tr>
-</tbody></table></div>
-<p><code>C/A</code> は記号の副ラベルと同じ高さになるよう、上側の <code>C</code> と下側の <code>A</code> に少し間を空けて固定する。上スワイプで Alt、下スワイプで Ctrl を次の1キーへ適用する。方向選択中と選択後は上下ラベルを消して、中央に選ばれた <code>A</code> または <code>C</code> を表示する。選択後のタップは修飾状態を解除する。未選択の<code>C/A</code>と<code>BS</code>はタップでも上スワイプでもポップアップを出さない。<code>BS</code>は下フリックだけで候補表示と削除を有効にする。QWERTYレイヤーの <code>#</code> は中央の <code>#</code> と右後ろの淡い <code>!</code> を重ねた <code>#!</code> キーで記号へ入り、記号レイヤーでは中央の <code>A</code> と右後ろの淡い <code>Z</code> を重ねた <code>AZ</code> キーでQWERTYへ戻る。どちらも暗い背景のモードキーとする。記号レイヤーは ASCII 文字だけを収録する。</p>
-<p>4行目のレイヤー切替キーはQWERTY形式では<code>あん</code>、テンキー形式では<code>AZ</code>とする。タップ先はキーごとの表示を維持する。文字レイヤーの左下キーでは左=音声入力、上=日本語、右=QWERTY、下=テンキーへ移動する。音声入力レイヤーでは中央=キャンセル、上=日本語、右=QWERTY、下=テンキーへ移動する。方向選択中は元の補助文字を消し、キー中央に移動先のレイヤー名だけを表示する。<code>#!</code>、<code>あん</code>、<code>AZ</code>、<code>19</code> の補助文字は主ラベルの約75%のサイズで揃える。<code>Enter</code> は上側に小さく <code>paste</code> を常時表示し、下スワイプ中は中央ラベルを小文字の <code>paste</code> へ変える。離すとクリップボード内容を確定する。QWERTYの<code>Space</code>は上側に補助表示 <code>←↓↑→</code> を置き、操作中も同じ記号列を初期表示に使う。</p>
-<p>日本語・テンキー左上の<code>☺</code>は絵文字レイヤーを開く。上3行はlocalStorageの新しい順・重複なし最大8件と同梱catalogを空行なしで続ける8列の縦scroll viewportである。recentが空ならcatalog先頭24件を表示し、最下行は既存layer flickと削除を固定する。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
-<h2 id="architecture"><a href="#architecture">推奨するAndroid構成</a></h2>
-<pre><code class="language-text">ImeService : InputMethodService
-├── KeyboardRootView : ViewGroup
-│   ├── CandidateStripView
-│   ├── KeyGridView
-│   └── GestureOverlayView
-├── KeyboardState
-│   ├── language / layer / deviceMode
-│   ├── pendingModifier
-│   ├── activePointers
-│   └── composition
-├── GestureInterpreter
-├── TextInputController
-└── ConversionEngine
-    └── MozcBridge (JNI)</code></pre>
-<p>描画は Custom View を推奨する。キー数が少なくポインター追跡と座標制御が中心なので、Viewの再生成よりも、レイアウトデータと描画状態を分けて <code>invalidate()</code> する方が実装しやすい。候補列は横スクロール可能な独立Viewにする。</p>
-<h2 id="state"><a href="#state">状態モデル</a></h2>
-<div class="table-scroll"><table><thead><tr>
-<th>表示するレイヤー名</th>
-<th>内部状態</th>
-</tr></thead><tbody>
-<tr>
-<td>日本語</td>
-<td><code>language = KANA</code>, <code>layer = LETTERS</code></td>
-</tr>
-<tr>
-<td>テンキー</td>
-<td><code>language = KANA</code>, <code>layer = NUMBERS</code></td>
-</tr>
-<tr>
-<td>絵文字</td>
-<td><code>language = KANA</code>, <code>layer = EMOJI</code></td>
-</tr>
-<tr>
-<td>QWERTY</td>
-<td><code>language = ENGLISH</code>, <code>layer = LETTERS</code></td>
-</tr>
-<tr>
-<td>記号</td>
-<td><code>language = ENGLISH</code>, <code>layer = SYMBOLS</code></td>
-</tr>
-</tbody></table></div>
-<pre><code class="language-kotlin">data class KeyboardState(
-    val language: Language = Language.ENGLISH,
-    val layer: Layer = Layer.LETTERS,
-    val deviceMode: DeviceMode = DeviceMode.COVER,
-    val pendingModifier: Modifier? = null,
-    val composition: Composition = Composition.Empty,
-    val cursorMode: Boolean = false,
-)
-
-data class Composition(
-    val reading: String,
-    val candidates: List&lt;String&gt;,
-    val selectedIndex: Int,
-    val converted: Boolean,
-)</code></pre>
-<p>大文字はモードにせず、英字キーの1回の上スワイプ結果として扱う。Ctrl と Alt は1キーだけ有効な保留状態で、入力後またはキャンセル時に解除する。複数指入力では <code>pointerId</code> ごとに開始座標、現在方向、対象キー、タイマーを保持する。</p>
-<h2 id="conversion-ui"><a href="#conversion-ui">日本語変換UI</a></h2>
-<p>日本語レイヤーではキーの上に候補列を常時確保する。未入力時は説明文、読みがある時は変換候補を横並びで表示する。候補は選択中だけアクセント色にする。</p>
-<ol>
-<li>フリック確定ごとに読みを <code>setComposingText()</code> で更新する。</li>
-<li>変換エンジンへ読みと文脈を渡し、候補列を更新する。</li>
-<li>space のタップで先頭候補を選び、続けて押すと次候補へ進む。</li>
-<li>候補タップまたは Enter で <code>commitText()</code> して変換を確定する。</li>
-<li>読みがない時の space は空白、変換中でない時の Enter は改行にする。</li>
-<li>Backspace、カーソル移動、言語・レイヤー切替では、変換中状態を確定または破棄する規則を一箇所に集約する。</li>
-</ol>
-<p>HTMLデモは内蔵の小さな辞書で候補UIと状態遷移だけを再現する。製品版の候補生成、文節分割、学習は Mozc 側へ委譲する。</p>
-<h2 id="gestures"><a href="#gestures">ジェスチャー定数</a></h2>
-<div class="table-scroll"><table><thead><tr>
-<th>用途</th>
-<th>値</th>
-<th>動作</th>
-</tr></thead><tbody>
-<tr>
-<td>軸ロック</td>
-<td>12 px</td>
-<td>縦・横の優勢方向を確定</td>
-</tr>
-<tr>
-<td>選択開始</td>
-<td>18 px</td>
-<td>フリック先を選択</td>
-</tr>
-<tr>
-<td>復帰ヒステリシス</td>
-<td>10 px</td>
-<td>選択後の細かな揺れを抑える</td>
-</tr>
-<tr>
-<td>レイヤー移動</td>
-<td>18 px</td>
-<td>あんの上・下、Enterの下を確定</td>
-</tr>
-<tr>
-<td>spaceトラックパッド開始</td>
-<td>10 px</td>
-<td>長押しを待たずカーソル移動へ入る</td>
-</tr>
-<tr>
-<td>水平カーソル1文字</td>
-<td>8 px</td>
-<td>書記素単位で左右移動</td>
-</tr>
-<tr>
-<td>垂直カーソル1行</td>
-<td>24 px</td>
-<td>見た目の折返し行に沿って上下移動</td>
-</tr>
-<tr>
-<td>長押し</td>
-<td>450 ms</td>
-<td>英字アクセント候補を表示</td>
-</tr>
-<tr>
-<td>連続削除開始</td>
-<td>420 ms</td>
-<td>以後65 ms間隔で繰り返す</td>
-</tr>
-</tbody></table></div>
-<p>端末の物理ピクセルではなく、Android側では <code>dp</code> と実機テストから閾値を調整する。開始後に方向を変えた場合は現在位置から再判定し、指が中心へ戻ったら通常入力へ戻す。<code>ACTION_CANCEL</code>、フォーカス喪失、画面回転では入力を確定せず全ポインターを破棄する。</p>
-<h2 id="label-animation"><a href="#label-animation">フリックラベルのアニメーション</a></h2>
-<p>英字キーには中央の主ラベルと上端の副ラベルを別レイヤーで描く。通常時の副ラベルは主ラベルより小さく、文字色を一段落として、キーを見た瞬間に主入力と区別できるようにする。</p>
-<p>下フリックが18pxを越えたら、副ラベルを90msの <code>ease</code> で下へ13px移動し、1.7倍へ拡大する。同時に主ラベルを下へ22px移動し、透明度を0へ落とす。中心へ10px以内に戻ったら逆再生する。上スワイプでは主ラベルを上へ3px移動し、副ラベルを透明にして、大文字のプレビューを表示する。</p>
-<p>日本語フリックは150×150px相当の5方向ポップアップを表示し、中心と上下左右を50px角で配置する。指の方向が変わるたびに選択タイルの背景色を切り替える。ポップアップ自体は追従移動させず、選択状態だけを更新するため、視線が安定する。ダーク表示の候補は暗い面と明るい文字の関係を保ち、通常キーより一段明るい面、境界線、影で浮かせる。表示中は選択元以外のキーを42%の不透明度へ落とす。</p>
-<p>Androidでは <code>ValueAnimator</code> または描画時の補間値で同じ状態を作る。アニメーションは入力判定から独立させ、指を離した時点の論理状態を確定値にする。システムの「アニメーションを無効化」が有効な場合は時間を0msにする。</p>
-<h2 id="input-connection"><a href="#input-connection">アプリへの文字送信</a></h2>
-<p>通常文字は <code>currentInputConnection.commitText(text, 1)</code>、変換中の読みは <code>setComposingText(text, 1)</code>、候補確定は <code>finishComposingText()</code> と <code>commitText()</code> を使う。PasteはAndroidの <code>ClipboardManager.primaryClip</code> から先頭のテキストを取得し、機密入力欄を除いて <code>commitText()</code> する。Backspace、Enter、矢印、Ctrl、Alt など編集キーは対象アプリとの互換性を確認し、必要な場合だけ <code>sendKeyEvent()</code> を使う。</p>
-<pre><code class="language-kotlin">fun sendModifiedKey(keyCode: Int, ctrl: Boolean, alt: Boolean) {
-    val meta = (if (ctrl) KeyEvent.META_CTRL_ON else 0) or
-        (if (alt) KeyEvent.META_ALT_ON else 0)
-    currentInputConnection.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
-    currentInputConnection.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, meta))
-}</code></pre>
-<p>パスワード欄では学習、候補収集、外部ログ由来辞書を無効にする。アプリによってハードウェアキーイベントの扱いが異なるため、Chrome、Slack、LINE、ターミナル、一般的なEditTextで確認する。</p>
-<h2 id="mozc"><a href="#mozc">Mozcによる日本語変換</a></h2>
-<p>OSSで実用的な候補は Mozc。Androidアプリへ組み込む場合は、変換セッションを保持するC++層とKotlinから呼ぶJNI境界を小さく保つ。UIイベントをMozc内部型へ直接結びつけず、<code>start(reading)</code>、<code>update(reading)</code>、<code>nextCandidate()</code>、<code>commit(index)</code>、<code>reset()</code> 程度の独自インターフェースを置く。</p>
-<p>Mozc本体、辞書、ビルド成果物のライセンス表示を配布前に確認する。AOSPや既存IMEのUIコードを流用する場合も、コードとアセットそれぞれのライセンスを確認する。</p>
-<h2 id="dictionary"><a href="#dictionary">個人辞書とログ取り込み</a></h2>
-<p>端末の標準ユーザー辞書は <code>UserDictionary.Words</code> を、ユーザーが明示的に許可した場合だけ読み込む。LINE、Slack、ChatGPT、Claudeなどのログは、各サービスの公式エクスポートをユーザー自身が選択して端末内へ取り込み、頻出語と読み候補を生成する方式が扱いやすい。</p>
-<p>取り込み前にプレビュー、対象期間、除外語を表示する。原文を保存せず、抽出した語と頻度だけを暗号化して保持できる設計にする。連絡先、URL、メールアドレス、トークン、長い数字列、パスワードらしい文字列は既定で除外する。削除と再学習の操作を設定画面に用意する。</p>
-<h2 id="rendering"><a href="#rendering">描画とアクセシビリティ</a></h2>
-<p>Fold7外画面を狭い基準、内画面を広い基準として、幅からキー単位 <code>w</code> を計算する。内画面でもキー数とジェスチャーは変えず、幅は列と左右余白だけを変える。キー4行の高さは利用者が選んだ小・標準・大presetで決め、幅やDual Flickでは変えない。ヒンジやセーフ領域は <code>WindowInsets</code> を使って避ける。</p>
-<p>副ラベルは色だけでなく位置とサイズでも主ラベルと区別する。押下、フリック選択、候補選択には4.5:1以上の文字コントラストを保つ。TalkBackには通常入力、上スワイプ、下フリックの結果をまとめた説明を付ける。触覚は方向確定、候補変更、削除開始に短く1回だけ返す。</p>
-<h2 id="security"><a href="#security">セキュリティ</a></h2>
-<p>IMEは全入力へ触れられるため、ネットワーク権限を持たない完全ローカル構成を初期値とする。ログへ入力文字列を出さない。学習データ、個人辞書、クラッシュ情報に原文を含めない。バックアップと同期を追加する場合は、対象データと送信先を明示し、利用者が明示的に有効化する。</p>
-<h2 id="testing"><a href="#testing">検証計画</a></h2>
-<ul>
-<li>各かなキーの中央・左・上・右・下と、18px未満の揺れを検証する。</li>
-<li>全英字のタップ、上スワイプ大文字、下フリック副文字を検証する。</li>
-<li><code>C/A</code> と <code>BS</code> がタップでは発火せず、指定方向だけで動くことを検証する。</li>
-<li>あんの上下レイヤー移動、Enterの下Paste、スワイプ中だけ変わるラベルを検証する。</li>
-<li>日本語・テンキー左上の絵文字キー、#!、19、AZ、最下段レイヤーキーの4方向を検証する。</li>
-<li>ラベルアニメーションの開始、中心復帰、方向反転、アニメーション無効設定を検証する。</li>
-<li>かな入力、候補生成、spaceでの候補巡回、候補タップとEnter確定を検証する。</li>
-<li>Spaceの軸固定された上下左右移動、斜め入力の抑止、折返し行、絵文字、結合文字、選択範囲を検証する。</li>
-<li>Fold7の外画面・内画面、縦横回転、ダークテーマ、フォント倍率、TalkBackを確認する。</li>
-<li>Chrome、Slack、LINE、ターミナル、一般的なEditTextで文字確定と編集キーを確認する。</li>
-</ul>
-<h2 id="delivery"><a href="#delivery">実装順序</a></h2>
-<ol>
-<li>レイアウトデータ、状態モデル、Custom Viewを作る。</li>
-<li>ポインター追跡と日本語5方向フリックを実装する。</li>
-<li>英字の上下ジェスチャー、C/A、BS、ラベルアニメーションを加える。</li>
-<li>InputConnectionで通常文字、編集キー、compositionを送る。</li>
-<li>候補列UIと変換エンジン境界を作り、Mozcを接続する。</li>
-<li>絵文字レイヤー、Spaceカーソル操作、Fold7内外レイアウト、アクセシビリティを仕上げる。</li>
-<li>実機テストで閾値、誤入力率、候補応答時間を調整する。</li>
-</ol>
-    </article>
-  </main>
-  <footer class="footer">Gesture IME prototype · Behavior and implementation reference · 2026-09-10</footer>
 </body>
 </html>

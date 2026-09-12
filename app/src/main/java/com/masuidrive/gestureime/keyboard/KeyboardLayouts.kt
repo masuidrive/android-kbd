@@ -60,17 +60,15 @@ object KeyboardLayouts {
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
     ))
 
+    /** Emoji content is rendered by AndroidX EmojiPickerView above this fixed control row. */
     private fun emoji(recents: List<String>): KeyboardLayout = KeyboardLayout(
         KeyboardMode.EMOJI,
-        emojiContentRows(recents).take(3) + emojiControlRow(),
+        emojiContentRows(recents) + emojiControlRow(),
     )
 
-    /** Consecutive rows for the emoji viewport; the view clips and scrolls these above its fixed controls. */
+    /** Three occupied rows are reserved for the AndroidX picker overlay. */
     fun emojiContentRows(recents: List<String>): List<KeyboardRow> =
-        (EmojiCatalog.visibleRecents(recents) + EmojiCatalog.entries).chunked(8).mapIndexed { row, emojis ->
-            KeyboardRow(emojis.mapIndexed { column, emoji -> emojiKey("emoji-${row * 8 + column}", emoji) } +
-                List(8 - emojis.size) { empty() })
-        }
+        List(3) { KeyboardRow(listOf(empty(8f))) }
 
     fun emojiControlRow(): KeyboardRow = KeyboardRow(listOf(
         layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
@@ -166,12 +164,8 @@ object KeyboardLayouts {
 
 }
 
-/** Small bundled catalog: no network, search index, skin picker, or GIF dependency. */
+/** Shared recent normalization used by the AndroidX picker provider and IME state. */
 object EmojiCatalog {
-    const val RECENT_LIMIT = 8
-    val entries = listOf(
-        listOf("😀", "😂", "🥹", "😍", "😭", "👍", "🙏", "❤️", "🎉", "🔥", "😊", "🤔", "😎", "🙌", "👏", "✨"),
-        listOf("💯", "✅", "📌", "🚀", "🎈", "💡", "🌸", "🍀", "☕", "🍣", "⚽", "🎵", "📷", "💻", "🧡", "🌈"),
-    ).flatten()
+    const val RECENT_LIMIT = 24
     fun visibleRecents(recents: List<String>): List<String> = recents.filter(String::isNotEmpty).distinct().take(RECENT_LIMIT)
 }

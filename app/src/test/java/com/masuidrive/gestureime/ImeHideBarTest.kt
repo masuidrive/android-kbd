@@ -10,7 +10,10 @@ import android.widget.LinearLayout
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.emoji2.emojipicker.EmojiPickerView
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
+import com.masuidrive.gestureime.keyboard.KeyAction
+import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import org.junit.Assert.assertEquals
@@ -19,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.Shadows
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -26,20 +30,42 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class ImeHideBarTest {
     @Test
+    fun emojiLayerReplacesCandidateSlotWithThePickerAndLeavesOnlyTheControlRowInKeyboardView() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val candidate = content.getChildAt(0) as CandidateStripView
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val picker = root.getChildAt(1) as EmojiPickerView
+
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        keyboard.measure(exact(412), exact(1_000)); keyboard.layout(0, 0, 412, keyboard.measuredHeight)
+
+        assertEquals(View.INVISIBLE, candidate.visibility)
+        assertEquals(View.VISIBLE, picker.visibility)
+        assertEquals(2, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
-        val root = service.onCreateInputView() as LinearLayout
-        val candidate = root.getChildAt(0) as CandidateStripView
-        val keyboard = root.getChildAt(1) as KeyboardView
-        val hideBar = root.getChildAt(2) as FrameLayout
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val candidate = content.getChildAt(0) as CandidateStripView
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val hideBar = content.getChildAt(2) as FrameLayout
+        val picker = root.getChildAt(1) as EmojiPickerView
         val density = service.resources.displayMetrics.density
         val expectedCandidateHeight = (50 * density).toInt()
         val expectedHideHeight = (28 * density).toInt()
 
-        assertEquals(3, root.childCount)
-        assertSame(candidate, root.getChildAt(0))
-        assertSame(keyboard, root.getChildAt(1))
-        assertSame(hideBar, root.getChildAt(2))
+        assertEquals(2, root.childCount)
+        assertEquals(3, content.childCount)
+        assertSame(candidate, content.getChildAt(0))
+        assertSame(keyboard, content.getChildAt(1))
+        assertSame(hideBar, content.getChildAt(2))
+        assertEquals(View.GONE, picker.visibility)
         assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
         listOf(412, 840).forEach { width ->
             keyboard.measure(exact(width), exact(1_000))

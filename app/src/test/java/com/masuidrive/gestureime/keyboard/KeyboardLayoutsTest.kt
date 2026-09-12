@@ -108,16 +108,13 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
-    @Test fun `emoji layer exposes three viewport rows from one bounded continuous list and fixed controls`() {
-        val family = "❤️"
-        val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", family, "😀"))
-        val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", family, "😀")).rows
+    @Test fun `emoji layer reserves three picker rows and keeps fixed controls`() {
+        val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", "❤️", "😀"))
+        val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", "❤️", "😀")).rows
         assertEquals(4, rows.size)
-        assertEquals(5, contentRows.size)
-        assertEquals(KeyAction.CommitEmoji(family), contentRows.first().keys[1].center?.action)
-        assertEquals("😀", contentRows.first().keys[2].center?.label)
-        assertEquals(EmojiCatalog.entries, contentRows.flatMap { row -> row.keys.mapNotNull { it.center?.label } }.drop(2))
-        assertTrue(contentRows.all { row -> row.keys.size == 8 && row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() == 8f })
+        assertEquals(3, contentRows.size)
+        assertTrue(contentRows.flatMap { it.keys }.all { it.kind == KeyKind.EMPTY })
+        assertTrue(contentRows.all { row -> row.keys.size == 1 && row.keys.single().widthUnits == 8f })
         assertEquals(contentRows.take(3), rows.take(3))
         assertEquals(3, rows[3].keys.size)
         assertEquals(KeyKind.EMPTY, rows[3].keys[1].kind)

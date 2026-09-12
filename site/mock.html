@@ -61,10 +61,13 @@
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
   #ios-keyboard-demo .last-input { color:var(--ik-blue); }
   #ios-keyboard-demo .keyboard { background:var(--ik-bg); position:relative; padding:8px 3px 0; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  #ios-keyboard-demo .candidate-bar { box-sizing:border-box; display:flex; align-items:center; gap:5px; height:50px; padding:6px 3px 10px; overflow-x:auto; scrollbar-width:none; }
+  #ios-keyboard-demo .candidate-bar { box-sizing:border-box; display:flex; align-items:center; gap:5px; height:50px; padding:10px 3px 2px; overflow-x:auto; scrollbar-width:none; }
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
-  #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:38px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar { padding:0 5px; gap:2px; overflow-x:auto; }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button { min-width:46px; width:46px; height:46px; padding:0; border-radius:0; background:transparent; box-shadow:none; font-size:20px; color:var(--ik-key-muted); }
+  #ios-keyboard-demo .candidate-bar.emoji-category-bar button[aria-pressed=true] { color:var(--ik-blue); border-bottom:2px solid var(--ik-blue); }
   #ios-keyboard-demo .candidate-bar button.voice-candidate { max-width:100%; white-space:normal; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:15px; padding-block:2px; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
   #ios-keyboard-demo .candidate-bar button[aria-selected=true] { background:var(--ik-selected); color:var(--ik-selected-ink); }
   #ios-keyboard-demo .keys { position:relative; }
@@ -276,15 +279,22 @@
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
-  const emojiCatalog=['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨','💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈'];
-  let emojiRecents=[], emojiScrollTop=0;
+  const emojiCategories=[
+    ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏']],
+    ['people','👋',['👋','👍','👎','👏','🙏','💪','👀','🧑','👩','👨','👶','👵','🧠','🫶','🤝','✍️']],
+    ['nature','🌿',['🌸','🍀','🌈','🌞','🌙','⭐','🐶','🐱','🦊','🌳','🌊','🔥','❄️','🌍','🪴','🐝']],
+    ['food','🍣',['🍣','☕','🍜','🍙','🍺','🍰','🍎','🍓','🥑','🍕','🍔','🍩','🧃','🍷','🥂','🍫']],
+    ['objects','💡',['💡','📌','🚀','🎈','📷','💻','📱','⌚','🎵','🎁','📚','✏️','🔑','💎','🧸','🛠️']],
+    ['symbols','✓',['✅','❌','⚽','💯','🧡','♻️','⚠️','❓','‼️','💤','💬','🔔','🔒','❤️‍🔥','➕','⭐']],
+  ];
+  let emojiRecents=[], emojiScrollTop=0, emojiCategory='recent';
   const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
   let renderedCandidateContentKey=null;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
     if(saved&&['english','kana'].includes(saved.language))language=saved.language;
     if(saved&&['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
-    if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,8);
+    if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,24);
     if(Number.isFinite(saved?.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
     dualEnabled=Boolean(saved?.dualEnabled);
     englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
@@ -410,6 +420,16 @@
   }
   function renderCandidates() {
     candidateBar.replaceChildren();
+    candidateBar.classList.toggle('emoji-category-bar',language==='kana'&&layer==='emoji');
+    if(language==='kana'&&layer==='emoji') {
+      candidateBar.hidden=false;
+      emojiCategories.forEach(([id,icon])=>{
+        const button=document.createElement('button');button.type='button';button.dataset.emojiCategory=id;
+        button.textContent=icon;button.setAttribute('aria-label',id==='recent'?'最近使った絵文字':id+'カテゴリ');
+        button.setAttribute('aria-pressed',String(id===emojiCategory));candidateBar.append(button);
+      });
+      resetCandidateScrollIfChanged('emoji-category');return;
+    }
     if(voiceDemo.active) {
       const values=voiceDemo.phase==='ready'?voiceDemo.candidates:(voiceDemo.partial&&voiceDemo.partial!=='聞き取っています…'?[voiceDemo.partial]:[]);
       candidateBar.hidden=!values.length;
@@ -467,7 +487,8 @@
   }
   function insertEmoji(emoji) {
     insert(emoji);
-    emojiRecents=[emoji,...emojiRecents.filter(value=>value!==emoji)].slice(0,8);
+    emojiRecents=[emoji,...emojiRecents.filter(value=>value!==emoji)].slice(0,24);
+    emojiCategory='recent'; emojiScrollTop=0;
     render();
   }
   function erase() {
@@ -610,7 +631,9 @@
   const flickBackspace=()=>makeKey('flick-backspace','⌫',{gestureAlt:'ESC',altAction:'escape',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function emojiRows() {
-    const entries=[...emojiRecents,...emojiCatalog].map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const category=emojiCategories.find(([id])=>id===emojiCategory)||emojiCategories[0];
+    const values=emojiCategory==='recent'?emojiRecents:category[2];
+    const entries=values.map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
     const content=[];
     for(let index=0;index<entries.length;index+=8)content.push([...entries.slice(index,index+8),...Array(Math.max(0,8-entries.slice(index,index+8).length)).fill(null).map(()=>makeKey(null,''))]);
     return {content,controls:[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey(null,'',{gridSpan:4}),makeKey('backspace','⌫',{special:true,gridSpan:2})]};
@@ -1004,6 +1027,8 @@
     if(englishCandidate) {replaceEnglishCandidate(englishCandidate.dataset.englishCandidate);return;}
     const candidate=e.target.closest('button[data-candidate-index]');
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
+    const emojiCategoryButton=e.target.closest('button[data-emoji-category]');
+    if(emojiCategoryButton) {emojiCategory=emojiCategoryButton.dataset.emojiCategory;emojiScrollTop=0;render();return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
       if(e.detail!==0)return;

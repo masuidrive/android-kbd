@@ -391,7 +391,7 @@ class ImeServiceEnglishSuggestionTest {
         assertEquals("かa❤️", harness.input.visibleText)
         assertEquals(listOf("❤️"), ImePreferences.getEmojiRecents(harness.service))
         val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
-        assertEquals("タップ ❤️", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)?.contentDescription)
+        assertEquals("タップ AZ、上 日本語、右 QWERTY、下 テンキー", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(3)?.contentDescription)
 
         val slash = Harness(english = { _, _ -> emptyList() })
         slash.clearEmojiRecents()
@@ -408,6 +408,18 @@ class ImeServiceEnglishSuggestionTest {
         rejected.idle()
         assertEquals("", rejected.input.visibleText)
         assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(rejected.service))
+    }
+
+    @Test
+    fun privateEmojiCommitDoesNotPersistRecentHistory() {
+        val harness = Harness(privateEditor = true) { _, _ -> emptyList() }
+        harness.clearEmojiRecents()
+
+        harness.service.onKeyAction(KeyAction.CommitEmoji("👋"))
+        harness.idle()
+
+        assertEquals("👋", harness.input.visibleText)
+        assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(harness.service))
     }
 
     @Test

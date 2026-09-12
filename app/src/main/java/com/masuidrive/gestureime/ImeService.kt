@@ -14,6 +14,9 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.util.Consumer
+import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.emoji2.emojipicker.RecentEmojiProvider
 import com.masuidrive.gestureime.conversion.ConversionCandidate
 import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionEngine
@@ -63,6 +66,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
     private var candidateStrip: CandidateStripView? = null
+    private var emojiPicker: EmojiPickerView? = null
     private var conversionGeneration = 0L
     private var reading = ""
     private var candidates = emptyList<String>()
@@ -121,6 +125,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             candidateStrip = it
             setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }
+        val picker = EmojiPickerView(this).also { view ->
+            view.emojiGridColumns = 8
+            view.emojiGridRows = 3f
+            view.setOnEmojiPickedListener(Consumer { item -> onKeyAction(KeyAction.CommitEmoji(item.emoji)) })
+            emojiPicker = view
+            configureEmojiRecentProvider()
+        }
         val hideBar = FrameLayout(this).apply {
             id = R.id.ime_hide_bar
             setBackgroundColor(getColor(R.color.keyboard_background))
@@ -137,12 +148,19 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ))
         }
-        return LinearLayout(this).apply {
+        val content = LinearLayout(this).apply {
             id = R.id.ime_input_root
             orientation = LinearLayout.VERTICAL
             addView(strip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight))
             addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(hideBar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, hideBarHeight))
+        }
+        keyboard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateEmojiPickerLayout(candidateHeight) }
+        return FrameLayout(this).apply {
+            addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(picker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight).apply {
+                gravity = android.view.Gravity.TOP
+            })
             ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
                 val bottomInset = SafeAreaUi.safeAreaInsets(insets).bottom
                 hideBar.setPadding(0, 0, 0, bottomInset)
@@ -152,7 +170,40 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 insets
             }
             ViewCompat.requestApplyInsets(this)
+            updateEmojiPickerVisibility()
         }
+    }
+
+    /** AndroidX owns its category header and grid; KeyboardView keeps only the fixed controls. */
+    private fun updateEmojiPickerLayout(candidateHeight: Int) {
+        val picker = emojiPicker ?: return
+        val keyboard = keyboardView ?: return
+        picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return).apply {
+            height = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
+        }
+        picker.requestLayout()
+    }
+
+    private fun updateEmojiPickerVisibility() {
+        val isEmoji = keyboardMode == KeyboardMode.EMOJI
+        candidateStrip?.visibility = if (isEmoji || (::textController.isInitialized && textController.isPrivateField)) {
+            View.INVISIBLE
+        } else {
+            View.VISIBLE
+        }
+        emojiPicker?.visibility = if (isEmoji) View.VISIBLE else View.GONE
+        configureEmojiRecentProvider()
+    }
+
+    private fun configureEmojiRecentProvider() {
+        val picker = emojiPicker ?: return
+        picker.setRecentEmojiProvider(object : RecentEmojiProvider {
+            override fun recordSelection(emoji: String) = Unit
+
+            override suspend fun getRecentEmojiList(): List<String> =
+                if (::textController.isInitialized && textController.isPrivateField) emptyList()
+                else ImePreferences.getEmojiRecents(this@ImeService)
+        })
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -171,6 +222,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         keyboardView?.refreshIntrinsicLayout()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
+        updateEmojiPickerVisibility()
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
@@ -182,13 +234,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         invalidateSlash(clearComposing = false)
         textController.beginInput(attribute)
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
-        candidateStrip?.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
+        updateEmojiPickerVisibility()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         keyboardMode = ImePreferences.getLastKeyboardMode(this)
         keyboardView?.setMode(keyboardMode)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
+        updateEmojiPickerVisibility()
     }
 
     override fun onFinishInput() {
@@ -341,8 +394,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             is KeyAction.CommitEmoji -> {
                 finishEnglishRaw()
                 resetConversion(clearComposing = false)
-                if (editorSession.isCurrent(editorToken) && textController.commitText(action.text)) {
+                if (editorSession.isCurrent(editorToken) && textController.commitText(action.text) && !textController.isPrivateField) {
                     keyboardView?.setEmojiRecents(ImePreferences.recordEmojiRecent(this, action.text))
+                    configureEmojiRecentProvider()
                 }
             }
             is KeyAction.KanaInput -> {
@@ -441,6 +495,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 ImePreferences.setLastKeyboardMode(this, action.target)
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
+                updateEmojiPickerVisibility()
             }
             is KeyAction.SelectCandidate -> {
                 if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
@@ -464,6 +519,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         voiceReturnMode = keyboardMode
         keyboardMode = KeyboardMode.VOICE
         keyboardView?.setMode(KeyboardMode.VOICE)
+        updateEmojiPickerVisibility()
         candidateSource = CandidateSource.VOICE
         candidates = emptyList()
         showCandidateStrip(emptyList(), -1)
@@ -488,6 +544,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (keyboardMode == KeyboardMode.VOICE) {
             keyboardMode = voiceReturnMode
             keyboardView?.setMode(voiceReturnMode)
+            updateEmojiPickerVisibility()
         }
         if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
     }

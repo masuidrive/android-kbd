@@ -22,7 +22,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         private const val WIDE_LAYOUT_MIN_WIDTH_DP = 600f
         private const val PHONE_FACE_INSET_DP = 6
         private const val WIDE_FACE_INSET_DP = 13
-        private const val FACE_TOP_INSET_DP = 14
+        private const val FACE_TOP_INSET_DP = 10
         private const val FACE_BOTTOM_INSET_DP = 2
     }
 

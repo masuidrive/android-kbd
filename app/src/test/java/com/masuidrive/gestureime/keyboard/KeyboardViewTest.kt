@@ -474,88 +474,36 @@ class KeyboardViewTest {
         }.color)
     }
 
-    @Test fun `emoji layer renders continuous recents and keeps the fixed four row geometry`() {
+    @Test fun `emoji layer reserves picker rows and keeps the fixed four row geometry`() {
         view.setEmojiRecents(listOf("❤️", "😀"))
         view.setMode(KeyboardMode.EMOJI)
         val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
-        assertEquals(25f, canvas.draws.last { it.text == "❤️" }.textSize, .1f)
-        assertEquals(25f, canvas.draws.last { it.text == "😀" }.textSize, .1f)
-        assertFalse(canvas.draws.any { it.text == "1/2" })
+        assertFalse(canvas.draws.any { it.text == "❤️" || it.text == "😀" })
+        assertTrue(canvas.draws.any { it.text == "A" })
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `emoji drag scrolls the clipped three row viewport without dispatching a tap and retains controls`() {
+    @Test fun `emoji picker overlay leaves only fixed controls touchable and accessible`() {
         view.setMode(KeyboardMode.EMOJI)
         val provider = view.accessibilityNodeProvider
-        assertEquals(26, provider.createAccessibilityNodeInfo(-1)!!.childCount)
-        val first = keyCenter(0)
-        touch(MotionEvent.ACTION_DOWN, first.first, first.second)
-        touch(MotionEvent.ACTION_MOVE, first.first, first.second - 80f, 10)
-        touch(MotionEvent.ACTION_UP, first.first, first.second - 80f, 20)
+        assertEquals(2, provider.createAccessibilityNodeInfo(-1)!!.childCount)
+        touch(MotionEvent.ACTION_DOWN, 200f, 25f)
+        touch(MotionEvent.ACTION_UP, 200f, 25f, 10)
         assertTrue(actions.isEmpty())
-        assertEquals(26, provider.createAccessibilityNodeInfo(-1)!!.childCount)
-
-        val scrolledFirst = keyCenter(8)
-        touch(MotionEvent.ACTION_DOWN, scrolledFirst.first, scrolledFirst.second, 30)
-        touch(MotionEvent.ACTION_UP, scrolledFirst.first, scrolledFirst.second, 40)
-        assertEquals(listOf(KeyAction.CommitEmoji("🎉")), actions)
-
-        actions.clear()
-        val control = keyCenter(32)
-        touch(MotionEvent.ACTION_DOWN, control.first, control.second, 50)
-        touch(MotionEvent.ACTION_UP, control.first, control.second, 60)
+        val control = keyCenter(3)
+        touch(MotionEvent.ACTION_DOWN, control.first, control.second, 20)
+        touch(MotionEvent.ACTION_UP, control.first, control.second, 30)
         assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
     }
 
-    @Test fun `emoji viewport rows occupy the same full width and catalog tap preserves the emoji string`() {
+    @Test fun `emoji control row reaches both keyboard edges`() {
         view.setMode(KeyboardMode.EMOJI)
         view.measure(exact(400), exact(228))
         view.layout(0, 0, 400, 228)
-        val expectedLeft = keyBounds(0).left
-        listOf(0 to 7, 8 to 15, 16 to 23, 32 to 34).forEach { (first, last) ->
-            val left = keyBounds(first)
-            val right = keyBounds(last)
-            assertEquals(expectedLeft, left.left)
-            assertTrue("row $first reaches the right keyboard edge", right.right > 390)
-        }
-        val emoji = keyCenter(15) // The last first-row catalog emoji remains directly tappable.
-        touch(MotionEvent.ACTION_DOWN, emoji.first, emoji.second)
-        touch(MotionEvent.ACTION_UP, emoji.first, emoji.second, 1)
-        assertEquals(listOf(KeyAction.CommitEmoji("✨")), actions)
-    }
-
-    @Test fun `emoji scroll range follows a host constrained row pitch`() {
-        view.setMode(KeyboardMode.EMOJI)
-        view.measure(exact(400), exact(180))
-        view.layout(0, 0, 400, 180)
-        val first = keyCenter(0)
-        val viewportTop = keyBounds(0).top
-
-        touch(MotionEvent.ACTION_DOWN, first.first, first.second)
-        touch(MotionEvent.ACTION_MOVE, first.first, first.second - 80f, 10)
-        touch(MotionEvent.ACTION_UP, first.first, first.second - 80f, 20)
-
-        assertEquals(viewportTop, keyBounds(8).top)
-    }
-
-    @Test fun `emoji viewport advertises and performs only available TalkBack scrolling`() {
-        view.setMode(KeyboardMode.EMOJI)
-        val provider = view.accessibilityNodeProvider
-        val viewportTop = keyBounds(0).top
-        fun hostActions() = requireNotNull(provider.createAccessibilityNodeInfo(-1)).actionList.map { it.id }
-
-        assertTrue(requireNotNull(provider.createAccessibilityNodeInfo(-1)).isScrollable)
-        assertTrue(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD in hostActions())
-        assertFalse(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD in hostActions())
-        assertFalse(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null))
-
-        assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
-        assertEquals(viewportTop, keyBounds(8).top)
-        assertFalse(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD in hostActions())
-        assertTrue(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD in hostActions())
-        assertFalse(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
-        assertTrue(view.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, null))
-        assertEquals(viewportTop, keyBounds(0).top)
+        val left = keyBounds(3)
+        val right = keyBounds(5)
+        assertEquals(left.top, right.top)
+        assertTrue(right.right > 390)
     }
 
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
