@@ -20,7 +20,7 @@
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
@@ -100,6 +100,14 @@
 | 2 | TalkBack境界 | Minor | 先頭/末尾の不可能actionを公開し、no-opでも成功を返す | 解消 | `KeyboardView.kt:638-657`がoffsetに応じてforward/backwardを個別公開し、`scrollEmojiTo`の変更有無を返す。更新testは先頭backwardと末尾forwardのaction非公開・戻り値false、可能方向の移動を確認する |
 
 通常`pointerup`だけをhelper commitへ渡す分岐、cancel/capture loss時のmap先行clear、`cancelAll`/`cancelGestures`からのcleanup、native TalkBack境界はそれぞれ意図どおりで、通常tap・drag・fixed control row・scroll rangeへの新しい退行は見つからなかった。mock/reference sourceの修正形も同期している。公開mockは自動suiteがないためbrowserでcapture loss通知後のpointerup/clickまで反例を到達させ、入力なしを確認した。focused/fullも再実行してPASSした。Critical/Major解消の最終判定は再reviewへ残す。
+
+### Findings (PDH-review-3)
+
+対象: `83ecf399854f702a488e0dae3328ef41db6a067a`。Critical 0、Major 0、Minor 0。No Critical/Major。
+
+- 前回Major: 解消。`site/mock.html:970-997`と`docs/reference/mock-source.html:893-913`は、通常の物理tapを`pointerup` helperで1回確定し、続く物理DOM clickを`e.detail != 0`で破棄する。`pointercancel`/`lostpointercapture`はhelperへ`commit=false`を渡し、blur/visibility/resizeは`cancelAll`/`cancelGestures`からgesture mapを先にclearするため0回である。後続の物理pointerup/clickもdetail guardにより0回のままになる。keyboard/支援技術の`detail == 0` activationはroot clickから1回確定する。
+- 前回Minor: 解消を維持。TalkBackは現在offsetで可能なscroll actionだけを公開し、先頭backward・末尾forwardは非公開かつ直接実行してもfalse、可能方向は1 row移動してtrueとなる。
+- 回帰: 通常tap 1回、drag 0回、固定control row、scroll range、mock/reference同期に新しい退行は見つからなかった。修正はroot clickのphysical fallback除去だけで、detail 0 activationとpointerup経路を別々に残している。記録済みbrowser証跡は通常pointer tap、keyboard click、drag、lost capture後、blur後へ到達し、focused/full suiteもPASSしている。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
