@@ -36,6 +36,7 @@ class KeyboardView @JvmOverloads constructor(
         private const val ACTION_FLICK_UP = 0x01020002
         private const val ACTION_FLICK_RIGHT = 0x01020003
         private const val ACTION_FLICK_DOWN = 0x01020004
+        internal const val VOICE_SESSION_STATUS_VIRTUAL_ID = 0x7fff0001
     }
 
     var actionSink: KeyboardActionSink? = null
@@ -164,6 +165,7 @@ class KeyboardView @JvmOverloads constructor(
         if (state.voiceSessionActive == active) return
         state = state.copy(voiceSessionActive = active)
         accessibilityHelper.invalidateRoot()
+        if (active) accessibilityHelper.announceVoiceSessionStarted()
         invalidate()
     }
 
@@ -330,6 +332,15 @@ class KeyboardView @JvmOverloads constructor(
         val y = cancel.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
         canvas.drawText("認識中", x, y, textPaint)
         textPaint.textAlign = Paint.Align.CENTER
+    }
+
+    private fun voiceSessionStatusBounds(): android.graphics.Rect? {
+        if (state.mode != KeyboardMode.VOICE || !state.voiceSessionActive) return null
+        val cancel = hitTargets.firstOrNull { it.spec.id == "voice-cancel" } ?: return null
+        val left = (cancel.bounds.right + dp(8f)).toInt()
+        val right = min(width - paddingRight, left + dp(64f).toInt())
+        val bounds = android.graphics.Rect(left, cancel.bounds.top.toInt(), right, cancel.bounds.bottom.toInt())
+        return bounds.takeUnless { it.isEmpty }
     }
 
     private fun buildHitTargets(top: Float) {
@@ -716,10 +727,26 @@ class KeyboardView @JvmOverloads constructor(
             hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
 
         override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
-            hitTargets.indices.filterTo(virtualViewIds) { hitTargets[it].spec.kind != KeyKind.EMPTY && isTargetVisible(hitTargets[it]) }
+            hitTargets.indices.forEach { id ->
+                val target = hitTargets[id]
+                if (target.spec.kind == KeyKind.EMPTY || !isTargetVisible(target)) return@forEach
+                virtualViewIds += id
+                if (target.spec.id == "voice-cancel" && voiceSessionStatusBounds() != null) {
+                    virtualViewIds += VOICE_SESSION_STATUS_VIRTUAL_ID
+                }
+            }
         }
 
         override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
+            if (virtualViewId == VOICE_SESSION_STATUS_VIRTUAL_ID) {
+                val bounds = voiceSessionStatusBounds() ?: return
+                node.className = "android.widget.TextView"
+                node.contentDescription = "認識中"
+                node.isFocusable = true
+                node.isClickable = false
+                node.setBoundsInParent(bounds)
+                return
+            }
             val target = hitTargets.getOrNull(virtualViewId) ?: return
             val bounds = visibleBounds(target) ?: return
             node.className = "android.widget.Button"
@@ -746,6 +773,7 @@ class KeyboardView @JvmOverloads constructor(
 
         override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: android.os.Bundle?): Boolean {
             if (previewOnly) return false
+            if (virtualViewId == VOICE_SESSION_STATUS_VIRTUAL_ID) return false
             val target = hitTargets.getOrNull(virtualViewId) ?: return false
             if (!isTargetVisible(target)) return false
             val direction = when (action) {
@@ -763,6 +791,10 @@ class KeyboardView @JvmOverloads constructor(
             sendEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_CLICKED)
             invalidateVirtualView(virtualViewId)
             return true
+        }
+
+        fun announceVoiceSessionStarted() {
+            sendEventForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityEvent.TYPE_ANNOUNCEMENT)
         }
     }
 

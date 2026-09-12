@@ -889,7 +889,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val text = voiceController.confirm(token, index) ?: return
         if (!isCurrentContinuousVoiceSession(session, token)) return
         var committed = false
-        if (!editorSession.runIfCurrent(token) { committed = textController.commitText(text) } || !committed) return
+        if (!editorSession.runIfCurrent(token) { committed = textController.commitText(text) } || !committed) {
+            // confirm() has already destroyed the recognizer. Do not leave a blank VOICE layer
+            // with no session when the editor rejects the one allowed commit.
+            if (isCurrentContinuousVoiceSession(session, token)) cancelVoiceSession()
+            return
+        }
         if (!isCurrentContinuousVoiceSession(session, token)) return
         // confirm() synchronously clears the preview through onVoiceState(Idle). Restart only
         // after that clear and the guarded single editor commit have both completed.

@@ -119,6 +119,66 @@ class ImeServiceVoiceHoldTest {
         assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
     }
 
+    @Test fun queuedVoicePreviewTapCannotCommitOrRestartAfterLayerSwitchInvalidatesItsSession() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("古い候補"); h.idle()
+        val mutex = ImeService::class.java.getDeclaredField("actionMutex").apply { isAccessible = true }.get(h.service) as kotlinx.coroutines.sync.Mutex
+        runBlocking { mutex.lock() }
+        try {
+            h.service.onKeyAction(KeyAction.SelectCandidate(0))
+            h.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.NUMBERS))
+        } finally {
+            mutex.unlock()
+        }
+        h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals(KeyboardMode.NUMBERS, h.root.findKeyboard().mode())
+    }
+
+    @Test fun rejectedContinuousVoiceCommitLeavesVoiceLayerWithoutRestart() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("拒否"); h.idle()
+        h.input.acceptCommits = false
+
+        h.root.findText("拒否").performClick(); h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
+        assertTrue(!h.root.findKeyboard().voiceSessionActive())
+    }
+
+    @Test fun inputFinishAndDestroyDropContinuousVoiceCallbacksWithoutRestart() {
+        fun activeHarness(): Harness = Harness().also { h ->
+            h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+            h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        }
+        val viewFinish = activeHarness()
+        val staleAfterViewFinish = viewFinish.recognizer.listener
+        viewFinish.service.onFinishInputView(false)
+        staleAfterViewFinish?.onResults(listOf("破棄")); viewFinish.idle()
+        assertEquals("", viewFinish.input.text)
+        assertEquals(1, viewFinish.recognizer.startCount)
+
+        val inputFinish = activeHarness()
+        val staleAfterInputFinish = inputFinish.recognizer.listener
+        inputFinish.service.onFinishInput()
+        staleAfterInputFinish?.onResults(listOf("破棄")); inputFinish.idle()
+        assertEquals("", inputFinish.input.text)
+        assertEquals(1, inputFinish.recognizer.startCount)
+
+        val destroy = activeHarness()
+        val staleAfterDestroy = destroy.recognizer.listener
+        destroy.service.onDestroy()
+        staleAfterDestroy?.onResults(listOf("破棄")); destroy.idle()
+        assertEquals("", destroy.input.text)
+        assertEquals(1, destroy.recognizer.startCount)
+    }
+
     @Test fun earlyResultWaitsForReleaseAndCommitsOnce() {
         val h = Harness(); h.begin(); h.recognizer.result("日本語"); assertEquals("", h.input.text)
         h.service.onVoiceHold(VoiceHoldEvent.End(1)); h.idle(); assertEquals("日本語", h.input.text)
@@ -156,9 +216,18 @@ class ImeServiceVoiceHoldTest {
         val h=Harness(ready=false); h.begin(); h.service.onVoiceHold(VoiceHoldEvent.End(1)); h.recognizer.ready(); h.recognizer.result("早い"); h.idle(); assertEquals("",h.input.text)
         val h2=Harness(); h2.begin(); h2.service.onStartInput(EditorInfo(),false); h2.recognizer.result("別欄"); h2.idle(); assertEquals("",h2.input.text)
     }
-    @Test fun privateEditorNeverStartsVoice() {
+    @Test fun privateAndNoPersonalizedEditorsNeverStartVoice() {
         val h=Harness(); h.service.onStartInput(EditorInfo().apply { inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD },false)
         h.service.onVoiceHold(VoiceHoldEvent.Begin(9)); h.idle(); assertEquals(null,h.recognizer.support)
+
+        val noPersonalized = Harness()
+        noPersonalized.service.onStartInput(EditorInfo().apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        }, false)
+        noPersonalized.service.onKeyAction(KeyAction.VoiceHold); noPersonalized.idle()
+        assertEquals(null, noPersonalized.recognizer.support)
+        assertEquals(KeyboardMode.QWERTY, noPersonalized.root.findKeyboard().mode())
     }
     @Test fun normalKeyCancelsVoiceCommitWaitingBehindReset() {
         val h=Harness(); h.begin(); h.recognizer.result("古い"); h.conversion.armReset(); h.service.onVoiceHold(VoiceHoldEvent.End(1)); h.idle(); assertEquals("",h.input.text)
@@ -171,7 +240,7 @@ class ImeServiceVoiceHoldTest {
         fun begin(){ service.onVoiceHold(VoiceHoldEvent.Begin(1)); idle(); recognizer.support?.invoke(true); if(ready) recognizer.ready(); idle() }
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
-    private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; override fun commitText(t:CharSequence?,n:Int):Boolean { text+=t?.toString() ?: ""; return true } }
+    private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; var acceptCommits=true; override fun commitText(t:CharSequence?,n:Int):Boolean { if(!acceptCommits)return false; text+=t?.toString() ?: ""; return true } }
     private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; var startCount=0; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){startCount++}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 

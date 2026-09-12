@@ -56,6 +56,8 @@
 
 [2026/09/12 21:57 JST] 追加回帰: 同一previewのrapid double tapはcommit/restart各1回だけ、mutex待ち中にCancelしたqueued candidate tapはcommit/restartしないことをservice testで固定した。認識中表示はstandard presetの412dpと840dpの双方でCancel右へ描画され、Cancel keyのbounds・4行228dp・virtual key数が変わらないことをlayout testで確認した。focused 3 classは再実行してPASS。モックもMobile 412dpとTablet 840dpで実pointer swipeを観察した。
 
+[2026/09/12 22:08 JST] review修正: 認識中表示をactive時だけの非clickable TalkBack virtual nodeとして公開し、active遷移ごとに`TYPE_ANNOUNCEMENT`を1回だけ送る。partial更新・同値再設定では送らず、inactive/errorでnodeを消す。Cancelのnode順・bounds・actionsは維持した。候補確定をeditorが拒否した反例では、confirm済みrecognizerを再起動せず元文字レイヤーへ戻す。queued candidate後のCancelに加えSwitchLayer、private/NO_PERSONALIZED、finish input view/input/destroy後の旧callback拒否、SMALL/STANDARD/LARGEの412/840dp表示、VOICE Cancelの右/下flickをservice/view testへ追加した。focused `VoiceRecognitionControllerTest`、`ImeServiceVoiceHoldTest`、`KeyboardViewTest` PASS。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -71,11 +73,15 @@
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
 
+| 1 | Accessibility / lifecycle | Major + Minor | Canvasだけの認識中表示、commit拒否後の空VOICE、停止境界とpreset/flick coverage | 採用・修正 | active限定の非action virtual nodeと一回通知、commit拒否時の安全な離脱、session invalidation回帰で実装・確認した。 |
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 [2026/09/12 21:54 JST] `technical-reference.md` decision 10/21、native/reference spec、README、manual、demo、公開mockを連続認識・Cancel右状態表示・停止境界へ同期した。
+
+[2026/09/12 22:08 JST] decision 10をservice session generationとcontroller recognizer generationの実際の責務、active限定TalkBack状態nodeへ訂正した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

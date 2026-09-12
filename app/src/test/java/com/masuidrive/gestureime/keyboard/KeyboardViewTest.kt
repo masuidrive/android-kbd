@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.content.res.Configuration
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityNodeInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -294,28 +295,69 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_MOVE, cancel.exactCenterX(), cancel.exactCenterY() - 30f, 30)
         touch(MotionEvent.ACTION_UP, cancel.exactCenterX(), cancel.exactCenterY() - 30f, 40)
         assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
+
+        actions.clear()
+        view.setMode(KeyboardMode.VOICE)
+        touch(MotionEvent.ACTION_DOWN, cancel.exactCenterX(), cancel.exactCenterY(), 50)
+        touch(MotionEvent.ACTION_MOVE, cancel.exactCenterX() + 30f, cancel.exactCenterY(), 60)
+        touch(MotionEvent.ACTION_UP, cancel.exactCenterX() + 30f, cancel.exactCenterY(), 70)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
+
+        actions.clear()
+        view.setMode(KeyboardMode.VOICE)
+        touch(MotionEvent.ACTION_DOWN, cancel.exactCenterX(), cancel.exactCenterY(), 80)
+        touch(MotionEvent.ACTION_MOVE, cancel.exactCenterX(), cancel.exactCenterY() + 30f, 90)
+        touch(MotionEvent.ACTION_UP, cancel.exactCenterX(), cancel.exactCenterY() + 30f, 100)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), actions)
         assertEquals(228, view.measuredHeight)
     }
 
     @Test fun `voice session status draws beside cancel without creating a key or changing its target`() {
-        listOf(412, 840).forEach { width ->
-            val height = 228
+        listOf(
+            Triple(412, KeyboardHeightPreset.SMALL, 208),
+            Triple(840, KeyboardHeightPreset.SMALL, 208),
+            Triple(412, KeyboardHeightPreset.STANDARD, 228),
+            Triple(840, KeyboardHeightPreset.STANDARD, 228),
+            Triple(412, KeyboardHeightPreset.LARGE, 248),
+            Triple(840, KeyboardHeightPreset.LARGE, 248),
+        ).forEach { (width, preset, height) ->
+            view.setHeightPreset(preset)
             view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
             view.setMode(KeyboardMode.VOICE)
+            val provider = view.accessibilityNodeProvider
             val cancelBefore = keyBounds(3)
-            val nodesBefore = requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount
+            val cancelActionsBefore = requireNotNull(provider.createAccessibilityNodeInfo(3)).actions
+            val nodesBefore = requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount
+            val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply { setEnabled(true) }
+            val announcementsBefore = accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
+            }
 
             view.setVoiceSessionActive(true)
             val canvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
+            val status = requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID))
 
             assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right })
             assertEquals(cancelBefore, keyBounds(3))
+            assertEquals(cancelActionsBefore, requireNotNull(provider.createAccessibilityNodeInfo(3)).actions)
             assertEquals(height, view.measuredHeight)
-            assertEquals(nodesBefore, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
+            assertEquals(nodesBefore + 1, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
+            assertEquals("認識中", status.contentDescription)
+            assertFalse(status.isClickable)
+            assertFalse(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_CLICK, null))
+            assertEquals(announcementsBefore + 1, accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
+            })
+
+            view.setVoiceSessionActive(true)
+            assertEquals(announcementsBefore + 1, accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
+            })
 
             view.setVoiceSessionActive(false)
             val idle = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             assertFalse(idle.draws.any { it.text == "認識中" })
+            assertEquals(nodesBefore, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
         }
     }
 
