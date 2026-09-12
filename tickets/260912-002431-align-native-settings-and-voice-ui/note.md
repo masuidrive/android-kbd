@@ -1,6 +1,6 @@
 # Work Notes: 260912-002431-align-native-settings-and-voice-ui
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,21 +9,21 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内IMEと静的サイトのみで外部providerを使わない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -83,7 +83,18 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 音声status face | Major | Permission/Unavailableがselectedの青faceを誤用 | 採用・解消 | `608a1bf`で通常candidate faceとclick/focus/actionを分離し、Light/Dark回帰とAVD画像を更新 |
+| 2 | 公開readiness | Major | 公開前のv0.10 APK URLが404 | 採用・release gate | v0.10.0 Release公開後にHTTP 200とasset digestを確認する |
+
+### AC verification
+
+- AC 1: API 36.1のLight/Dark画像とRobolectricで、4カード、6dp赤accent、可読なpage/surface/control配色を確認した。
+- AC 2: Button/Switch/EditTextの48dp最小高、ScrollView、412dp相当の横overflowなし、BuildConfig 0.10.0表示と設定保存を確認した。
+- AC 3: API 36.1で候補欄、上部状態行なし、固定4行、通常形状の左下キャンセルを確認した。`608a1bf`再レビュー後にVERIFIED。
+- AC 4: partial非選択、final候補tap exactly once、取消で未入力復帰をService/CandidateStrip回帰testで確認した。
+- AC 5: キャンセルキーの上=日本語、右=QWERTY、下=テンキーと切替後mode永続化をlayout/service testで確認した。
+- AC 6: v0.10のLight/Dark設定画像と音声画像をmanualへ反映し、docs/siteの音声画像SHA-256 `7abb83edd26def35aea43547b0d700f6a917978beaccf9dc54d5aff4d407e40c`一致、390px横overflow 0・全画像loadを確認した。
+- 最終suite: `scripts/test-all.sh --parallel` PASS（`/var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.GMU10Bz08r`、fast-checks / Android unit・lint・APK 2/2 PASS）。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -95,6 +106,8 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 確認手順: v0.10.0 APKで設定画面をLight/Dark表示し、4カードとversionを確認する。QWERTY左下を左フリックして音声面へ入り、候補欄・固定4行・左下キャンセルを確認する。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
