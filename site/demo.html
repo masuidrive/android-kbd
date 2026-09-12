@@ -21,13 +21,13 @@
 </head>
 <body>
   <a class="skip" href="#demo">モックへ移動</a>
-  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">md</span><span>masuidrive-kbd</span></a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="https://github.com/masuidrive/android-kbd/releases/download/v0.13.0/gesture-ime-v0.13.0.apk">APK</a></div></div></nav>
+  <nav class="nav" aria-label="サイトナビゲーション"><div class="nav-inner"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">md</span><span>masuidrive-kbd</span></a><div class="nav-links"><a href="index.html">製品紹介</a><a href="manual.html">使い方</a><a class="download" href="https://github.com/masuidrive/android-kbd/releases/download/v0.14.0/gesture-ime-v0.14.0.apk">APK</a></div></div></nav>
   <main class="demo-main">
     <header class="demo-head"><div><p class="eyebrow">Interactive mock</p><h1>指で試す。</h1></div><p class="demo-copy">入力欄とキーボードを中心に、絵文字レイヤー、かなフリック、QWERTYの上下操作を試せます。タブレット表示でDual Flickを有効にすると、中央のかなキーを両手で同時に操作できます。候補は説明用の内蔵辞書です。音声はマイクを使わず、「認識中」、10秒以上の発話後の最終候補または選択可能な途中結果、候補確定後に始まる次の認識を再現します。</p></header>
     <section id="demo" class="demo-frame" aria-label="masuidrive-kbd操作モック"><iframe src="mock.html" title="masuidrive-kbdの操作モック"></iframe></section>
     <div class="demo-tips"><div><strong>Enterを試す</strong>上へフリックするとC-j、下へフリックするとpasteが中央へ移動します。</div><div><strong>音声を試す</strong>左下キーを左へフリックします。キャンセルの右に「認識中」が出ます。10秒待つと固定領域に候補が1行ずつ並び、候補をタップすると1回入力してすぐ次の認識へ戻ります。キャンセルまで繰り返せます。</div><div><strong>候補を試す</strong>QWERTYのbを下へフリックして「/」を入れると、3つのスラッシュ候補が出ます。</div></div>
   </main>
-  <footer class="footer"><span>参考モック v0.13.0</span><span><a href="manual.html">Android版の使い方</a></span></footer>
+  <footer class="footer"><span>参考モック v0.14.0</span><span><a href="manual.html">Android版の使い方</a></span></footer>
   <script>
     const frame=document.querySelector('.demo-frame iframe');
     frame.addEventListener('load',()=>{
