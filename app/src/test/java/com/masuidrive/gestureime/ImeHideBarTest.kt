@@ -280,6 +280,25 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun rapidCategoryActivationInheritsTheOriginalStableViewportBaseline() {
+        val stable = EmojiViewportBaseline(
+            viewportHeight = 155,
+            wasLocked = true,
+            bodyHeight = 163,
+            clipBounds = Rect(0, 0, 412, 155),
+        )
+        val unlockedIntermediate = EmojiViewportBaseline(
+            viewportHeight = 155,
+            wasLocked = false,
+            bodyHeight = 163,
+            clipBounds = Rect(0, 0, 412, 155),
+        )
+
+        assertEquals(stable, nextEmojiCategoryBaseline(stable, unlockedIntermediate))
+        assertEquals(unlockedIntermediate, nextEmojiCategoryBaseline(null, unlockedIntermediate))
+    }
+
+    @Test
     fun staleCategoryCallbackCannotApplyViewportToAReplacementPickerBody() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val oldBody = RecyclerView(activity)
