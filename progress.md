@@ -209,3 +209,4 @@
 [2026/09/12 22:31] 認識中statusのTalkBack hover/focus終了をExploreByTouchHelperへ正しく反映した。並行してAndroidX絵文字pickerの初回provisional高さが再bindで繰り返されるlayout loopを修正し、最終body/clipをcontrol境界へ固定した。問題test、focused 4対象、全suite（fast-checks、Android unit/lint/APK）はすべてPASS。
 [2026/09/12 22:34] v0.13.0のリリース文書を準備し、連続音声入力の「認識中」、候補確定後の即時再認識、Cancelまでの継続をREADME、製品紹介、操作mock説明、マニュアル、release notesへ同期した。APK導線は未圧縮のgesture-ime-v0.13.0.apkのみで、site配下にAPK/ZIPがないことを確認した。
 [2026/09/12 22:45] 連続音声入力を独立verifyし、AC 1〜5を達成と判定した。fresh focused 92/92、assemble 37/37、install、全suite 2/2をPASS。API 36でVOICE非対応表示・固定4行・Cancelと上下右flick、設定と入力テスト10回の高さ一致、絵文字3presetの3行固定を確認し、412/840 mockで候補確定と次認識を2周、Cancel後の旧結果破棄を確認した。
+[2026/09/12 22:48] v0.13.0配布APKを全37 task再実行で生成した。versionCode 14、versionName 0.13.0、minSdk 28、targetSdk 36、ARM64、v2 debug署名、RECORD_AUDIOあり・INTERNETなしを確認。38,584,367 bytes、SHA-256 `2526a9e99c5713d13d4ee2969475da580fe011f26fed5a47f7571a203eeb40cb`。
