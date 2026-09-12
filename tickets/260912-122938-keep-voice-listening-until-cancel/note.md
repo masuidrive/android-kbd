@@ -36,6 +36,7 @@
 - [x] mock feedback: readonly入力欄の初期案内を最初のmock入力で消して入力結果へ置き換える
 - [x] mock feedback: PC新規表示をTablet・Dual Flick・日本語かな、スマホ新規表示をMobileにする
 - [x] site feedback: `demo.html`を廃止し、操作mock導線をトップ`#demo`へ統一する
+- [x] voice feedback: 最下段右側へ「、。？！」・Space・Enterを配置し、認識中もsessionと候補を保ったまま入力できるようにする
 - [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
@@ -93,6 +94,8 @@
 
 [2026/09/13 00:12 JST] human review差し戻し実装: 音声recognizerの`onEndOfSpeech`後500msで最終結果がなければ最後の有効partialを選択候補へ昇格し、`NO_MATCH`・`SPEECH_TIMEOUT`・`CLIENT` errorでも同じfallbackを行う。通常横候補欄から音声を分離して上3行相当の固定縦panelへ移し、権限未許可・非対応・errorはtap不能text、候補確定後はpanelを消して認識中へ戻す。絵文字Recentを新しい順・重複なし最大100件へ拡張し、全category holderを再利用・選択後も48dp固定にした。独自hide barをnative/mockから削除し、system bottom insetはKeyboardViewが4行下へ保持する。mockはreadonly・focus outlineなし、外側gray、mode切替上下12pxへ同期した。native focused 8 classは82/82 PASS、mock mirror・JS syntax・fast-checks・412/840pxのbrowser観察もPASS。実装commit: `ddb8e49`, `5e12e77`, `8b5e39d`, `e231515`。
 
+[2026/09/13 02:21 JST] 追加feedbackを`a8feac4`で実装した。VOICE最下段を5等分してCancel、非操作status、句読点、Space、Enterを置き、句読点をMozcへ入れない直接commitにした。VOICE中の文字commit・Enter・Paste・Space cursor・Ctrl+Jは同一voice/editor generationの専用経路で処理し、認識器、panel、候補を変更しない。Cancel・layer切替後にmutex待ちの操作はgeneration不一致で破棄する。独立reviewで見つかったmockのready時status消失、かなcomposition依存、Cancel後の非同期Pasteを`21e1fb5`で修正し、句読点面を全角「、。？！」へ統一した。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -138,6 +141,16 @@
 
 [2026/09/13 01:47 JST] 独立reviewはHEAD `8a7351219132f6085beb2b72df39215351121d48`と`masuidrive.jp/docs/products/md-kbd/`のコピーを確認した。4つのHTML/CSSはsourceとbyte一致し、`demo.html`なし、52件の相対asset/linkとfragmentが全て解決。1280px新規表示はTablet・日本語・Dual Flick ON、最初の「あ」tapで案内文が「あ」へ置換され、reload後のstate復元と1280px/412px双方の横overflow 0を確認した。
 
+### Findings (PDH-review-5)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Native / mock parity | Major | mockは候補表示中に「認識中」が消え、VOICE Space・Enterが進入前のかなcompositionやQWERTY smart periodへ流れる | 採用・修正 | readyでもstatusを表示し、VOICE編集をcomposition非依存の直接入力へ分離した。 |
+| 2 | Async lifecycle | Major | mockのEnter下PasteがCancel・layer切替後に完了して入力され得る | 採用・修正 | clipboard開始時のvoice generationを保持し、完了時に同一active sessionだけを入力する。 |
+| 3 | Label parity | Minor | 待機面がASCII `?!`でACの全角`？！`と異なる | 採用・修正 | nativeとmockのVOICE句読点面だけを「、。？！」へ統一した。 |
+
+[2026/09/13 02:21 JST] `21e1fb5`後は上記findingを全て解消した。focused Android test、mock JavaScript syntax、similarity、正本mirror、fast-checksはPASS。ブラウザでかな未確定からVOICEへ入りSpace・Enterを直接入力できること、ready候補と「認識中」の同時表示、遅延PasteがCancel後に入らないことを確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -166,6 +179,8 @@ Passed: 2 / 2
 
 [2026/09/13 01:49 JST] 公開URLから`index.html`、`mock.html`、`manual.html`、`styles.css`を再取得し、`masuidrive.jp`のcommit `396f780`にある4ファイルとbyte単位で一致した。
 
+[2026/09/13 02:23 JST] AC 11を達成と判定した。native focused testは5列の等幅bounds、句読点の直接commit、録音・処理・候補中のsession保持、Cancel・layer切替後のqueue破棄、412/840dp×小・標準・大の固定4行をPASS。API 36 AVDで、端末内モデルなしの固定panel下にCancel、空のstatus列、右寄せの「、。？！」・Space・Enterが同じ高さで並ぶことを確認した。操作mockは840pxでready候補と「認識中」を同時表示し、句読点・Space・Enterの順に入力後も候補3件とstatusを維持して入力値が`、 \n`になり、横overflow 0だった。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -179,6 +194,8 @@ Passed: 2 / 2
 [2026/09/13 00:12 JST] 差し戻し実装に合わせ、decision 10/15/17/18/21を専用音声縦panel、partial fallback、tap不能状態表示、Recent 100件、category 48dp固定、独自hide bar削除とKeyboardViewのsystem inset所有へ更新した。
 
 [2026/09/13 01:47 JST] 操作mock実装referenceをトップ統合、v2保存state、初回案内置換、`demo.html`廃止へ更新した。正式な製品紹介と操作mockは`https://masuidrive.jp/products/md-kbd/`、マニュアルは同階層の`manual.html`で配信する。
+
+[2026/09/13 02:23 JST] `technical-reference.md`、README、製品紹介、操作mock、マニュアルをVOICE最下段5列、句読点直接入力、Space・Enter各フリック中の連続session保持へ同期した。v0.15.0のリリースノートとAPI 36実画面も追加した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

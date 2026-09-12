@@ -232,3 +232,5 @@
 [2026/09/13 01:34] 公式製品ページの配置先を https://masuidrive.jp/products/md-kbd/ に確定し、隣接するmasuidrive.jpリポジトリのdocs/products/md-kbdへトップ内操作mock・マニュアル・画像を組み込む作業を開始した。独立demo.htmlは配置しない。
 [2026/09/13 01:47] トップ内操作mockを白背景・外枠なし、案内labelと初回入力置換、PC初期のTablet・日本語Dual Flickへ更新し、独立demo.htmlを削除した。masuidrive.jpのcommit 396f780をmainへpushし、https://masuidrive.jp/products/md-kbd/ のHTTP 200、公開browserの横overflowなし・画像欠落なしを確認した。Android最終全suiteも2/2 PASS、独立reviewはCritical・Major・Minor 0件だった。
 [2026/09/13 01:49] https://masuidrive.jp/products/md-kbd/ のindex・mock・manual・stylesを公開側から再取得し、masuidrive.jp mainのcommit 396f780と4ファイル全てbyte単位で一致した。
+[2026/09/13 01:57] 音声入力レイヤー最下段の右側へ「、。？！」・Space・Enterを追加し、録音中・認識処理中・候補表示中にも音声sessionと候補を保ったまま使えるようにする追加調整を開始した。キャンセル、認識中領域、右側3キーの5列配置と固定4行高をnative・操作mockで揃える。
+[2026/09/13 02:19] nativeの音声最下段5列、直接入力、Cancel後のqueue破棄、412dp・840dpの固定高はfocused testでPASSした。独立reviewで操作mockの候補表示中status、かな未確定を引き継ぐSpace・Enter、Cancel後に完了する非同期Pasteの3件をMajorとして検出し、公開前の修正へ戻した。API 36 emulatorでは左側2列と右寄せ3キーの配置を確認した。
