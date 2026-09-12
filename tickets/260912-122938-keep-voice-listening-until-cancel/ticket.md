@@ -45,6 +45,7 @@ canceled_at: null # Do not modify manually
 - [x] AC 7: Android native IMEと公開操作mockは独自の閉じる行を表示しない。Android native IMEはOSが提供するキーボード終了操作で閉じられる。候補・category領域と4行key領域の固定高は独自行の削除後も変動しない。
 - [x] AC 8: 公開操作mockの入力欄はreadonlyで通常のキーボード入力を受け付けず、focus時にもnative入力面にないborderを表示しない。mock内のキー・候補・音声候補による入力結果とカーソルは同じ欄へ引き続き反映される。
 - [x] AC 9: 公開操作mockのキーボード周囲は黒ではなく外側ページになじむ灰色で表示し、上のモード切替groupには下側との釣り合いが分かる余白を確保する。Mobile・Tablet・Dual FlickとLight・Darkを切り替えても周囲色と余白が崩れない。
+- [x] AC 10: 製品トップの操作mockは外周の枠線なし・白い周囲で表示し、小さいeditor label位置にtapと上下左右flickで入力できることを明示する。readonly入力欄は「ここで実際に下のキーボードを操作できます」を初期表示し、最初のmock入力でその案内を消して入力結果へ置き換える。新規にPC幅で開くとTablet幅・Dual Flick ON・日本語かなlayer、スマホ幅で開くとMobile表示になる。独立した`demo.html`は公開せず、操作mockへのサイト内導線は製品トップの`#demo`へ着地する。
 
 ### Architectural Invariants check
 端末内認識だけを使い、録音音声・途中結果・確定候補を保存または外部送信しない。private入力欄では開始せず、editor sessionが変わった結果を破棄するためAI-1〜AI-4と矛盾しない。

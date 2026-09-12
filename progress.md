@@ -228,3 +228,6 @@
 [2026/09/13 00:31] v0.14.0をAPI 36 emulatorで確認し、音声非対応を固定panelのplain text、絵文字を等幅categoryと3行grid、独自hide rowなしで表示した。connected testは11/11 PASS。v0.14実画面をマニュアルへ追加した。
 [2026/09/13 00:38] v0.14.0 APKをGitHub Releaseへ単体公開し、GitHub API経由の再取得で38,583,304 bytesとSHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`の完全一致を確認した。repositoryはprivateのため未認証の直接URLは404になる。
 [2026/09/13 00:38] Hanger Sitesをv0.14.0へ更新してpublic公開した。localと公開側は48ファイル全件のSHA-256が一致し、公開index・demo・manualもbyte単位で一致した。siteにAPK/ZIPは含めていない。
+[2026/09/13 01:30] トップ操作mockを白い周囲・外枠なしへ変更し、入力案内をeditor labelと初期値へ移す追加調整を開始した。PC新規表示はDual Flick日本語、スマホはMobileとし、独立demo.htmlを廃止してトップ#demoへ統一する。
+[2026/09/13 01:34] 公式製品ページの配置先を https://masuidrive.jp/products/md-kbd/ に確定し、隣接するmasuidrive.jpリポジトリのdocs/products/md-kbdへトップ内操作mock・マニュアル・画像を組み込む作業を開始した。独立demo.htmlは配置しない。
+[2026/09/13 01:47] トップ内操作mockを白背景・外枠なし、案内labelと初回入力置換、PC初期のTablet・日本語Dual Flickへ更新し、独立demo.htmlを削除した。masuidrive.jpのcommit 396f780をmainへpushし、https://masuidrive.jp/products/md-kbd/ のHTTP 200、公開browserの横overflowなし・画像欠落なしを確認した。Android最終全suiteも2/2 PASS、独立reviewはCritical・Major・Minor 0件だった。

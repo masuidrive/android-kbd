@@ -32,6 +32,10 @@
 - [x] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
 - [x] mock feedback: 入力欄をreadonlyにして通常キーボードを開かず、nativeにないfocus borderを表示しない
 - [x] mock feedback: キーボード周囲を黒ではなく灰色にし、モード切替groupの上へ下側と釣り合う余白を入れる
+- [x] mock feedback: トップ埋め込みmockを白い周囲・外枠なしにし、入力案内を小さいlabel位置へ移す
+- [x] mock feedback: readonly入力欄の初期案内を最初のmock入力で消して入力結果へ置き換える
+- [x] mock feedback: PC新規表示をTablet・Dual Flick・日本語かな、スマホ新規表示をMobileにする
+- [x] site feedback: `demo.html`を廃止し、操作mock導線をトップ`#demo`へ統一する
 - [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
@@ -66,6 +70,10 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+[2026/09/13 01:30 JST] human reviewの追加feedbackで、灰色と外枠のある独立demoより製品トップへ一体化した操作面を優先する判断へ更新した。`demo.html`を廃止して全導線を`index.html#demo`へ寄せ、PC新規visitorは珍しいDual Flick日本語を最初に見せる。既存保存stateはversion付きで一度だけ新defaultへ移行し、その後の利用者操作を保持する。readonly初期案内は最初の文字入力でだけ消し、カーソル移動では消さない。
+
+[2026/09/13 01:47 JST] `8a73512`でトップ内操作mockを白背景・外枠なしへ統合し、案内をeditor labelとreadonly初期文へ移した。PC新規状態をTablet・日本語かな・Dual Flick ON、touch端末を表示幅に応じたMobile/Tabletとし、v2保存stateで利用者の選択を再読込後も保持する。`site/demo.html`を削除し、製品紹介・manual・実装referenceの現行導線を`index.html#demo`へ統一した。確定版46ファイルを`masuidrive.jp`の`docs/products/md-kbd/`へ配置し、commit `396f780`をmainへpushした。
 
 [2026/09/12 21:42 JST] 実装前調査: `VoiceRecognitionController.confirm()` は preview を無効化して Idle を通知し、`ImeService.commitVoiceCandidate()` は現在その後に元レイヤーへ戻す。候補確定後の同editor token再開始は service 側で commit 成功を確認してから controller を start する。controller の generation は start/cancel/confirm で旧callbackを破棄できる。表示は固定4行の `KeyboardView` 最下段で、通常認識状態だけへ追加する。private・editor/layer/IME境界と Unavailable は既存停止経路を維持する。git log/blame を確認済み。仮定: recognizer の `start()` を同一 editor token で呼ぶことで新generationが作られ、前session callbackは controller と service token guard の双方で拒否される。
 
@@ -122,6 +130,14 @@
 
 [2026/09/13 00:26 JST] `ba10aec`後の全suiteはfast-checksとAndroid unit/lint/APKの2/2 PASS。独立Terra reviewerは`31a1ef5`を再確認し、Critical 0、Major 0、Minor 0。48dp holderへ同値再代入しないことと、同一holderへの二重適用でlayout requestが起きない回帰testを確認した。
 
+### Findings (PDH-review-4)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+|   |      |     | 指摘なし | 承認 | 独立reviewはCritical 0、Major 0、Minor 0。トップ内mock、初期state、初回入力置換、保存復元、demo廃止、1280px/412pxのoverflow、相対asset/linkを確認した。 |
+
+[2026/09/13 01:47 JST] 独立reviewはHEAD `8a7351219132f6085beb2b72df39215351121d48`と`masuidrive.jp/docs/products/md-kbd/`のコピーを確認した。4つのHTML/CSSはsourceとbyte一致し、`demo.html`なし、52件の相対asset/linkとfragmentが全て解決。1280px新規表示はTablet・日本語・Dual Flick ON、最初の「あ」tapで案内文が「あ」へ置換され、reload後のstate復元と1280px/412px双方の横overflow 0を確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -146,6 +162,8 @@ Passed: 2 / 2
 
 [2026/09/13 00:31 JST] v0.14.0 APKは38,583,304 bytes、SHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`。マニュアルの音声非対応・絵文字category画像をv0.14実画面へ差し替え、公開前のsiteにAPK/ZIPを含めていないことを確認した。
 
+[2026/09/13 01:47 JST] AC 10を達成と判定した。`similarity-ts`、inline JavaScript syntax、mock/reference mirror、fast-checksをPASSし、最終HEADで`scripts/test-all.sh --parallel`はfast-checksとAndroid unit・lint・APKの2/2 PASS。公開先`https://masuidrive.jp/products/md-kbd/`はGitHub Pages buildがcommit `396f780b3aa92ca37cc4df4a45365d3f163cd49c`でbuiltとなりHTTP 200。公開browserでもPC初期Tablet・日本語・Dual Flick ON、横overflow 0、画像欠落0を確認した。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -158,6 +176,8 @@ Passed: 2 / 2
 
 [2026/09/13 00:12 JST] 差し戻し実装に合わせ、decision 10/15/17/18/21を専用音声縦panel、partial fallback、tap不能状態表示、Recent 100件、category 48dp固定、独自hide bar削除とKeyboardViewのsystem inset所有へ更新した。
 
+[2026/09/13 01:47 JST] 操作mock実装referenceをトップ統合、v2保存state、初回案内置換、`demo.html`廃止へ更新した。正式な製品紹介と操作mockは`https://masuidrive.jp/products/md-kbd/`、マニュアルは同階層の`manual.html`で配信する。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
@@ -166,6 +186,8 @@ Passed: 2 / 2
 [2026/09/12 23:06 JST] v0.13.0をGitHub ReleasesへAPK単体で公開し、Hanger Sitesの製品ページ・操作mock・manualも更新した。human reviewでは対応実機の通常入力欄で、音声レイヤー進入後にCancel横へ「認識中」が出ること、候補を1件選ぶと1回だけ入力されて次の認識が始まること、2回以上繰り返した後にCancelで停止し旧候補が復活しないことを確認する。物理Fold/TalkBackは利用可能なら合わせて確認する。公開APKの再download hash一致、AVD/mock/自動testの証拠はPDH-verify節に記録済み。ユーザの明示close承認まではticketを閉じない。
 
 [2026/09/13 00:38 JST] v0.14.0をGitHub ReleaseへAPK単体で公開し、認証済みGitHub API経由の再downloadが38,583,304 bytes、SHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`でlocalと一致した。repository `masuidrive/android-kbd`はprivateなので、未認証の直接download URLは404となる。Hanger Sitesはdisplay nameをv0.14.0、access modeをpublicへ更新し、48ファイル全件のhashと公開index/demo/manualのbyte一致を確認した。APK/ZIPはsiteに含めていない。対応実機で10秒以上発話し、縦候補から2回連続確定、Cancel停止を確認後にclose承認を依頼する。
+
+[2026/09/13 01:47 JST] 追加のサイトfeedbackを反映した製品トップ・操作mock・manualを`https://masuidrive.jp/products/md-kbd/`へ公開した。独立`demo.html`は配信せず、トップ`#demo`で操作できる。GitHub Pagesの最新build、HTTP 200、公開browserの初期Dual Flick日本語、初回入力置換、横overflow 0、画像欠落0を確認済み。ticketは引き続き、対応実機での長発話と連続確定を含むユーザ確認および明示close承認を待つ。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
