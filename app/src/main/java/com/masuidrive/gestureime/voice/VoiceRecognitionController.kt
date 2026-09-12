@@ -110,15 +110,18 @@ class VoiceRecognitionController internal constructor(
             }
             override fun onResults(results: List<String>) {
                 if (activeGeneration != generation) return
-                clearEndOfSpeechFallback()
                 val candidates = results.filter { it.isNotBlank() }.distinct()
                 if (candidates.isEmpty()) finishWith(activeGeneration, VoiceBackendState.Unavailable("認識結果がありません"))
-                else {
-                    preview = candidates
-                    deliver(activeGeneration, VoiceBackendState.Preview(candidates))
+                else finishWithPreview(activeGeneration, candidates)
+            }
+            override fun onError(error: Int) {
+                val lastPartial = partial?.takeIf(String::isNotBlank)
+                if (lastPartial != null && error.isEligibleForPartialFallback()) {
+                    finishWithPreview(activeGeneration, listOf(lastPartial))
+                } else {
+                    finishWith(activeGeneration, VoiceBackendState.Unavailable(errorMessage(error)))
                 }
             }
-            override fun onError(error: Int) = finishWith(activeGeneration, VoiceBackendState.Unavailable(errorMessage(error)))
         }) }.getOrElse {
             finishWith(activeGeneration, VoiceBackendState.Unavailable("端末内音声認識を開始できません"))
             return
@@ -179,6 +182,14 @@ class VoiceRecognitionController internal constructor(
         onState(state, token)
     }
 
+    private fun finishWithPreview(activeGeneration: Long, candidates: List<String>) {
+        if (activeGeneration != generation) return
+        val token = editorToken
+        invalidate(destroy = true)
+        preview = candidates
+        onState(VoiceBackendState.Preview(candidates), token)
+    }
+
     private fun invalidate(destroy: Boolean) {
         generation++
         clearEndOfSpeechFallback()
@@ -205,8 +216,7 @@ class VoiceRecognitionController internal constructor(
             endOfSpeechFallback = null
             if (activeGeneration != generation || preview != null) return@Runnable
             val candidate = partial?.takeIf(String::isNotBlank) ?: return@Runnable
-            preview = listOf(candidate)
-            deliver(activeGeneration, VoiceBackendState.Preview(listOf(candidate)))
+            finishWithPreview(activeGeneration, listOf(candidate))
         }.also { mainHandler.postDelayed(it, END_OF_SPEECH_GRACE_MS) }
     }
 
@@ -222,6 +232,12 @@ class VoiceRecognitionController internal constructor(
         SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "音声認識が処理中です"
         else -> "音声を認識できません（error $error）"
     }
+
+    private fun Int.isEligibleForPartialFallback(): Boolean = this in setOf(
+        SpeechRecognizer.ERROR_NO_MATCH,
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+        SpeechRecognizer.ERROR_CLIENT,
+    )
 }
 
 @RequiresApi(Build.VERSION_CODES.S)

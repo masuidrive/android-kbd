@@ -101,6 +101,38 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
+    fun eligibleTerminalErrorAfterEndOfSpeechPromotesTheLastPartialAndInvalidatesLateCallbacks() {
+        val controller = controller()
+        controller.start(12)
+        recognizer.supportCallback?.invoke(true)
+        val finishedListener = recognizer.listener
+        finishedListener?.onPartialResults(listOf("最初", "候補"))
+        finishedListener?.onPartialResults(listOf("エラー直前の途中結果"))
+        finishedListener?.onEndOfSpeech()
+        finishedListener?.onError(SpeechRecognizer.ERROR_NO_MATCH)
+        finishedListener?.onResults(listOf("遅すぎる最終結果"))
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
+        )
+
+        assertEquals(VoiceBackendState.Preview(listOf("エラー直前の途中結果")) to 12L, states.last())
+        assertEquals("エラー直前の途中結果", controller.confirm(12))
+    }
+
+    @Test
+    fun busyErrorDoesNotPromoteAPartial() {
+        val controller = controller()
+        controller.start(13)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onPartialResults(listOf("途中結果"))
+        recognizer.listener?.onError(SpeechRecognizer.ERROR_RECOGNIZER_BUSY)
+
+        assertTrue(states.last().first is VoiceBackendState.Unavailable)
+        assertNull(controller.confirm(13))
+    }
+
+    @Test
     fun missingJapaneseModelNeverStartsListening() {
         val controller = controller()
         controller.start(2)
