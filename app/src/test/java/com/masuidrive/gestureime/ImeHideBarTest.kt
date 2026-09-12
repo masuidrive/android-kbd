@@ -248,13 +248,13 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun staleCategoryCallbackCannotSettleAReplacementPickerBody() {
+    fun staleCategoryCallbackCannotApplyViewportToAReplacementPickerBody() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val oldBody = RecyclerView(activity)
         val replacementBody = RecyclerView(activity)
 
-        assertFalse(isCurrentEmojiPickerBody(replacementBody, oldBody))
-        assertTrue(isCurrentEmojiPickerBody(replacementBody, replacementBody))
+        assertFalse(shouldApplyEmojiPickerViewport(replacementBody, oldBody))
+        assertTrue(shouldApplyEmojiPickerViewport(replacementBody, replacementBody))
     }
 
     @Test

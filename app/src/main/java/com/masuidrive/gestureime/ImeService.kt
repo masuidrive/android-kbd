@@ -400,7 +400,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun completeEmojiCategoryTransition(picker: EmojiPickerView, body: RecyclerView, generation: Long) {
-        if (isCurrentEmojiPickerBody(pickerBodies[picker], body) &&
+        if (shouldApplyEmojiPickerViewport(pickerBodies[picker], body) &&
             isCurrentEmojiCategoryTransition(generation, pickerViewportCategoryTransitions[picker])
         ) {
             pickerViewportCategoryTransitions.remove(picker)
@@ -409,6 +409,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
+        if (!shouldApplyEmojiPickerViewport(pickerBodies[picker], body)) return
         val presetViewport = pickerViewportMaximums[picker]
         val observedViewport = boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
         val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
@@ -1296,6 +1297,11 @@ private const val EMOJI_CATEGORY_TRANSITION_FALLBACK_MS = 100L
 
 /** Returns the body-coordinate lower edge of three attached AndroidX emoji rows. */
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
+    val spacer = body.resources.getDimensionPixelSize(androidx.emoji2.emojipicker.R.dimen.emoji_picker_category_name_height)
+    return thirdEmojiRowBottomAtCategoryStart(emojiPickerRowBounds(body), spacer)
+}
+
+private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
     val bounds = mutableListOf<Rect>()
     fun collect(view: View) {
         if (view.javaClass.name == "androidx.emoji2.emojipicker.EmojiView") {
@@ -1304,8 +1310,7 @@ internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
         if (view is ViewGroup) repeat(view.childCount) { collect(view.getChildAt(it)) }
     }
     collect(body)
-    val spacer = body.resources.getDimensionPixelSize(androidx.emoji2.emojipicker.R.dimen.emoji_picker_category_name_height)
-    return thirdEmojiRowBottomAtCategoryStart(bounds, spacer)
+    return bounds
 }
 
 internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
@@ -1331,7 +1336,7 @@ internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?)
 internal fun isCurrentEmojiCategoryTransition(generation: Long, activeGeneration: Long?): Boolean =
     generation == activeGeneration
 
-internal fun isCurrentEmojiPickerBody(currentBody: RecyclerView?, callbackBody: RecyclerView): Boolean =
+internal fun shouldApplyEmojiPickerViewport(currentBody: RecyclerView?, callbackBody: RecyclerView): Boolean =
     currentBody === callbackBody
 
 internal fun isEmojiCategoryActivationKey(keyCode: Int, action: Int): Boolean =
