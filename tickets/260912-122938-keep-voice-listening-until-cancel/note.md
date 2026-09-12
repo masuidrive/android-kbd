@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-verify
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -23,7 +23,7 @@
 - [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -123,6 +123,8 @@ Passed: 2 / 2
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+[2026/09/12 23:06 JST] v0.13.0をGitHub ReleasesへAPK単体で公開し、Hanger Sitesの製品ページ・操作mock・manualも更新した。human reviewでは対応実機の通常入力欄で、音声レイヤー進入後にCancel横へ「認識中」が出ること、候補を1件選ぶと1回だけ入力されて次の認識が始まること、2回以上繰り返した後にCancelで停止し旧候補が復活しないことを確認する。物理Fold/TalkBackは利用可能なら合わせて確認する。公開APKの再download hash一致、AVD/mock/自動testの証拠はPDH-verify節に記録済み。ユーザの明示close承認まではticketを閉じない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。

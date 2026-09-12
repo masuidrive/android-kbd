@@ -1,11 +1,16 @@
 # Project Overview
 
-Read `product-brief.md` and `PDH-AGENTS.md`. If `AGENTS.local.md` exists, also read its environment-specific context.
+Read only the context needed for the current task:
+
+- Use `product-brief.md` when changing product behavior, scope, or user-facing decisions.
+- Use `technical-reference.md` when changing implementation or architecture.
+- Use `PDH-AGENTS.md` and `.agents/skills/pdh-dev/SKILL.md` for PDH ticket work and the applicable stage.
+- Read `AGENTS.local.md` only when environment or device setup is relevant and the file exists.
 
 ## Directory Structure
 
 ```text
-app/                             # Android application module (implementation pending)
+app/                             # Android application module and tests
 product-brief.md                 # Product purpose and direction
 technical-reference.md           # Current implementation: how it works
 docs/
@@ -17,9 +22,8 @@ tickets/                         # Managed by ticket.sh
 ## Project Principles
 
 - Prioritize technical correctness over speed.
-- Build an Android-native IME for Galaxy Z Fold7; do not substitute the reference web UI for the native product.
+- Build an Android-native IME for phones, tablets, and foldables. Validate both closed and open Fold layouts; Fold is a supported target, not the product's exclusive target.
 - Keep text conversion and input usable offline. Product details that are still marked `[NEEDS CLARIFICATION]` in `product-brief.md` require user confirmation before implementation.
-- If a user message ends with two question marks (`??` or `？？`), answer the question only; do not edit files or execute commands.
 
 ## Implementation Quality
 
@@ -33,9 +37,7 @@ Use Java 17, Android SDK 36, and Android NDK r29 for Mozc. Use Bazelisk to build
 
 ### Tests
 
-Until the Android project is scaffolded, `scripts/test-all.sh` runs only the PDH structural checks. Add Gradle unit, instrumentation, and lint commands with the scaffold.
-
-Run the full suite through `scripts/test-all.sh`. Use `--parallel` for parallel execution.
+During implementation, run focused checks for the changed behavior. Before PDH verification or release, run `scripts/test-all.sh --parallel` once on the final SHA; rerun it only after a relevant change, failure, or invalidated result. Add `--connected` when emulator or device behavior is in scope.
 
 Follow `PDH-AGENTS.md` for completion-report and surface evidence requirements. Test design and ticket-local-test rules are in `.agents/skills/pdh-coding/SKILL.md`.
 
@@ -56,15 +58,14 @@ Android app · IME service · custom view UI · Mozc JNI · unit tests · instru
 | Category | Common omission | Check |
 |---|---|---|
 | Rename | Old names remain in imports, mocks, or documentation | Search for the old name with `rg` |
-| DB migration | Schema changes have no migration | Plan the schema change and migration together |
 
 ## Codex Workers
 
-Configure the model and reasoning-effort override examples in `.codex/agents/pdh-*.toml` for the project's roles. Keep project-specific constraints here.
+Keep project-specific role constraints here. Select worker models from the current user instruction and available models; model identity itself is not a quality gate.
 
 | Role | Project-specific constraints and focus |
 |---|---|
-| Coding Engineer | Kotlin/Android implementation; stop on unresolved product or device interaction decisions. |
+| Coding Engineer | Kotlin/Android implementation; stop only the affected path when a user-only product or device interaction decision is unresolved, and continue independent approved work. |
 | QA Engineer | Run Gradle checks once configured and verify foldable-device behavior on an emulator or physical device when available. |
 | Reviewer | Focus on IME lifecycle, privacy/offline behavior, JNI safety, and foldable layouts. |
 | AC Verifier | Treat the approved Product Brief, ticket AC, and observed Android behavior as canonical evidence. |

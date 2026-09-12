@@ -210,3 +210,8 @@
 [2026/09/12 22:34] v0.13.0のリリース文書を準備し、連続音声入力の「認識中」、候補確定後の即時再認識、Cancelまでの継続をREADME、製品紹介、操作mock説明、マニュアル、release notesへ同期した。APK導線は未圧縮のgesture-ime-v0.13.0.apkのみで、site配下にAPK/ZIPがないことを確認した。
 [2026/09/12 22:45] 連続音声入力を独立verifyし、AC 1〜5を達成と判定した。fresh focused 92/92、assemble 37/37、install、全suite 2/2をPASS。API 36でVOICE非対応表示・固定4行・Cancelと上下右flick、設定と入力テスト10回の高さ一致、絵文字3presetの3行固定を確認し、412/840 mockで候補確定と次認識を2周、Cancel後の旧結果破棄を確認した。
 [2026/09/12 22:48] v0.13.0配布APKを全37 task再実行で生成した。versionCode 14、versionName 0.13.0、minSdk 28、targetSdk 36、ARM64、v2 debug署名、RECORD_AUDIOあり・INTERNETなしを確認。38,584,367 bytes、SHA-256 `2526a9e99c5713d13d4ee2969475da580fe011f26fed5a47f7571a203eeb40cb`。
+[2026/09/12 22:56] v0.13.0をGitHub ReleasesへAPK単体で公開した。公開assetを再downloadし、38,584,367 bytesとSHA-256 `2526a9e99c5713d13d4ee2969475da580fe011f26fed5a47f7571a203eeb40cb`の完全一致を確認。実装branchをmasuidrive/android-kbdへpush済み。
+[2026/09/12 22:57] Hanger Sitesの製品紹介・操作mock・manualをv0.13.0へ更新した。公開46ファイルとlocal 46ファイルのSHA-256が全件一致し、APK/ZIPはsiteに含めていない。実browserで390px/1024pxのoverflowなし、Tablet/Dual Flick、音声候補1回確定後の次認識、Cancel後2.6秒の旧候補非復活を確認した。
+[2026/09/12 22:58] OpenAI公式記事 `Rethinking skills and prompts for GPT-6 Astra` を読み、skill description、progressive disclosure、AGENTS.mdの条件付き参照、過剰test、decision boundary、完了条件の観点でproject instruction・skill・task prompt監査を開始した。汎用PDHの修正候補はandroid-kbdへ直接入れず、先にmasuidrive/pdh issueへ起票する。
+[2026/09/12 23:05] Astra向け監査結果をmasuidrive/pdh issue #25へ起票した。android-kbd固有のAGENTS.mdは文書参照をtask条件付きにし、現行Android構成、phone/tablet/foldable対応、focused testと最終SHAの一度のfull suiteへ更新した。汎用PDH skillとtask promptのlocal配布物は変更せず、fast-checks 5/5 PASS。
+[2026/09/12 23:06] 連続音声入力ticketをPDH-human-reviewへ進めた。v0.13.0のAPK・製品ページ・操作mock・manualと、対応実機での認識中表示、候補確定後の再認識、Cancel停止の確認手順を提示し、ユーザの明示close承認待ちとした。
