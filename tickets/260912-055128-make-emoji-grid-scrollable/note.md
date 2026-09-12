@@ -131,6 +131,15 @@
 - `scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/APKの2/2 PASS。`app/build/outputs/apk/debug/gesture-ime-v0.12.0.apk`はversionCode 13 / versionName 0.12.0、minSdk 28、targetSdk 36、`arm64-v8a`のみ、v2署名1 signerで検査した。権限は`RECORD_AUDIO`とAndroidXのdynamic receiver permissionだけで、`INTERNET`はない。SHA-256は`e5ab16234ed43f0410f3e81ddfeab46cba7ffc47d85f39d366bb2fc72f0a29c0`。
 - `site/`内にAPK/ZIPは置かない。GitHub Release、push、Sites公開は未実施。
 
+### Release-prep review
+
+対象: base `04fdb34b955cff4b169256537cf628ec6510a073`、target `ee530204411a3361e1ba50cffa070b2d2386bfca`。Critical 0、Major 0、Minor 0。No Critical/Major。
+
+- Gradleとraw APK manifestの両方でversionCode 13 / versionName 0.12.0、minSdk 28、targetSdk 36を確認した。`app-debug.apk`と配布名`gesture-ime-v0.12.0.apk`は34,926,348 bytesでbyte一致し、SHA-256 `e5ab16234ed43f0410f3e81ddfeab46cba7ffc47d85f39d366bb2fc72f0a29c0`へ一致する。APK内native libraryは`lib/arm64-v8a/libmozc.so`だけで、permissionは`RECORD_AUDIO`と生成されたpackage内dynamic receiver permissionだけ、`INTERNET`なし。v2署名1 signerも検証済み。
+- siteのAPK導線はindex 2本、manual 2本、demo 1本の計5本で、すべて`v0.12.0/gesture-ime-v0.12.0.apk`へ一致する。index/demo/manualの現行版表示とREADMEの公開準備版・配布名もv0.12.0で、`site/`配下にAPK/ZIPはない。
+- 新規`site/assets/emoji-scroll-api36-v0.12.png`はtarget treeに実在し、manualの現行操作節とv0.12変更節から参照される。原寸画像には空recentの上3行24件と固定AZ/delete行が写り、説明と一致する。
+- v0.11 publication `97833b1`はscroll implementation `4203855`より前である。`docs/v0.11-release-notes.md`は当時のpage UIを履歴として保持し、v0.12 notes/manualの変更節はその後の3行連続scroll、固定下段、tap/cancelだけを新変更として記載する。時系列の過不足や公開停止となる新しい矛盾は見つからなかった。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
