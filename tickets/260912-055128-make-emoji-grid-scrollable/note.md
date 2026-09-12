@@ -89,6 +89,17 @@
 
 修正後はfocused `KeyboardLayoutsTest`/`KeyboardViewTest`とfull suiteを再実行してPASSした。公開mockは自動suiteがないためbrowserで、通常tapの😀確定を維持したうえでmouse down→window blur→mouse upのtextarea/recent不変、pointercancel直後とcapture release直後のtextarea不変を確認した。pointercancelの後に人工的なmouse upを追加すると通常clickという別イベントになるため、その不自然な列は反例証跡に採用しない。Critical/Major解消の最終判定は再reviewへ残す。
 
+### Findings (PDH-review-2)
+
+対象: `1deb8522b1f894ab1bfd11e54d1b1a1a27eefadd`。Critical 0、Major 1、Minor 0。
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | 対称関係・gesture完了 | Major | 前回Majorは`pointercancel`直後のhelper commitを止めたが、capture loss後の物理click fallbackからまだcommitできる | 未解消 | `site/mock.html:970-997`と`docs/reference/mock-source.html:893-913`。反例は、絵文字で`pointerdown`→pointer up前にcapture release（`lostpointercapture`がgesture mapを削除）→同じbutton上で`pointerup`。helperはcommitしないが、down/upの同一buttonから生成される`click`は`e.detail != 0`でもemoji viewportだけ許可され、drag markerも削除済みなので絵文字を入力する。blur/visibility/resize cleanupも同じく後続clickを抑止する状態を残さない。物理pointerの確定は`pointerup` helperだけに限定し、root clickは従来どおり`e.detail == 0`のkeyboard/accessibility activationだけを扱うか、cancel済みpointerの後続clickを明示的に抑止する。capture loss後のpointerup＋clickまで含むbrowser回帰を追加する |
+| 2 | TalkBack境界 | Minor | 先頭/末尾の不可能actionを公開し、no-opでも成功を返す | 解消 | `KeyboardView.kt:638-657`がoffsetに応じてforward/backwardを個別公開し、`scrollEmojiTo`の変更有無を返す。更新testは先頭backwardと末尾forwardのaction非公開・戻り値false、可能方向の移動を確認する |
+
+通常`pointerup`だけをhelper commitへ渡す分岐、cancel/capture loss時のmap先行clear、`cancelAll`/`cancelGestures`からのcleanup、native TalkBack境界はそれぞれ意図どおりで、通常tap・drag・fixed control row・scroll rangeへの新しい退行は見つからなかった。mock/reference sourceの修正形も同期している。ただしmock JavaScriptの自動testはなく、実browser証跡はcapture release「直後」の不変までで、後続pointerup/clickを含む上記反例を検証していない。前回Majorが残るためCritical/Major解消checklistは未完了のままとする。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
