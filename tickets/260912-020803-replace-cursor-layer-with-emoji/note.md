@@ -91,7 +91,7 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 | 2 | Review | Major | product brief、site、referenceに旧5レイヤー・カーソルレイヤー表記が残る。 | 修正 | product brief、公開mock/manual/index/demo、reference mirrorを絵文字recentを含む現行レイヤーへ同期し、mock sourceにもrecent localStorage永続化を加えた。 |
 | 3 | Review | Minor | 公開文言の「面」がユーザーの用語契約に反する。 | 修正 | 音声入力・絵文字の公開文言を「レイヤー」へ統一した。内部の`KeyboardMode`とlegacy `CURSOR` migration値は保持する。 |
 
-- review-2 focused: `ImeServiceEnglishSuggestionTest`、`ImePreferencesTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` — 87 tests PASS。
+- review-2 focused: `ImeServiceEnglishSuggestionTest`、`ImePreferencesTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` — 4 classes PASS（Gradle summaryに件数なし）。
 - review-2 full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
 
 ### Findings (PDH-review-2 / attempt 2)
@@ -105,6 +105,22 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 - attempt2 counterexamples: page 0の中央`emoji-page`が`ChangeEmojiPage(0)`をdispatchしてcatalogが変わらなかった。旧referenceは左=記号・右=テンキー・下=QWERTYと記述していた。reset待機中にeditor tokenが変わる経路は、reset後の再確認なしなら旧editorへのcommitとrecent更新を許す。
 - attempt2 focused: `ImeServiceEnglishSuggestionTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` PASS。
 - attempt2 full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
+
+### Findings (PDH-review-3 / attempt 3)
+
+対象: `b4f3d762ecf1cb354e0280d307d7d567fc5fd080`（`48bc46e`、`b4f3d76`）
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | AC trace | Critical | AC 5本文が旧direct cursor key維持のまま。 | 解消 | `48bc46e`でticket AC 5を専用CURSOR削除＋Spaceフリック上下左右維持へ直接訂正した。 |
+| 2 | doc sweep | Major | referenceに旧Cursor modeと旧layer flick方向が残る。 | 解消 | native referenceとsites mirrorを文字レイヤー左/上/右/下=音声/KANA/QWERTY/NUMBERS、音声レイヤー中央/上/右/下=取消/KANA/QWERTY/NUMBERSへ同期し、検証・実装順序もEmoji/Spaceへ訂正した。 |
+| 3 | accessibility | Minor | page indicatorが操作可能なno-opだった。 | 解消 | 1頁目では次頁、最終頁では前頁へ動くtoggleにし、native/mock/TalkBack説明とlayout/view testを同期した。 |
+| 4 | async test reachability | Minor | CommitEmoji自身のreset中editor switchと日本語直結が未到達だった。 | 解消 | `resetGate`でreset内を停止してeditor generation変更後の非commit/non-recentを固定し、KANA compositionから`か❤️`へappendするtestを追加した。 |
+| 5 | test evidence | Minor | `tmp/implement-result.md`のfocused件数87が現行4 classの89件と不一致。 | record only | committed noteの最新focused/full PASSに件数矛盾はなくruntime品質へ影響しない。summaryを更新する場合は89件または件数省略とする。 |
+
+Attempt 3結論: **No Critical/Major**。Attempt 2の4 findingはすべて解消し、修正による入力・page・accessibility・referenceの退行は見つからなかった。full suiteは重複実行せず、実装者のexact-code-state PASS記録を確認した。
+
+- attempt3 focused: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew :app:testDebugUnitTest --rerun-tasks --tests com.masuidrive.gestureime.ImeServiceEnglishSuggestionTest --tests com.masuidrive.gestureime.ImePreferencesTest --tests com.masuidrive.gestureime.keyboard.KeyboardLayoutsTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` — `BUILD SUCCESSFUL`、4 classes PASS。Gradle summaryに件数は出力されなかったため、件数は記録しない。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

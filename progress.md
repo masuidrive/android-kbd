@@ -176,3 +176,4 @@
 [2026/09/12 13:25] カーソル専用レイヤーを絵文字4行面へ置換し、recentを端末内に新しい順・重複なし最大8件で保存した。API 36 AVDで😀の直接確定後に入力欄とrecent先頭へ表示されること、focused Robolectricとfull suiteのPASSを確認した。
 [2026/09/12 13:44] 絵文字レイヤーreviewを修正し、現editorだけでcommit成功時にrecentを更新するservice回帰testへ日本語・英字・slash composition、commit拒否、旧editor queueを追加した。公開文言とreferenceを絵文字recentを含むレイヤー表記へ統一した。
 [2026/09/12 13:56] 絵文字レイヤーreview attempt2を修正し、中央の頁表示キーを先頭で次・最終で前へ進む操作にした。かなcomposition直結とconversion reset中のeditor切替でemojiを誤確定・recent更新しないservice回帰test、現行レイヤー遷移のreferenceを追加した。
+[2026/09/12 14:02] 絵文字レイヤーreview attempt3のfocused証跡を指定4クラスでfresh再実行し、Gradle `BUILD SUCCESSFUL`を確認した。summaryに件数がないため、4 classes PASSとしてnoteとresultへ記録した。
