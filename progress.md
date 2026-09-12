@@ -215,3 +215,6 @@
 [2026/09/12 22:58] OpenAI公式記事 `Rethinking skills and prompts for GPT-6 Astra` を読み、skill description、progressive disclosure、AGENTS.mdの条件付き参照、過剰test、decision boundary、完了条件の観点でproject instruction・skill・task prompt監査を開始した。汎用PDHの修正候補はandroid-kbdへ直接入れず、先にmasuidrive/pdh issueへ起票する。
 [2026/09/12 23:05] Astra向け監査結果をmasuidrive/pdh issue #25へ起票した。android-kbd固有のAGENTS.mdは文書参照をtask条件付きにし、現行Android構成、phone/tablet/foldable対応、focused testと最終SHAの一度のfull suiteへ更新した。汎用PDH skillとtask promptのlocal配布物は変更せず、fast-checks 5/5 PASS。
 [2026/09/12 23:06] 連続音声入力ticketをPDH-human-reviewへ進めた。v0.13.0のAPK・製品ページ・操作mock・manualと、対応実機での認識中表示、候補確定後の再認識、Cancel停止の確認手順を提示し、ユーザの明示close承認待ちとした。
+[2026/09/12 23:44] 実機human reviewの差し戻しを連続音声入力ticketへ追加し、PDH-implementへ戻した。Emoji Recent最大100件と通常grid、category等幅、長い発話の終了、音声候補縦一覧、確定後の認識中復帰、非対応badge廃止、独自hide bar削除をACへ反映。日本語・英語の次単語予測が出にくい条件の診断も開始した。
+[2026/09/12 23:49] 差し戻しACを独立readerが確認し、非対応状態、長発話、Cancel後の確定文字、Recent 101件目、mockとOS終了操作の境界を具体化した。10秒以上の発話終了で最終または最後の有効partialを縦候補化し、Recentは100件LRU、非対応/errorは固定領域のtap不能plain textとする契約へ更新した。
+[2026/09/12 23:51] AC再読で残ったpartial fallbackの曖昧さを修正した。最終結果が返らない場合は最後の有効partialを選択可能な最終候補へ昇格し、認識中はCancel右、非対応/errorは固定候補領域へ分離する契約で承認可能と判定した。

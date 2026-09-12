@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -13,17 +13,25 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内`SpeechRecognizer`だけを使い、外部provider/APIはticketのinvariantで禁止される。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [ ] 実機feedback: Emoji Recentは候補欄shortcutと切り離し、通常gridへ最近使った最大100件を並べる
+- [ ] 実機feedback: 絵文字category iconを全て同じ固定幅にし、categoryや状態で横幅を変えない
+- [ ] 実機feedback: 長い発話でも認識を終了して候補へ遷移できるようにする
+- [ ] 実機feedback: 音声最終候補は固定高のまま1行1候補で縦に並べる
+- [ ] 実機feedback: 音声候補確定後は候補を消し、視覚的にも次の「認識中」へ戻る
+- [ ] 実機feedback: 非対応・errorをaction badgeに見せず、音声layer内の状態として表示する
+- [ ] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
+- [ ] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
+- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -31,6 +39,10 @@
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
+
+[2026/09/12 23:49 JST] human review差し戻し後のAC読み手は、What/Whyが絵文字とhide rowを覆っていないこと、非対応/error表示が主観的であること、長い発話が測れないこと、Cancel後の確定済み文字とRecent 101件目の扱い、mockがOS終了操作を使うという誤契約を指摘した。Why/Whatを3成果へ拡張し、10秒以上の発話、最後の有効partial fallback、tap不能plain text、確定済み文字保持、100件LRU、native/mock責務分離へ修正した。10秒は実機報告の「長く喋る」を再現可能にする最小の検証条件として採用する。
+
+[2026/09/12 23:51 JST] AC再読で、partial fallbackが表示だけで終わり得る曖昧さを検出した。最後の有効partialはAC 2と同じ選択可能な最終候補へ昇格し、認識中はCancel右、非対応/errorだけを固定候補領域のplain textへ置くよう修正した。これでWhatとAC 1〜7を外部観察から復元でき、未確定のproduct判断は残らない。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
