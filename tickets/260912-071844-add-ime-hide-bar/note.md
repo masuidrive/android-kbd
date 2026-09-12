@@ -1,6 +1,6 @@
 # Work Notes: 260912-071844-add-ime-hide-bar
 
-## Status: PDH-review (Implementation complete; review in progress)
+## Status: PDH-human-review (AC 1–6 verified; bundled user review pending)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -20,13 +20,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Android端末内UIと静的mockだけを変更し、外部providerを通らない。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -65,11 +65,29 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | mock lifecycle | Major | トップ埋込mockを閉じてもiframe高が更新されず空白が残る | 修正済み | closeとrefocusの双方から`postDemoHeight()`を呼び、埋込で469px→163px→469pxを実測した。 |
+| 2 | 公開名 | Major | LicenseActivityが表示するNOTICE 2件に旧製品名が残る | 修正済み | 自製品呼称だけを`masuidrive-kbd`へ更新し、ライセンス原文は維持した。 |
+| 3 | technical reference | Major | Decision 18が旧2段rootとKeyboardView inset所有のまま | 修正済み | 現行の3段root、28dp hide bar、hide barのbottom inset所有へ同期した。 |
+| 4 | tap target | Minor | 28dp表示行の実tap高も28dpで推奨48dp未満 | 非採用 | 上へ広げると最下段key、下へ広げるとsystem navigation safe areaへ重なり、別操作の誤tapを増やす。全幅28dpの明示操作を契約どおり維持する。 |
+| 5 | inset redispatch | Minor | hide bar listenerの再配信を直接固定するtestがない | 修正済み | 同一inset再適用、別inset、0を順に与え、height/padding非累積と4行高不変を固定した。 |
+
+`23a5618`で採用4件を修正した。壊していない再表示側の出力は修正前後とも469pxで、閉じる側だけが469px残留から163pxへ変わった。focused Robolectricとfull suite 2/2は修正後もPASSした。
+
+再reviewはCritical 0 / Major 0 / 採用Minor 0で、新規退行なし。Ticket本文は実装前baseと同一で、AC 1〜6、Design Decisions、AI-1〜4、Out-of-scopeの対応を確認した。
+
+## PDH-verify. AC・Surface裏取り
+
+- 独立AC裏取りはtarget `23a5618bce31d22ad1bb03575bb718854865cfc1`でAC 1〜6をすべてVERIFIED、blockerなしと判定した。
+- fresh focused Robolectricは`ImeHideBarTest`、`ImeTestActivitySafeAreaTest`、`ImeServiceVoiceLifecycleTest`、`KeyboardViewTest`の61/61 PASS。412/840幅、通常/private/VOICE、inset再適用、固定app bar/backを確認した。
+- API 36 AVD 1080x2400で4行＋中央シェブロン、safe-area app barを観察し、シェブロンtap後に同じ`ImeTestActivity`を維持したままIME消失と`mInputShown=false`を確認した。
+- localhostの公開構成を実ブラウザで412/840・Light/Dark観察し、閉じる→状態文言→入力欄focus→再表示、横overflowなしを確認した。
+- AndroidのManifest/subtype/設定/入力テスト/License notices、README、現行site/mock/manualの利用者向け表記が`masuidrive-kbd`で一致し、Decision 18も現行3段rootと一致する。物理FoldとTalkBack実操作は未所持のため、840dp、safe-area test、API 36 AVDで代替した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+Decision 18を、候補欄50dp・4行KeyboardView・28dp hide barの3段rootと、bottom insetをhide barだけが所有する現行仕様へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
@@ -96,3 +114,5 @@ AC読み手は利用者・IMEを閉じる操作・設定へ戻る操作を復元
 - API 36 AVDの412dp相当Lightで入力テストの固定app bar、公開名、候補欄＋4行＋28dp中央シェブロンを観察した。840dpはRobolectric geometryで確認した。`adb input tap`はIME overlay座標と表示座標が一致せず絵文字を選んだため、実機hide終端の証跡には採用せずRobolectricの`requestHideSelf(0)`到達だけを現時点の証拠とする。
 - 既存KeyboardViewはsystem bottom insetを自身のpaddingへ含めていた。hide bar追加後もそのままにすると4行とbarの間へ余白が二重に入るため、IME containerではKeyboardViewのinset所有を無効化し、hide barだけへbottom insetを加えた。
 - `similarity-generic`はPATHに存在せずskipした。`similarity-ts -t 0.7 --extensions js site`は対象JS/TSなしと判定された。
+- 独立reviewはCritical 0 / Major 3 / Minor 2。Major 3件とinset testのMinorを`23a5618`で修正し、28dp tap高のMinorは隣接操作への重なりを避けるため非採用とした。
+- API 36 AVDの原寸1080x2400画面で中央シェブロンをtapし、IMEが画面から消えた後に`dumpsys input_method`の`mInputShown=false`を確認した。`mIsInputViewShown=true`はservice側input view instanceの生成状態であり、ウィンドウ表示終端は`mInputShown`と画面で判定した。

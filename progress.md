@@ -190,3 +190,4 @@
 [2026/09/12 16:18] キーボード4行下へ添付例より低い28dpの閉じる操作行を追加し、入力テスト画面へ設定に戻るsafe-area対応app barを付けるticket `260912-071844-add-ime-hide-bar`を作成した。公開操作mockにも閉じる・入力欄から再表示する動作を同期する。
 [2026/09/12 16:22] 同ticketへ利用者向け製品名の`masuidrive-kbd`統一を追加した。Androidのアプリ名・IME名・設定・入力テストと現行site/manualを対象にし、package/class・保存key・過去APK asset名は互換識別子として維持する。
 [2026/09/12 16:48] IMEの候補欄50dpと4行キー高を維持したまま、下へ28dp中央シェブロンの閉じる行を追加した。system bottom insetは閉じる行へ移し、入力テストにはsafe-area固定app bar/backを追加、Android/site/manualを`masuidrive-kbd`表記へ統一した。focused/full testはPASSし、API 36の412dp Lightでapp barと候補＋4行＋閉じる行を観察した。実IME hideの終端はadb座標ずれで未確認のためreview/verifyで補完する。
+[2026/09/12 16:53] IME下端の28dp閉じるバー、入力テストのsafe-area対応トップバー、利用者向け`masuidrive-kbd`表記統一を実装した。独立reviewの3件を修正し、埋込demoの高さは469px→163px→469pxへ追従、API 36 AVDではシェブロンtap後にIME消失と`mInputShown=false`を確認した。
