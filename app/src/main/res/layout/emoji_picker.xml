@@ -11,9 +11,9 @@
         android:paddingStart="@dimen/emoji_picker_header_padding"
         android:paddingEnd="@dimen/emoji_picker_header_padding" />
 
-    <!-- The RecyclerView stays at the preset maximum height. ImeService clips its visible
-         viewport to three attached rows, retaining AndroidX's cached 48dp-or-larger cells
-         while the outer mask hides any remaining space before the fixed controls. -->
+    <!-- This wrapper ends at the fixed control row. ImeService gives the child one internal
+         spacer of overscan for AndroidX's cell calculation, then clips drawing and touch here
+         and further clips the visible category viewport to three rows. -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"

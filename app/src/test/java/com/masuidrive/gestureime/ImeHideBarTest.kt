@@ -60,10 +60,43 @@ class ImeHideBarTest {
             root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
             Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
             root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
-            assertEquals(0, mask.height)
-            assertEquals((50 * service.resources.displayMetrics.density).toInt() +
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+            val expectedControlTop = (50 * service.resources.displayMetrics.density).toInt() +
                 (8 * service.resources.displayMetrics.density).toInt() +
-                (preset.rowPitchDp * service.resources.displayMetrics.density * 3).toInt(), mask.top)
+                (preset.rowPitchDp * service.resources.displayMetrics.density * 3).toInt()
+            assertEquals(0, mask.height)
+            assertEquals(expectedControlTop, mask.top)
+            assertEquals(expectedControlTop, picker.layoutParams.height)
+        }
+    }
+
+    @Test
+    fun freshPickerEndsAtTheKeyboardControlTopWithOnlyInternalOverscan() {
+        val context = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val originalPreset = ImePreferences.getKeyboardHeightPreset(context)
+        try {
+            KeyboardHeightPreset.entries.forEach { preset ->
+                ImePreferences.setKeyboardHeightPreset(context, preset)
+                val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+                val root = service.onCreateInputView() as FrameLayout
+                val content = root.getChildAt(0) as LinearLayout
+                val keyboard = content.getChildAt(1) as KeyboardView
+                val picker = root.getChildAt(1) as EmojiPickerView
+                val mask = root.getChildAt(3)
+                service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+                root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+                Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+
+                val density = service.resources.displayMetrics.density
+                val overlayHeight = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+                val controlTop = keyboard.top + overlayHeight
+                assertEquals(controlTop, picker.bottom)
+                assertEquals(controlTop, mask.top + mask.height)
+            }
+        } finally {
+            ImePreferences.setKeyboardHeightPreset(context, originalPreset)
         }
     }
 
@@ -88,6 +121,7 @@ class ImeHideBarTest {
         assertEquals(View.VISIBLE, publicPicker.visibility)
         assertEquals(View.GONE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
+        assertEquals(publicPicker.bottom, mask.top + mask.height)
 
         service.onStartInput(EditorInfo().apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -99,6 +133,7 @@ class ImeHideBarTest {
         assertEquals(View.VISIBLE, mask.visibility)
         assertEquals((50 * service.resources.displayMetrics.density).toInt() + 120,
             (mask.layoutParams as FrameLayout.LayoutParams).topMargin)
+        assertEquals(privatePicker.bottom, mask.top + mask.height)
 
         // A second editor switch must synchronously restore the public instance;
         // the private provider is never swapped onto the public picker.
@@ -108,6 +143,7 @@ class ImeHideBarTest {
         assertEquals(View.VISIBLE, publicPicker.visibility)
         assertEquals(View.GONE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
+        assertEquals(publicPicker.bottom, mask.top + mask.height)
     }
 
     @Test
@@ -225,6 +261,16 @@ class ImeHideBarTest {
         assertTrue(isEmojiPlaceholderInViewport(View.VISIBLE, Rect(0, 8, 412, 58), viewport))
         assertFalse(isEmojiPlaceholderInViewport(View.GONE, Rect(0, 8, 412, 58), viewport))
         assertFalse(isEmojiPlaceholderInViewport(View.VISIBLE, Rect(0, 173, 412, 223), viewport))
+    }
+
+    @Test
+    fun onlyFullyVisibleEmojiCellsRemainAccessibilityTargets() {
+        val viewport = Rect(0, 0, 412, 173)
+        assertTrue(isEmojiCellFullyVisibleInViewport(Rect(0, 8, 50, 58), viewport))
+        // A fourth row beginning at the viewport bottom, and a partially clipped row, are
+        // both hidden from TalkBack along with their touch/drawing clip.
+        assertFalse(isEmojiCellFullyVisibleInViewport(Rect(0, 173, 50, 223), viewport))
+        assertFalse(isEmojiCellFullyVisibleInViewport(Rect(0, 160, 50, 210), viewport))
     }
 
     @Test
