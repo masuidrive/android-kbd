@@ -58,7 +58,7 @@ Why は product brief のオフライン入力と、同じキーボード内で�
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 - `bd6f557` `[260912-020803-replace-cursor-layer-with-emoji] feat(keyboard): replace cursor layer with local emoji recents` — `KeyboardMode.CURSOR`をEMOJIへ置換した。KANA/NUMBERSの左上をemoji入口にし、4行をすべて8 width unitへ揃えた。recentは順序を保つ8スロットで保存し、`CommitEmoji`がStringをそのまま確定してrecentを更新する。旧`CURSOR`保存値はKANAへfallbackする。
-- `362983d` `[260912-020803-replace-cursor-layer-with-emoji] docs(emoji): document local recent emoji layer` — nativeとmockのemoji面、manualのAPI 36 recent証跡、reference mirrorを同期した。
+- `fd0b846` `[260912-020803-replace-cursor-layer-with-emoji] docs(emoji): document local recent emoji layer` — nativeとmockのemoji面、manualのAPI 36 recent証跡、reference mirrorを同期した。
 - focused: `ImePreferencesTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` PASS。recentの重複除去・上限・legacy fallback、複数code pointの`❤️`、2ページ、全row幅、右端到達、layer flickとtap dispatchを確認した。
 - full: `scripts/test-all.sh --parallel` PASS（fast-checks、Android unit/lint/APK）。
 
