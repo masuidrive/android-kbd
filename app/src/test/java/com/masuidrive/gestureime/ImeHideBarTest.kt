@@ -231,6 +231,13 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun categoryTransitionWaitsForTargetContentInsteadOfSettlingThePreviousPlaceholder() {
+        assertFalse(isEmojiCategoryContentReady(1, null, true))
+        assertTrue(isEmojiCategoryContentReady(1, 411, false))
+        assertTrue(isEmojiCategoryContentReady(0, null, true))
+    }
+
+    @Test
     fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
         // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
         // The latter must not be clamped by Faces' previous actual viewport.
