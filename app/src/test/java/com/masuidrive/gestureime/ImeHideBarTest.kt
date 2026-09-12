@@ -75,6 +75,14 @@ class ImeHideBarTest {
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        @Suppress("UNCHECKED_CAST")
+        val viewports = ImeService::class.java.getDeclaredField("pickerViewportHeights").apply { isAccessible = true }
+            .get(service) as MutableMap<EmojiPickerView, Int>
+        viewports[publicPicker] = 100
+        viewports[privatePicker] = 120
+        service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+        assertEquals((50 * service.resources.displayMetrics.density).toInt() + 100,
+            (mask.layoutParams as FrameLayout.LayoutParams).topMargin)
         assertEquals(View.VISIBLE, publicPicker.visibility)
         assertEquals(View.GONE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
@@ -87,6 +95,8 @@ class ImeHideBarTest {
         assertEquals(View.GONE, publicPicker.visibility)
         assertEquals(View.VISIBLE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
+        assertEquals((50 * service.resources.displayMetrics.density).toInt() + 120,
+            (mask.layoutParams as FrameLayout.LayoutParams).topMargin)
 
         // A second editor switch must synchronously restore the public instance;
         // the private provider is never swapped onto the public picker.

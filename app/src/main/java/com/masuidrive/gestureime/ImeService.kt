@@ -250,6 +250,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         publicEmojiPicker?.visibility = if (isEmoji && !showPrivate) View.VISIBLE else View.GONE
         privateEmojiPicker?.visibility = if (showPrivate) View.VISIBLE else View.GONE
         emojiPickerBottomMask?.visibility = if (isEmoji) View.VISIBLE else View.GONE
+        updateEmojiPickerMask()
     }
 
     private fun createEmojiPicker(provider: RecentEmojiProvider): EmojiPickerView = EmojiPickerView(this).apply {
@@ -1201,11 +1202,19 @@ internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
         if (view is ViewGroup) repeat(view.childCount) { collect(view.getChildAt(it)) }
     }
     collect(body)
-    return thirdEmojiRowBottom(bounds)
+    val spacer = body.resources.getDimensionPixelSize(androidx.emoji2.emojipicker.R.dimen.emoji_picker_category_name_height)
+    return thirdEmojiRowBottomAtCategoryStart(bounds, spacer)
 }
 
 internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
     bounds.groupBy { it.top }.toSortedMap().values.toList().getOrNull(2)?.maxOf { it.bottom }
+
+/** Empty Recent has a placeholder before another category; do not lock on those later rows. */
+internal fun thirdEmojiRowBottomAtCategoryStart(bounds: List<Rect>, categorySpacer: Int): Int? {
+    val rows = bounds.groupBy { it.top }.toSortedMap().values.toList()
+    val firstTop = rows.firstOrNull()?.firstOrNull()?.top ?: return null
+    return if (firstTop in 0..categorySpacer) rows.getOrNull(2)?.maxOf { it.bottom } else null
+}
 
 internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?): Int? =
     lockedViewport ?: observedViewport
