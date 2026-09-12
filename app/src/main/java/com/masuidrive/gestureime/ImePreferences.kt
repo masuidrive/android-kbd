@@ -12,8 +12,10 @@ object ImePreferences {
     private const val ENGLISH_SUGGESTIONS = "english_suggestions_enabled"
     private const val ANDROID_USER_DICTIONARY = "android_user_dictionary_enabled"
     private const val KEYBOARD_HEIGHT_PRESET = "keyboard_height_preset"
+    private const val EMOJI_RECENT_PREFIX = "emoji_recent_"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
+    const val EMOJI_RECENT_LIMIT = 8
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
 
     fun isEnglishSuggestionsEnabled(context: Context): Boolean = runCatching {
@@ -98,7 +100,8 @@ object ImePreferences {
             context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
                 .getString(LAST_KEYBOARD_MODE, null)
         }.getOrNull()
-        return stored?.let { value -> KeyboardMode.entries.firstOrNull { it.name == value } }
+        return if (stored == "CURSOR") KeyboardMode.KANA
+        else stored?.let { value -> KeyboardMode.entries.firstOrNull { it.name == value } }
             ?: KeyboardMode.QWERTY
     }
 
@@ -107,6 +110,21 @@ object ImePreferences {
             .edit()
             .putString(LAST_KEYBOARD_MODE, mode.name)
             .apply()
+    }
+
+    fun getEmojiRecents(context: Context): List<String> {
+        val preferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+        return List(EMOJI_RECENT_LIMIT) { index ->
+            runCatching { preferences.getString("$EMOJI_RECENT_PREFIX$index", "") }.getOrDefault("").orEmpty()
+        }.filter(String::isNotEmpty).distinct().take(EMOJI_RECENT_LIMIT)
+    }
+
+    fun recordEmojiRecent(context: Context, emoji: String): List<String> {
+        val recents = (listOf(emoji) + getEmojiRecents(context).filter { it != emoji }).take(EMOJI_RECENT_LIMIT)
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().apply {
+            repeat(EMOJI_RECENT_LIMIT) { index -> putString("$EMOJI_RECENT_PREFIX$index", recents.getOrElse(index) { "" }) }
+        }.apply()
+        return recents
     }
 
     private fun normalizeSlashCommand(value: String): String {

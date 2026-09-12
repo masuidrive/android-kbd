@@ -1,7 +1,7 @@
 package com.masuidrive.gestureime.keyboard
 
 enum class KeyboardMode(val displayName: String) {
-    KANA("日本語"), NUMBERS("テンキー"), CURSOR("カーソル"), QWERTY("QWERTY"), SYMBOLS("記号"), VOICE("音声")
+    KANA("日本語"), NUMBERS("テンキー"), EMOJI("絵文字"), QWERTY("QWERTY"), SYMBOLS("記号"), VOICE("音声")
 }
 
 enum class KeyboardHeightPreset(val rowPitchDp: Float) {
@@ -11,7 +11,7 @@ enum class KeyboardHeightPreset(val rowPitchDp: Float) {
 enum class Direction { CENTER, LEFT, UP, RIGHT, DOWN }
 enum class Modifier { CTRL, ALT }
 enum class KanaTransform { CYCLE, SMALL, DAKUTEN, HANDAKUTEN }
-enum class KeyKind { CHARACTER, KANA, MODE, LAYER_SWITCH, MODIFIER, BACKSPACE, SPACE, ENTER, CURSOR, ACCENT, EMPTY }
+enum class KeyKind { CHARACTER, KANA, MODE, LAYER_SWITCH, MODIFIER, BACKSPACE, SPACE, ENTER, ACCENT, EMPTY }
 enum class CursorBoundary { START, END }
 
 data class FlickValue(val label: String, val action: KeyAction)
@@ -42,11 +42,14 @@ data class KeyboardLayout(val mode: KeyboardMode, val rows: List<KeyboardRow>)
 
 sealed interface KeyAction {
     data class CommitText(val text: String) : KeyAction
+    /** Kept separate so the service can update local recents without inspecting unicode text. */
+    data class CommitEmoji(val text: String) : KeyAction
     data class KanaInput(val reading: String) : KeyAction
     data class ModifiedKey(val label: String, val modifier: Modifier) : KeyAction
     data class MoveCursor(val direction: Direction, val units: Int = 1) : KeyAction
     data class MoveToBoundary(val boundary: CursorBoundary) : KeyAction
     data class SwitchLayer(val target: KeyboardMode) : KeyAction
+    data class ChangeEmojiPage(val delta: Int) : KeyAction
     data class SetModifier(val modifier: Modifier?) : KeyAction
     data class TransformKana(val transform: KanaTransform) : KeyAction
     data object Escape : KeyAction
@@ -85,4 +88,6 @@ data class KeyboardUiState(
     val conversionActive: Boolean = false,
     val dualFlickEnabled: Boolean = false,
     val heightPreset: KeyboardHeightPreset = KeyboardHeightPreset.STANDARD,
+    val emojiRecents: List<String> = emptyList(),
+    val emojiPage: Int = 0,
 )

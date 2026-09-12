@@ -3,12 +3,18 @@ package com.masuidrive.gestureime.keyboard
 object KeyboardLayouts {
     val all: Map<KeyboardMode, KeyboardLayout> = KeyboardMode.entries.associateWith(::layout)
 
-    fun layout(mode: KeyboardMode, dualKana: Boolean = false, conversionActive: Boolean = false): KeyboardLayout = when (mode) {
+    fun layout(
+        mode: KeyboardMode,
+        dualKana: Boolean = false,
+        conversionActive: Boolean = false,
+        emojiRecents: List<String> = emptyList(),
+        emojiPage: Int = 0,
+    ): KeyboardLayout = when (mode) {
         KeyboardMode.QWERTY -> qwerty()
         KeyboardMode.SYMBOLS -> symbols()
         KeyboardMode.KANA -> kana(dualKana, conversionActive)
         KeyboardMode.NUMBERS -> numbers()
-        KeyboardMode.CURSOR -> cursor()
+        KeyboardMode.EMOJI -> emoji(emojiRecents, emojiPage)
         KeyboardMode.VOICE -> voice()
     }
 
@@ -33,7 +39,7 @@ object KeyboardLayouts {
 
     private fun kana(dual: Boolean, conversionActive: Boolean): KeyboardLayout {
         val rows = listOf(
-        KeyboardRow(listOf(cursorPad(), kana("あ", "い", "う", "え", "お"), kana("か", "き", "く", "け", "こ"), kana("さ", "し", "す", "せ", "そ"), backspace(1f))),
+        KeyboardRow(listOf(emojiPad(), kana("あ", "い", "う", "え", "お"), kana("か", "き", "く", "け", "こ"), kana("さ", "し", "す", "せ", "そ"), backspace(1f))),
         KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space())),
         KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), kana("ま", "み", "む", "め", "も"), kana("や", "（", "ゆ", "）", "よ"), kana("ら", "り", "る", "れ", "ろ"), enter(rowSpan = 2, conversionActive = conversionActive))),
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), accent(), kana("わ", "を", "ん", "ー", "〜"), punct()))
@@ -49,18 +55,30 @@ object KeyboardLayouts {
     }
 
     private fun numbers(): KeyboardLayout = KeyboardLayout(KeyboardMode.NUMBERS, listOf(
-        KeyboardRow(listOf(cursorPad(), text("1"), text("2"), text("3"), backspace(1f))),
+        KeyboardRow(listOf(emojiPad(), text("1"), text("2"), text("3"), backspace(1f))),
         KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), text("4"), text("5"), text("6"), space())),
         KeyboardRow(listOf(modeKey("あん", KeyboardMode.KANA), text("7"), text("8"), text("9"), enter(rowSpan = 2))),
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
     ))
 
-    private fun cursor(): KeyboardLayout = KeyboardLayout(KeyboardMode.CURSOR, listOf(
-        KeyboardRow(listOf(modeKey("あん", KeyboardMode.KANA), empty(), empty(), empty(), backspace(1f))),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), boundary("先頭", CursorBoundary.START), cursor(Direction.UP), boundary("末尾", CursorBoundary.END), empty())),
-        KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), cursor(Direction.LEFT), space(), cursor(Direction.RIGHT), enter(rowSpan = 2))),
-        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(), cursor(Direction.DOWN), empty()))
-    ))
+    private fun emoji(recents: List<String>, requestedPage: Int): KeyboardLayout {
+        val page = requestedPage.coerceIn(0, EmojiCatalog.pages.lastIndex)
+        val recentKeys = EmojiCatalog.visibleRecents(recents).mapIndexed { index, emoji -> emojiKey("recent-$index", emoji) }
+        val recentRow = KeyboardRow(recentKeys + List(EmojiCatalog.RECENT_LIMIT - recentKeys.size) { empty() })
+        val catalog = EmojiCatalog.pages[page]
+        return KeyboardLayout(KeyboardMode.EMOJI, listOf(
+            recentRow,
+            KeyboardRow(catalog.take(8).mapIndexed { index, emoji -> emojiKey("emoji-$page-$index", emoji) }),
+            KeyboardRow(catalog.drop(8).take(8).mapIndexed { index, emoji -> emojiKey("emoji-$page-${index + 8}", emoji) }),
+            KeyboardRow(listOf(
+                layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
+                emojiPage("‹", -1, 1.6f),
+                KeySpec("emoji-page", KeyKind.MODE, FlickValue("${page + 1}/${EmojiCatalog.pages.size}", KeyAction.ChangeEmojiPage(0)), widthUnits = 1.6f, dark = true),
+                emojiPage("›", 1, 1.6f),
+                backspace(1.6f),
+            )),
+        ))
+    }
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
         KeyboardRow(listOf(empty(10f))),
@@ -110,13 +128,15 @@ object KeyboardLayouts {
 
     private fun empty(width: Float = 1f) = KeySpec("empty", KeyKind.EMPTY, null, widthUnits = width)
 
-    private fun boundary(label: String, boundary: CursorBoundary) = KeySpec("boundary-$boundary", KeyKind.CURSOR,
-        FlickValue(label, KeyAction.MoveToBoundary(boundary)))
+    private fun emojiPad() = modeKey("☺", KeyboardMode.EMOJI)
 
-    private fun cursor(direction: Direction) = KeySpec("cursor-$direction", KeyKind.CURSOR,
-        FlickValue(arrow(direction), KeyAction.MoveCursor(direction)))
+    private fun emojiKey(id: String, emoji: String) = KeySpec(
+        id, KeyKind.CHARACTER, FlickValue(emoji, KeyAction.CommitEmoji(emoji)),
+    )
 
-    private fun cursorPad() = modeKey("↔", KeyboardMode.CURSOR)
+    private fun emojiPage(label: String, delta: Int, width: Float) = KeySpec(
+        "emoji-page-$delta", KeyKind.MODE, FlickValue(label, KeyAction.ChangeEmojiPage(delta)), widthUnits = width, dark = true,
+    )
 
     private fun space(width: Float = 1f) = KeySpec("space", KeyKind.SPACE,
         FlickValue("Space", KeyAction.CommitText(" ")),
@@ -150,7 +170,14 @@ object KeyboardLayouts {
         dark = true,
     )
 
-    private fun arrow(direction: Direction) = when (direction) {
-        Direction.LEFT -> "←"; Direction.UP -> "↑"; Direction.RIGHT -> "→"; Direction.DOWN -> "↓"; Direction.CENTER -> "•"
-    }
+}
+
+/** Small bundled catalog: no network, search index, skin picker, or GIF dependency. */
+object EmojiCatalog {
+    const val RECENT_LIMIT = 8
+    val pages = listOf(
+        listOf("😀", "😂", "🥹", "😍", "😭", "👍", "🙏", "❤️", "🎉", "🔥", "😊", "🤔", "😎", "🙌", "👏", "✨"),
+        listOf("💯", "✅", "📌", "🚀", "🎈", "💡", "🌸", "🍀", "☕", "🍣", "⚽", "🎵", "📷", "💻", "🧡", "🌈"),
+    )
+    fun visibleRecents(recents: List<String>): List<String> = recents.filter(String::isNotEmpty).distinct().take(RECENT_LIMIT)
 }

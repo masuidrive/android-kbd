@@ -474,20 +474,36 @@ class KeyboardViewTest {
         }.color)
     }
 
-    @Test fun `cursor layer uses generic labels and the reference space hint stack`() {
-        view.setMode(KeyboardMode.CURSOR)
+    @Test fun `emoji layer renders its recent row and keeps the fixed four row geometry`() {
+        view.setEmojiRecents(listOf("❤️", "😀"))
+        view.setMode(KeyboardMode.EMOJI)
         val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
-        assertEquals(25f, canvas.draws.last { it.text == "先頭" }.textSize, .1f)
-        assertEquals(25f, canvas.draws.last { it.text == "↑" }.textSize, .1f)
-        assertEquals(16f, canvas.draws.last { it.text == "space" }.textSize, .1f)
-        val hint = canvas.draws.last { it.text == "←↓↑→" }
-        assertEquals(10f, hint.textSize, .1f)
-        assertEquals((255 * .7f).toInt(), hint.alpha)
+        assertEquals(25f, canvas.draws.last { it.text == "❤️" }.textSize, .1f)
+        assertEquals(25f, canvas.draws.last { it.text == "😀" }.textSize, .1f)
+        assertTrue(canvas.draws.any { it.text == "1/2" })
+        assertEquals(228, view.measuredHeight)
+    }
+
+    @Test fun `emoji rows occupy the same full width and catalog tap preserves the emoji string`() {
+        view.setMode(KeyboardMode.EMOJI)
+        view.measure(exact(400), exact(228))
+        view.layout(0, 0, 400, 228)
+        val expectedLeft = keyBounds(0).left
+        listOf(0 to 7, 8 to 15, 16 to 23, 24 to 28).forEach { (first, last) ->
+            val left = keyBounds(first)
+            val right = keyBounds(last)
+            assertEquals(expectedLeft, left.left)
+            assertTrue("row $first reaches the right keyboard edge", right.right > 390)
+        }
+        val emoji = keyCenter(15) // ❤️ is preserved as one String, including variation selector.
+        touch(MotionEvent.ACTION_DOWN, emoji.first, emoji.second)
+        touch(MotionEvent.ACTION_UP, emoji.first, emoji.second, 1)
+        assertEquals(listOf(KeyAction.CommitEmoji("❤️")), actions)
     }
 
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
-        listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.CURSOR).forEach { mode ->
+        listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS).forEach { mode ->
             val modeActions = mutableListOf<KeyAction>()
             val modeView = KeyboardView(Robolectric.buildActivity(Activity::class.java).setup().get()).apply {
                 actionSink = KeyboardActionSink { modeActions += it }
@@ -653,11 +669,11 @@ class KeyboardViewTest {
         // this proves the same gap geometry without relying on a protected View API.
         assertEquals(0, view.hitTargetIndexAt(qGap, q.exactCenterY()))
 
-        view.setMode(KeyboardMode.CURSOR)
-        val cursorMode = keyBounds(0)
-        assertEquals(-1, view.hitTargetIndexAt(cursorMode.right + 20f, cursorMode.exactCenterY()))
-        touch(MotionEvent.ACTION_DOWN, cursorMode.right + 20f, cursorMode.exactCenterY(), 1)
-        touch(MotionEvent.ACTION_UP, cursorMode.right + 20f, cursorMode.exactCenterY(), 2)
+        view.setMode(KeyboardMode.EMOJI)
+        val emojiMode = keyBounds(0)
+        assertEquals(-1, view.hitTargetIndexAt(emojiMode.right + 20f, emojiMode.exactCenterY()))
+        touch(MotionEvent.ACTION_DOWN, emojiMode.right + 20f, emojiMode.exactCenterY(), 1)
+        touch(MotionEvent.ACTION_UP, emojiMode.right + 20f, emojiMode.exactCenterY(), 2)
         assertTrue(actions.isEmpty())
     }
 

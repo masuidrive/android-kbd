@@ -88,7 +88,7 @@ class KeyboardView @JvmOverloads constructor(
     fun setMode(mode: KeyboardMode) {
         if (state.mode == mode) return
         cancelActiveGestures()
-        state = state.copy(mode = mode)
+        state = state.copy(mode = mode, emojiPage = if (mode == KeyboardMode.EMOJI) 0 else state.emojiPage)
         contentDescription = "${mode.displayName}キーボード"
         rebuildLayout()
     }
@@ -122,6 +122,21 @@ class KeyboardView @JvmOverloads constructor(
         if (state.heightPreset == preset) return
         cancelActiveGestures()
         state = state.copy(heightPreset = preset)
+        rebuildLayout()
+    }
+
+    fun setEmojiRecents(recents: List<String>) {
+        val normalized = EmojiCatalog.visibleRecents(recents)
+        if (state.emojiRecents == normalized) return
+        state = state.copy(emojiRecents = normalized)
+        if (state.mode == KeyboardMode.EMOJI) rebuildLayout() else invalidate()
+    }
+
+    fun changeEmojiPage(delta: Int) {
+        if (delta == 0) return
+        val page = (state.emojiPage + delta).coerceIn(0, EmojiCatalog.pages.lastIndex)
+        if (page == state.emojiPage) return
+        state = state.copy(emojiPage = page)
         rebuildLayout()
     }
 
@@ -254,7 +269,7 @@ class KeyboardView @JvmOverloads constructor(
         hitTargets.clear()
         val keyboardTop = top + dp(8f)
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
-        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
+        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive, state.emojiRecents, state.emojiPage).rows
         val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
         val rowGap = dp(10f)
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
@@ -319,14 +334,13 @@ class KeyboardView @JvmOverloads constructor(
             spec.kind == KeyKind.MODIFIER && state.pendingModifier != null -> if (state.pendingModifier == Modifier.ALT) "A" else "C"
             spec.kind == KeyKind.BACKSPACE && spec.center != null -> spec.center.label
             spec.id == "punct" && direction == Direction.CENTER -> "、。?!"
-            spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.CURSOR && direction == Direction.CENTER -> "space"
             selected && direction != Direction.CENTER -> spec.value(direction)?.label
             else -> spec.center?.label ?: modifierLabel(spec)
         } ?: ""
         val centerY = target.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2
         val secondary = when {
             spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
-            spec.kind == KeyKind.SPACE && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.CURSOR) -> "←↓↑→"
+            spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
             spec.kind == KeyKind.CHARACTER -> spec.down?.label
             else -> null
         }
@@ -346,13 +360,11 @@ class KeyboardView @JvmOverloads constructor(
                 baselineAtVisualCenter(target.bounds.centerY() + dp(5f))
             spec.kind == KeyKind.ENTER && !state.conversionActive ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
-            spec.kind == KeyKind.SPACE && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.CURSOR) ->
+            spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
             else -> centerY
         }
-        if (spec.id == "mode-↔" && !selected) {
-            drawCursorCross(canvas, target.bounds)
-        } else if (idleModifier) {
+        if (idleModifier) {
             textPaint.textSize = sp(10f)
             val cX = safeCenterX(target.bounds, target.bounds.centerX(), "C")
             val aX = safeCenterX(target.bounds, target.bounds.centerX(), "A")
@@ -403,7 +415,7 @@ class KeyboardView @JvmOverloads constructor(
             textPaint.letterSpacing = if (isStackHint) dp(.7f) / textPaint.textSize else 0f
             val visualCenter = when {
                 spec.kind == KeyKind.ENTER -> target.bounds.height() / density / 2f - 10f
-                spec.kind == KeyKind.SPACE && state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.CURSOR) ->
+                spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY ->
                     target.bounds.height() / density / 2f - 10.5f
                 state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER -> 9f
                 else -> 9f
@@ -472,7 +484,6 @@ class KeyboardView @JvmOverloads constructor(
         spec.kind == KeyKind.ENTER -> 15f
         spec.kind in setOf(KeyKind.SPACE, KeyKind.MODE, KeyKind.LAYER_SWITCH) -> 16f
         spec.kind == KeyKind.MODIFIER || spec.kind == KeyKind.ACCENT -> 18f
-        spec.kind == KeyKind.CURSOR -> 25f
         state.mode == KeyboardMode.QWERTY && (spec.up != null || spec.down != null) -> 22f
         state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS) -> 24f
         else -> 25f
@@ -481,16 +492,6 @@ class KeyboardView @JvmOverloads constructor(
     private fun secondaryTextSize(spec: KeySpec) = if (spec.kind == KeyKind.CHARACTER) 11f else 10f
 
     private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "C/A" else ""
-
-    private fun drawCursorCross(canvas: Canvas, bounds: RectF) {
-        textPaint.textSize = sp(13f)
-        val x = bounds.centerX()
-        val y = bounds.centerY()
-        canvas.drawText("↑", x, y - dp(8f), textPaint)
-        canvas.drawText("←", x - dp(11f), y + dp(5f), textPaint)
-        canvas.drawText("→", x + dp(11f), y + dp(5f), textPaint)
-        canvas.drawText("↓", x, y + dp(18f), textPaint)
-    }
 
     private fun drawMainLabel(
         canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean,
@@ -530,7 +531,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun isTextPreview(spec: KeySpec): Boolean =
-        spec.kind == KeyKind.CHARACTER && spec.center?.action is KeyAction.CommitText
+        spec.kind == KeyKind.CHARACTER && (spec.center?.action is KeyAction.CommitText || spec.center?.action is KeyAction.CommitEmoji)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (previewOnly) return true

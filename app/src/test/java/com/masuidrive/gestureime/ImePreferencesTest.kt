@@ -37,6 +37,20 @@ class ImePreferencesTest {
     }
 
     @Test
+    fun legacyCursorModeFallsBackToKanaAndEmojiRecentsStayOrderedDistinctAndBounded() {
+        val context = RuntimeEnvironment.getApplication()
+        val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().putString("last_keyboard_mode", "CURSOR").commit()
+        assertEquals(KeyboardMode.KANA, ImePreferences.getLastKeyboardMode(context))
+
+        listOf("😀", "❤️", "😀", "🚀", "🙏", "😂", "🥹", "😍", "😭").forEach {
+            ImePreferences.recordEmojiRecent(context, it)
+        }
+        assertEquals(listOf("😭", "😍", "🥹", "😂", "🙏", "🚀", "😀", "❤️"), ImePreferences.getEmojiRecents(context))
+        assertEquals("❤️", ImePreferences.recordEmojiRecent(context, "❤️").first())
+    }
+
+    @Test
     fun keyboardHeightPresetDefaultsToStandardPersistsAndSafelyRejectsMalformedValues() {
         val context = RuntimeEnvironment.getApplication()
         val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)

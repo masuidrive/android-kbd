@@ -100,6 +100,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             it.voiceHoldSink = this
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
+            it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             it.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
             keyboardView = it
@@ -132,6 +133,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         super.onStartInputView(info, restarting)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
+        keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         keyboardView?.refreshIntrinsicLayout()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
     }
@@ -151,6 +153,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         keyboardView?.setMode(keyboardMode)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
+        keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
     }
 
     override fun onFinishInput() {
@@ -300,6 +303,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                     editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }
                 }
             }
+            is KeyAction.CommitEmoji -> {
+                finishEnglishRaw()
+                resetConversion(clearComposing = false)
+                if (editorSession.runIfCurrent(editorToken) { textController.commitText(action.text) }) {
+                    keyboardView?.setEmojiRecents(ImePreferences.recordEmojiRecent(this, action.text))
+                }
+            }
             is KeyAction.KanaInput -> {
                 finishEnglishRaw()
                 clearPredictionIfShown()
@@ -397,6 +407,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
             }
+            is KeyAction.ChangeEmojiPage -> keyboardView?.changeEmojiPage(action.delta)
             is KeyAction.SelectCandidate -> {
                 if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
                 else if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)

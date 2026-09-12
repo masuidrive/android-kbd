@@ -108,12 +108,23 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
-    @Test fun `cursor layer contains boundary arrows trackpad and spanning enter`() {
-        val rows = KeyboardLayouts.layout(KeyboardMode.CURSOR).rows
-        assertEquals(KeyAction.MoveToBoundary(CursorBoundary.START), rows[1].keys[1].center?.action)
-        assertEquals(KeyAction.MoveToBoundary(CursorBoundary.END), rows[1].keys[3].center?.action)
-        assertEquals(KeyKind.SPACE, rows[2].keys[2].kind)
-        assertEquals(2, rows[2].keys[4].rowSpan)
+    @Test fun `emoji layer keeps four rows with bounded recents catalog and in-row page controls`() {
+        val family = "❤️"
+        val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", family, "😀")).rows
+        assertEquals(4, rows.size)
+        assertEquals(8, rows.first().keys.size)
+        assertEquals(KeyAction.CommitEmoji(family), rows.first().keys[1].center?.action)
+        assertTrue(rows.first().keys.drop(2).all { it.kind == KeyKind.EMPTY })
+        assertTrue(rows.all { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() == 8f })
+        assertEquals(KeyAction.ChangeEmojiPage(-1), rows[3].keys[1].center?.action)
+        assertEquals(KeyAction.ChangeEmojiPage(1), rows[3].keys[3].center?.action)
+        assertEquals(KeyAction.Backspace(), rows[3].keys[4].center?.action)
+        assertEquals(KeyboardMode.QWERTY, (rows[3].keys[0].center?.action as KeyAction.SwitchLayer).target)
+        assertEquals(KeyAction.VoiceHold, rows[3].keys[0].left?.action)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), rows[3].keys[0].up?.action)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), rows[3].keys[0].right?.action)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), rows[3].keys[0].down?.action)
+        assertEquals("💯", KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiPage = 1).rows[1].keys.first().center?.label)
     }
 
     @Test fun `dual kana duplicates only the central twelve keys`() {
@@ -137,7 +148,7 @@ class KeyboardLayoutsTest {
     }
 
     @Test fun `nonconverting enter exposes control j only on up`() {
-        KeyboardMode.entries.filter { it != KeyboardMode.VOICE }.forEach { mode ->
+        KeyboardMode.entries.filter { it !in setOf(KeyboardMode.VOICE, KeyboardMode.EMOJI) }.forEach { mode ->
             val enter = keys(mode).single { it.kind == KeyKind.ENTER }
             assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.up)
             assertEquals(KeyAction.Paste, enter.down?.action)
