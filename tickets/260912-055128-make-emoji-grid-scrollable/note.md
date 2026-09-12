@@ -1,6 +1,6 @@
 # Work Notes: 260912-055128-make-emoji-grid-scrollable
 
-## Status: PDH-open (Opening)
+## Status: PDH-human-review (Verification complete)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -21,10 +21,10 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -108,6 +108,16 @@
 - 前回Major: 解消。`site/mock.html:970-997`と`docs/reference/mock-source.html:893-913`は、通常の物理tapを`pointerup` helperで1回確定し、続く物理DOM clickを`e.detail != 0`で破棄する。`pointercancel`/`lostpointercapture`はhelperへ`commit=false`を渡し、blur/visibility/resizeは`cancelAll`/`cancelGestures`からgesture mapを先にclearするため0回である。後続の物理pointerup/clickもdetail guardにより0回のままになる。keyboard/支援技術の`detail == 0` activationはroot clickから1回確定する。
 - 前回Minor: 解消を維持。TalkBackは現在offsetで可能なscroll actionだけを公開し、先頭backward・末尾forwardは非公開かつ直接実行してもfalse、可能方向は1 row移動してtrueとなる。
 - 回帰: 通常tap 1回、drag 0回、固定control row、scroll range、mock/reference同期に新しい退行は見つからなかった。修正はroot clickのphysical fallback除去だけで、detail 0 activationとpointerup経路を別々に残している。記録済みbrowser証跡は通常pointer tap、keyboard click、drag、lost capture後、blur後へ到達し、focused/full suiteもPASSしている。
+
+## PDH-verify. AC・Surface裏取り
+
+対象 `bc9e8cbd6a6166bc828ded0d02172cf9d92f2f78` で AC 1〜5 を VERIFIED と判定した。blocker はない。詳細は `tmp/verify-result.md` に記録した。
+
+- fresh focused JVM: `KeyboardLayoutsTest` 13件、`KeyboardViewTest` 46件、合計59件が skipped/failures/errors 0 でPASSした。実装者の同一target full suiteは fast-checks と Android unit/lint/APK の2/2 PASSであり、Director指示に従って重複実行しなかった。
+- API 36 arm64 AVD `emulator-5554`: debug APKを再installし、412dp Lightの空recentでcatalog先頭24件が上3行、AZ/deleteが固定下段に出ることを確認した。上drag後はcatalog末尾8件まで連続して見え、4行外形と下段は不変だった。🌸tapは入力欄へ直接確定し、レイヤー再表示後にrecent先頭へ出た。削除は直前文字を消し、AZ上フリックはKANAへ遷移した。840dp Lightと412dp Darkでも3行＋固定下段が横切れなく収まった。
+- 公開操作mock: repositoryの`site/mock.html`を実ブラウザで操作した。空recentのphone Lightはviewport 165px、content 4行/32件、可視24件、scrollHeight 220px、pager 0、document/root/keyboard overflow 0だった。😀tapは1回だけ入力し、上dragはscrollTopを0→110へ動かして入力回数0を維持した。phone Dark、tablet Light/Darkもoverflow 0、3行viewport、pager 0だった。
+- Surface limitation: 物理Galaxy Z Fold7とTalkBack実操作環境はない。Fold開閉はproject指定の412dp/840dp AVD幅変更で代替した。TalkBackの可視node限定、先頭/末尾で可能方向だけを公開するscroll action、境界no-op falseはfresh `KeyboardViewTest`で確認した。
+- 実画面証拠: `tmp/emoji-scroll-api36-empty.png`、`tmp/emoji-scroll-api36-scrolled.png`、`tmp/emoji-scroll-api36-reopened-recent.png`、`tmp/emoji-scroll-api36-layer-flick.png`、`tmp/emoji-scroll-api36-wide.png`、`tmp/emoji-scroll-api36-dark.png`。空recent画像をmanual用`site/assets/emoji-scroll-api36-v0.12.png`へ反映した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

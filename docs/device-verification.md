@@ -16,6 +16,10 @@ The test activity was opened from `SetupActivity` with **入力を試す**. `Ime
 
 The debug APK for `260912-021714-fix-setup-safe-area-and-app-bar` was installed on `emulator-5554` (API 36 arm64). In portrait Light and Dark mode, the UI hierarchy contained **戻る** and **masuidrive-kbd 設定**; the 48dp arrow control and title remained below the status icons, and the four cards began below the fixed bar. `site/assets/setup-safe-area-light-v0.11.png` and `site/assets/setup-safe-area-dark-v0.11.png` are the inspected captures. In Dark landscape, the same fixed bar stayed below the status area; after scrolling to the end, version `0.10.0` and the license button remained above the bottom gesture inset. The landscape captures are retained in the ticket temporary evidence directory. These are emulator observations; a physical Fold7 was not connected.
 
+## Emoji scrolling (2026-09-12)
+
+The debug APK at `bc9e8cbd6a6166bc828ded0d02172cf9d92f2f78` was reinstalled on `emulator-5554` (API 36 arm64). After clearing local app data, the 412dp Light Emoji layer showed the first 24 catalog entries across the upper three rows and kept AZ/delete on the fourth row. A vertical drag exposed the final eight catalog entries without changing the four-row keyboard height or dispatching an emoji. Tapping 🌸 committed it directly; reopening Emoji placed 🌸 first in recent. Backspace removed the preceding test character, and an upward flick on AZ returned to Kana. The same three-row viewport and fixed controls fit without horizontal clipping at the 840dp override and in 412dp Dark mode. `site/assets/emoji-scroll-api36-v0.12.png` is the manual capture; the empty, scrolled, recent, layer-flick, wide, and Dark captures remain in the ticket temporary evidence directory. The emulator was restored to its 1080 × 2400 Light profile. A physical Fold7 and physical TalkBack interaction were unavailable; 412dp/840dp AVD widths and Robolectric accessibility actions cover those parts separately.
+
 ## Input journeys
 
 | Journey | Emulator operation | Result |
