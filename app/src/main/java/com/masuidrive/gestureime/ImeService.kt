@@ -68,6 +68,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var candidateStrip: CandidateStripView? = null
     private var publicEmojiPicker: EmojiPickerView? = null
     private var privateEmojiPicker: EmojiPickerView? = null
+    private val pickerLayoutSignatures = mutableMapOf<EmojiPickerView, Pair<Int, Int>>()
     private var conversionGeneration = 0L
     private var reading = ""
     private var candidates = emptyList<String>()
@@ -200,10 +201,23 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun createEmojiPicker(provider: RecentEmojiProvider): EmojiPickerView = EmojiPickerView(this).apply {
+        setBackgroundColor(getColor(R.color.keyboard_background))
         emojiGridColumns = 8
         emojiGridRows = 3f
         setOnEmojiPickedListener(Consumer { item -> onKeyAction(KeyAction.CommitEmoji(item.emoji)) })
         setRecentEmojiProvider(provider)
+        addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+            val picker = view as EmojiPickerView
+            val signature = (right - left) to (bottom - top)
+            if (signature.first <= 0 || signature.second <= 0 || pickerLayoutSignatures[picker] == signature) return@addOnLayoutChangeListener
+            pickerLayoutSignatures[picker] = signature
+            picker.post {
+                if (pickerLayoutSignatures[picker] == signature) {
+                    picker.emojiGridColumns = 8
+                    picker.emojiGridRows = 3f
+                }
+            }
+        }
     }
 
     private fun publicRecentProvider(): RecentEmojiProvider = object : RecentEmojiProvider {

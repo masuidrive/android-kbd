@@ -48,6 +48,12 @@ class ImePreferencesTest {
         }
         assertEquals(listOf("😭", "😍", "🥹", "😂", "🙏", "🚀", "😀", "❤️"), ImePreferences.getEmojiRecents(context))
         assertEquals("❤️", ImePreferences.recordEmojiRecent(context, "❤️").first())
+
+        (0..30).map { "emoji-$it" }.forEach { ImePreferences.recordEmojiRecent(context, it) }
+        val bounded = ImePreferences.getEmojiRecents(context)
+        assertEquals(ImePreferences.EMOJI_RECENT_LIMIT, bounded.size)
+        assertEquals("emoji-30", bounded.first())
+        assertEquals("emoji-7", bounded.last())
     }
 
     @Test
