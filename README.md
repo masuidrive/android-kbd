@@ -1,4 +1,4 @@
-# Gesture IME
+# masuidrive-kbd
 
 スマホ幅とタブレット幅で使える、オフライン日本語入力対応の Android IME です。Foldでは閉じたスマホ幅と開いたタブレット幅の両方へ同じ操作体系で対応します。かな、テンキー、絵文字、QWERTY、記号、音声の4行レイヤーを Custom View で描画し、絵文字のrecentは端末内だけに保存します。同梱した Mozc 辞書でかな漢字変換と確定後の次単語予測を行います。入力文字をログや端末外へ送信しません。
 
@@ -29,7 +29,7 @@ adb shell ime enable com.masuidrive.gestureime/.ImeService
 adb shell ime set com.masuidrive.gestureime/.ImeService
 ```
 
-アプリ一覧から **Gesture IME** を開き、「入力を試す」を選びます。物理キーボードが接続されたエミュレータでソフトウェアキーボードが出ない場合は、エミュレータ側で画面キーボード表示を有効にしてください。
+アプリ一覧から **masuidrive-kbd** を開き、「入力を試す」を選びます。物理キーボードが接続されたエミュレータでソフトウェアキーボードが出ない場合は、エミュレータ側で画面キーボード表示を有効にしてください。
 
 セットアップ画面は、status barの下に固定した「masuidrive-kbd 設定」バーから戻れます。設定内容だけをスクロールでき、Light/Darkのsystem bar iconもAndroidテーマへ追従します。
 
