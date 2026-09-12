@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-000419-rename-kana-feature-copy
 description: "Show the input result in the embedded keyboard demo"
 created_at: "2026-09-12T00:11:39Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T00:14:21Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
