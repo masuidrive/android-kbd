@@ -33,6 +33,7 @@ class MozcConversionEngine(
         ensureInitialized()
         recreateSession()
         state = ConversionState("", emptyList(), -1)
+        activeRequest = ActiveRequest.CONVERSION
         if (reading.isEmpty()) return@withContext state
         reading.forEach { sendKey(it.toString()) }
         state = mergeAndroidUserDictionaryCandidates(stateFrom(lastOutput), platformDictionaryWords(reading))
@@ -47,6 +48,32 @@ class MozcConversionEngine(
             stateFrom(lastOutput),
             platformDictionaryWords(state.reading),
         )
+        activeRequest = ActiveRequest.CONVERSION
+        state
+    } }
+
+    override suspend fun predict(context: PredictionContext): ConversionState = mutex.withLock { withContext(Dispatchers.Default) {
+        ensureInitialized()
+        if (sessionId == 0L) recreateSession()
+        lastOutput = evaluate(
+            ProtoCommands.Command.newBuilder().setInput(
+                ProtoCommands.Input.newBuilder()
+                    .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
+                    .setId(sessionId)
+                    .setRequestSuggestion(true)
+                    .setContext(
+                        ProtoCommands.Context.newBuilder()
+                            .setPrecedingText(context.precedingText)
+                            .setFollowingText(context.followingText),
+                    )
+                    .setCommand(
+                        ProtoCommands.SessionCommand.newBuilder()
+                            .setType(ProtoCommands.SessionCommand.CommandType.REQUEST_NWP),
+                    ),
+            ).build(),
+        )
+        state = stateFrom(lastOutput)
+        activeRequest = ActiveRequest.PREDICTION
         state
     } }
 
@@ -58,7 +85,27 @@ class MozcConversionEngine(
             // replaces the whole composing reading with this explicit word.
             deleteSession()
             state = ConversionState("", emptyList(), -1)
+            activeRequest = ActiveRequest.NONE
             return@withContext ConversionCommit(candidate.value)
+        }
+        if (activeRequest == ActiveRequest.PREDICTION) {
+            lastOutput = evaluate(
+                ProtoCommands.Command.newBuilder().setInput(
+                    ProtoCommands.Input.newBuilder()
+                        .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
+                        .setId(sessionId)
+                        .setCommand(
+                            ProtoCommands.SessionCommand.newBuilder()
+                                .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT_CANDIDATE)
+                                .setId(candidate.id),
+                        ),
+                ).build(),
+            )
+            check(lastOutput.output.consumed) { "Mozc did not submit a next-word candidate" }
+            val committed = commandResult(lastOutput)
+            state = ConversionState("", emptyList(), -1)
+            activeRequest = ActiveRequest.NONE
+            return@withContext committed.takeIf(String::isNotEmpty)?.let(::ConversionCommit)
         }
         val selectCommand = ProtoCommands.Command.newBuilder().setInput(
             ProtoCommands.Input.newBuilder()
@@ -90,6 +137,7 @@ class MozcConversionEngine(
         val committed = commandResult(selectionOutput) + commandResult(lastOutput)
         if (committed.isEmpty()) return@withContext null
         state = ConversionState("", emptyList(), -1)
+        activeRequest = ActiveRequest.NONE
         ConversionCommit(committed)
     } }
 
@@ -133,9 +181,11 @@ class MozcConversionEngine(
         }
         deleteSession()
         state = ConversionState("", emptyList(), -1)
+        activeRequest = ActiveRequest.NONE
     } }
 
     private lateinit var lastOutput: ProtoCommands.Command
+    private var activeRequest = ActiveRequest.NONE
 
     private fun ensureInitialized() {
         if (initialized) return
@@ -317,4 +367,6 @@ class MozcConversionEngine(
             )
         }
     }
+
+    private enum class ActiveRequest { NONE, CONVERSION, PREDICTION }
 }

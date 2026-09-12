@@ -10,6 +10,9 @@ interface ConversionEngine {
 
     suspend fun commit(index: Int): ConversionCommit?
 
+    /** Returns local next-word candidates for text surrounding the editor cursor. */
+    suspend fun predict(context: PredictionContext): ConversionState = ConversionState("", emptyList(), -1)
+
     /** Removes a selected Mozc history candidate, when the engine supports it. */
     suspend fun deleteCandidateFromHistory(index: Int): ConversionState? = null
 
@@ -32,3 +35,9 @@ data class ConversionCandidate(
 enum class ConversionCandidateSource { MOZC, ANDROID_USER_DICTIONARY }
 
 data class ConversionCommit(val value: String)
+
+/** Bounded editor text supplied to the local conversion engine for next-word prediction. */
+data class PredictionContext(
+    val precedingText: String,
+    val followingText: String,
+)

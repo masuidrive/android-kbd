@@ -10,6 +10,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
+import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.CursorBoundary
@@ -57,6 +58,25 @@ class TextInputController(
     fun commitText(text: String) {
         finishComposition()
         connection()?.commitText(text, 1)
+    }
+
+    /**
+     * Returns a bounded snapshot around the cursor for local next-word prediction.
+     * Private editors must not be queried, even when a caller accidentally requests it.
+     */
+    fun predictionContext(): PredictionContext? {
+        if (isPrivateField) return null
+        val input = connection() ?: return null
+        return PredictionContext(
+            precedingText = input.getTextBeforeCursor(MAX_PREDICTION_CONTEXT_CODE_UNITS, 0)
+                ?.toString()
+                .orEmpty()
+                .takeLastCodePoints(MAX_PREDICTION_CONTEXT_CODE_POINTS),
+            followingText = input.getTextAfterCursor(MAX_PREDICTION_CONTEXT_CODE_UNITS, 0)
+                ?.toString()
+                .orEmpty()
+                .takeCodePoints(MAX_PREDICTION_CONTEXT_CODE_POINTS),
+        )
     }
 
     fun finishComposition() {
@@ -218,6 +238,19 @@ class TextInputController(
         input.sendKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
         input.sendKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_UP, keyCode, 0, meta))
     }
+}
+
+private const val MAX_PREDICTION_CONTEXT_CODE_POINTS = 128
+private const val MAX_PREDICTION_CONTEXT_CODE_UNITS = MAX_PREDICTION_CONTEXT_CODE_POINTS * 2
+
+private fun String.takeLastCodePoints(maximum: Int): String {
+    if (codePointCount(0, length) <= maximum) return this
+    return substring(offsetByCodePoints(length, -maximum))
+}
+
+private fun String.takeCodePoints(maximum: Int): String {
+    if (codePointCount(0, length) <= maximum) return this
+    return substring(0, offsetByCodePoints(0, maximum))
 }
 
 private fun EditorInfo.isPasswordField(): Boolean {

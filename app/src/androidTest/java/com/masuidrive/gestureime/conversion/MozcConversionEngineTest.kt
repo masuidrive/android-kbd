@@ -12,6 +12,32 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class MozcConversionEngineTest {
     @Test
+    fun bundledDictionaryReturnsAndSubmitsNextWordPrediction() = runBlocking {
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
+        val context = "あけまして"
+        val prediction = engine.predict(PredictionContext(context, ""))
+        assertTrue("Mozc returned no next-word candidates for $context", prediction.candidates.isNotEmpty())
+
+        val committed = requireNotNull(engine.commit(0)) {
+            "Mozc did not return a submitted value for $context: ${prediction.candidates}"
+        }
+        assertTrue("Mozc submitted a blank next word", committed.value.isNotBlank())
+        engine.reset()
+    }
+
+    @Test
+    fun nextWordPredictionCandidateCanBeDeletedFromMozcHistory() = runBlocking {
+        val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
+        val state = engine.predict(PredictionContext("あけまして", ""))
+        assertTrue("Mozc returned no next-word candidates", state.candidates.isNotEmpty())
+
+        val updated = engine.deleteCandidateFromHistory(0)
+
+        assertTrue("Mozc did not consume next-word history deletion", updated != null)
+        engine.reset()
+    }
+
+    @Test
     fun kanaProducesJapaneseCandidateAndCommitsIt() = runBlocking {
         val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
         val initial = engine.update("にほんご")

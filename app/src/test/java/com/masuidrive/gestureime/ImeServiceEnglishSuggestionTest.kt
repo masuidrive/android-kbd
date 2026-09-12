@@ -8,9 +8,11 @@ import android.view.ViewGroup
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.conversion.ConversionEngine
+import com.masuidrive.gestureime.conversion.ConversionCommit
 import com.masuidrive.gestureime.conversion.ConversionCandidate
 import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionState
+import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
@@ -133,6 +135,100 @@ class ImeServiceEnglishSuggestionTest {
 
         assertEquals(listOf("ニホンゴ"), harness.input.committedValues)
         assertEquals("ニホンゴ", harness.input.committed)
+    }
+
+    @Test
+    fun japaneseCommitShowsPredictionAndPredictionTapAppendsThenRefreshes() {
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { context ->
+                if (context.precedingText.endsWith("日本語")) listOf(ConversionCandidate(2, "を"))
+                else listOf(ConversionCandidate(3, "入力"))
+            },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!.performClick()
+        harness.idle()
+
+        assertEquals("日本語を", harness.input.committed)
+        assertEquals(listOf("日本語", "を"), harness.input.committedValues)
+        assertEquals(listOf("日本語", "日本語を"), conversion.predictionContexts.map { it.precedingText })
+        assertEquals("候補 1: 入力", harness.root.findView { it.contentDescription?.toString() == "候補 1: 入力" }?.contentDescription)
+    }
+
+    @Test
+    fun predictionIsClearedByKanaInputAndNeverRequestedForPrivateEditor() {
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { listOf(ConversionCandidate(2, "を")) },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+        val stalePrediction = harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!
+
+        harness.service.onKeyAction(KeyAction.KanaInput("か"))
+        harness.idle()
+        stalePrediction.performClick()
+        harness.idle()
+
+        assertEquals("日本語か", harness.input.visibleText)
+
+        val privateConversion = FakeConversion(listOf(ConversionCandidate(1, "日本語"))) { listOf(ConversionCandidate(2, "を")) }
+        val privateHarness = Harness(privateEditor = true, conversion = privateConversion) { _, _ -> emptyList() }
+        privateHarness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        privateHarness.idle()
+        assertEquals("にほんご", privateHarness.input.committed)
+        assertEquals(emptyList<PredictionContext>(), privateConversion.predictionContexts)
+    }
+
+    @Test
+    fun selectionChangeInvalidatesPredictionTap() {
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { listOf(ConversionCandidate(2, "を")) },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+        val stalePrediction = harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!
+
+        harness.service.onUpdateSelection(3, 3, 0, 0, -1, -1)
+        harness.idle()
+        stalePrediction.performClick()
+        harness.idle()
+
+        assertEquals("日本語", harness.input.committed)
+    }
+
+    @Test
+    fun expectedSelectionAfterCommitKeepsPredictionAndPredictionHistoryCanBeDeleted() {
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { listOf(ConversionCandidate(2, "を")) },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+
+        harness.service.onUpdateSelection(0, 0, 3, 3, -1, -1)
+        harness.idle()
+        val prediction = harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!
+        assertEquals(true, prediction.performLongClick())
+        harness.idle()
+
+        assertEquals(listOf(0), conversion.deletedIndexes)
     }
 
     @Test
@@ -380,16 +476,36 @@ class ImeServiceEnglishSuggestionTest {
             selectionEnd = end.coerceIn(0, text.length)
             return true
         }
+
+        override fun getTextBeforeCursor(length: Int, flags: Int): CharSequence =
+            text.substring((selectionStart - length).coerceAtLeast(0), selectionStart)
+
+        override fun getTextAfterCursor(length: Int, flags: Int): CharSequence =
+            text.substring(selectionEnd, (selectionEnd + length).coerceAtMost(text.length))
     }
 
     private class FakeConversion(
         private val candidateValues: List<ConversionCandidate> = emptyList(),
+        private val prediction: (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
     ) : ConversionEngine {
         val deletedIndexes = mutableListOf<Int>()
-        override suspend fun start(reading: String) = ConversionState(reading, candidateValues, -1)
+        val predictionContexts = mutableListOf<PredictionContext>()
+        private var predictionActive = false
+        override suspend fun start(reading: String): ConversionState {
+            predictionActive = false
+            return ConversionState(reading, candidateValues, -1)
+        }
         override suspend fun update(reading: String) = start(reading)
         override suspend fun nextCandidate() = start("")
-        override suspend fun commit(index: Int) = null
+        override suspend fun predict(context: PredictionContext): ConversionState {
+            predictionActive = true
+            predictionContexts += context
+            return ConversionState("", prediction(context), -1)
+        }
+        override suspend fun commit(index: Int): ConversionCommit? =
+            (if (predictionActive) prediction(predictionContexts.last()) else candidateValues)
+                .getOrNull(index)
+                ?.let { ConversionCommit(it.value) }
         override suspend fun deleteCandidateFromHistory(index: Int): ConversionState? {
             deletedIndexes += index
             return ConversionState("か", candidateValues, -1)

@@ -68,6 +68,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var englishGeneration = 0L
     private var slashBufferActive = false
     private var slashGeneration = 0L
+    private var predictionGeneration = 0L
+    private var pendingPredictionSelectionDelta: Int? = null
     private var keyboardMode = KeyboardMode.QWERTY
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
@@ -167,6 +169,17 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         candidatesEnd: Int,
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if (candidateSource == CandidateSource.PREDICTION && !isExpectedPredictionSelection(
+                oldSelStart,
+                oldSelEnd,
+                newSelStart,
+                newSelEnd,
+            )
+        ) {
+            invalidateConversion(clearComposing = false)
+        } else if (candidateSource != CandidateSource.PREDICTION) {
+            pendingPredictionSelectionDelta = null
+        }
         if (reading.isNotEmpty() && (candidatesStart < 0 || newSelStart !in candidatesStart..candidatesEnd)) {
             invalidateConversion(clearComposing = false)
             textController.abandonComposition()
@@ -211,15 +224,18 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private fun onCandidateLongPressed(event: CandidateUiLongPressEvent): Boolean {
-        if (!isEligibleHistoryLongPress(event, candidateUiToken, candidateSource == CandidateSource.JAPANESE, conversionCandidates)) return false
+        if (!isEligibleHistoryLongPress(event, candidateUiToken, candidateSource in HISTORY_CANDIDATE_SOURCES, conversionCandidates)) return false
+        val source = candidateSource
         val editorToken = editorSession.capture()
         serviceScope.launch {
             actionMutex.withLock {
                 if (!editorSession.isCurrent(editorToken) ||
-                    !isEligibleHistoryLongPress(event, candidateUiToken, candidateSource == CandidateSource.JAPANESE, conversionCandidates)
+                    candidateSource != source ||
+                    !isEligibleHistoryLongPress(event, candidateUiToken, candidateSource in HISTORY_CANDIDATE_SOURCES, conversionCandidates)
                 ) return@withLock
                 val state = conversionEngine.deleteCandidateFromHistory(event.index) ?: return@withLock
-                if (event.token == candidateUiToken && editorSession.isCurrent(editorToken)) applyConversion(state)
+                if (event.token != candidateUiToken || !editorSession.isCurrent(editorToken)) return@withLock
+                if (source == CandidateSource.PREDICTION) applyPrediction(state) else applyConversion(state)
             }
         }
         return true
@@ -286,11 +302,13 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             is KeyAction.KanaInput -> {
                 finishEnglishRaw()
+                clearPredictionIfShown()
                 restoreReadingPreview()
                 updateReading(textController.appendComposing(action.reading))
             }
             is KeyAction.TransformKana -> {
                 finishEnglishRaw()
+                clearPredictionIfShown()
                 restoreReadingPreview()
                 updateReading(textController.transformKana(action.transform))
             }
@@ -321,10 +339,15 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                         if (generation != conversionGeneration || !editorSession.isCurrent(editorToken)) return
                         applyConversion(state)
                     }
-                    if (candidates.isNotEmpty()) commitCandidate(selectedCandidate.coerceAtLeast(0))
+                    if (candidates.isNotEmpty()) commitJapaneseCandidate(selectedCandidate.coerceAtLeast(0), editorToken)
                     else {
-                        if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) return
+                        expectPredictionSelectionAfterCommit(reading)
+                        if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) {
+                            pendingPredictionSelectionDelta = null
+                            return
+                        }
                         resetConversion(clearComposing = false)
+                        requestNextWordPrediction(editorToken)
                     }
                 } else textController.enter()
             }
@@ -340,15 +363,15 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             KeyAction.CommitConversion -> {
                 finishEnglishRaw()
-                commitDisplayedConversion()
+                commitDisplayedConversion(editorToken)
             }
             KeyAction.CommitWithoutConversion -> {
                 finishEnglishRaw()
-                commitConversionAs(reading)
+                commitConversionAs(reading, editorToken)
             }
             KeyAction.ConvertToKatakana -> {
                 finishEnglishRaw()
-                commitConversionAs(reading.toKatakana())
+                commitConversionAs(reading.toKatakana(), editorToken)
             }
             is KeyAction.MoveCursor -> {
                 finishEnglishRaw()
@@ -378,7 +401,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                 if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
                 else if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
                 else if (candidateSource == CandidateSource.SLASH) commitSlashCandidate(action.index)
-                else commitCandidate(action.index)
+                else if (candidateSource == CandidateSource.PREDICTION) commitPredictionCandidate(action.index, editorToken)
+                else commitJapaneseCandidate(action.index, editorToken)
             }
             KeyAction.CycleCandidate -> cycleCandidate()
             is KeyAction.SetModifier -> finishEnglishRaw()
@@ -546,6 +570,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         englishBuffer = englishBuffer,
         slashGeneration = slashGeneration,
         slashBufferActive = slashBufferActive,
+        predictionGeneration = predictionGeneration,
     )
 
     private suspend fun updateReading(newReading: String) {
@@ -571,32 +596,112 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         if (generation == conversionGeneration) applyConversion(state)
     }
 
-    private suspend fun commitCandidate(index: Int) {
+    private suspend fun commitJapaneseCandidate(index: Int, editorToken: Long) {
         if (index !in candidates.indices) return
         val generation = ++conversionGeneration
         val result = conversionEngine.commit(index)
-        if (generation != conversionGeneration) return
-        result?.value?.let(textController::commitCandidate)
+        if (generation != conversionGeneration || !editorSession.isCurrent(editorToken)) return
+        val committed = result?.value ?: run {
+            clearCandidateState()
+            return
+        }
+        expectPredictionSelectionAfterCommit(committed)
+        textController.commitCandidate(committed)
         clearCandidateState()
+        requestNextWordPrediction(editorToken)
     }
 
-    private suspend fun commitDisplayedConversion() {
+    private suspend fun commitDisplayedConversion(editorToken: Long) {
         val preview = conversionPreview
         if (preview != null) {
-            textController.commitCandidate(preview)
+            expectPredictionSelectionAfterCommit(preview)
+            if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(preview) }) {
+                pendingPredictionSelectionDelta = null
+                return
+            }
             resetConversion(clearComposing = false)
+            requestNextWordPrediction(editorToken)
         } else if (candidates.isNotEmpty()) {
-            commitCandidate(selectedCandidate.coerceAtLeast(0))
+            commitJapaneseCandidate(selectedCandidate.coerceAtLeast(0), editorToken)
         } else if (reading.isNotEmpty()) {
-            textController.commitCandidate(reading)
+            expectPredictionSelectionAfterCommit(reading)
+            if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) {
+                pendingPredictionSelectionDelta = null
+                return
+            }
             resetConversion(clearComposing = false)
+            requestNextWordPrediction(editorToken)
         }
     }
 
-    private suspend fun commitConversionAs(value: String) {
+    private suspend fun commitConversionAs(value: String, editorToken: Long) {
         if (reading.isEmpty()) return
-        textController.commitCandidate(value)
+        expectPredictionSelectionAfterCommit(value)
+        if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(value) }) {
+            pendingPredictionSelectionDelta = null
+            return
+        }
         resetConversion(clearComposing = false)
+        requestNextWordPrediction(editorToken)
+    }
+
+    private suspend fun commitPredictionCandidate(index: Int, editorToken: Long) {
+        if (candidateSource != CandidateSource.PREDICTION || index !in candidates.indices) return
+        val generation = predictionGeneration
+        val result = conversionEngine.commit(index)
+        if (generation != predictionGeneration || !editorSession.isCurrent(editorToken)) return
+        val committed = result?.value ?: run {
+            clearCandidateState()
+            return
+        }
+        expectPredictionSelectionAfterCommit(committed)
+        textController.commitText(committed)
+        clearCandidateState()
+        requestNextWordPrediction(editorToken)
+    }
+
+    private suspend fun requestNextWordPrediction(editorToken: Long) {
+        val context = textController.predictionContext() ?: run {
+            clearCandidateState()
+            return
+        }
+        clearCandidateState()
+        val generation = predictionGeneration
+        val state = conversionEngine.predict(context)
+        if (generation != predictionGeneration || !editorSession.isCurrent(editorToken) || textController.isPrivateField) return
+        applyPrediction(state)
+    }
+
+    private suspend fun clearPredictionIfShown() {
+        if (candidateSource == CandidateSource.PREDICTION) resetConversion(clearComposing = false)
+    }
+
+    private fun expectPredictionSelectionAfterCommit(value: String) {
+        pendingPredictionSelectionDelta = value.length
+    }
+
+    private fun isExpectedPredictionSelection(
+        oldSelStart: Int,
+        oldSelEnd: Int,
+        newSelStart: Int,
+        newSelEnd: Int,
+    ): Boolean {
+        val expectedDelta = pendingPredictionSelectionDelta ?: return false
+        pendingPredictionSelectionDelta = null
+        return oldSelStart == oldSelEnd && newSelStart == newSelEnd &&
+            newSelStart - oldSelStart == expectedDelta
+    }
+
+    private fun applyPrediction(state: ConversionState) {
+        if (state.candidates.isEmpty()) {
+            clearCandidateState()
+            return
+        }
+        candidateSource = CandidateSource.PREDICTION
+        conversionCandidates = state.candidates
+        candidates = state.candidates.map { it.value }
+        selectedCandidate = -1
+        showCandidateState()
     }
 
     private fun showConversionPreview(value: String) {
@@ -642,6 +747,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 
     private fun clearCandidateState() {
+        predictionGeneration++
         englishGeneration++
         englishBuffer = ""
         slashGeneration++
@@ -765,7 +871,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     }
 }
 
-private enum class CandidateSource { NONE, JAPANESE, ENGLISH, SLASH, VOICE }
+private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
+
+private val HISTORY_CANDIDATE_SOURCES = setOf(CandidateSource.JAPANESE, CandidateSource.PREDICTION)
 
 private data class CandidateSnapshot(
     val source: CandidateSource,
@@ -775,6 +883,7 @@ private data class CandidateSnapshot(
     val englishBuffer: String,
     val slashGeneration: Long,
     val slashBufferActive: Boolean,
+    val predictionGeneration: Long,
 )
 
 private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'

@@ -60,6 +60,39 @@ class TextInputControllerTest {
     }
 
     @Test
+    fun predictionContextIsBoundedByCodePointAndKeepsTheCursorSides() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
+        input.beforeCursor = "前".repeat(130)
+        input.afterCursor = "後".repeat(130)
+
+        val context = requireNotNull(controller.predictionContext())
+
+        assertEquals("前".repeat(128), context.precedingText)
+        assertEquals("後".repeat(128), context.followingText)
+        assertEquals(1, input.beforeCursorReads)
+        assertEquals(1, input.afterCursorReads)
+    }
+
+    @Test
+    fun predictionContextDoesNotReadPrivateEditorText() {
+        controller.beginInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        })
+
+        assertEquals(null, controller.predictionContext())
+        assertEquals(0, input.beforeCursorReads)
+        assertEquals(0, input.afterCursorReads)
+
+        controller.beginInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        })
+        assertEquals(null, controller.predictionContext())
+        assertEquals(0, input.beforeCursorReads)
+        assertEquals(0, input.afterCursorReads)
+    }
+
+    @Test
     fun partialExtractedTextAddsStartOffsetWhenMovingCursor() {
         input.extracted = ExtractedText().apply {
             text = "bcde"
@@ -246,6 +279,20 @@ class TextInputControllerTest {
         var contextAction: Int? = null
         val keyEvents = mutableListOf<Int>()
         val operations = mutableListOf<String>()
+        var beforeCursor = ""
+        var afterCursor = ""
+        var beforeCursorReads = 0
+        var afterCursorReads = 0
+
+        override fun getTextBeforeCursor(length: Int, flags: Int): CharSequence {
+            beforeCursorReads++
+            return beforeCursor
+        }
+
+        override fun getTextAfterCursor(length: Int, flags: Int): CharSequence {
+            afterCursorReads++
+            return afterCursor
+        }
 
         override fun getExtractedText(request: ExtractedTextRequest?, flags: Int): ExtractedText = extracted
 
