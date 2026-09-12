@@ -225,6 +225,12 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun visibleEmptyRecentDoesNotExpandAnExistingCategoryViewportLock() {
+        assertEquals(155, resolveEmojiViewportWithPlaceholder(155, 173, null, true))
+        assertEquals(173, resolveEmojiViewportWithPlaceholder(null, 173, null, true))
+    }
+
+    @Test
     fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
         // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
         // The latter must not be clamped by Faces' previous actual viewport.

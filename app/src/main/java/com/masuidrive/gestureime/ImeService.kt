@@ -418,7 +418,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
         }
         val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
-        val viewportHeight = (if (emptyRecentVisible) presetViewport else resolveEmojiViewport(lockedViewport, observedViewport))
+        val viewportHeight = resolveEmojiViewportWithPlaceholder(
+            lockedViewport, presetViewport, observedViewport, emptyRecentVisible,
+        )
             ?: pickerViewportHeights[picker]
             ?: return
         if (pickerViewportCategoryTransitions.containsKey(picker)) {
@@ -1354,6 +1356,13 @@ internal fun thirdEmojiRowBottomAtCategoryStart(bounds: List<Rect>, categorySpac
 
 internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?): Int? =
     lockedViewport ?: observedViewport
+
+internal fun resolveEmojiViewportWithPlaceholder(
+    lockedViewport: Int?,
+    maximumViewport: Int?,
+    observedViewport: Int?,
+    emptyPlaceholderVisible: Boolean,
+): Int? = lockedViewport ?: if (emptyPlaceholderVisible) maximumViewport else observedViewport
 
 /** The physical keyboard preset caps every category; a prior category's actual height does not. */
 internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?): Int? =
