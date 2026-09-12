@@ -37,6 +37,8 @@ adb shell ime set com.masuidrive.gestureime/.ImeService
 
 見えるキー間の横6dp・縦10dpの隙間も、中央を境に最寄りのキーへ割り当てます。キーの形状と間隔を保ったまま隙間付近のタップを受け付け、EMPTYで予約した領域は入力しません。フリック方向の判定閾値は18dpのままです。
 
+候補faceは最上段key faceから10dp離し、先頭候補の左外周もphone幅では6dp、wide幅では13dpで最左key faceへ揃えます。候補の高さ34dp、候補間5dp、横スクロール、長押し操作は変わりません。
+
 ## プライバシー
 
 Manifestに `INTERNET` 権限はありません。通常欄では、確定した日本語変換をMozcの履歴へ端末内保存して候補順位を学習します。確定後の次単語予測もカーソル周辺の最大128 code pointを端末内Mozcへだけ渡します。Mozc候補を長押しすると、その候補の履歴学習を削除できます。パスワード欄と `IME_FLAG_NO_PERSONALIZED_LEARNING` 指定欄では、Mozc候補、次単語予測、学習、貼り付け、音声入力を無効にし、周辺文字列を取得しません。

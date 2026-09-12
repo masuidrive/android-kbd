@@ -60,7 +60,7 @@
   #ios-keyboard-demo .mode-label { color:var(--ik-muted); }
   #ios-keyboard-demo .last-input { color:var(--ik-blue); }
   #ios-keyboard-demo .keyboard { background:var(--ik-bg); position:relative; padding:8px 3px 0; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  #ios-keyboard-demo .candidate-bar { display:flex; align-items:center; gap:5px; height:42px; padding:0 3px 8px; overflow-x:auto; scrollbar-width:none; }
+  #ios-keyboard-demo .candidate-bar { box-sizing:border-box; display:flex; align-items:center; gap:5px; height:50px; padding:6px 3px 10px; overflow-x:auto; scrollbar-width:none; }
   #ios-keyboard-demo .candidate-bar::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .candidate-bar[hidden] { display:flex; visibility:hidden; }
   #ios-keyboard-demo .candidate-bar button { flex:0 0 auto; min-width:82px; height:34px; padding:0 14px; border:0; border-radius:7px; background:var(--ik-key); color:var(--ik-ink); font-size:15px; box-shadow:0 1px 0 light-dark(#898c94,#141416); }

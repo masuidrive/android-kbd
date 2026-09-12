@@ -169,6 +169,10 @@ The final APK SHA `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be
 
 After verification, Dual Flick, terminal cursor, and English suggestions were OFF. The display remained 1080 × 2400 px at 420 dpi, QWERTY was restored as the last layer, and Gesture IME remained selected.
 
+## Candidate-strip spacing verification on API 36
+
+The final ticket APK was installed on `emulator-5554` at 1080 × 2400 px / 420 dpi. With Gesture IME selected and `mInputShown=true`, the normal editor displayed English candidates. The capture visibly shows the first candidate inset from the left edge, the 5dp candidate gap, and the 10dp rhythm between candidate faces and the first key row. Evidence: `tickets/260912-112512-align-candidate-strip-spacing/tmp/kana-before-candidate.png`.
+
 ## Keyboard-height verification on API 36
 
 The ticket build was installed on `emulator-5554` (`sdk_gphone64_arm64`, API 36). With Gesture IME explicitly selected and `show_ime_with_hard_keyboard=1`, the normal `EditText` displayed the 50dp candidate strip, four complete QWERTY rows, and the navigation safe area at the 1080 × 2400 px / 420 dpi (412dp) profile. Evidence: `tickets/260912-014943-fixed-keyboard-height/tmp/keyboard-height-standard-phone.png`.
