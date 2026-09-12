@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.util.Consumer
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.emoji2.emojipicker.RecentEmojiProvider
@@ -77,7 +78,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private val pickerViewportHeights = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportMaximums = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportLocked = mutableSetOf<EmojiPickerView>()
-    private val pickerViewportAwaitingCategoryScroll = mutableSetOf<EmojiPickerView>()
+    private val pickerViewportCategoryTransitions = mutableMapOf<EmojiPickerView, Long>()
+    private var emojiCategoryTransitionGeneration = 0L
     private val pickerBodies = mutableMapOf<EmojiPickerView, RecyclerView>()
     private val pickerHeaders = mutableMapOf<EmojiPickerView, RecyclerView>()
     private var emojiPickerHeaderHeight = 0
@@ -127,7 +129,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         pickerViewportHeights.clear()
         pickerViewportMaximums.clear()
         pickerViewportLocked.clear()
-        pickerViewportAwaitingCategoryScroll.clear()
+        pickerViewportCategoryTransitions.clear()
         pickerBodies.clear()
         pickerHeaders.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
@@ -340,6 +342,22 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 // AndroidX owns the holder click listener that changes the selected group.
                 false
             }
+            holder.isFocusable = true
+            holder.setOnKeyListener { view, keyCode, event ->
+                if (isEmojiCategoryActivationKey(keyCode, event.action)) {
+                    beginEmojiCategoryTransition(picker, view)
+                }
+                // AndroidX's click action remains responsible for category selection.
+                false
+            }
+            ViewCompat.setAccessibilityDelegate(holder, object : androidx.core.view.AccessibilityDelegateCompat() {
+                override fun performAccessibilityAction(host: View, action: Int, arguments: android.os.Bundle?): Boolean {
+                    if (isEmojiCategoryAccessibilityAction(action)) {
+                        beginEmojiCategoryTransition(picker, host)
+                    }
+                    return super.performAccessibilityAction(host, action, arguments)
+                }
+            })
         }
         header.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) = install(view)
@@ -349,17 +367,31 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun beginEmojiCategoryTransition(picker: EmojiPickerView, holder: View) {
+        val body = pickerBodies[picker] ?: return
+        val generation = ++emojiCategoryTransitionGeneration
         pickerViewportLocked.remove(picker)
-        pickerViewportAwaitingCategoryScroll += picker
+        pickerViewportCategoryTransitions[picker] = generation
         // AndroidX scrolls its body from the holder's existing click listener after this
         // non-consuming touch callback. Wait through that layout before measuring its new
         // complete third row. A normal body drag never enters this path.
-        holder.postOnAnimation {
-            holder.postOnAnimation {
-                if (pickerViewportAwaitingCategoryScroll.remove(picker)) {
-                    pickerBodies[picker]?.let { applyEmojiPickerViewport(picker, it) }
+        val observer = body.viewTreeObserver
+        if (observer.isAlive) {
+            observer.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    if (observer.isAlive) observer.removeOnPreDrawListener(this)
+                    completeEmojiCategoryTransition(picker, body, generation)
+                    return true
                 }
-            }
+            })
+        } else {
+            holder.post { completeEmojiCategoryTransition(picker, body, generation) }
+        }
+    }
+
+    private fun completeEmojiCategoryTransition(picker: EmojiPickerView, body: RecyclerView, generation: Long) {
+        if (isCurrentEmojiCategoryTransition(generation, pickerViewportCategoryTransitions[picker])) {
+            pickerViewportCategoryTransitions.remove(picker)
+            applyEmojiPickerViewport(picker, body)
         }
     }
 
@@ -370,7 +402,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val viewportHeight = resolveEmojiViewport(lockedViewport, observedViewport)
             ?: pickerViewportHeights[picker]
             ?: return
-        if (picker in pickerViewportAwaitingCategoryScroll) {
+        if (pickerViewportCategoryTransitions.containsKey(picker)) {
             body.clipBounds = Rect(0, 0, body.width, viewportHeight)
             return
         }
@@ -1278,6 +1310,19 @@ internal fun resolveEmojiViewport(lockedViewport: Int?, observedViewport: Int?):
 /** The physical keyboard preset caps every category; a prior category's actual height does not. */
 internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?): Int? =
     observedViewport?.let { observed -> maximumViewport?.let { observed.coerceAtMost(it) } ?: observed }
+
+internal fun isCurrentEmojiCategoryTransition(generation: Long, activeGeneration: Long?): Boolean =
+    generation == activeGeneration
+
+internal fun isEmojiCategoryActivationKey(keyCode: Int, action: Int): Boolean =
+    action == android.view.KeyEvent.ACTION_UP && keyCode in setOf(
+        android.view.KeyEvent.KEYCODE_ENTER,
+        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+        android.view.KeyEvent.KEYCODE_SPACE,
+    )
+
+internal fun isEmojiCategoryAccessibilityAction(action: Int): Boolean =
+    action == AccessibilityNodeInfoCompat.ACTION_CLICK
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle

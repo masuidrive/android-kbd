@@ -21,6 +21,7 @@ import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -206,6 +207,29 @@ class ImeHideBarTest {
         // The latter must not be clamped by Faces' previous actual viewport.
         assertEquals(155, boundedEmojiViewport(173, 155))
         assertEquals(173, boundedEmojiViewport(173, 173))
+    }
+
+    @Test
+    fun categoryActivationAcceptsTouchEquivalentA11yAndKeyboardKeysOnlyOnRelease() {
+        assertTrue(isEmojiCategoryAccessibilityAction(
+            androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_CLICK))
+        assertFalse(isEmojiCategoryAccessibilityAction(
+            androidx.core.view.accessibility.AccessibilityNodeInfoCompat.ACTION_LONG_CLICK))
+        listOf(
+            android.view.KeyEvent.KEYCODE_ENTER,
+            android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+            android.view.KeyEvent.KEYCODE_SPACE,
+        ).forEach { keyCode ->
+            assertTrue(isEmojiCategoryActivationKey(keyCode, android.view.KeyEvent.ACTION_UP))
+            assertFalse(isEmojiCategoryActivationKey(keyCode, android.view.KeyEvent.ACTION_DOWN))
+        }
+        assertFalse(isEmojiCategoryActivationKey(android.view.KeyEvent.KEYCODE_DEL, android.view.KeyEvent.ACTION_UP))
+    }
+
+    @Test
+    fun latestCategoryActivationWinsOverAnOlderPendingRelock() {
+        assertFalse(isCurrentEmojiCategoryTransition(41L, 42L))
+        assertTrue(isCurrentEmojiCategoryTransition(42L, 42L))
     }
 
     @Test
