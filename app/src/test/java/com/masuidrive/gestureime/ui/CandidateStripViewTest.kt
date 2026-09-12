@@ -196,10 +196,10 @@ class CandidateStripViewTest {
     @Test fun bottomGapUsesTheKeyboardBackgroundColor() {
         val view = view()
         assertEquals(Color.rgb(211, 213, 219), (view.background as ColorDrawable).color)
-        assertEquals(3, view.paddingLeft)
-        assertEquals(8, view.paddingTop)
-        assertEquals(3, view.paddingRight)
-        assertEquals(8, view.paddingBottom)
+        assertEquals(6, view.paddingLeft)
+        assertEquals(14, view.paddingTop)
+        assertEquals(6, view.paddingRight)
+        assertEquals(2, view.paddingBottom)
     }
 
     @Test fun candidateGeometryMatchesHtmlReference() {
@@ -219,6 +219,45 @@ class CandidateStripViewTest {
         assertEquals(Typeface.NORMAL, second.typeface.style)
         assertEquals(7f, first.faceLayer().cornerRadius, .1f)
         assertEquals(Color.rgb(137, 140, 148), first.shadowLayer().color!!.defaultColor)
+    }
+
+    @Test fun candidatePresentationsUseTheKeyFaceInsetsAtPhoneAndWideWidths() {
+        val view = view()
+        listOf(400 to 6, 840 to 13).forEach { (width, expectedInset) ->
+            fun layout() {
+                view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
+                view.layout(0, 0, width, 50)
+            }
+            fun assertFace(text: String) {
+                val face = view.textView(text)
+                assertEquals("$width $text left", expectedInset, face.leftIn(view))
+                assertEquals("$width $text top", 14, face.topIn(view))
+                assertEquals("$width $text bottom", 48, face.bottomIn(view))
+                assertEquals("$width $text height", 34, face.height)
+            }
+
+            view.setVoiceState(VoiceUiSnapshot(50, VoiceUiState.Hidden))
+            view.showCandidates(CandidateUiSnapshot(50, listOf("通常", "次")))
+            layout()
+            assertFace("通常")
+            assertEquals(5, view.textView("次").leftIn(view) - view.textView("通常").rightIn(view))
+
+            view.showCandidates(CandidateUiSnapshot(51, listOf("音声"), presentation = CandidatePresentation.VOICE))
+            layout()
+            assertFace("音声")
+
+            view.showStatus("状態")
+            layout()
+            assertFace("状態")
+
+            view.setVoiceState(VoiceUiSnapshot(52, VoiceUiState.PermissionRequired))
+            layout()
+            val control = view.textView("許可")
+            assertEquals("$width control right", width - expectedInset, control.rightIn(view))
+            assertEquals("$width control top", 14, control.topIn(view))
+            assertEquals("$width control bottom", 48, control.bottomIn(view))
+            assertEquals("$width control height", 34, control.height)
+        }
     }
 
     @Test fun candidateTextKeepsHtmlFixedSizeAtLargeSystemFontScale() {
@@ -332,5 +371,27 @@ class CandidateStripViewTest {
         val result = mutableListOf<TextView>()
         fun visit(view: View) { if (view is TextView) result += view; if (view is ViewGroup) repeat(view.childCount) { visit(view.getChildAt(it)) } }
         visit(this); return result
+    }
+    private fun View.leftIn(ancestor: View): Int = horizontalIn(ancestor) { left }
+    private fun View.rightIn(ancestor: View): Int = horizontalIn(ancestor) { right }
+    private fun View.topIn(ancestor: View): Int = verticalIn(ancestor) { top }
+    private fun View.bottomIn(ancestor: View): Int = verticalIn(ancestor) { bottom }
+    private fun View.horizontalIn(ancestor: View, edge: View.() -> Int): Int {
+        var current = this
+        var result = edge(current)
+        while (current.parent is View && current.parent !== ancestor) {
+            current = current.parent as View
+            result += current.left
+        }
+        return result
+    }
+    private fun View.verticalIn(ancestor: View, edge: View.() -> Int): Int {
+        var current = this
+        var result = edge(current)
+        while (current.parent is View && current.parent !== ancestor) {
+            current = current.parent as View
+            result += current.top
+        }
+        return result
     }
 }

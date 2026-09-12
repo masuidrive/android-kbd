@@ -1,5 +1,6 @@
 package com.masuidrive.gestureime
 
+import android.graphics.Rect
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
@@ -86,6 +87,32 @@ class ImeServiceVoiceLifecycleTest {
         assertEquals(emptyHeight, measuredHeight())
         strip.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
         assertEquals(emptyHeight, measuredHeight())
+        controller.destroy()
+    }
+
+    @Test
+    fun candidateFacesAndFirstKeyFacesShareTheTenDpVerticalGapAtBothWidths() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val root = controller.get().onCreateInputView() as ViewGroup
+        val strip = root.candidateStripView()
+        val keyboard = root.keyboardView()
+
+        listOf(400 to 6, 840 to 13).forEach { (widthPixels, expectedLeft) ->
+            strip.setVoiceState(VoiceUiSnapshot(61, VoiceUiState.Hidden))
+            strip.showCandidates(CandidateUiSnapshot(61, listOf("候補", "次")))
+            root.measure(
+                View.MeasureSpec.makeMeasureSpec(widthPixels, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
+            )
+            root.layout(0, 0, widthPixels, root.measuredHeight)
+
+            val candidate = strip.allTextViews().single { it.text.toString() == "候補" }
+            val firstKey = Rect().also { keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)!!.getBoundsInParent(it) }
+            assertEquals("$widthPixels candidate left", expectedLeft, candidate.leftIn(strip))
+            assertEquals("$widthPixels key left", expectedLeft, firstKey.left)
+            assertEquals("$widthPixels candidate to key gap", 10, keyboard.top + firstKey.top - (strip.top + candidate.bottomIn(strip)))
+        }
+
         controller.destroy()
     }
 
@@ -216,6 +243,36 @@ class ImeServiceVoiceLifecycleTest {
         if (this is android.widget.TextView && text.toString() == value) return true
         val group = this as? ViewGroup ?: return false
         return (0 until group.childCount).any { group.getChildAt(it).containsText(value) }
+    }
+
+    private fun View.allTextViews(): List<android.widget.TextView> {
+        val result = mutableListOf<android.widget.TextView>()
+        fun collect(current: View) {
+            if (current is android.widget.TextView) result += current
+            if (current is ViewGroup) repeat(current.childCount) { collect(current.getChildAt(it)) }
+        }
+        collect(this)
+        return result
+    }
+
+    private fun View.leftIn(ancestor: View): Int {
+        var current = this
+        var result = current.left
+        while (current.parent is View && current.parent !== ancestor) {
+            current = current.parent as View
+            result += current.left
+        }
+        return result
+    }
+
+    private fun View.bottomIn(ancestor: View): Int {
+        var current = this
+        var result = current.bottom
+        while (current.parent is View && current.parent !== ancestor) {
+            current = current.parent as View
+            result += current.top
+        }
+        return result
     }
 
     private fun ImeService.setModeForLifecycleTest(mode: KeyboardMode, returnMode: KeyboardMode) {

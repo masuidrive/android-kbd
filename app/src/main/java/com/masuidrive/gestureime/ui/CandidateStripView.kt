@@ -18,6 +18,14 @@ import com.masuidrive.gestureime.R
 
 class CandidateStripView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     LinearLayout(context, attrs) {
+    companion object {
+        private const val WIDE_LAYOUT_MIN_WIDTH_DP = 600f
+        private const val PHONE_FACE_INSET_DP = 6
+        private const val WIDE_FACE_INSET_DP = 13
+        private const val FACE_TOP_INSET_DP = 14
+        private const val FACE_BOTTOM_INSET_DP = 2
+    }
+
     private val candidateRow = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     private val candidateScroll = HorizontalScrollView(context).apply {
         isHorizontalScrollBarEnabled = false
@@ -33,7 +41,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(3), dp(8), dp(3), dp(8))
+        applyFaceInsets(width)
         applyThemeColors()
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -41,6 +49,11 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
             if (right - left != oldRight - oldLeft) constrainVoiceCandidateWidths()
         }
         render()
+    }
+
+    override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight)
+        if (width != oldWidth) applyFaceInsets(width)
     }
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
@@ -130,6 +143,15 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     private fun visibleCandidateWidth(): Int =
         candidateScroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - paddingLeft - paddingRight)
+
+    private fun applyFaceInsets(width: Int) {
+        val horizontal = dp(if (width / resources.displayMetrics.density >= WIDE_LAYOUT_MIN_WIDTH_DP) {
+            WIDE_FACE_INSET_DP
+        } else {
+            PHONE_FACE_INSET_DP
+        })
+        setPadding(horizontal, dp(FACE_TOP_INSET_DP), horizontal, dp(FACE_BOTTOM_INSET_DP))
+    }
 
     private fun renderCandidateMessage(message: String, description: String = message) {
         candidateRow.removeAllViews()
