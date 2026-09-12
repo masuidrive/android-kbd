@@ -280,12 +280,12 @@
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
   const emojiCategories=[
-    ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏']],
-    ['people','👋',['👋','👍','👎','👏','🙏','💪','👀','🧑','👩','👨','👶','👵','🧠','🫶','🤝','✍️']],
-    ['nature','🌿',['🌸','🍀','🌈','🌞','🌙','⭐','🐶','🐱','🦊','🌳','🌊','🔥','❄️','🌍','🪴','🐝']],
-    ['food','🍣',['🍣','☕','🍜','🍙','🍺','🍰','🍎','🍓','🥑','🍕','🍔','🍩','🧃','🍷','🥂','🍫']],
-    ['objects','💡',['💡','📌','🚀','🎈','📷','💻','📱','⌚','🎵','🎁','📚','✏️','🔑','💎','🧸','🛠️']],
-    ['symbols','✓',['✅','❌','⚽','💯','🧡','♻️','⚠️','❓','‼️','💤','💬','🔔','🔒','❤️‍🔥','➕','⭐']],
+    ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏','😅','🤣','😉','🙂','🙃','😇','🥳','😴','🤗','🤩','😋','😜','😡','🥺','😱','🤭']],
+    ['people','👋',['👋','👍','👎','👏','🙏','💪','👀','🧑','👩','👨','👶','👵','🧠','🫶','🤝','✍️','🙋','🙆','🙇','🤷','💁','🧑‍💻','👩‍🍳','👨‍🚀','🧑‍🎓','👮','👷','🕵️','💂','🥷','🤴','👸']],
+    ['nature','🌿',['🌸','🍀','🌈','🌞','🌙','⭐','🐶','🐱','🦊','🌳','🌊','🔥','❄️','🌍','🪴','🐝','🐼','🐸','🐵','🦁','🐯','🐨','🐰','🐻','🐙','🐳','🦋','🌵','🌴','🍁','🌻','🌧️']],
+    ['food','🍣',['🍣','☕','🍜','🍙','🍺','🍰','🍎','🍓','🥑','🍕','🍔','🍩','🧃','🍷','🥂','🍫','🍇','🍉','🍌','🍒','🥝','🍋','🥕','🥦','🌽','🥐','🍞','🧀','🥗','🍛','🍱','🍤']],
+    ['objects','💡',['💡','📌','🚀','🎈','📷','💻','📱','⌚','🎵','🎁','📚','✏️','🔑','💎','🧸','🛠️','💰','💳','💊','🧪','🔬','💡','🔋','🖥️','🖨️','📺','🎧','🎸','🏆','⚙️','🧲','🪄']],
+    ['symbols','✓',['✅','❌','⚽','💯','🧡','♻️','⚠️','❓','‼️','💤','💬','🔔','🔒','❤️‍🔥','➕','⭐','☑️','⭕','🚫','🔴','🟢','🔵','🟡','⬆️','⬇️','⬅️','➡️','↗️','♠️','♥️','♦️','♣️']],
   ];
   let emojiRecents=[], emojiScrollTop=0, emojiCategory='recent';
   const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
@@ -423,13 +423,15 @@
     candidateBar.classList.toggle('emoji-category-bar',language==='kana'&&layer==='emoji');
     if(language==='kana'&&layer==='emoji') {
       candidateBar.hidden=false;
+      candidateBar.setAttribute('role','tablist');candidateBar.setAttribute('aria-label','絵文字カテゴリ');
       emojiCategories.forEach(([id,icon])=>{
         const button=document.createElement('button');button.type='button';button.dataset.emojiCategory=id;
         button.textContent=icon;button.setAttribute('aria-label',id==='recent'?'最近使った絵文字':id+'カテゴリ');
-        button.setAttribute('aria-pressed',String(id===emojiCategory));candidateBar.append(button);
+        button.setAttribute('role','tab');button.setAttribute('aria-selected',String(id===emojiCategory));candidateBar.append(button);
       });
       resetCandidateScrollIfChanged('emoji-category');return;
     }
+    candidateBar.setAttribute('role','listbox');candidateBar.setAttribute('aria-label','入力候補');
     if(voiceDemo.active) {
       const values=voiceDemo.phase==='ready'?voiceDemo.candidates:(voiceDemo.partial&&voiceDemo.partial!=='聞き取っています…'?[voiceDemo.partial]:[]);
       candidateBar.hidden=!values.length;
