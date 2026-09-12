@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-ticket-review
+## Status: PDH-verify
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内`SpeechRecognizer`だけを使い、外部provider/APIはticketのinvariantで禁止される。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -80,6 +80,34 @@
 |   |      |     |      |      |      |
 
 | 1 | Accessibility / lifecycle | Major + Minor | Canvasだけの認識中表示、commit拒否後の空VOICE、停止境界とpreset/flick coverage | 採用・修正 | active限定の非action virtual nodeと一回通知、commit拒否時の安全な離脱、session invalidation回帰で実装・確認した。 |
+
+### Findings (PDH-review-2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Accessibility | Minor | 消えたstatusのhover内部IDと遅延照会node | 採用・修正 | `ACTION_HOVER_EXIT`をhelperへ通し、host外nonempty boundsかつ非可視のnodeを返す。次hoverで余分なexitが出ないことも固定した。 |
+
+[2026/09/12 22:32 JST] 最新SHA `2d2ceaa6043a79e2e388a20c97eaf5eb2acf73d0` の独立再レビューはCritical 0、Major 0、Minor 0。前回のhover内部IDとghost nodeは解消し、continuous voiceのconfirm/Cancel/error/editor/private/lifecycle境界に回帰なし。絵文字bodyのprovisional overscanもbody生涯1回だけで、first cell attach後に再適用されずlayout循環と固定高退行を起こさないと判定した。
+
+## PDH-verify. AC裏取り・surface観察
+
+[2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
+
+[2026/09/12 22:45 JST] 最終HEAD `6663372` で `scripts/test-all.sh --parallel` を再実行した実出力:
+
+```text
+Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.Bd7z1VyWnU
+  Starting: fast-checks (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.Bd7z1VyWnU/fast-checks.log)
+  Starting: android unit, lint, apk (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.Bd7z1VyWnU/android_unit,_lint,_apk.log)
+
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+
+Passed: 2 / 2
+```
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
