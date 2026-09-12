@@ -477,7 +477,8 @@ class KeyboardView @JvmOverloads constructor(
         val label = when {
             spec.kind == KeyKind.MODIFIER && state.pendingModifier != null -> if (state.pendingModifier == Modifier.ALT) "A" else "C"
             spec.kind == KeyKind.BACKSPACE && spec.center != null -> spec.center.label
-            spec.id in setOf("punct", "voice-punct") && direction == Direction.CENTER -> "、。?!"
+            spec.id == "punct" && direction == Direction.CENTER -> "、。?!"
+            spec.id == "voice-punct" && direction == Direction.CENTER -> "、。？！"
             selected && direction != Direction.CENTER -> spec.value(direction)?.label
             else -> spec.center?.label ?: modifierLabel(spec)
         } ?: ""
