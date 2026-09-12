@@ -163,3 +163,4 @@
 [2026/09/12 10:48] 新規状態のSetupをAPI 36.1 Light/Darkで確認し、3設定ON・terminal OFFの最新画像へ更新。英字候補OFFを暗黙前提にした音声test fixtureを明示OFFへ直し、full fast-check/unit/lint/APK buildがPASS。
 [2026/09/12 10:49] Mozc公式session APIを確認し、入力中のsuggestion/predictionに加えて確定後の周辺文脈から次単語候補を返すREQUEST_NWPが利用可能と判明。現行md-kbdはREQUEST_NWPとsurrounding contextを未接続のため、POBox風の確定後予測は未実装と整理した。Fold開閉時の高さ差は幅依存row pitchと遅延inset反映が原因で、固定高さpresetの別ticket対象とした。
 [2026/09/12 10:51] Fold開閉とDual Flickでキー4行高を変えず、設定画面で小・標準・大を選べるticket `260912-014943-fixed-keyboard-height` を作成。初回表示・アプリ切替・回転・遅延insetでも設定高とタップ領域を維持するACを定義した。
+[2026/09/12 11:09] Mozc `REQUEST_NWP`で日本語確定後の次単語候補を既存候補欄へ出すticket `260912-020555-add-mozc-next-word-prediction` を作成。候補タップ後の連続予測、入力・選択・欄切替時のclear、private欄での文脈取得禁止を契約化した。カーソル専用レイヤーをrecent-first絵文字レイヤーへ置換するticket `260912-020803-replace-cursor-layer-with-emoji` も後続として作成した。
