@@ -32,9 +32,9 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
-現行は`EmojiCatalog.entries`と公開mockの双方が固定32件で、recent最大8件をcatalog先頭へ連結している。候補欄は全高50dp、face 34dpをtop14/bottom2に置き、最上段key faceまで10dpである。ユーザはrecentを候補欄へ移し、Android公式ガイドのpickerを使って最上段をカテゴリ行にする方針を明示した。公式資料では`EmojiPickerView`が横方向のclickable header、縦scroll一覧、最近使用、長押しvariationを提供し、`emojiGridRows`/`emojiGridColumns`を設定できる。安定版1.6.0はEmoji 16.0をsupportしminSdk 23、現appはminSdk 28/compileSdk 36である。1.7.0-rc01はCompose側compileSdk 37.1を要求するため採用しない。未確定のproduct判断はない。
+現行は`EmojiCatalog.entries`と公開mockの双方が固定32件で、recent最大8件をcatalog先頭へ連結している。候補欄は全高50dp、face 34dpをtop14/bottom2に置き、最上段key faceまで10dpである。ユーザは絵文字レイヤーで候補欄をカテゴリicon行へ置き換え、先頭のRecentを選ぶと下の3行へ履歴を出す方針を明示した。公式資料では`EmojiPickerView`が横方向のclickable header、縦scroll一覧、最近使用、長押しvariationを提供し、`emojiGridRows`/`emojiGridColumns`を設定できる。安定版1.6.0はEmoji 16.0をsupportしminSdk 23、現appはminSdk 28/compileSdk 36である。1.7.0-rc01はCompose側compileSdk 37.1を要求するため採用しない。未確定のproduct判断はない。
 
-独立AC読み手は改定後のAC 1〜8をすべて復元し、相互矛盾・観察不能条件・過剰な実装指定なしと判定した。ユーザがrecentの候補欄表示、AndroidX picker、カテゴリ最上段、Recentカテゴリ内の履歴、候補余白調整を明示しているため、ticket-human-review承認として扱う。
+独立AC読み手はAndroidX picker採用時点のAC 1〜8をすべて復元した。その後のユーザ指示で、絵文字レイヤーだけは候補欄をカテゴリicon行へ置換し、Recentはそのカテゴリ内へ表示、一覧は3行へ更新した。ユーザ自身が観察面を明示したため更新後契約のticket-human-review承認として扱う。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -45,7 +45,7 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
-実装後に、category header 1行＋一覧2行＋既存control 1行の固定高、8列、category移動、variation長押し、一覧/recent tapの1回確定・並替え・editor/token guard、private時の候補欄とpicker recent非表示、50dp内face 38dp・top10/bottom2・最上段keyまで10dp、412/840・Light/Darkのnative/mock overflowを測る。AndroidX pickerの外部通信は発生しないことを依存関係と実行時から確認する。
+実装後に、最上部50dpのcategory icon行＋一覧3行＋既存control 1行の全体固定高、8列、category移動、Recent最大24件、variation長押し、一覧tapの1回確定・並替え・editor/token guard、private時Recent非表示、非絵文字候補のface 38dp・top10/bottom2・最上段keyまで10dp、412/840・Light/Darkのnative/mock overflowを測る。AndroidX pickerの外部通信は発生しないことを依存関係と実行時から確認する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
