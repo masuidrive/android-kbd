@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260911-234748-wrap-long-voice-candidates
 description: "Describe the first feature as kana flick input"
 created_at: "2026-09-12T00:04:19Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T00:05:10Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
