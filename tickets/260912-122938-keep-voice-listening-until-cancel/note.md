@@ -30,7 +30,7 @@
 - [ ] 実機feedback: 音声候補確定後は候補を消し、視覚的にも次の「認識中」へ戻る
 - [ ] 実機feedback: 非対応・errorをaction badgeに見せず、音声layer内の状態として表示する
 - [ ] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
-- [ ] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
+- [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -142,6 +142,8 @@ Passed: 2 / 2
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
      Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+
+[2026/09/12 23:57 JST] 次単語予測の診断: 英語候補はMozc/NWPではなく、同梱28,001語から英字prefixに最大5件を返す固定補完で、space後の次単語予測・学習・周辺文脈利用は実装されていない。日本語は確定直後だけMozc `REQUEST_NWP`を呼ぶためprotocol自体は正しいが、raw text/space/paste/emoji/voice後には呼ばれず、`InputConnection.getTextBeforeCursor/AfterCursor`がnullを返すアプリでは空文脈のままfallbackもない。通常日本語のMozc historyは端末内profileへ保存され、private/no-personalizedでは止まる。英語NWPは別の端末内n-gram等が必要、日本語は実app別の周辺text観測とprivacy-safe fallbackが先に必要。
 
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する

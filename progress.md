@@ -218,3 +218,4 @@
 [2026/09/12 23:44] 実機human reviewの差し戻しを連続音声入力ticketへ追加し、PDH-implementへ戻した。Emoji Recent最大100件と通常grid、category等幅、長い発話の終了、音声候補縦一覧、確定後の認識中復帰、非対応badge廃止、独自hide bar削除をACへ反映。日本語・英語の次単語予測が出にくい条件の診断も開始した。
 [2026/09/12 23:49] 差し戻しACを独立readerが確認し、非対応状態、長発話、Cancel後の確定文字、Recent 101件目、mockとOS終了操作の境界を具体化した。10秒以上の発話終了で最終または最後の有効partialを縦候補化し、Recentは100件LRU、非対応/errorは固定領域のtap不能plain textとする契約へ更新した。
 [2026/09/12 23:51] AC再読で残ったpartial fallbackの曖昧さを修正した。最終結果が返らない場合は最後の有効partialを選択可能な最終候補へ昇格し、認識中はCancel右、非対応/errorは固定候補領域へ分離する契約で承認可能と判定した。
+[2026/09/12 23:57] 次単語予測を実装・辞書・呼出境界で診断した。英語は固定28,001語のprefix補完だけで次単語予測と学習がなく、日本語はMozc REQUEST_NWPを日本語確定直後だけ呼ぶ。実appがInputConnectionの周辺textを返さない場合は空文脈になり、fallbackが無いため候補が出にくい。
