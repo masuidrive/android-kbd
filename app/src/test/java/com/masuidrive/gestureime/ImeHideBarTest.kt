@@ -1,0 +1,79 @@
+package com.masuidrive.gestureime
+
+import android.app.Activity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
+import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.ui.CandidateStripView
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
+class ImeHideBarTest {
+    @Test
+    fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as LinearLayout
+        val candidate = root.getChildAt(0) as CandidateStripView
+        val keyboard = root.getChildAt(1) as KeyboardView
+        val hideBar = root.getChildAt(2) as FrameLayout
+        val density = service.resources.displayMetrics.density
+        val expectedCandidateHeight = (50 * density).toInt()
+        val expectedHideHeight = (28 * density).toInt()
+
+        assertEquals(3, root.childCount)
+        assertSame(candidate, root.getChildAt(0))
+        assertSame(keyboard, root.getChildAt(1))
+        assertSame(hideBar, root.getChildAt(2))
+        assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
+        listOf(412, 840).forEach { width ->
+            keyboard.measure(exact(width), exact(1_000))
+            assertEquals((KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt(), keyboard.measuredHeight)
+        }
+
+        ViewCompat.dispatchApplyWindowInsets(root, WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 31))
+            .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 12))
+            .build())
+
+        assertEquals(0, keyboard.paddingBottom)
+        assertEquals(31, hideBar.paddingBottom)
+        assertEquals(expectedHideHeight + 31, hideBar.layoutParams.height)
+    }
+
+    @Test
+    fun centeredChevronRequestsImeHide() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val hideButton = service.onCreateInputView().findViewById<ImageButton>(R.id.ime_hide_button)
+
+        assertEquals("キーボードを閉じる", hideButton.contentDescription)
+        assertEquals(ImageView.ScaleType.CENTER, hideButton.scaleType)
+        assertTrue(hideButton.performClick())
+        assertEquals(0, service.hideFlags)
+    }
+
+    private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+
+    class HidingImeService : ImeService() {
+        var hideFlags: Int? = null
+
+        override fun requestHideSelf(flags: Int) {
+            hideFlags = flags
+        }
+    }
+}

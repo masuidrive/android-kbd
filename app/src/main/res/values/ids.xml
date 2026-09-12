@@ -6,4 +6,13 @@
     <item name="setup_app_bar_title" type="id" />
     <item name="setup_scroll" type="id" />
     <item name="setup_content" type="id" />
+    <item name="ime_test_root" type="id" />
+    <item name="ime_test_app_bar" type="id" />
+    <item name="ime_test_back" type="id" />
+    <item name="ime_test_app_bar_title" type="id" />
+    <item name="ime_test_scroll" type="id" />
+    <item name="ime_test_content" type="id" />
+    <item name="ime_input_root" type="id" />
+    <item name="ime_hide_bar" type="id" />
+    <item name="ime_hide_button" type="id" />
 </resources>

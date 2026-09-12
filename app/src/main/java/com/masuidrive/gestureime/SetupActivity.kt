@@ -3,9 +3,7 @@ package com.masuidrive.gestureime
 import android.Manifest
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -25,18 +23,13 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Switch
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 
 class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Color.TRANSPARENT
-        window.navigationBarColor = Color.TRANSPARENT
+        SafeAreaUi.prepareWindow(this)
 
         val padding = (24 * resources.displayMetrics.density).toInt()
         val cardPadding = (16 * resources.displayMetrics.density).toInt()
@@ -209,9 +202,9 @@ class SetupActivity : AppCompatActivity() {
                 1f,
             ))
         }
-        installSafeAreaInsets(root, appBar, content, appBarHeight)
+        SafeAreaUi.installFixedAppBarInsets(root, appBar, content, appBarHeight)
         setContentView(root)
-        applySystemBarIconAppearance(root)
+        SafeAreaUi.applySystemBarIconAppearance(this, root)
         ViewCompat.requestApplyInsets(root)
         if (intent.getBooleanExtra(EXTRA_REQUEST_MICROPHONE_PERMISSION, false) &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
@@ -219,53 +212,6 @@ class SetupActivity : AppCompatActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MICROPHONE_PERMISSION)
         }
-    }
-
-    private fun installSafeAreaInsets(
-        root: View,
-        appBar: View,
-        content: View,
-        appBarContentHeight: Int,
-    ) {
-        val appBarStart = appBar.paddingLeft
-        val appBarEnd = appBar.paddingRight
-        val contentStart = content.paddingLeft
-        val contentTop = content.paddingTop
-        val contentEnd = content.paddingRight
-        val contentBottom = content.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val safeArea = insets.safeAreaInsets()
-            appBar.setPadding(appBarStart + safeArea.left, safeArea.top, appBarEnd + safeArea.right, 0)
-            appBar.layoutParams = appBar.layoutParams.apply {
-                height = appBarContentHeight + safeArea.top
-            }
-            content.setPadding(
-                contentStart + safeArea.left,
-                contentTop,
-                contentEnd + safeArea.right,
-                contentBottom + safeArea.bottom,
-            )
-            insets
-        }
-    }
-
-    private fun applySystemBarIconAppearance(root: View) {
-        val lightTheme = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES
-        WindowCompat.getInsetsController(window, root).apply {
-            isAppearanceLightStatusBars = lightTheme
-            isAppearanceLightNavigationBars = lightTheme
-        }
-    }
-
-    private fun WindowInsetsCompat.safeAreaInsets(): Insets {
-        val bars = getInsets(WindowInsetsCompat.Type.systemBars())
-        val cutout = getInsets(WindowInsetsCompat.Type.displayCutout())
-        return Insets.of(
-            maxOf(bars.left, cutout.left),
-            maxOf(bars.top, cutout.top),
-            maxOf(bars.right, cutout.right),
-            maxOf(bars.bottom, cutout.bottom),
-        )
     }
 
     private fun matchWidth() = LinearLayout.LayoutParams(

@@ -89,6 +89,7 @@ class KeyboardView @JvmOverloads constructor(
     private var emojiScrollOffset = 0f
     private val emojiScrollGestures = mutableMapOf<Int, EmojiScrollGesture>()
     private val emojiViewport = RectF()
+    private var ownsSystemBottomInset = true
 
     internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
         it.spec.kind != KeyKind.EMPTY && isTargetVisible(it) && it.tapBounds.contains(x, y) &&
@@ -181,6 +182,20 @@ class KeyboardView @JvmOverloads constructor(
         cancelActiveGestures()
         setPadding(paddingLeft, paddingTop, paddingRight, bottom)
         rebuildLayout()
+    }
+
+    /**
+     * The standalone keyboard keeps the navigation inset below its rows. IME containers with
+     * a bottom affordance can move that inset to the affordance instead, without resizing keys.
+     */
+    internal fun setOwnsSystemBottomInset(ownsInset: Boolean) {
+        if (ownsSystemBottomInset == ownsInset) return
+        ownsSystemBottomInset = ownsInset
+        if (!ownsInset) updateBottomInset(0)
+    }
+
+    internal fun applySystemBottomInset(bottom: Int) {
+        if (ownsSystemBottomInset) updateBottomInset(bottom)
     }
 
     internal fun refreshIntrinsicLayout() {
@@ -996,7 +1011,7 @@ private object ViewCompatInsets {
     fun install(view: View) {
         view.setOnApplyWindowInsetsListener { v, insets ->
             @Suppress("DEPRECATION") val bottom = insets.systemWindowInsetBottom
-            (v as? KeyboardView)?.updateBottomInset(bottom)
+            (v as? KeyboardView)?.applySystemBottomInset(bottom)
             insets
         }
     }

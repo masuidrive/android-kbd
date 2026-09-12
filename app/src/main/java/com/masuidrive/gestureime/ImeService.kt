@@ -2,12 +2,18 @@ package com.masuidrive.gestureime
 
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.masuidrive.gestureime.conversion.ConversionCandidate
 import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionEngine
@@ -40,7 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
+open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val actionMutex = Mutex()
     private val editorSession = EditorSessionGate()
@@ -95,9 +101,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     override fun onCreateInputView(): View {
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
+        val hideBarHeight = (28 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
+            it.setOwnsSystemBottomInset(false)
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -113,10 +121,37 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             candidateStrip = it
             setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }
+        val hideBar = FrameLayout(this).apply {
+            id = R.id.ime_hide_bar
+            setBackgroundColor(getColor(R.color.keyboard_background))
+            addView(ImageButton(context).apply {
+                id = R.id.ime_hide_button
+                contentDescription = getString(R.string.ime_hide_description)
+                setImageResource(R.drawable.ic_keyboard_hide)
+                scaleType = ImageView.ScaleType.CENTER
+                imageTintList = ColorStateList.valueOf(getColor(R.color.keyboard_text))
+                setBackgroundResource(selectableItemBackgroundRes())
+                setOnClickListener { requestHideSelf(0) }
+            }, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ))
+        }
         return LinearLayout(this).apply {
+            id = R.id.ime_input_root
             orientation = LinearLayout.VERTICAL
             addView(strip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight))
             addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(hideBar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, hideBarHeight))
+            ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
+                val bottomInset = SafeAreaUi.safeAreaInsets(insets).bottom
+                hideBar.setPadding(0, 0, 0, bottomInset)
+                hideBar.layoutParams = (hideBar.layoutParams as LinearLayout.LayoutParams).apply {
+                    height = hideBarHeight + bottomInset
+                }
+                insets
+            }
+            ViewCompat.requestApplyInsets(this)
         }
     }
 
@@ -889,6 +924,15 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         textController = text
         testConversionEngine = conversion
         testEnglishSuggestionEngine = english
+    }
+
+    private fun selectableItemBackgroundRes(): Int {
+        val attribute = android.util.TypedValue()
+        return if (theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, attribute, true)) {
+            attribute.resourceId
+        } else {
+            0
+        }
     }
 }
 

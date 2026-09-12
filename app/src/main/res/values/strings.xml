@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Gesture IME</string>
-    <string name="setup_title">Gesture IME</string>
+    <string name="app_name">masuidrive-kbd</string>
+    <string name="setup_title">masuidrive-kbd</string>
     <string name="setup_app_bar_title">masuidrive-kbd 設定</string>
     <string name="setup_back_description">戻る</string>
-    <string name="setup_body">Android の設定で Gesture IME を有効にし、入力方法として選択してください。</string>
+    <string name="setup_body">Android の設定で masuidrive-kbd を有効にし、入力方法として選択してください。</string>
     <string name="enable_ime">入力方法を有効にする</string>
     <string name="choose_ime">入力方法を選ぶ</string>
     <string name="test_input">入力を試す</string>
@@ -25,5 +25,9 @@
     <string name="slash_command_hint">候補 %1$d（例: /compact）</string>
     <string name="slash_command_description">スラッシュコマンド候補 %1$d</string>
     <string name="save_slash_commands">スラッシュ候補を保存</string>
-    <string name="test_hint">ここをタップして Gesture IME を試す</string>
+    <string name="test_hint">ここをタップして masuidrive-kbd を試す</string>
+    <string name="ime_test_app_bar_title">masuidrive-kbd 入力テスト</string>
+    <string name="ime_test_normal_input">通常入力</string>
+    <string name="ime_test_private_input">機密入力（候補・Paste無効）</string>
+    <string name="ime_hide_description">キーボードを閉じる</string>
 </resources>

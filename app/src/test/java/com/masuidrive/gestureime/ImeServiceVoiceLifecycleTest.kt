@@ -40,7 +40,7 @@ class ImeServiceVoiceLifecycleTest {
         val keyboard = root.keyboardView()
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
         assertEquals(228, keyboard.measuredHeight)
-        assertEquals(278, root.measuredHeight)
+        assertEquals(306, root.measuredHeight)
         controller.destroy()
     }
 
@@ -161,7 +161,7 @@ class ImeServiceVoiceLifecycleTest {
 
         assertEquals(View.INVISIBLE, root.candidateStripView().visibility)
         assertEquals(228, root.keyboardView().measuredHeight)
-        assertEquals(278, root.measuredHeight)
+        assertEquals(306, root.measuredHeight)
         controller.destroy()
     }
 
