@@ -9,8 +9,8 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -33,6 +33,8 @@
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
 現行は`EmojiCatalog.entries`と公開mockの双方が固定32件で、recent最大8件をcatalog先頭へ連結している。候補欄は全高50dp、face 34dpをtop14/bottom2に置き、最上段key faceまで10dpである。ユーザはrecentを候補欄へ移し、Android公式ガイドのpickerを使って最上段をカテゴリ行にする方針を明示した。公式資料では`EmojiPickerView`が横方向のclickable header、縦scroll一覧、最近使用、長押しvariationを提供し、`emojiGridRows`/`emojiGridColumns`を設定できる。安定版1.6.0はEmoji 16.0をsupportしminSdk 23、現appはminSdk 28/compileSdk 36である。1.7.0-rc01はCompose側compileSdk 37.1を要求するため採用しない。未確定のproduct判断はない。
+
+独立AC読み手は改定後のAC 1〜8をすべて復元し、相互矛盾・観察不能条件・過剰な実装指定なしと判定した。ユーザがrecentの候補欄表示、AndroidX picker、カテゴリ最上段、候補余白調整を明示しているため、ticket-human-review承認として扱う。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
