@@ -109,6 +109,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onCreateInputView(): View {
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
+        // A fresh input view owns fresh pickers; do not retain its detached predecessors.
+        pickerLayoutSignatures.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val hideBarHeight = (28 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
@@ -211,14 +213,23 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             val signature = (right - left) to (bottom - top)
             if (signature.first <= 0 || signature.second <= 0 || pickerLayoutSignatures[picker] == signature) return@addOnLayoutChangeListener
             pickerLayoutSignatures[picker] = signature
+            // BundledEmojiListLoader creates the header/body asynchronously.  The initial
+            // loader build already uses the configured rows and columns, so it must not be
+            // rebuilt while its views are absent.  Only a later external size change needs
+            // an adapter refresh.
+            if (!picker.hasInflatedEmojiPickerContent()) return@addOnLayoutChangeListener
             picker.post {
-                if (pickerLayoutSignatures[picker] == signature) {
+                if (pickerLayoutSignatures[picker] == signature && picker.hasInflatedEmojiPickerContent()) {
                     picker.emojiGridColumns = 8
                     picker.emojiGridRows = 3f
                 }
             }
         }
     }
+
+    private fun EmojiPickerView.hasInflatedEmojiPickerContent(): Boolean =
+        findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_header) != null &&
+            findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null
 
     private fun publicRecentProvider(): RecentEmojiProvider = object : RecentEmojiProvider {
             override fun recordSelection(emoji: String) = Unit

@@ -90,6 +90,7 @@ class ImeHideBarTest {
 
         root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertTrue(picker.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null)
         root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
@@ -100,6 +101,22 @@ class ImeHideBarTest {
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         assertEquals(settledChanges, layoutChanges)
         assertTrue(!picker.isLayoutRequested)
+    }
+
+    @Test
+    fun initialPickerLayoutPostDoesNotRebuildBeforeTheAsyncContentExists() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val picker = root.getChildAt(1) as EmojiPickerView
+
+        // The loader has not attached a header/body at construction.  Laying the fresh
+        // picker out and flushing its post queue must remain safe while it completes.
+        assertEquals(0, picker.childCount)
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertEquals(412, picker.width)
     }
 
     @Test
