@@ -12,6 +12,10 @@
 
 The test activity was opened from `SetupActivity` with **入力を試す**. `ImeTestActivity` was not launched as an exported component. Gesture IME was explicitly enabled and selected after each instrumentation install.
 
+## Setup safe area and app bar (2026-09-12)
+
+The debug APK for `260912-021714-fix-setup-safe-area-and-app-bar` was installed on `emulator-5554` (API 36 arm64). In portrait Light and Dark mode, the UI hierarchy contained **戻る** and **masuidrive-kbd 設定**; the 48dp arrow control and title remained below the status icons, and the four cards began below the fixed bar. `site/assets/setup-safe-area-light-v0.10.png` and `site/assets/setup-safe-area-dark-v0.10.png` are the inspected captures. In Dark landscape, the same fixed bar stayed below the status area; after scrolling to the end, version `0.10.0` and the license button remained above the bottom gesture inset. The landscape captures are retained in the ticket temporary evidence directory. These are emulator observations; a physical Fold7 was not connected.
+
 ## Input journeys
 
 | Journey | Emulator operation | Result |

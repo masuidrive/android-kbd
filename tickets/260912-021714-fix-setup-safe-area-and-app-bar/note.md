@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み - skip: SetupActivityは端末外provider/APIを呼ばない。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -50,7 +50,16 @@
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
-     論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+- 実装前の仮定: `WindowCompat.setDecorFitsSystemWindows(window, false)`でtarget SDK 35/36のedge-to-edgeを明示し、root listenerが`systemBars`と`displayCutout`の最大辺を固定app barとscroll終端へ配分できる。Robolectricでは同じinsetを二度dispatchしてpaddingとbar高が変わらないことを測り、API 36.1 AVDではLight/Darkの実画面で確認する。
+- `similarity-generic`はリポジトリに存在しないためskipした。外部provider/APIはこのActivityの変更に存在しないため実API 200確認は該当なしとして記録する。
+- `SetupActivity`をrootの固定app barとその下だけを重み付きで占める`ScrollView`へ分離した。`systemBars`/`displayCutout`の各辺の最大値をbase paddingから再計算し、topは56dp bar、bottomはscroll content終端へ反映する。
+- 戻る操作は48dp `ImageButton`、ローカルvector `ic_arrow_back`、platform ripple、content description `戻る`で実装した。Setup専用themeでtransparent barsを指定し、runtimeでもLight/Dark status/navigation icon appearanceを明示した。
+- Robolectric: `SetupActivitySafeAreaTest`はfixed hierarchy、48dp back action、system back、入力テスト/ライセンス導線、cutout優先の左右topとbottom inset再配信の非累積を検証した。既存`SetupActivitySlashCommandsTest`はswitchとslash command保存を継続して通過した。
+- focused: `./gradlew :app:testDebugUnitTest --tests 'com.masuidrive.gestureime.SetupActivitySlashCommandsTest' --tests 'com.masuidrive.gestureime.SetupActivitySafeAreaTest' :app:assembleDebug` PASS。
+- full: `scripts/test-all.sh --parallel` は fast-checks と Android unit/lint/APK の2/2 PASS。
+- API 36 arm64 AVD (`emulator-5554`): final APKでportrait Light/DarkおよびDark landscapeを起動し、UI hierarchyの`戻る`と`masuidrive-kbd 設定`、status/navigation safe area、scroll終端のversion/licenseを確認した。physical Fold7は未接続。
+- Commit: `d121739` `[260912-021714-fix-setup-safe-area-and-app-bar] feat(setup): add safe-area app bar`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -67,9 +76,14 @@
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
 
+### AC reader
+
+- AC 1〜5はrecoverableで相互矛盾なし。safe area、固定bar、戻る、theme icon、既存設定非退行をそれぞれRobolectricとAVD観察で裏取りする。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
-     他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+- `technical-reference.md`へSetupのedge-to-edge、safe area配分、戻るicon、冪等padding、system bar appearanceを追記した。README、manualのLight/Dark画像、device verificationも同じ実画面へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

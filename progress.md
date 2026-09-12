@@ -169,3 +169,4 @@
 [2026/09/12 11:25] 候補欄と最上段キーの縦間隔をキー行間隔へ揃え、先頭候補の左側にも同じ外周余白を設けるticket `260912-112512-align-candidate-strip-spacing` を作成。固定高さの後、nativeと公開demoを同じ寸法基準で更新する。
 [2026/09/12 11:46] 次単語予測の自己selectionと遅延照会raceを修正し、独立再reviewはCritical/Majorなし。focused JVM 62/62、API 36.1 arm64 AVDの同梱Mozc connected test 11/11でAC 1〜5を確認した。system IME手動journeyは既知の初回高さ溢れを先に直して再確認する。
 [2026/09/12 11:33] 次単語予測のreviewで見つかったselection raceを修正した。日本語composition置換の前後差を自己callbackとして照合し、NWP待機中の外部selectionはgenerationを無効化して古い候補を再表示しない。4→3、4→4、3→4と遅延照会の回帰test、full local suiteがPASSした。
+[2026/09/12 11:56] Setup画面をAPI 35/36 edge-to-edgeのsafe areaへ対応させ、status/navigation barを跨がない固定「masuidrive-kbd 設定」バー、48dp戻るicon、scroll終端のbottom inset、Light/Dark icon appearanceを実装した。API 36 arm64 AVDのLight/Dark portraitとDark landscapeで実画面を確認し、最新manual画像を更新した。
