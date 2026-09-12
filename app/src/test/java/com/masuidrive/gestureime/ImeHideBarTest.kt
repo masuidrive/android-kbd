@@ -217,6 +217,14 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun emptyRecentPlaceholderIsRecognizedOnlyWhileItIntersectsTheViewport() {
+        val viewport = Rect(0, 0, 412, 173)
+        assertTrue(isEmojiPlaceholderInViewport(View.VISIBLE, Rect(0, 8, 412, 58), viewport))
+        assertFalse(isEmojiPlaceholderInViewport(View.GONE, Rect(0, 8, 412, 58), viewport))
+        assertFalse(isEmojiPlaceholderInViewport(View.VISIBLE, Rect(0, 173, 412, 223), viewport))
+    }
+
+    @Test
     fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
         // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
         // The latter must not be clamped by Faces' previous actual viewport.

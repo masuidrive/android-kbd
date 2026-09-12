@@ -413,13 +413,28 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
         if (!shouldApplyEmojiPickerViewport(pickerBodies[picker], body)) return
         val presetViewport = pickerViewportMaximums[picker]
-        val observedViewport = boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
+        val emptyRecentVisible = hasVisibleEmojiEmptyCategoryPlaceholder(body)
+        val observedViewport = if (emptyRecentVisible) null else {
+            boundedEmojiViewport(presetViewport, emojiThreeRowViewport(body))
+        }
         val lockedViewport = pickerViewportHeights[picker].takeIf { picker in pickerViewportLocked }
-        val viewportHeight = resolveEmojiViewport(lockedViewport, observedViewport)
+        val viewportHeight = (if (emptyRecentVisible) presetViewport else resolveEmojiViewport(lockedViewport, observedViewport))
             ?: pickerViewportHeights[picker]
             ?: return
         if (pickerViewportCategoryTransitions.containsKey(picker)) {
             body.clipBounds = Rect(0, 0, body.width, viewportHeight)
+            return
+        }
+        if (emptyRecentVisible) {
+            pickerViewportHeights[picker] = viewportHeight
+            pickerViewportLocked += picker
+            val params = body.layoutParams ?: return
+            if (params.height != viewportHeight) {
+                params.height = viewportHeight
+                body.layoutParams = params
+            }
+            body.clipBounds = Rect(0, 0, body.width, viewportHeight)
+            updateEmojiPickerMask()
             return
         }
         // Let AndroidX create its cells from the one-spacer-taller parent first. The actual
@@ -1315,6 +1330,15 @@ private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
     return bounds
 }
 
+private fun hasVisibleEmojiEmptyCategoryPlaceholder(body: RecyclerView): Boolean {
+    val placeholder = body.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_empty_category_view)
+        ?: return false
+    val bounds = Rect(0, 0, placeholder.width, placeholder.height)
+    body.offsetDescendantRectToMyCoords(placeholder, bounds)
+    val viewport = body.clipBounds ?: Rect(0, 0, body.width, body.height)
+    return isEmojiPlaceholderInViewport(placeholder.visibility, bounds, viewport)
+}
+
 internal fun thirdEmojiRowBottom(bounds: List<Rect>): Int? =
     bounds.groupBy { it.top }.toSortedMap().values.toList().getOrNull(2)?.maxOf { it.bottom }
 
@@ -1350,6 +1374,9 @@ internal fun isEmojiCategoryActivationKey(keyCode: Int, action: Int): Boolean =
 
 internal fun isEmojiCategoryAccessibilityAction(action: Int): Boolean =
     action == AccessibilityNodeInfoCompat.ACTION_CLICK
+
+internal fun isEmojiPlaceholderInViewport(visibility: Int, bounds: Rect, viewport: Rect): Boolean =
+    visibility == View.VISIBLE && !bounds.isEmpty && Rect.intersects(bounds, viewport)
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
