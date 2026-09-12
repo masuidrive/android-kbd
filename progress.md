@@ -219,3 +219,6 @@
 [2026/09/12 23:49] 差し戻しACを独立readerが確認し、非対応状態、長発話、Cancel後の確定文字、Recent 101件目、mockとOS終了操作の境界を具体化した。10秒以上の発話終了で最終または最後の有効partialを縦候補化し、Recentは100件LRU、非対応/errorは固定領域のtap不能plain textとする契約へ更新した。
 [2026/09/12 23:51] AC再読で残ったpartial fallbackの曖昧さを修正した。最終結果が返らない場合は最後の有効partialを選択可能な最終候補へ昇格し、認識中はCancel右、非対応/errorは固定候補領域へ分離する契約で承認可能と判定した。
 [2026/09/12 23:57] 次単語予測を実装・辞書・呼出境界で診断した。英語は固定28,001語のprefix補完だけで次単語予測と学習がなく、日本語はMozc REQUEST_NWPを日本語確定直後だけ呼ぶ。実appがInputConnectionの周辺textを返さない場合は空文脈になり、fallbackが無いため候補が出にくい。
+[2026/09/12 23:59] 操作mockの入力欄をreadonlyにし、通常キーボード入力とnativeにないfocus borderを除く追加feedbackをACへ反映した。mock内のキー・候補・音声入力によるvalueとcursor更新は維持する。
+[2026/09/13 00:01] 操作mockのキーボード周囲を黒から外側ページになじむ灰色へ変更し、モード切替groupの上に下側と釣り合う余白を入れる追加feedbackをACへ反映した。
+[2026/09/13 00:12] 音声の長発話partial fallbackと固定縦候補panel、tap不能状態表示、候補確定後の認識中復帰を実装。絵文字Recentを100件LRU、category iconを48dp固定にし、native/mockの独自閉じる行を削除した。mockはreadonly・focus枠なし・外側gray・mode切替上下12pxへ同期。native focused 8 classは82/82 PASS、mock mirror・JS syntax・fast-checks・412/840px browser確認もPASS。

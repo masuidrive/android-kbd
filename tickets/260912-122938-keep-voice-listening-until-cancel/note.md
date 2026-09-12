@@ -30,6 +30,8 @@
 - [ ] 実機feedback: 音声候補確定後は候補を消し、視覚的にも次の「認識中」へ戻る
 - [ ] 実機feedback: 非対応・errorをaction badgeに見せず、音声layer内の状態として表示する
 - [ ] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
+- [ ] mock feedback: 入力欄をreadonlyにして通常キーボードを開かず、nativeにないfocus borderを表示しない
+- [ ] mock feedback: キーボード周囲を黒ではなく灰色にし、モード切替groupの上へ下側と釣り合う余白を入れる
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
@@ -43,6 +45,10 @@
 [2026/09/12 23:49 JST] human review差し戻し後のAC読み手は、What/Whyが絵文字とhide rowを覆っていないこと、非対応/error表示が主観的であること、長い発話が測れないこと、Cancel後の確定済み文字とRecent 101件目の扱い、mockがOS終了操作を使うという誤契約を指摘した。Why/Whatを3成果へ拡張し、10秒以上の発話、最後の有効partial fallback、tap不能plain text、確定済み文字保持、100件LRU、native/mock責務分離へ修正した。10秒は実機報告の「長く喋る」を再現可能にする最小の検証条件として採用する。
 
 [2026/09/12 23:51 JST] AC再読で、partial fallbackが表示だけで終わり得る曖昧さを検出した。最後の有効partialはAC 2と同じ選択可能な最終候補へ昇格し、認識中はCancel右、非対応/errorだけを固定候補領域のplain textへ置くよう修正した。これでWhatとAC 1〜7を外部観察から復元でき、未確定のproduct判断は残らない。
+
+[2026/09/12 23:59 JST] 追加のmock画像確認で、textareaへ通常キーボード入力できることと青いfocus borderがnativeにない差として明示された。readonlyでもmock側のJSはvalue/selectionを更新できるため、操作demoを維持したまま通常入力とfocus borderだけを除くAC 8へ反映した。
+
+[2026/09/13 00:01 JST] 追加のmock確認で、キーボード周囲の黒が外側ページから浮き、モード切替groupの上に余白がなく上下の釣り合いが悪いことが明示された。周囲をページになじむ灰色へ変更し、切替groupの上にも下側と釣り合う余白を確保するAC 9へ反映した。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -75,6 +81,8 @@
 [2026/09/12 22:24 JST] review追補: hover終了はsynthetic eventではなく`dispatchHoverEvent(ACTION_HOVER_EXIT)`へ通してExploreByTouchHelper内部のhover IDもclearする。消えたstatusの遅延照会はhost外のnonempty boundsと`isVisibleToUser=false`で安全に処理し、次hoverで余分なexitを送らないことを固定した。full suiteで再現した`ImeHideBarTest`の158px/166px差は、AndroidX初回cell計算用の8dp provisional body heightを最終body heightとして要求した誤契約だった。初期overscanはcell attachまで保持し、最終的にはwrapper-owned viewportへ戻す。最終bodyとclipはviewport、picker bottomはcontrol topで一致することをtestへ記録した。
 
 [2026/09/12 22:31 JST] 検証: 最初のfull runは`ImeServiceEnglishSuggestionTest.emojiCommitFlushesJapaneseEnglishAndSlashCompositionThenUpdatesRecentOnlyAfterSuccessfulCommit`でAndroidX `EmojiPickerBodyAdapter`のlayout loopに入り停止した。thread dumpで`EmojiPickerItems.getSize()`から繰り返すRecyclerView layoutを確認し、finalized bodyをglobal-layout bindが再度provisional化していたことを原因とした。bodyごとのprepared（初回一度）とpending（first cell attachまで）を分離して修正後、問題test単独は`--no-daemon`で12秒 PASS、focused 4対象は8秒 PASS、`scripts/test-all.sh --parallel`はfast-checks 5 checks PASSおよびAndroid unit/lint/APK 22秒 PASS。
+
+[2026/09/13 00:12 JST] human review差し戻し実装: 音声recognizerの`onEndOfSpeech`後500msで最終結果がなければ最後の有効partialを選択候補へ昇格し、`NO_MATCH`・`SPEECH_TIMEOUT`・`CLIENT` errorでも同じfallbackを行う。通常横候補欄から音声を分離して上3行相当の固定縦panelへ移し、権限未許可・非対応・errorはtap不能text、候補確定後はpanelを消して認識中へ戻す。絵文字Recentを新しい順・重複なし最大100件へ拡張し、全category holderを再利用・選択後も48dp固定にした。独自hide barをnative/mockから削除し、system bottom insetはKeyboardViewが4行下へ保持する。mockはreadonly・focus outlineなし、外側gray、mode切替上下12pxへ同期した。native focused 8 classは82/82 PASS、mock mirror・JS syntax・fast-checks・412/840pxのbrowser観察もPASS。実装commit: `ddb8e49`, `5e12e77`, `8b5e39d`, `e231515`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -130,6 +138,8 @@ Passed: 2 / 2
 [2026/09/12 22:08 JST] decision 10をservice session generationとcontroller recognizer generationの実際の責務、active限定TalkBack状態nodeへ訂正した。
 
 [2026/09/12 22:34 JST] リリース文書準備: `technical-reference.md` decision 10/21と突合し、README、製品紹介、操作モック説明、マニュアルのv0.13.0変更一覧、`docs/v0.13-release-notes.md`へ「認識中」、候補1回確定後の即時再認識、Cancelまでの継続、操作mockの同等フローを記載した。全APK導線は未圧縮の`gesture-ime-v0.13.0.apk`のままとし、site配下にAPK/ZIPを置かないことを確認した。PDH-review / PDH-verify / human reviewの完了判定はこの文書準備では更新しない。
+
+[2026/09/13 00:12 JST] 差し戻し実装に合わせ、decision 10/15/17/18/21を専用音声縦panel、partial fallback、tap不能状態表示、Recent 100件、category 48dp固定、独自hide bar削除とKeyboardViewのsystem inset所有へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
