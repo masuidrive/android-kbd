@@ -11,9 +11,9 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
@@ -43,12 +43,25 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+  - API 36.1 emulatorの412dp相当でLight/DarkのSetupを撮影し、4カード、細い6dp赤accent、横overflowなし、縦scrollを原寸確認した。
+  - Robolectricで4カードとButton/Switch/EditTextの48dp最小高、BuildConfig由来version表示、既存設定の保存を確認した。
+  - 音声partial/final、非選択partial、final候補tap、取消、VOICEからの方向レイヤー切替は既存のService/View回帰testで確認した。AVDには日本語音声モデルがないため、実発話のpartial/finalは未確認としてマニュアルの制約に残した。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- Setupの既存controlと保存listenerを維持したまま、4セクションを角丸surfaceへまとめた。見出しはTextView全体へ背景を付けず、6dp幅のcompound drawableでsiteと同じ細い赤accentを表現した。
+- Lightは`#f4f4f4` pageと白surface、Darkは既存IMEに合わせた`#1c1c1e` pageと`#2c2c2e` surfaceを使用した。Button/Switch/EditTextの最小高48dpと縦ScrollViewを維持した。
+- バージョンは`BuildConfig.VERSION_NAME`のまま表示し、buildをversionCode 11 / versionName 0.10.0へ更新した。
+- 現行音声面は固定50dp候補欄、4行キー高、左下キャンセル、partialの非選択表示、final候補tap確定、取消・レイヤー切替を既存testで満たしていたため、機能コードは変更していない。
+- 重複検出: `similarity-generic`が環境に無いためskip。今回の新規helperはSetupActivity内のカード生成と既存子Viewへのsurface tintに限定した。
+- `:app:testDebugUnitTest --tests com.masuidrive.gestureime.SetupActivitySlashCommandsTest :app:assembleDebug` は成功した。
+- `scripts/test-all.sh --parallel` はfast-checksとAndroid unit/lint/APK buildの両groupが成功した。
+- ローカル`site/manual.html`を390px幅で確認し、scrollWidth=innerWidth、画像読み込み欠落なし、v0.10.0表示を確認した。
+- `aac16f4`: Setupのsurface・視覚階層と意味あるRobolectric回帰。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -68,6 +81,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- decision 26へSetupの4セクション、48dp操作領域、Light/Dark追従、BuildConfig由来versionを追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
