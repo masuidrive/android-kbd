@@ -64,6 +64,11 @@
 - ローカル`site/manual.html`を390px幅で確認し、scrollWidth=innerWidth、画像読み込み欠落なし、v0.10.0表示を確認した。
 - `aac16f4`: Setupのsurface・視覚階層と意味あるRobolectric回帰。
 - `4a27e50`: v0.10版番号、SetupのLight/Dark画像、manual、technical reference、検証記録。
+- `17db40f`: 現行VOICE Unavailable画面へmanual画像を更新。
+- 独立reviewで、音声の許可・非対応controlがclick actionの有無を選択状態へ流用し、青いselected faceを描画していたMajorを確認した。選択状態と操作可能性を分離し、通常candidate faceのままclick/focus/actionを維持した。
+- 反例として通常の選択候補は従来どおりselected faceを使う既存`candidateGeometryMatchesHtmlReference`を修正前後で維持した。Permission/UnavailableはLight/Darkそれぞれ通常face色・文字色・shadowとclick/focusを回帰testへ固定した。
+- 修正APKをAPI 36.1 emulatorへinstallし、Lightでは白い通常face、Darkでは`#414144`の通常faceで「非対応」を表示することを原寸確認した。Light画像を`docs/screenshots/v0.10/voice-layer.png`とsite assetへ上書きした。
+- 修正後のfocused `CandidateStripViewTest`とAPK assemble、`scripts/test-all.sh --parallel`のfast-checks・Android unit/lint/APK buildがすべて成功した。AVDのnight modeは確認後Lightへ復元した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -84,7 +89,7 @@
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-- decision 26へSetupの4セクション、48dp操作領域、Light/Dark追従、BuildConfig由来versionを追記した。
+- decision 15へ音声Permission/Unavailable controlの通常candidate faceを、decision 26へSetupの4セクション、48dp操作領域、Light/Dark追従、BuildConfig由来versionを追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

@@ -131,17 +131,29 @@ class CandidateStripViewTest {
             assertEquals(82, control.width)
             assertEquals(34, control.height)
             assertEquals(7f, control.faceLayer().cornerRadius, .1f)
-            assertEquals(Color.rgb(23, 78, 166), control.faceColor())
+            assertEquals(Color.WHITE, control.faceColor())
             assertEquals(Color.rgb(137, 140, 148), control.shadowLayer().color!!.defaultColor)
+            assertEquals(Color.rgb(25, 25, 27), control.currentTextColor)
+            assertTrue(control.isEnabled)
+            assertTrue(control.isClickable)
+            assertTrue(control.isFocusable)
         }
     }
 
-    @Test @Config(qualifiers = "night") fun voiceControlUsesDarkCandidateFaceAndShadow() {
-        val view = view(); view.setVoiceState(VoiceUiSnapshot(14, VoiceUiState.PermissionRequired))
-        val control = view.textView("許可")
-        assertEquals(Color.rgb(168, 206, 255), control.faceColor())
-        assertEquals(Color.rgb(20, 20, 22), control.shadowLayer().color!!.defaultColor)
-        assertEquals(Color.rgb(16, 40, 68), control.currentTextColor)
+    @Test @Config(qualifiers = "night") fun permissionAndUnavailableUseDarkNormalCandidateFace() {
+        val view = view()
+        listOf(
+            VoiceUiState.PermissionRequired to "許可",
+            VoiceUiState.Unavailable("利用不可") to "非対応",
+        ).forEach { (state, text) ->
+            view.setVoiceState(VoiceUiSnapshot(14, state))
+            val control = view.textView(text)
+            assertEquals(Color.rgb(65, 65, 68), control.faceColor())
+            assertEquals(Color.rgb(20, 20, 22), control.shadowLayer().color!!.defaultColor)
+            assertEquals(Color.rgb(244, 244, 246), control.currentTextColor)
+            assertTrue(control.isClickable)
+            assertTrue(control.isFocusable)
+        }
     }
 
     @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {

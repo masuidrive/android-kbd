@@ -138,7 +138,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     }
 
     private fun addVoiceButton(text: String, description: String, action: VoiceUiAction?, sessionToken: Long = voiceSnapshot.sessionToken) {
-        voiceControls.addView(label(text, action != null).apply {
+        voiceControls.addView(label(text, false).apply {
             contentDescription = description
             isEnabled = action != null; isClickable = action != null; isFocusable = true
             if (action != null) setOnClickListener { onVoiceAction?.invoke(VoiceUiEvent(sessionToken, action)) }
