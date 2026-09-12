@@ -56,6 +56,7 @@
 - focused: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew :app:testDebugUnitTest --tests com.masuidrive.gestureime.keyboard.KeyboardLayoutsTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` — PASS。空recentの先頭24件、recent連結、drag時non-commit、catalog tap、固定control row、縮小host clamp、TalkBack scroll actionを固定した。
 - full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
 - review repair（commit pending）: mockはpointerupのみemoji commitとし、pointercancel/lost capture/cancelAll/cancelGestures/blur/visibility/resizeではgesture mapとpointer captureを入力なしで破棄する。native hostはスクロール可能な方向だけをTalkBackへ公開し、境界no-opはfalseを返す。focused/full PASS、browserのblur/cancel反例を記録した。
+- review attempt2 repair（commit pending）: emoji viewportのroot clickを他のkeyと同じ`e.detail == 0`限定へ戻し、物理pointerの確定をpointerup helperだけにした。browserで通常pointer tap 1回、keyboard click 1回、drag 0回、lost capture通知後のpointerup/click 0回、blur後 0回を確認した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -95,10 +96,10 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-| 1 | 対称関係・gesture完了 | Major | 前回Majorは`pointercancel`直後のhelper commitを止めたが、capture loss後の物理click fallbackからまだcommitできる | 未解消 | `site/mock.html:970-997`と`docs/reference/mock-source.html:893-913`。反例は、絵文字で`pointerdown`→pointer up前にcapture release（`lostpointercapture`がgesture mapを削除）→同じbutton上で`pointerup`。helperはcommitしないが、down/upの同一buttonから生成される`click`は`e.detail != 0`でもemoji viewportだけ許可され、drag markerも削除済みなので絵文字を入力する。blur/visibility/resize cleanupも同じく後続clickを抑止する状態を残さない。物理pointerの確定は`pointerup` helperだけに限定し、root clickは従来どおり`e.detail == 0`のkeyboard/accessibility activationだけを扱うか、cancel済みpointerの後続clickを明示的に抑止する。capture loss後のpointerup＋clickまで含むbrowser回帰を追加する |
+| 1 | 対称関係・gesture完了 | Major | 前回Majorは`pointercancel`直後のhelper commitを止めたが、capture loss後の物理click fallbackからまだcommitできる | 修正済み（再review待ち） | emoji viewportだけのphysical click許可を削除し、root clickは全keyで`e.detail == 0`のkeyboard/accessibility activationだけを扱う。物理pointerはpointerup helperだけがcommitする。browserで通常pointer tap 1回、keyboard click 1回、drag 0回、lost capture通知後のpointerup/click 0回、blur後のpointerup/click 0回を確認した。 |
 | 2 | TalkBack境界 | Minor | 先頭/末尾の不可能actionを公開し、no-opでも成功を返す | 解消 | `KeyboardView.kt:638-657`がoffsetに応じてforward/backwardを個別公開し、`scrollEmojiTo`の変更有無を返す。更新testは先頭backwardと末尾forwardのaction非公開・戻り値false、可能方向の移動を確認する |
 
-通常`pointerup`だけをhelper commitへ渡す分岐、cancel/capture loss時のmap先行clear、`cancelAll`/`cancelGestures`からのcleanup、native TalkBack境界はそれぞれ意図どおりで、通常tap・drag・fixed control row・scroll rangeへの新しい退行は見つからなかった。mock/reference sourceの修正形も同期している。ただしmock JavaScriptの自動testはなく、実browser証跡はcapture release「直後」の不変までで、後続pointerup/clickを含む上記反例を検証していない。前回Majorが残るためCritical/Major解消checklistは未完了のままとする。
+通常`pointerup`だけをhelper commitへ渡す分岐、cancel/capture loss時のmap先行clear、`cancelAll`/`cancelGestures`からのcleanup、native TalkBack境界はそれぞれ意図どおりで、通常tap・drag・fixed control row・scroll rangeへの新しい退行は見つからなかった。mock/reference sourceの修正形も同期している。公開mockは自動suiteがないためbrowserでcapture loss通知後のpointerup/clickまで反例を到達させ、入力なしを確認した。focused/fullも再実行してPASSした。Critical/Major解消の最終判定は再reviewへ残す。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

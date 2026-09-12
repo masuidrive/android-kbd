@@ -183,3 +183,4 @@
 [2026/09/12 14:51] 実機画像で絵文字一覧が2行＋頁操作になっているとの指摘を受けた。ページ式を廃止し、固定4行高の上3行をrecent＋全絵文字の縦スクロールviewport、最下段を固定レイヤー操作行にするticket `260912-055128-make-emoji-grid-scrollable` を作成した。recentが空なら先頭24件で3行を埋める。
 [2026/09/12 15:10] 絵文字レイヤーの上3行をrecent＋同梱catalogの連続scroll viewportへ変更し、頁操作を撤去した。nativeと公開mockでtap・削除・layer flick・4行高を維持し、dragはtapをcancelしてscrollする。Robolectric focused testとbrowser実pointerでtap確定、drag後non-commit、scrollを確認した。
 [2026/09/12 15:25] 絵文字scroll reviewを修正し、公開mockはpointerupだけで確定し、cancel・capture loss・blur・visibility・resizeでは入力せずgesture stateを破棄するようにした。TalkBackは可能な方向だけを公開し、端のno-opをfalseにした。focused/full testとbrowserのblur/cancel反例を確認した。
+[2026/09/12 15:34] 絵文字scroll review attempt2を修正し、物理pointerの確定をpointerup helperだけに限定した。root clickはkeyboard・支援技術のdetail 0操作のみ処理する。公開mockで通常tap 1回、keyboard click 1回、drag/capture loss後/blur後の入力なしを確認し、focused/full testをPASSした。

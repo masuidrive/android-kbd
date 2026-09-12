@@ -908,7 +908,7 @@
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
-      if(e.detail!==0&&!b.closest('.emoji-scroll-viewport'))return;
+      if(e.detail!==0)return;
       if(emojiViewportDrags.size)return;
       const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji){emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);persistEmojiRecents();}insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
