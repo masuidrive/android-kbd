@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-020803-replace-cursor-layer-with-emoji
 description: "Make the emoji grid vertically scrollable and fill three visible rows"
 created_at: "2026-09-12T05:51:28Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T05:52:48Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
