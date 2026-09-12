@@ -27,6 +27,7 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+2026-09-12: ユーザ指定の見出しと説明内容がACへ明記され、静的コピー以外は対象外のため追加判断なし。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -41,10 +42,17 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
+2026-09-12: 見出しの完全一致、説明の操作語、他カード非変更を静的差分で確認する。
+
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+2026-09-12: `site/index.html`の機能01だけを「かなはフリック入力」へ変更し、中央タップ・上下左右フリック・Mozc候補表示を簡潔に説明した。他の機能カードとnative/mock/manualは変更していない。
+
+- 重複検出 skip: HTML文言1箇所だけの変更で構造変更なし。
+- 静的検証: 見出し完全一致、説明に中央タップ・上下左右フリック・Mozcを含み、差分が機能01だけであることを確認。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -64,6 +72,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+該当なし。製品トップの既存動作を説明するコピーだけの変更で、実装決定は変わらない。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

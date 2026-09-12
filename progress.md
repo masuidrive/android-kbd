@@ -144,3 +144,4 @@
 [2026/09/12 08:57] 音声認識の途中結果と最終候補だけを候補欄の可視幅以内・最大2行・末尾省略で表示するよう変更。通常の日本語変換・英字補完・スラッシュ候補は1行横スクロールを維持し、Mobile 390pxとTablet 840pxのLight/Darkで固定高と横overflow 0を確認した。全test suite PASS、独立reviewはCritical/Majorなし。
 [2026/09/12 09:01] 音声候補の2行表示を既存owner_only Sites `https://fez69vft.aboutme.style/`へ公開。36ファイル・3,809,600 bytesで、ローカルと公開先のpath/SHA-256が全件一致した。
 [2026/09/12 09:02] 音声候補改行の実装・検証・公開記録を `github.com/masuidrive/android-kbd` の `features/260911-234748-wrap-long-voice-candidates`へpushした。
+[2026/09/12 09:06] 製品トップの機能01を「かなはフリック入力」へ変更し、中央タップと上下左右フリックによるかな入力、Mozc候補表示を説明する文面へ更新。他の機能カードとnative/mock/manualは変更していない。公開・pushは未実施。
