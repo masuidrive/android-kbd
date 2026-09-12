@@ -18,7 +18,7 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: APK同梱catalogと端末内SharedPreferencesだけを使い、外部providerを設けないticketである。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
@@ -69,7 +69,24 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 対称関係・test到達可能性 | Major | 公開mockのemoji gestureは`pointercancel`と`lostpointercapture`でもtapと同じhelperを呼び、12pxのdrag判定前なら絵文字を確定する | 採用待ち | `site/mock.html:963-975`と`docs/reference/mock-source.html:887-900`。絵文字へ`pointerdown`後、移動せず`pointercancel`を送ると`finishEmojiViewportGesture`が`insertEmoji`/`insert`を実行する。`cancelAll`/`cancelGestures`も新しいgesture mapを消さない。nativeの`ACTION_CANCEL`と`docs/reference/html-mock-implementation.md:102`の「確定せず破棄」に反する。helperへcancel引数を渡し、cancel/capture loss/blur/visibility/resizeではmapとcaptureを入力なしで破棄するbrowser回帰を追加する |
+| 2 | TalkBack境界 | Minor | native hostはscroll端でも前後両actionを公開し、offsetが変わらないactionを成功として返す | 採用待ち | `KeyboardView.kt:636-652`。先頭で`ACTION_SCROLL_BACKWARD`、末尾で`ACTION_SCROLL_FORWARD`を実行するとclampにより表示は不変だが`true`になる。現在のtestは先頭→forward→backwardだけで端のno-opを検査しない。現在offsetから可能な方向だけを公開し、移動しない場合は`false`を返す境界testを追加する |
+
+対象: base `8e58f0a7a13d3f7abd3c6d3420f78305bac9481c`、target `042922affc204811f93320ab3d81c55fe6abede6`（implementation `4203855`、docs `042922a`）。Criticalなし、Major 1、Minor 1。
+
+### AC / 確定判断の対応
+
+- AC 1: `KeyboardLayouts.emojiContentRows`の先頭3行と`emojiControlRow`を4行layoutへ組み、`KeyboardView.buildEmojiHitTargets`が上3行viewportと4行目controlを分離する。layout/view testが4行高と3行描画を確認する。
+- AC 2: `EmojiScrollGesture`が12dp以降をtapから切り離し、pixel offsetを実row pitch由来の範囲へclampする。通常高と縮小hostのview testが到達する。
+- AC 3: normalized recentと32件catalogを空行なしで連結して8件ずつchunkする。layout testが重複recent除去後の順序、5 content rows、各8 width unitを確認する。
+- AC 4: `ChangeEmojiPage`とpage state/actionをmodel・service・layoutから削除し、固定control rowへ既存layer flickとbackspaceを置く。nativeのdrag非commit・catalog tap・layer tap、および既存backspace gesture testsへ到達する。
+- AC 5: nativeはCanvas clipと可視hit/accessibility node、mockはoverflow viewportとpointer追従、docsは3行連続scrollへ更新した。Light/Darkと幅は既存共有geometryを維持する。ただし公開mockのcancel経路はFinding 1により未達である。
+- 縦方向・上3行viewport・固定最下段: `buildEmojiHitTargets`とmockの`.emoji-scroll-viewport`＋別control rowへ対応する。
+- recent＋catalog連結・空recent行なし: `emojiContentRows`と両mockの`emojiRows`へ対応する。
+- 行単位に制限しない追従・端clamp: nativeのfloat offsetとmockの`scrollTop`へ対応する。
+- Architectural Invariant / Out-of-scope: catalogは静的同梱、recent保存形式と`CommitEmoji`経路、4行preset、Space cursorに変更なし。
+
+既存focused/full PASSはnative layout/viewとbuild回帰の証拠として妥当だが、mock JavaScriptを自動実行するsuiteはなく、記録された実browser確認も正常tap・dragだけでcancel反例へ到達していない。Finding 1のためPDH-reviewの修正前後確認とCritical/Major解消checklistは未完了のままとする。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
