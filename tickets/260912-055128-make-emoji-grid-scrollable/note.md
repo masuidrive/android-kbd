@@ -129,7 +129,13 @@
 
 - `versionCode`を13、`versionName`を`0.12.0`へ更新した。製品紹介、操作モック、マニュアルの5本のAPK導線はすべて`v0.12.0/gesture-ime-v0.12.0.apk`を指す。manualの現行変更節と`docs/v0.12-release-notes.md`は、上3行の連続scroll viewport、空recent時のcatalog先頭24件、固定bottom row、cancel時non-commitだけをv0.12差分として記録する。
 - `scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/APKの2/2 PASS。`app/build/outputs/apk/debug/gesture-ime-v0.12.0.apk`はversionCode 13 / versionName 0.12.0、minSdk 28、targetSdk 36、`arm64-v8a`のみ、v2署名1 signerで検査した。権限は`RECORD_AUDIO`とAndroidXのdynamic receiver permissionだけで、`INTERNET`はない。SHA-256は`e5ab16234ed43f0410f3e81ddfeab46cba7ffc47d85f39d366bb2fc72f0a29c0`。
-- `site/`内にAPK/ZIPは置かない。GitHub Release、push、Sites公開は未実施。
+- `site/`内にAPK/ZIPは置かない構成で公開する。GitHub Release、push、Sites公開の結果は次節へ記録した。
+
+## Publication (v0.12.0)
+
+- GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.12.0`をtarget `7ec77d965319ef88d51ffd42121d62b1b28c8230`で作成し、未圧縮APK `gesture-ime-v0.12.0.apk`を公開した。再downloadした34,926,348 bytesはlocal APKとbyte一致し、SHA-256は`e5ab16234ed43f0410f3e81ddfeab46cba7ffc47d85f39d366bb2fc72f0a29c0`で一致した。
+- 既存Hanger Sites `https://fez69vft.aboutme.style/`を表示名`Gesture IME v0.12.0`で更新した。local/remoteは45ファイルのpath・size・SHA-256が全件一致し、remoteのAPK/ZIPは0件、access mode `owner_only`と期限`2026-09-18T14:00:31.603Z`を維持した。
+- 公開browserでtop、standalone demo、manualを確認した。埋め込みmockは空recentで上3行24件、catalog 32件、pager 0、viewport 165px、scroll max 55pxを示した。😀tapは入力を1回だけ追加しrecent追加後のscroll max 110pxへ到達した。Light/Mobile 390pxとDark/Tablet 1024pxはpage/mockともhorizontal overflow 0、画像破損0で、manualのv0.12 scroll画像とAPK導線も有効だった。
 
 ### Release-prep review
 
