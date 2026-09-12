@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-002431-align-native-settings-and-voice-ui
 description: "Enable all optional input settings except terminal cursor by default"
 created_at: "2026-09-12T01:42:04Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T01:43:15Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
