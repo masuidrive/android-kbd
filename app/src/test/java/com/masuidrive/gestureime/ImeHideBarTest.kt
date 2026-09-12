@@ -46,14 +46,36 @@ class ImeHideBarTest {
             assertEquals((KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt(), keyboard.measuredHeight)
         }
 
-        ViewCompat.dispatchApplyWindowInsets(root, WindowInsetsCompat.Builder()
+        val firstInset = WindowInsetsCompat.Builder()
             .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 31))
             .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 12))
-            .build())
+            .build()
+        val secondInset = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 17))
+            .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 40))
+            .build()
+        val noInset = WindowInsetsCompat.Builder().build()
 
+        ViewCompat.dispatchApplyWindowInsets(root, firstInset)
+        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 31)
+        ViewCompat.dispatchApplyWindowInsets(root, firstInset)
+        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 31)
+        ViewCompat.dispatchApplyWindowInsets(root, secondInset)
+        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 40)
+        ViewCompat.dispatchApplyWindowInsets(root, noInset)
+        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 0)
+    }
+
+    private fun assertHideBarInset(
+        hideBar: FrameLayout,
+        keyboard: KeyboardView,
+        hideBarHeight: Int,
+        bottomInset: Int,
+    ) {
         assertEquals(0, keyboard.paddingBottom)
-        assertEquals(31, hideBar.paddingBottom)
-        assertEquals(expectedHideHeight + 31, hideBar.layoutParams.height)
+        assertEquals(bottomInset, hideBar.paddingBottom)
+        assertEquals(hideBarHeight + bottomInset, hideBar.layoutParams.height)
+        assertEquals((KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt(), keyboard.measuredHeight)
     }
 
     @Test

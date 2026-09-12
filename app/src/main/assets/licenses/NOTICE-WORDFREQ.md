@@ -1,6 +1,6 @@
 # wordfreq English data notice
 
-Gesture IME includes a derived, ASCII-letter-only frequency list generated from `small_en.msgpack.gz` in rspeer/wordfreq commit `912caf64b657478d1dff1138efdc078947d54bb1`.
+masuidrive-kbd includes a derived, ASCII-letter-only frequency list generated from `small_en.msgpack.gz` in rspeer/wordfreq commit `912caf64b657478d1dff1138efdc078947d54bb1`.
 
 Source SHA-256: `f94a80cba6a3857b260d0666b5432bb7ea9b85315574dee9c306e87f61298247`.
 Source URL: <https://raw.githubusercontent.com/rspeer/wordfreq/912caf64b657478d1dff1138efdc078947d54bb1/wordfreq/data/small_en.msgpack.gz>

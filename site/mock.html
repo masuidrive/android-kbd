@@ -559,6 +559,8 @@
       keyboard.hidden=true;
       editor.blur();
       announce('キーボードを閉じました');
+      postDemoHeight();
+      return true;
     }
     else if(id==='backspace'||id==='flick-backspace')erase();
     else if(id==='left'||id==='right')moveCursor(id==='left'?-1:1);
@@ -820,6 +822,10 @@
     dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
     $('[data-english-candidates]').setAttribute('aria-pressed',String(englishCandidatesEnabled));
     persistState();
+    postDemoHeight();
+  }
+
+  function postDemoHeight() {
     requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin));
   }
   function direction(dx,dy) {
@@ -1010,7 +1016,7 @@
     if(!keyboard.hidden)return;
     keyboard.hidden=false;
     announce('キーボードを表示しました');
-    requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin));
+    postDemoHeight();
   });
   editor.addEventListener('pointerup',()=>{preferredCursorX=null;lastSpace=-Infinity;syncComposition();render();});
   editor.addEventListener('keydown',e=>{
@@ -1061,7 +1067,6 @@
   $('.device-size').textContent=displayModes[root.dataset.device].label;
   updateCount();
   render();
-  parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin);
 })();
 </script>
 </div>
