@@ -325,7 +325,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             var downX = 0f
             var downY = 0f
             val touchSlop = ViewConfiguration.get(holder.context).scaledTouchSlop
-            holder.setOnTouchListener { view, event ->
+            holder.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN -> {
                         downX = event.x
@@ -335,7 +335,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                         if (kotlin.math.abs(event.x - downX) <= touchSlop &&
                             kotlin.math.abs(event.y - downY) <= touchSlop
                         ) {
-                            beginEmojiCategoryTransition(picker, view)
+                            beginEmojiCategoryTransition(picker)
                         }
                     }
                 }
@@ -343,9 +343,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 false
             }
             holder.isFocusable = true
-            holder.setOnKeyListener { view, keyCode, event ->
+            holder.setOnKeyListener { _, keyCode, event ->
                 if (isEmojiCategoryActivationKey(keyCode, event.action)) {
-                    beginEmojiCategoryTransition(picker, view)
+                    beginEmojiCategoryTransition(picker)
                 }
                 // AndroidX's click action remains responsible for category selection.
                 false
@@ -353,7 +353,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             ViewCompat.setAccessibilityDelegate(holder, object : androidx.core.view.AccessibilityDelegateCompat() {
                 override fun performAccessibilityAction(host: View, action: Int, arguments: android.os.Bundle?): Boolean {
                     if (isEmojiCategoryAccessibilityAction(action)) {
-                        beginEmojiCategoryTransition(picker, host)
+                        beginEmojiCategoryTransition(picker)
                     }
                     return super.performAccessibilityAction(host, action, arguments)
                 }
@@ -366,7 +366,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         repeat(header.childCount) { install(header.getChildAt(it)) }
     }
 
-    private fun beginEmojiCategoryTransition(picker: EmojiPickerView, holder: View) {
+    private fun beginEmojiCategoryTransition(picker: EmojiPickerView) {
         val body = pickerBodies[picker] ?: return
         val generation = ++emojiCategoryTransitionGeneration
         pickerViewportLocked.remove(picker)
@@ -384,8 +384,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 }
             })
         } else {
-            holder.post { completeEmojiCategoryTransition(picker, body, generation) }
+            body.post { completeEmojiCategoryTransition(picker, body, generation) }
         }
+        // Re-tapping the selected category may not schedule a draw. Do not leave its
+        // transition pending and accidentally suppress a later body layout.
+        body.postDelayed(
+            { completeEmojiCategoryTransition(picker, body, generation) },
+            EMOJI_CATEGORY_TRANSITION_FALLBACK_MS,
+        )
     }
 
     private fun completeEmojiCategoryTransition(picker: EmojiPickerView, body: RecyclerView, generation: Long) {
@@ -1279,6 +1285,7 @@ internal fun isEligibleHistoryLongPress(
 private const val MAX_ENGLISH_BUFFER = 64
 private const val MAX_ENGLISH_CANDIDATES = 5
 private const val EMOJI_PICKER_BODY_SPACER_DP = 8f
+private const val EMOJI_CATEGORY_TRANSITION_FALLBACK_MS = 100L
 
 /** Returns the body-coordinate lower edge of three attached AndroidX emoji rows. */
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
