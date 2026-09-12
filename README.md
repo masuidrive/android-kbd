@@ -31,6 +31,8 @@ adb shell ime set com.masuidrive.gestureime/.ImeService
 
 セットアップ画面は、status barの下に固定した「masuidrive-kbd 設定」バーから戻れます。設定内容だけをスクロールでき、Light/Darkのsystem bar iconもAndroidテーマへ追従します。
 
+入力設定の「キーボードの高さ」では小・標準・大を選べます。標準は従来のスマホ幅と同じ55dp row pitchで、キー4行は228dpです。画面幅とDual Flickは列数だけを変え、候補欄50dpとnavigation barのsafe areaはキー4行の高さへ加えません。
+
 左下のレイヤーキーは、左フリックを保持すると音声入力、上で日本語、右でQWERTY、下でテンキーへ切り替えます。記号は「#!」キーで開きます。Enterは上フリックでCtrl+J、下フリックでPasteです。候補内容が変わると候補欄は先頭へ戻り、選択中候補だけをaccent色で示します。QWERTYラベル調整は正本HTMLに合わせた既定値からの相対調整として保存されます。
 
 見えるキー間の横6dp・縦10dpの隙間も、中央を境に最寄りのキーへ割り当てます。キーの形状と間隔を保ったまま隙間付近のタップを受け付け、EMPTYで予約した領域は入力しません。フリック方向の判定閾値は18dpのままです。

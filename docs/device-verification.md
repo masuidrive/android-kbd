@@ -169,6 +169,14 @@ The final APK SHA `3411e9e0cf0ef4cc6c91fe593fe7a162bd0618d55d60907da40b5b7ea50be
 
 After verification, Dual Flick, terminal cursor, and English suggestions were OFF. The display remained 1080 × 2400 px at 420 dpi, QWERTY was restored as the last layer, and Gesture IME remained selected.
 
+## Keyboard-height verification on API 36
+
+The ticket build was installed on `emulator-5554` (`sdk_gphone64_arm64`, API 36). With Gesture IME explicitly selected and `show_ime_with_hard_keyboard=1`, the normal `EditText` displayed the 50dp candidate strip, four complete QWERTY rows, and the navigation safe area at the 1080 × 2400 px / 420 dpi (412dp) profile. Evidence: `tickets/260912-014943-fixed-keyboard-height/tmp/keyboard-height-standard-phone.png`.
+
+The same focused editor was then measured at a 2205 × 2400 px override (840dp equivalent) and after landscape rotation. The wider capture has the same four row faces while its columns expand; the landscape capture still shows all four rows and the bottom navigation safe area. Evidence: `tickets/260912-014943-fixed-keyboard-height/tmp/keyboard-height-standard-inner.png` and `tickets/260912-014943-fixed-keyboard-height/tmp/keyboard-height-standard-landscape.png`.
+
+The emulator was restored to 1080 × 2400 px, portrait rotation `0`, and `show_ime_with_hard_keyboard=0` after capture. This is emulator evidence; Fold7 hardware, hinge transitions, and physical multi-touch remain unverified.
+
 ## v0.7 Light/Dark theme on API 36.1
 
 The final version code 7 APK SHA is `e0b58e00fd4b73c49d94bdceb2d7f7fcaa9e1f2d0d5679684b31b7a229259847`. It was installed on `emulator-5556` at 1080 × 2400 px / 420 dpi.

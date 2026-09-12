@@ -171,3 +171,4 @@
 [2026/09/12 11:46] 次単語予測の自己selectionと遅延照会raceを修正し、独立再reviewはCritical/Majorなし。focused JVM 62/62、API 36.1 arm64 AVDの同梱Mozc connected test 11/11でAC 1〜5を確認した。system IME手動journeyは既知の初回高さ溢れを先に直して再確認する。
 [2026/09/12 11:56] Setup画面をAPI 35/36 edge-to-edgeのsafe areaへ対応させ、status/navigation barを跨がない固定「masuidrive-kbd 設定」バー、48dp戻るicon、scroll終端のbottom inset、Light/Dark icon appearanceを実装した。API 36 arm64 AVDのLight/Dark portraitとDark landscapeで実画面を確認し、最新manual画像を更新した。
 [2026/09/12 12:07] Setup safe areaと固定トップバーを独立review・AC verifyし、Critical/Majorなし、AC 1〜5達成、focused 6/6・full suite 2/2 PASSを確認した。物理Fold以外のLight/Dark portrait・landscape・scroll終端を実画面で確認した。
+[2026/09/12 12:27] キーボード高さを小・標準・大へ保存可能にし、標準55dp row pitchの4行を幅・Dual Flickから固定した。API 36 AVDの412dp、840dp相当、landscapeで候補欄・4行・navigation safe areaを実表示し、focused JVM testsとfull suiteをPASSした。
