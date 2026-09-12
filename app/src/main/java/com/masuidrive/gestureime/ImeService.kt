@@ -109,6 +109,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var voiceHoldReady = false
     private var voiceHoldReleased = false
     private var voiceHoldGeneration = 0L
+    /** Invalidates queued voice-candidate commits when the dedicated layer leaves. */
+    private var voiceSessionGeneration = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -571,7 +573,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
-        cancelVoiceHold()
+        if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         invalidateEnglish(clearComposing = false)
         invalidateSlash(clearComposing = false)
@@ -633,6 +635,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onKeyAction(action: KeyAction) {
         val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
+        // A destructive voice-layer action must invalidate a queued candidate tap before the
+        // action mutex reaches it. This closes the small queueing window after a user cancels
+        // or flicks away from the layer and before a preview tap could commit/restart.
+        if (keyboardMode == KeyboardMode.VOICE &&
+            (action == KeyAction.CancelVoice || action is KeyAction.SwitchLayer)
+        ) {
+            invalidateContinuousVoiceSession()
+        }
         if (!voiceCandidateSelection) {
             cancelVoiceHold()
             if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
@@ -864,25 +874,52 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         voiceReturnMode = keyboardMode
         keyboardMode = KeyboardMode.VOICE
         keyboardView?.setMode(KeyboardMode.VOICE)
+        keyboardView?.setVoiceSessionActive(false)
         updateEmojiPickerVisibility()
         candidateSource = CandidateSource.VOICE
         candidates = emptyList()
         showCandidateStrip(emptyList(), -1)
-        voiceController.start(editorToken)
+        voiceSessionGeneration++
+        startContinuousVoiceRecognition(editorToken, voiceSessionGeneration)
     }
 
     private fun commitVoiceCandidate(index: Int, token: Long) {
+        val session = voiceSessionGeneration
+        if (!isCurrentContinuousVoiceSession(session, token)) return
         val text = voiceController.confirm(token, index) ?: return
-        editorSession.runIfCurrent(token) { textController.commitText(text) }
-        leaveVoiceLayer()
+        if (!isCurrentContinuousVoiceSession(session, token)) return
+        var committed = false
+        if (!editorSession.runIfCurrent(token) { committed = textController.commitText(text) } || !committed) return
+        if (!isCurrentContinuousVoiceSession(session, token)) return
+        // confirm() synchronously clears the preview through onVoiceState(Idle). Restart only
+        // after that clear and the guarded single editor commit have both completed.
+        startContinuousVoiceRecognition(token, session)
     }
 
     private fun cancelVoiceSession() {
-        voiceController.cancel(notify = false)
+        invalidateContinuousVoiceSession()
         leaveVoiceLayer()
     }
 
+    private fun invalidateContinuousVoiceSession() {
+        voiceSessionGeneration++
+        voiceController.cancel(notify = false)
+        keyboardView?.setVoiceSessionActive(false)
+    }
+
+    private fun startContinuousVoiceRecognition(token: Long, session: Long) {
+        if (!isCurrentContinuousVoiceSession(session, token)) return
+        voiceController.start(token)
+    }
+
+    private fun isCurrentContinuousVoiceSession(session: Long, token: Long): Boolean =
+        session == voiceSessionGeneration &&
+            keyboardMode == KeyboardMode.VOICE &&
+            editorSession.isCurrent(token) &&
+            !textController.isPrivateField
+
     private fun leaveVoiceLayer() {
+        keyboardView?.setVoiceSessionActive(false)
         candidateSource = CandidateSource.NONE
         candidates = emptyList()
         showCandidateStrip(emptyList(), -1)
@@ -1244,6 +1281,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
         if (keyboardMode == KeyboardMode.VOICE) {
+            keyboardView?.setVoiceSessionActive(state.isContinuousVoiceSession())
             when (state) {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
@@ -1544,6 +1582,18 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
     is VoiceBackendState.Preview -> VoiceUiState.Preview(candidates.firstOrNull().orEmpty())
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
+}
+
+private fun VoiceBackendState.isContinuousVoiceSession(): Boolean = when (this) {
+    VoiceBackendState.Recording,
+    VoiceBackendState.Recognizing,
+    is VoiceBackendState.Partial,
+    is VoiceBackendState.Preview,
+    -> true
+    VoiceBackendState.Idle,
+    VoiceBackendState.PermissionRequired,
+    is VoiceBackendState.Unavailable,
+    -> false
 }
 
 internal fun String.toKatakana(): String = map { char ->

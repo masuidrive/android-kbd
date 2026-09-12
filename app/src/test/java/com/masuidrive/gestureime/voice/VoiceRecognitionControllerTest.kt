@@ -105,6 +105,24 @@ class VoiceRecognitionControllerTest {
         assertEquals(VoiceBackendState.Preview(listOf("元の欄")) to 21L, states.last())
     }
 
+    @Test
+    fun confirmThenSameEditorStartCreatesANewSessionAndDropsThePreviousCallback() {
+        val controller = controller()
+        controller.start(31)
+        recognizer.supportCallback?.invoke(true)
+        val firstListener = recognizer.listener
+        firstListener?.onResults(listOf("一回目"))
+
+        assertEquals("一回目", controller.confirm(31))
+        controller.start(31)
+        recognizer.supportCallback?.invoke(true)
+        firstListener?.onResults(listOf("古い結果"))
+        recognizer.listener?.onResults(listOf("二回目"))
+
+        assertEquals(VoiceBackendState.Preview(listOf("二回目")) to 31L, states.last())
+        assertEquals(2, recognizer.startCount)
+    }
+
     private fun controller(
         sdk: Int = 35,
         permission: Boolean = true,

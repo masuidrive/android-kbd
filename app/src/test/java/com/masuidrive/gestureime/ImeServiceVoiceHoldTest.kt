@@ -7,6 +7,9 @@ import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.conversion.*
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.keyboard.KeyAction
+import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardUiState
+import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.voice.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -18,7 +21,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class ImeServiceVoiceHoldTest {
-    @Test fun voiceLayerShowsMultipleCandidatesAndCommitsTappedChoiceBeforeReturning() {
+    @Test fun voiceLayerShowsMultipleCandidatesAndCommitsTappedChoiceThenRestarts() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold)
         h.idle()
@@ -33,7 +36,53 @@ class ImeServiceVoiceHoldTest {
         h.idle()
 
         assertEquals("第二候補", h.input.text)
-        assertEquals("QWERTYキーボード", h.root.findKeyboard().contentDescription)
+        assertEquals("音声キーボード", h.root.findKeyboard().contentDescription)
+        assertTrue(!h.root.allText().contains("第一候補"))
+        h.recognizer.support?.invoke(true)
+        h.recognizer.ready()
+        h.recognizer.result("次の候補")
+        h.idle()
+        assertTrue(h.root.allText().contains("次の候補"))
+    }
+
+    @Test fun voiceCandidateCanCommitTwiceThenCancelDropsOldCallbackAndRestoresLayer() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("一回目"); h.idle()
+        h.root.findText("一回目").performClick(); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("二回目"); h.idle()
+        h.root.findText("二回目").performClick(); h.idle()
+
+        assertEquals("一回目二回目", h.input.text)
+        assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
+        assertEquals(2, h.recognizer.startCount)
+
+        val stale = h.recognizer.listener
+        h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
+        stale?.onResults(listOf("破棄")); h.idle()
+
+        assertEquals("一回目二回目", h.input.text)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
+        assertEquals(2, h.recognizer.startCount)
+    }
+
+    @Test fun editorChangeAndErrorStopContinuousVoiceWithoutStatusOrRestart() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        assertTrue(h.root.findKeyboard().voiceSessionActive())
+        val stale = h.recognizer.listener
+
+        h.service.onStartInput(EditorInfo(), false)
+        stale?.onResults(listOf("別editor")); h.idle()
+        assertEquals("", h.input.text)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
+        assertEquals(1, h.recognizer.startCount)
+
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+        assertTrue(!h.root.findKeyboard().voiceSessionActive())
+        assertEquals(2, h.recognizer.startCount)
     }
 
     @Test fun earlyResultWaitsForReleaseAndCommitsOnce() {
@@ -89,10 +138,12 @@ class ImeServiceVoiceHoldTest {
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
     private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; override fun commitText(t:CharSequence?,n:Int):Boolean { text+=t?.toString() ?: ""; return true } }
-    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
+    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; var startCount=0; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){startCount++}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 
     private fun View.allText():List<String> { val result=mutableListOf<String>(); fun visit(v:View){ if(v is android.widget.TextView) result+=v.text.toString(); if(v is android.view.ViewGroup) repeat(v.childCount){visit(v.getChildAt(it))} }; visit(this); return result }
     private fun View.findText(text:String):android.widget.TextView { if(this is android.widget.TextView && this.text.toString()==text)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findText(text)}}; error("missing $text") }
     private fun View.findKeyboard():com.masuidrive.gestureime.keyboard.KeyboardView { if(this is com.masuidrive.gestureime.keyboard.KeyboardView)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findKeyboard()}}; error("missing keyboard") }
+    private fun KeyboardView.mode(): KeyboardMode = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).mode
+    private fun KeyboardView.voiceSessionActive(): Boolean = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceSessionActive
 }

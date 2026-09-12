@@ -155,6 +155,18 @@ class KeyboardView @JvmOverloads constructor(
         if (state.mode == KeyboardMode.EMOJI) rebuildLayout() else invalidate()
     }
 
+    /**
+     * Keeps the voice-session status in the existing empty portion of the bottom row.  It does
+     * not create a key or alter the four-row geometry, so Cancel and its flick targets retain
+     * their measured bounds.
+     */
+    fun setVoiceSessionActive(active: Boolean) {
+        if (state.voiceSessionActive == active) return
+        state = state.copy(voiceSessionActive = active)
+        accessibilityHelper.invalidateRoot()
+        invalidate()
+    }
+
     fun setPreviewOnly(enabled: Boolean) {
         cancelActiveGestures()
         previewOnly = enabled
@@ -305,6 +317,19 @@ class KeyboardView @JvmOverloads constructor(
                 drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
             }
         }
+        if (state.mode == KeyboardMode.VOICE && state.voiceSessionActive) drawVoiceSessionStatus(canvas)
+    }
+
+    private fun drawVoiceSessionStatus(canvas: Canvas) {
+        val cancel = hitTargets.firstOrNull { it.spec.id == "voice-cancel" } ?: return
+        textPaint.color = context.getColor(R.color.keyboard_muted_text)
+        textPaint.alpha = 255
+        textPaint.textSize = sp(13f)
+        textPaint.textAlign = Paint.Align.LEFT
+        val x = cancel.bounds.right + dp(8f)
+        val y = cancel.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
+        canvas.drawText("認識中", x, y, textPaint)
+        textPaint.textAlign = Paint.Align.CENTER
     }
 
     private fun buildHitTargets(top: Float) {

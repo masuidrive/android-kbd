@@ -88,4 +88,6 @@ data class KeyboardUiState(
     val dualFlickEnabled: Boolean = false,
     val heightPreset: KeyboardHeightPreset = KeyboardHeightPreset.STANDARD,
     val emojiRecents: List<String> = emptyList(),
+    /** True only while the dedicated voice layer owns a live recognition session. */
+    val voiceSessionActive: Boolean = false,
 )

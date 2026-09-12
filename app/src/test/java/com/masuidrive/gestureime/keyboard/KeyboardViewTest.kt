@@ -297,6 +297,24 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
+    @Test fun `voice session status draws beside cancel without creating a key or changing its target`() {
+        view.setMode(KeyboardMode.VOICE)
+        val cancelBefore = keyBounds(3)
+        val nodesBefore = requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount
+
+        view.setVoiceSessionActive(true)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+
+        assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right })
+        assertEquals(cancelBefore, keyBounds(3))
+        assertEquals(228, view.measuredHeight)
+        assertEquals(nodesBefore, requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)).childCount)
+
+        view.setVoiceSessionActive(false)
+        val idle = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertFalse(idle.draws.any { it.text == "認識中" })
+    }
+
     @Test fun `right layer swipe stays qwerty and second pointer does not duplicate voice entry`() {
         val events = mutableListOf<VoiceHoldEvent>()
         view.voiceHoldSink = VoiceHoldSink(events::add)
