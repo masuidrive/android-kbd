@@ -193,3 +193,4 @@
 [2026/09/12 16:53] IME下端の28dp閉じるバー、入力テストのsafe-area対応トップバー、利用者向け`masuidrive-kbd`表記統一を実装した。独立reviewの3件を修正し、埋込demoの高さは469px→163px→469pxへ追従、API 36 AVDではシェブロンtap後にIME消失と`mInputShown=false`を確認した。
 [2026/09/12 17:01] 絵文字recentを候補欄へ移し、固定32件の一覧をAndroidX Emoji Picker 1.6.0へ置き換えるticket `260912-080017-show-emoji-recents-and-expand-catalog` を作成した。最上段をカテゴリ行、次の2行を縦scroll一覧、最下段を既存操作にし、候補faceも34dpから38dpへ広げて上側の空白を4dp詰める。
 [2026/09/12 17:07] Android公式Emoji Pickerの仕様を確認した。stable 1.6.0はEmoji 16.0、横カテゴリheader、縦一覧、recent provider、長押しvariationを提供し、minSdk 23で現appへ導入可能。preview 1.7.0-rc01はcompileSdk 37.1要件があるため採用しない。
+[2026/09/12 17:13] 絵文字picker最上段の先頭カテゴリをRecentとし、選ぶと下の2行へ最近使った履歴を表示する契約を明確化した。候補欄の最大8件shortcutと同じ端末内履歴を共有し、どちらから選んでも先頭へ同期する。
