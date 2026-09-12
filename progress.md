@@ -224,3 +224,5 @@
 [2026/09/13 00:12] 音声の長発話partial fallbackと固定縦候補panel、tap不能状態表示、候補確定後の認識中復帰を実装。絵文字Recentを100件LRU、category iconを48dp固定にし、native/mockの独自閉じる行を削除した。mockはreadonly・focus枠なし・外側gray・mode切替上下12pxへ同期。native focused 8 classは82/82 PASS、mock mirror・JS syntax・fast-checks・412/840px browser確認もPASS。
 [2026/09/13 00:19] 全unit suiteで絵文字categoryの48dp固定処理が同じlayoutParamsをglobal layoutごとに再代入し、`ImeServiceEnglishSuggestionTest.emojiCommit...`のRecyclerView layoutを100秒以上循環させるMajorを検出。thread dumpで`enforceEmojiCategoryHolderWidth`起点を特定し、実行を中断して修正へ戻した。
 [2026/09/13 00:22] 絵文字categoryの48dp正規化を同値時にはminimumWidthとlayoutParamsを書き戻さないidempotent処理へ修正。二重適用の回帰testを追加し、以前停止したemoji commit testとfocused 8 classは6秒でPASSした。
+[2026/09/13 00:26] 48dp再レイアウト修正後の全suiteはfast-checksとAndroid unit・lint・APKの2/2 PASS。独立Terra reviewもCritical・Major・Minorすべて0件だった。
+[2026/09/13 00:31] v0.14.0をAPI 36 emulatorで確認し、音声非対応を固定panelのplain text、絵文字を等幅categoryと3行grid、独自hide rowなしで表示した。connected testは11/11 PASS。v0.14実画面をマニュアルへ追加した。

@@ -1,6 +1,6 @@
 # Work Notes: 260912-122938-keep-voice-listening-until-cancel
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -13,28 +13,28 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内`SpeechRecognizer`だけを使い、外部provider/APIはticketのinvariantで禁止される。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] 実機feedback: Emoji Recentは候補欄shortcutと切り離し、通常gridへ最近使った最大100件を並べる
-- [ ] 実機feedback: 絵文字category iconを全て同じ固定幅にし、categoryや状態で横幅を変えない
-- [ ] 実機feedback: 長い発話でも認識を終了して候補へ遷移できるようにする
-- [ ] 実機feedback: 音声最終候補は固定高のまま1行1候補で縦に並べる
-- [ ] 実機feedback: 音声候補確定後は候補を消し、視覚的にも次の「認識中」へ戻る
-- [ ] 実機feedback: 非対応・errorをaction badgeに見せず、音声layer内の状態として表示する
-- [ ] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
-- [ ] mock feedback: 入力欄をreadonlyにして通常キーボードを開かず、nativeにないfocus borderを表示しない
-- [ ] mock feedback: キーボード周囲を黒ではなく灰色にし、モード切替groupの上へ下側と釣り合う余白を入れる
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] 実機feedback: Emoji Recentは候補欄shortcutと切り離し、通常gridへ最近使った最大100件を並べる
+- [x] 実機feedback: 絵文字category iconを全て同じ固定幅にし、categoryや状態で横幅を変えない
+- [x] 実機feedback: 長い発話でも認識を終了して候補へ遷移できるようにする
+- [x] 実機feedback: 音声最終候補は固定高のまま1行1候補で縦に並べる
+- [x] 実機feedback: 音声候補確定後は候補を消し、視覚的にも次の「認識中」へ戻る
+- [x] 実機feedback: 非対応・errorをaction badgeに見せず、音声layer内の状態として表示する
+- [x] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
+- [x] mock feedback: 入力欄をreadonlyにして通常キーボードを開かず、nativeにないfocus borderを表示しない
+- [x] mock feedback: キーボード周囲を黒ではなく灰色にし、モード切替groupの上へ下側と釣り合う余白を入れる
 - [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -120,6 +120,8 @@
 
 [2026/09/13 00:22 JST] `ba10aec`で48dp正規化をidempotentにした。以前停止した`ImeServiceEnglishSuggestionTest.emojiCommit...`とfocused 8 classを合わせて6秒でBUILD SUCCESSFUL。最終HEADの全suiteはrelease文書記録commit後に一度だけ再実行する。
 
+[2026/09/13 00:26 JST] `ba10aec`後の全suiteはfast-checksとAndroid unit/lint/APKの2/2 PASS。独立Terra reviewerは`31a1ef5`を再確認し、Critical 0、Major 0、Minor 0。48dp holderへ同値再代入しないことと、同一holderへの二重適用でlayout requestが起きない回帰testを確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -139,6 +141,10 @@ Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.Bd7z
 
 Passed: 2 / 2
 ```
+
+[2026/09/13 00:31 JST] 差し戻し後のv0.14.0をAPI 36 arm64 AVDへinstallし、package `com.masuidrive.gestureime`、versionCode 15、versionName 0.14.0を確認した。絵文字は等幅category icon、一覧3行、固定control行、独自hide rowなし。VOICE非対応は固定panelのplain textで、右側action badgeなし。OS navigationの終了操作だけが残る。`connectedDebugAndroidTest`は11/11 PASS。操作mockは412/840px、Light/Dark、Mobile/Tablet/Dual Flickで外周`rgb(229,232,239)`、mode切替上下12px、readonlyとfocus outlineなし、音声2周とCancel後の旧timer破棄を観察済み。実発話と物理Foldだけをhuman reviewへ残す。
+
+[2026/09/13 00:31 JST] v0.14.0 APKは38,583,304 bytes、SHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`。マニュアルの音声非対応・絵文字category画像をv0.14実画面へ差し替え、公開前のsiteにAPK/ZIPを含めていないことを確認した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
