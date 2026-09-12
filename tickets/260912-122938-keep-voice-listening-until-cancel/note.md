@@ -164,6 +164,8 @@ Passed: 2 / 2
 
 [2026/09/13 01:47 JST] AC 10を達成と判定した。`similarity-ts`、inline JavaScript syntax、mock/reference mirror、fast-checksをPASSし、最終HEADで`scripts/test-all.sh --parallel`はfast-checksとAndroid unit・lint・APKの2/2 PASS。公開先`https://masuidrive.jp/products/md-kbd/`はGitHub Pages buildがcommit `396f780b3aa92ca37cc4df4a45365d3f163cd49c`でbuiltとなりHTTP 200。公開browserでもPC初期Tablet・日本語・Dual Flick ON、横overflow 0、画像欠落0を確認した。
 
+[2026/09/13 01:49 JST] 公開URLから`index.html`、`mock.html`、`manual.html`、`styles.css`を再取得し、`masuidrive.jp`のcommit `396f780`にある4ファイルとbyte単位で一致した。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->

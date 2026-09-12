@@ -231,3 +231,4 @@
 [2026/09/13 01:30] トップ操作mockを白い周囲・外枠なしへ変更し、入力案内をeditor labelと初期値へ移す追加調整を開始した。PC新規表示はDual Flick日本語、スマホはMobileとし、独立demo.htmlを廃止してトップ#demoへ統一する。
 [2026/09/13 01:34] 公式製品ページの配置先を https://masuidrive.jp/products/md-kbd/ に確定し、隣接するmasuidrive.jpリポジトリのdocs/products/md-kbdへトップ内操作mock・マニュアル・画像を組み込む作業を開始した。独立demo.htmlは配置しない。
 [2026/09/13 01:47] トップ内操作mockを白背景・外枠なし、案内labelと初回入力置換、PC初期のTablet・日本語Dual Flickへ更新し、独立demo.htmlを削除した。masuidrive.jpのcommit 396f780をmainへpushし、https://masuidrive.jp/products/md-kbd/ のHTTP 200、公開browserの横overflowなし・画像欠落なしを確認した。Android最終全suiteも2/2 PASS、独立reviewはCritical・Major・Minor 0件だった。
+[2026/09/13 01:49] https://masuidrive.jp/products/md-kbd/ のindex・mock・manual・stylesを公開側から再取得し、masuidrive.jp mainのcommit 396f780と4ファイル全てbyte単位で一致した。
