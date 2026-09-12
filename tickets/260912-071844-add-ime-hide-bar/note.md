@@ -1,6 +1,6 @@
 # Work Notes: 260912-071844-add-ime-hide-bar
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (Implementation authorized by explicit user instructions)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,8 +9,8 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] native IMEへ28dpの閉じる操作行を追加し、tapでIMEを閉じる。
 - [ ] 入力テスト画面へsafe-area対応の固定app barと戻る操作を追加する。
 - [ ] 公開操作mockを閉じる操作行と再表示動作へ同期し、native/mockのLight/Dark・412dp/840dpを観察する。
@@ -88,3 +88,5 @@
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
 ユーザが指定した二つの不足を、IME下端の閉じる操作と入力テスト画面の戻る操作として分離した。28dpは添付画像より低い視覚高を実測可能にする値で、既存の候補50dpと4行キーintrinsic heightは維持する。追加の表記統一は利用者が見るAndroid label・画面文言と現行site/manualを対象とし、内部package・class・既存asset名は識別子として維持する。consumer surfaceはnative IME input view、入力テストActivity、Android app/IME picker、公開操作mock、現行site/manual、TalkBackである。未確定判断はない。
+
+AC読み手は利用者・IMEを閉じる操作・設定へ戻る操作を復元できた。指摘されたAC 4の「ナビゲーションバー」は`Android system navigation bar`へ明確化し、AC 6の製品名統一をWhat冒頭文へ加えた。ユーザの実装指示そのものが、閉じる行、入力テストapp bar、製品名`masuidrive-kbd`の各ACを明示しているためPDH-ticket-human-reviewの承認として扱う。
