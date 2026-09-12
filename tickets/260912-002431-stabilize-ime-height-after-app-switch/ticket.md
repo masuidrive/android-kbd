@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-001139-show-hero-demo-input-result
 description: "Keep the IME at the correct height immediately after switching apps"
 created_at: "2026-09-12T00:24:31Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T00:27:13Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
