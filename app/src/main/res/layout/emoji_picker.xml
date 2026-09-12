@@ -1,0 +1,31 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@id/emoji_picker_header"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/emoji_picker_header_height"
+        android:clipToPadding="true"
+        android:paddingStart="@dimen/emoji_picker_header_padding"
+        android:paddingEnd="@dimen/emoji_picker_header_padding" />
+
+    <!-- The child RecyclerView is measured one category spacer taller than its viewport.
+         ImeService subsequently sets its height to the exact three-row viewport, retaining
+         AndroidX's cached 48dp-or-larger cells without exposing a fourth row. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipChildren="true"
+        android:clipToPadding="true">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@id/emoji_picker_body"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="true"
+            android:clipToPadding="true" />
+    </FrameLayout>
+</LinearLayout>

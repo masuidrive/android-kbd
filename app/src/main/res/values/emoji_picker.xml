@@ -3,6 +3,8 @@
          the selected header icon, so the clipped spacer instead preserves the key-row gap. -->
     <dimen name="emoji_picker_header_height">50dp</dimen>
     <dimen name="emoji_picker_header_icon_holder_min_height">50dp</dimen>
+    <!-- Ten 48dp category targets scroll horizontally on phone widths. -->
+    <dimen name="emoji_picker_header_icon_holder_width">48dp</dimen>
     <!-- Preserve the keyboard's 8dp top inset between the category row and the first grid face. -->
     <dimen name="emoji_picker_category_name_height">8dp</dimen>
     <dimen name="emoji_picker_category_name_padding_top">0dp</dimen>

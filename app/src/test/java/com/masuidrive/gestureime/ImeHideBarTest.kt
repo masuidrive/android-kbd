@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime
 
 import android.app.Activity
+import android.graphics.Rect
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.recyclerview.widget.RecyclerView
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
@@ -137,6 +139,45 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun pickerBodyShowsOnlyThreeFullTouchRowsAndHeaderKeepsTen48dpCategories() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val picker = root.getChildAt(1) as EmojiPickerView
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+
+        KeyboardHeightPreset.entries.forEach { preset ->
+            keyboard.setHeightPreset(preset)
+            root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            // The bundled loader has attached the body. An external width change is the
+            // production path that rebuilds AndroidX's cached adapter geometry.
+            root.measure(exact(413), exact(1_000)); root.layout(0, 0, 413, 1_000)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+
+            val header = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_header)
+            val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+            val density = service.resources.displayMetrics.density
+            val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+            assertEquals(10, header.adapter!!.itemCount)
+            val headerWidths = (0 until header.childCount).map { header.getChildAt(it).width }
+            assertTrue("header widths=$headerWidths", headerWidths.filter { it > 0 }.all { it >= (48 * density).toInt() })
+            assertEquals(expectedViewport, body.height)
+            assertEquals(expectedViewport, body.clipBounds!!.bottom)
+            // BodyAdapter calculates a cell from (measured body - two spacers) / 3. The
+            // measured one-spacer overscan makes this exactly the preset pitch; the actual
+            // RecyclerView child is shrunk and clips touch/drawing/A11y at three rows.
+            val rowPitch = (preset.rowPitchDp * density).toInt()
+            assertEquals(3, (body.height - (8 * density).toInt()) / rowPitch)
+            assertTrue(rowPitch >= (48 * density).toInt())
+            assertTrue(body.clipChildren && body.clipToPadding)
+            assertTrue(body.adapter != null)
+        }
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
@@ -207,6 +248,16 @@ class ImeHideBarTest {
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+
+    private fun View.descendants(): List<View> {
+        val result = mutableListOf<View>()
+        fun visit(view: View) {
+            result += view
+            if (view is ViewGroup) repeat(view.childCount) { visit(view.getChildAt(it)) }
+        }
+        visit(this)
+        return result
+    }
 
     class HidingImeService : ImeService() {
         var hideFlags: Int? = null
