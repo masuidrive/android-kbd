@@ -402,6 +402,7 @@ class KeyboardViewTest {
         val canvas = CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
 
         assertTrue(canvas.draws.any { it.text == "、。？！" })
+        assertFalse(canvas.draws.any { it.text == "、" })
         val punctuation = keyBounds(5)
         touch(MotionEvent.ACTION_DOWN, punctuation.exactCenterX(), punctuation.exactCenterY())
         touch(MotionEvent.ACTION_UP, punctuation.exactCenterX(), punctuation.exactCenterY())

@@ -133,6 +133,34 @@ class KeyboardPopupControllerTest {
         assertTrue(geometry.tileRect(Direction.CENTER, geometry.windowSize(PopupKind.KANA, 0)).width() == 50f)
     }
 
+    @Test fun `voice punctuation uses a five direction cross popup with down selected`() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val anchor = View(activity)
+        activity.setContentView(anchor)
+        anchor.measure(exact(400), exact(220)); anchor.layout(0, 0, 400, 220)
+        val controller = KeyboardPopupController(activity)
+        val spec = KeyboardLayouts.layout(KeyboardMode.VOICE).rows.last().keys[2]
+
+        assertEquals(PopupKind.KANA, controller.popupKindForTest(spec))
+        controller.show(anchor, RectF(160f, 160f, 200f, 205f), spec, Direction.DOWN)
+        val popup = requireNotNull(controller.popupForTest())
+        assertEquals(geometry.windowSize(PopupKind.KANA, 0).width, popup.width)
+        assertEquals(geometry.windowSize(PopupKind.KANA, 0).height, popup.height)
+        val renderer = popup.contentView as KeyboardPopupRenderView
+        assertEquals(PopupKind.KANA, renderer.kindForTest())
+        assertEquals(
+            mapOf(
+                Direction.CENTER to "、",
+                Direction.LEFT to "。",
+                Direction.UP to "？",
+                Direction.RIGHT to "！",
+                Direction.DOWN to "、",
+            ),
+            renderer.tileLabelsForTest(),
+        )
+        assertEquals(Direction.DOWN, renderer.selectedDirectionForTest())
+    }
+
     @Test fun `attached popup updates one window then dismisses on detach`() {
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val anchor = View(activity)

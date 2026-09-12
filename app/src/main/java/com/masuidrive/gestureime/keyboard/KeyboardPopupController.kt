@@ -101,6 +101,7 @@ class KeyboardPopupController(private val context: Context) {
 
     internal fun isShowingForTest(): Boolean = window?.isShowing == true
     internal fun popupForTest(): PopupWindow? = window
+    internal fun popupKindForTest(spec: KeySpec, accents: List<String> = emptyList()): PopupKind = popupKind(spec, accents)
 
     fun refreshTheme() {
         renderView?.invalidate()
@@ -152,6 +153,7 @@ class KeyboardPopupController(private val context: Context) {
 
     private fun popupKind(spec: KeySpec, accents: List<String>) = when {
         accents.isNotEmpty() -> PopupKind.ACCENT
+        spec.id == "voice-punct" -> PopupKind.KANA
         spec.kind == KeyKind.KANA -> PopupKind.KANA
         spec.kind == KeyKind.MODIFIER -> PopupKind.MODIFIER
         else -> PopupKind.LETTER
@@ -312,6 +314,13 @@ internal class KeyboardPopupRenderView(
         accents = emptyList()
         accentIndex = 0
     }
+
+    internal fun kindForTest(): PopupKind? = kind
+    internal fun tileLabelsForTest(): Map<Direction, String> =
+        if (kind == PopupKind.KANA) Direction.entries.mapNotNull { direction ->
+            spec?.value(direction)?.label?.let { direction to it }
+        }.toMap() else emptyMap()
+    internal fun selectedDirectionForTest(): Direction = direction
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

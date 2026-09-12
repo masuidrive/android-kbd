@@ -486,7 +486,7 @@ class KeyboardView @JvmOverloads constructor(
         val secondary = when {
             spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
-            spec.kind == KeyKind.CHARACTER -> spec.down?.label
+            spec.kind == KeyKind.CHARACTER && spec.id != "voice-punct" -> spec.down?.label
             else -> null
         }
         val downLike = direction == Direction.DOWN || frame.secondaryScale > 1.001f || frame.mainDy > 0.001f
