@@ -94,6 +94,7 @@
   #ios-keyboard-demo .kana .key.side { flex:1; }
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
   #ios-keyboard-demo .kana .key-row { position:relative; }
   #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 10px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
@@ -160,24 +161,18 @@
   const editor = $('textarea'), keyboard = $('.keyboard'), keys = $('.keys'), popup = $('.popup');
   const candidateBar = $('.candidate-bar'), trackpadStatus = $('.trackpad-status');
   const kanaRows = [
-    [['cursor','カーソル',{visual:'cursor-cross'}],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
+    [['emoji','☺'],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
     [['symbols','#'],['た',['た','ち','つ','て','と']],['な',['な','に','ぬ','ね','の']],['は',['は','ひ','ふ','へ','ほ']],['space','Space']],
     [['numbers','123'],['ま',['ま','み','む','め','も']],['や',['や','（','ゆ','）','よ']],['ら',['ら','り','る','れ','ろ']],['return','Enter']],
     [['english','ABC',{layerSwitch:true}],['modifier','小'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
   ];
   const tenkeyRows = [
-    [['cursor','カーソル',{visual:'cursor-cross'}],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
+    [['emoji','☺'],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
     [['symbols','#'],['4','4',{text:true}],['5','5',{text:true}],['6','6',{text:true}],['space','Space']],
     [['letters','あいう'],['7','7',{text:true}],['8','8',{text:true}],['9','9',{text:true}],['return','Enter']],
     [['english','ABC',{layerSwitch:true}],['-',['-','+','/','*',',']],['0','0',{text:true}],['.','.',{text:true}],[null,'']]
   ];
-  const cursorRows = [
-    [['letters','あいう'],[null,''],[null,''],[null,''],['backspace','⌫']],
-    [['symbols','#'],['home','先頭'],['up','↑'],['end','末尾'],[null,'']],
-    [['numbers','123'],['left','←'],['space','space',{hint:'←↓↑→'}],['right','→'],['return','Enter']],
-    [['english','ABC',{layerSwitch:true}],[null,''],['down','↓'],[null,''],[null,'']]
-  ];
-  const kanaRowsByLayer = {letters:kanaRows,numbers:tenkeyRows,cursor:cursorRows};
+  const kanaRowsByLayer = {letters:kanaRows,numbers:tenkeyRows};
   const layerToggleLabels = {
     numbers:{main:'1',ghost:'9'},
     letters:{main:'あ',ghost:'ん'},
@@ -275,20 +270,24 @@
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;
   const slashCommands=['/compact','/clear','/quit'];
+  const emojiPages=[['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨'],['💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈']];
+  let emojiRecents=[], emojiPage=0;
   const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false};
   let renderedCandidateContentKey=null;
   try {
     const saved=JSON.parse(localStorage.getItem('gesture-ime-demo-state')||'null');
     if(saved&&['english','kana'].includes(saved.language))language=saved.language;
-    if(saved&&['letters','symbols','numbers','cursor'].includes(saved.layer))layer=saved.layer;
+    if(saved&&['letters','symbols','numbers','emoji'].includes(saved.layer))layer=saved.layer;
+    if(Array.isArray(saved?.emojiRecents))emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'&&value))].slice(0,8);
+    if(Number.isInteger(saved?.emojiPage))emojiPage=Math.max(0,Math.min(emojiPages.length-1,saved.emojiPage));
     dualEnabled=Boolean(saved?.dualEnabled);
     englishCandidatesEnabled=Boolean(saved?.englishCandidatesEnabled);
     if(['light','dark'].includes(saved?.theme))root.dataset.theme=saved.theme;
   } catch (_) {}
   if(heroEmbed)editor.value='ここは入力できるよ';
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,theme:root.dataset.theme}));}catch(_){}};
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiPage,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
-  let preferredCursorX = null, cursorReturnLayer = 'letters';
+  let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
   function updateCount() { $('.count').textContent = segments(editor.value).length+' 文字'; }
   function announce(text) { $('.last-input').textContent = text; }
@@ -460,6 +459,11 @@
     editor.dispatchEvent(new Event('input',{bubbles:true}));
     announce(text==='\n'?'改行':text===' '?'空白':text);
   }
+  function insertEmoji(emoji) {
+    insert(emoji);
+    emojiRecents=[emoji,...emojiRecents.filter(value=>value!==emoji)].slice(0,8);
+    render();
+  }
   function erase() {
     preferredCursorX=null;
     const start=editor.selectionStart,end=editor.selectionEnd;
@@ -577,10 +581,12 @@
     else if(id==='symbols') {if(language==='kana'){language='english';layer='symbols';}else layer=layer==='letters'?'symbols':'letters';clearComposition();}
     else if(id==='symbol-layer') {language='english';layer='symbols';pendingModifier=null;clearComposition();}
     else if(id==='kana-numbers') {language='kana';layer='numbers';pendingModifier=null;clearComposition();}
-    else if(id==='kana-cursor') {language='kana';layer='cursor';clearComposition();}
+    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
-    else if(id==='cursor') {clearComposition();if(layer==='cursor')layer=cursorReturnLayer;else {cursorReturnLayer=layer;layer='cursor';}}
+    else if(id==='emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
+    else if(id==='emoji-prev') {emojiPage=Math.max(0,emojiPage-1);}
+    else if(id==='emoji-next') {emojiPage=Math.min(emojiPages.length-1,emojiPage+1);}
     else if(['english','kana'].includes(id)) {language=id;layer='letters';pendingModifier=null;clearComposition();}
     render();
   }
@@ -592,6 +598,15 @@
   const modifierGesture=()=>makeKey('modifier-gesture','',{modifierFlick:true,preview:'selection'});
   const flickBackspace=()=>makeKey('flick-backspace','⌫',{gestureAlt:'ESC',altAction:'escape',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
+  function emojiRows() {
+    const recent=emojiRecents.map((emoji,index)=>makeKey('emoji-recent-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const catalog=emojiPages[emojiPage].map((emoji,index)=>makeKey('emoji-catalog-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    return [
+      [...recent,...Array(Math.max(0,8-recent.length)).fill(null).map(()=>makeKey(null,''))],
+      catalog.slice(0,8), catalog.slice(8,16),
+      [makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey('emoji-prev','‹',{special:true,gridSpan:2}),makeKey('emoji-page',(emojiPage+1)+'/'+emojiPages.length,{special:true,gridSpan:2}),makeKey('emoji-next','›',{special:true,gridSpan:1}),makeKey('backspace','⌫',{special:true,gridSpan:1})]
+    ];
+  }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
     const transform=id==='modifier'?['小','゛','小','゜','']:null;
@@ -637,6 +652,7 @@
   }
   function keyboardRows() {
     if(language==='kana') {
+      if(layer==='emoji') return emojiRows();
       const rows=kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
       return dualEnabled&&keyboard.getBoundingClientRect().width>=600&&layer==='letters'
         ?rows.map(row=>[row[0],...row.slice(1,4),...row.slice(1,4),row[4]])
@@ -660,7 +676,8 @@
       home:'文章の先頭へ',
       end:'文章の末尾へ',
       escape:'ESC',
-      cursor:'カーソルレイヤーへ切り替える',
+      emoji:'絵文字レイヤーへ切り替える',
+      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':'絵文字ページ',
       space:'Space。フリックでカーソル移動',
       return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':'Enter、上フリックでCtrl+J、下フリックでPaste',
       numbers:'テンキーへ切り替える',
@@ -708,10 +725,11 @@
     button.type='button';
     button.dataset.key=key.id;
     button.className=classNames.join(' ');
+    if(key.gridSpan) button.style.gridColumn='span '+key.gridSpan;
     button.setAttribute('aria-label',keyAriaLabel(key));
-    if(key.id==='cursor') {
-      button.classList.toggle('mode-on',layer==='cursor');
-      button.setAttribute('aria-pressed',String(layer==='cursor'));
+    if(key.id==='emoji') {
+      button.classList.toggle('mode-on',layer==='emoji');
+      button.setAttribute('aria-pressed',String(layer==='emoji'));
     }
     const face=document.createElement('span');
     face.className='key-face';
@@ -773,13 +791,13 @@
       return;
     }
     const dualActive=language==='kana'&&layer==='letters'&&dualEnabled&&keyboard.getBoundingClientRect().width>=600;
-    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='cursor'?' cursor-layer':'')+(dualActive?' dual':'');
+    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='letters'?' kana-letters':'')+(language==='kana'&&layer==='emoji'?' emoji-layer':'')+(dualActive?' dual':'');
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
   }
   function render(force=false) {
     if(active.size&&!force)return;
     renderCandidates();renderKeys();
-    $('.mode-label').textContent=voiceDemo.active?'音声入力':language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
+    $('.mode-label').textContent=voiceDemo.active?'音声入力':language==='kana'?(layer==='emoji'?'絵文字':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
     if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
     const dualButton=$('[data-dual]');
     dualButton.setAttribute('aria-pressed',String(dualEnabled));
@@ -917,7 +935,9 @@
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
-        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected)))insert(keyOutput(p));
+        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) {
+          if(p.key.emoji)insertEmoji(keyOutput(p));else insert(keyOutput(p));
+        }
         lastSpace=-Infinity;
       }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
     }
@@ -941,7 +961,7 @@
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
       if(e.detail!==0)return;
-      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier()))insert(k.text);render();}else action(k.id);
+      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji)insertEmoji(k.text);else insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });
   editor.addEventListener('input',()=>{preferredCursorX=null;updateCount();if(!preserveComposition)syncComposition();if(!active.size)render();});

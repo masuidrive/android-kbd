@@ -34,7 +34,7 @@ No user text or personal data was used. The only test strings were fixed values 
 
 | Setting | Result | Evidence |
 | --- | --- | --- |
-| 412dp cover portrait | All five layers fit, with no key outside the screen. | `qwerty-cover.png`, `kana-cover.png`, `numbers-cover.png`, `cursor-cover.png`, `symbols-cover.png` |
+| 412dp cover portrait | All named layers fit, with no key outside the screen. | `qwerty-cover.png`, `kana-cover.png`, `numbers-cover.png`, `emoji-cover.png`, `symbols-cover.png` |
 | 840dp inner portrait | QWERTY stretched across 2205px without clipping or changing the layer structure. | `qwerty-inner-840dp.png` |
 | Cover landscape | IME reopened after rotation; QWERTY fit within 2400 × 1080 px. | `qwerty-landscape-cover.png` |
 | Font scale 1.3 | An initial run exposed overlapping Canvas labels. After the density-capped text fix, labels retained their 1.0 layout and remained readable. | `qwerty-font-130-fixed.png` |
@@ -102,7 +102,7 @@ v0.2 evidence:
 - `kana-candidates-cover.png`: `にほんご` with real Mozc candidates
 - `kana-committed-cover.png`: committed `日本語`
 - `numbers-cover.png`: number layer
-- `cursor-cover.png`: cursor layer
+- `emoji-cover.png`: emoji layer
 - `symbols-cover.png`: symbol layer
 - `private-field-cover.png`: private editor with candidate strip hidden
 - `qwerty-inner-840dp.png`: 840dp inner-width QWERTY

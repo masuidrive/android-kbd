@@ -173,3 +173,4 @@
 [2026/09/12 12:07] Setup safe areaと固定トップバーを独立review・AC verifyし、Critical/Majorなし、AC 1〜5達成、focused 6/6・full suite 2/2 PASSを確認した。物理Fold以外のLight/Dark portrait・landscape・scroll終端を実画面で確認した。
 [2026/09/12 12:27] キーボード高さを小・標準・大へ保存可能にし、標準55dp row pitchの4行を幅・Dual Flickから固定した。API 36 AVDの412dp、840dp相当、landscapeで候補欄・4行・navigation safe areaを実表示し、focused JVM testsとfull suiteをPASSした。
 [2026/09/12 12:51] 候補faceを50dp候補欄のtop14dp/bottom2dpへ置き、最上段keyとの10dp間隔と先頭候補のphone6dp/wide13dp左外周を揃えた。API 36 AVDで候補表示を確認し、nativeと公開mockの寸法を同期した。
+[2026/09/12 13:25] カーソル専用レイヤーを絵文字4行面へ置換し、recentを端末内に新しい順・重複なし最大8件で保存した。API 36 AVDで😀の直接確定後に入力欄とrecent先頭へ表示されること、focused Robolectricとfull suiteのPASSを確認した。

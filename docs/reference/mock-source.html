@@ -198,6 +198,7 @@
   #ios-keyboard-demo .kana .key.side { flex:1; }
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
   #ios-keyboard-demo .kana .key-row { position:relative; }
   #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 6px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
@@ -263,24 +264,18 @@
   const editor = $('textarea'), keyboard = $('.keyboard'), keys = $('.keys'), popup = $('.popup');
   const candidateBar = $('.candidate-bar'), trackpadStatus = $('.trackpad-status');
   const kanaRows = [
-    [['cursor','カーソル',{visual:'cursor-cross'}],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
+    [['emoji','☺'],['あ',['あ','い','う','え','お']],['か',['か','き','く','け','こ']],['さ',['さ','し','す','せ','そ']],['backspace','⌫']],
     [['symbols','#'],['た',['た','ち','つ','て','と']],['な',['な','に','ぬ','ね','の']],['は',['は','ひ','ふ','へ','ほ']],['space','Space']],
     [['numbers','123'],['ま',['ま','み','む','め','も']],['や',['や','（','ゆ','）','よ']],['ら',['ら','り','る','れ','ろ']],['return','Enter']],
     [['english','ABC',{layerSwitch:true}],['modifier','小゛゜'],['わ',['わ','を','ん','ー','〜']],['punct',['、','。','？','！',''],{label:'、。?!'}],[null,'']]
   ];
   const tenkeyRows = [
-    [['cursor','カーソル',{visual:'cursor-cross'}],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
+    [['emoji','☺'],['1','1',{text:true}],['2','2',{text:true}],['3','3',{text:true}],['backspace','⌫']],
     [['symbols','#'],['4','4',{text:true}],['5','5',{text:true}],['6','6',{text:true}],['space','Space']],
     [['letters','あいう'],['7','7',{text:true}],['8','8',{text:true}],['9','9',{text:true}],['return','Enter']],
     [['english','ABC',{layerSwitch:true}],['-',['-','+','/','*',',']],['0','0',{text:true}],['.','.',{text:true}],[null,'']]
   ];
-  const cursorRows = [
-    [['letters','あいう'],[null,''],[null,''],[null,''],['backspace','⌫']],
-    [['symbols','#'],['home','先頭'],['up','↑'],['end','末尾'],[null,'']],
-    [['numbers','123'],['left','←'],['space','space',{hint:'←↓↑→'}],['right','→'],['return','Enter']],
-    [['english','ABC',{layerSwitch:true}],[null,''],['down','↓'],[null,''],[null,'']]
-  ];
-  const kanaRowsByLayer = {letters:kanaRows,numbers:tenkeyRows,cursor:cursorRows};
+  const kanaRowsByLayer = {letters:kanaRows,numbers:tenkeyRows};
   const layerToggleLabels = {
     numbers:{main:'1',ghost:'9'},
     letters:{main:'あ',ghost:'ん'},
@@ -369,8 +364,10 @@
   }
   // END KEY FLICK LOGIC
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
+  const emojiPages=[['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨'],['💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈']];
+  let emojiRecents=[], emojiPage=0;
   let keyMap = new Map();
-  let preferredCursorX = null, cursorReturnLayer = 'letters';
+  let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
   function updateCount() { $('.count').textContent = segments(editor.value).length+' 文字'; }
   function announce(text) { $('.last-input').textContent = text; }
@@ -531,10 +528,12 @@
     else if(id==='symbols') {if(language==='kana'){language='english';layer='symbols';}else layer=layer==='letters'?'symbols':'letters';clearComposition();}
     else if(id==='symbol-layer') {language='english';layer='symbols';pendingModifier=null;clearComposition();}
     else if(id==='kana-numbers') {language='kana';layer='numbers';pendingModifier=null;clearComposition();}
-    else if(id==='kana-cursor') {language='kana';layer='cursor';clearComposition();}
+    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
-    else if(id==='cursor') {clearComposition();if(layer==='cursor')layer=cursorReturnLayer;else {cursorReturnLayer=layer;layer='cursor';}}
+    else if(id==='emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
+    else if(id==='emoji-prev') {emojiPage=Math.max(0,emojiPage-1);}
+    else if(id==='emoji-next') {emojiPage=Math.min(emojiPages.length-1,emojiPage+1);}
     else if(['english','kana','globe'].includes(id)) {
       language=id==='globe'?(language==='kana'?'english':'kana'):id;layer='letters';pendingModifier=null;clearComposition();
     }else if(id==='hide') { keyboard.hidden=true;$('.reopen').hidden=false;editor.blur(); }
@@ -549,6 +548,11 @@
   const modifierGesture=()=>makeKey('modifier-gesture','',{modifierFlick:true,preview:'selection'});
   const flickBackspace=()=>makeKey('flick-backspace','',{alt:'⌫',altAction:'backspace',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
+  function emojiRows() {
+    const recent=emojiRecents.map((emoji,index)=>makeKey('emoji-recent-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const catalog=emojiPages[emojiPage].map((emoji,index)=>makeKey('emoji-catalog-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    return [[...recent,...Array(Math.max(0,8-recent.length)).fill(null).map(()=>makeKey(null,''))],catalog.slice(0,8),catalog.slice(8,16),[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey('emoji-prev','‹',{special:true,gridSpan:2}),makeKey('emoji-page',(emojiPage+1)+'/'+emojiPages.length,{special:true,gridSpan:2}),makeKey('emoji-next','›',{special:true}),makeKey('backspace','⌫',{special:true})]];
+  }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
     const flick=Array.isArray(value)?value:null;
@@ -590,7 +594,7 @@
     ];
   }
   function keyboardRows() {
-    if(language==='kana')return kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+    if(language==='kana')return layer==='emoji'?emojiRows():kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
@@ -608,7 +612,8 @@
       down:'カーソルを下の行へ',
       home:'文章の先頭へ',
       end:'文章の末尾へ',
-      cursor:'カーソルレイヤーへ切り替える',
+      emoji:'絵文字レイヤーへ切り替える',
+      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':'絵文字ページ',
       space:'Space。フリックでカーソル移動',
       return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
       numbers:'テンキーへ切り替える',
@@ -657,9 +662,10 @@
     button.dataset.key=key.id;
     button.className=classNames.join(' ');
     button.setAttribute('aria-label',keyAriaLabel(key));
-    if(key.id==='cursor') {
-      button.classList.toggle('mode-on',layer==='cursor');
-      button.setAttribute('aria-pressed',String(layer==='cursor'));
+    if(key.gridSpan) button.style.gridColumn='span '+key.gridSpan;
+    if(key.id==='emoji') {
+      button.classList.toggle('mode-on',layer==='emoji');
+      button.setAttribute('aria-pressed',String(layer==='emoji'));
     }
     const face=document.createElement('span');
     face.className='key-face';
@@ -710,13 +716,13 @@
     return button;
   }
   function renderKeys() {
-    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='cursor'?' cursor-layer':'');
+    keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='emoji'?' emoji-layer':'');
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
   }
   function render(force=false) {
     if(active.size&&!force)return;
     renderCandidates();renderKeys();
-    $('.mode-label').textContent=language==='kana'?(layer==='cursor'?'カーソル':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
+    $('.mode-label').textContent=language==='kana'?(layer==='emoji'?'絵文字':layer==='letters'?'日本語':'テンキー'):layer==='letters'?'QWERTY':'記号';
     if(pendingModifier)$('.mode-label').textContent+=' · '+modifierLabel(pendingModifier)+'（次のキー）';
     $('.language').textContent=language==='kana'?'日本語':'QWERTY';
     const languageButton=$('.keyboard-bottom [data-key="globe"]');
@@ -839,7 +845,7 @@
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
-        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected)))insert(keyOutput(p));
+        if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) { if(p.key.emoji) { emojiRecents=[keyOutput(p),...emojiRecents.filter(value=>value!==keyOutput(p))].slice(0,8); } insert(keyOutput(p)); }
         lastSpace=-Infinity;
       }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
     }
@@ -855,7 +861,7 @@
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
       if(e.detail!==0)return;
-      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier()))insert(k.text);render();}else action(k.id);
+      const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji)emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });
   editor.addEventListener('input',()=>{preferredCursorX=null;updateCount();if(!preserveComposition)syncComposition();if(!active.size)render();});
@@ -963,7 +969,7 @@
 </tbody></table></div>
 <p><code>C/A</code> は記号の副ラベルと同じ高さになるよう、上側の <code>C</code> と下側の <code>A</code> に少し間を空けて固定する。上スワイプで Alt、下スワイプで Ctrl を次の1キーへ適用する。方向選択中と選択後は上下ラベルを消して、中央に選ばれた <code>A</code> または <code>C</code> を表示する。選択後のタップは修飾状態を解除する。未選択の<code>C/A</code>と<code>BS</code>はタップでも上スワイプでもポップアップを出さない。<code>BS</code>は下フリックだけで候補表示と削除を有効にする。QWERTYレイヤーの <code>#</code> は中央の <code>#</code> と右後ろの淡い <code>!</code> を重ねた <code>#!</code> キーで記号へ入り、記号レイヤーでは中央の <code>A</code> と右後ろの淡い <code>Z</code> を重ねた <code>AZ</code> キーでQWERTYへ戻る。どちらも暗い背景のモードキーとする。記号レイヤーは ASCII 文字だけを収録する。</p>
 <p>4行目のレイヤー切替キーはQWERTY形式では<code>あん</code>、テンキー形式では<code>AZ</code>とする。タップはQWERTY形式から日本語レイヤーへ、テンキー形式からQWERTYレイヤーへ移動する。全レイヤーで左フリックは記号、上フリックは日本語、右フリックはテンキー、下フリックはQWERTYへ移動する。方向選択中は元の補助文字を消し、キー中央に移動先のレイヤー名だけを表示する。<code>#!</code>、<code>あん</code>、<code>AZ</code>、<code>19</code> の補助文字は主ラベルの約75%のサイズで揃える。<code>Enter</code> は上側に小さく <code>paste</code> を常時表示し、下スワイプ中は中央ラベルを小文字の <code>paste</code> へ変える。離すとクリップボード内容を確定する。QWERTYの<code>Space</code>は上側に補助表示 <code>←↓↑→</code> を置き、操作中も同じ記号列を初期表示に使う。</p>
-<p>日本語レイヤーは全行5列に揃える。右端のEnterキーは3行目から4行目にまたがる縦長キーとする。日本語レイヤーの左列は上から十字配置の4矢印、<code>#!</code>、<code>19</code>、<code>AZ</code> とし、<code>#</code> で記号レイヤーへ移動する。テンキーレイヤーでも4矢印、<code>#!</code>、<code>あん</code>、<code>AZ</code> を並べる。テンキーレイヤーは <code>1 2 3 / 4 5 6 / 7 8 9 / - 0 .</code> とし、<code>-</code> は中央が <code>-</code>、左が <code>+</code>、上が <code>/</code>、右が <code>*</code>、下が <code>,</code> の5方向フリックにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。カーソルレイヤーの左列は上から <code>あん</code>、<code>#!</code>、<code>19</code>、<code>AZ</code> とし、中央のSpaceはQWERTYと同じ4方向トラックパッドとして動作する。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
+<p>日本語・テンキー左上の<code>☺</code>は絵文字4行面を開く。最上行はlocalStorageの新しい順・重複なし最大8件、次の2行は16件ずつのページ、最下行は既存layer flick、前頁、頁表示、次頁、削除である。すべての行を8列幅に揃え、空recent枠は空のままにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
 <h2 id="architecture"><a href="#architecture">推奨するAndroid構成</a></h2>
 <pre><code class="language-text">ImeService : InputMethodService
 ├── KeyboardRootView : ViewGroup
@@ -994,8 +1000,8 @@
 <td><code>language = KANA</code>, <code>layer = NUMBERS</code></td>
 </tr>
 <tr>
-<td>カーソル</td>
-<td><code>language = KANA</code>, <code>layer = CURSOR</code></td>
+<td>絵文字</td>
+<td><code>language = KANA</code>, <code>layer = EMOJI</code></td>
 </tr>
 <tr>
 <td>QWERTY</td>
