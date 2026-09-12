@@ -287,6 +287,12 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun unchangedPickerMaskGeometryDoesNotScheduleAnotherLayout() {
+        assertFalse(shouldUpdateEmojiPickerMask(496, 7, 496, 7))
+        assertTrue(shouldUpdateEmojiPickerMask(496, 7, 503, 0))
+    }
+
+    @Test
     fun visibleEmptyRecentDoesNotExpandAnExistingCategoryViewportLock() {
         assertEquals(155, resolveEmojiViewportWithPlaceholder(155, 453, 446, true))
         assertEquals(446, resolveEmojiViewportWithPlaceholder(null, 453, 446, true))

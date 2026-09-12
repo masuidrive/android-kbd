@@ -244,7 +244,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 height = pickerHeight
             }
             picker.requestLayout()
-            picker.parent?.requestLayout()
             bindEmojiPickerViewport(picker)
         }
         updateEmojiPickerMask()
@@ -268,6 +267,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         setBackgroundColor(getColor(R.color.keyboard_background))
         emojiGridColumns = 8
         emojiGridRows = 3f
+        // AndroidX marks its Recent group for refresh before invoking this callback. The
+        // action below persists the value first, so that refresh reads publicRecentProvider;
+        // replacing the provider here would rebuild the picker asynchronously.
         setOnEmojiPickedListener(Consumer { item -> onKeyAction(KeyAction.CommitEmoji(item.emoji)) })
         setRecentEmojiProvider(provider)
         setOnHierarchyChangeListener(object : ViewGroup.OnHierarchyChangeListener {
@@ -522,10 +524,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val visibleBodyHeight = pickerViewportHeights[activePicker] ?: return
         emojiPickerBottomMask?.let { mask ->
             val params = mask.layoutParams as? FrameLayout.LayoutParams ?: return@let
-            params.topMargin = emojiPickerHeaderHeight + visibleBodyHeight
-            params.height = (emojiPickerControlTop - params.topMargin).coerceAtLeast(0)
-            mask.layoutParams = params
-            mask.requestLayout()
+            val topMargin = emojiPickerHeaderHeight + visibleBodyHeight
+            val height = (emojiPickerControlTop - topMargin).coerceAtLeast(0)
+            if (shouldUpdateEmojiPickerMask(params.topMargin, params.height, topMargin, height)) {
+                params.topMargin = topMargin
+                params.height = height
+                mask.layoutParams = params
+            }
         }
     }
 
@@ -735,7 +740,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 resetConversion(clearComposing = false)
                 if (editorSession.isCurrent(editorToken) && textController.commitText(action.text) && !textController.isPrivateField) {
                     keyboardView?.setEmojiRecents(ImePreferences.recordEmojiRecent(this, action.text))
-                    publicEmojiPicker?.setRecentEmojiProvider(publicRecentProvider())
                 }
             }
             is KeyAction.KanaInput -> {
@@ -1522,6 +1526,13 @@ internal fun isEmojiPlaceholderInViewport(visibility: Int, bounds: Rect, viewpor
 /** A clipped or partial EmojiView must not remain a TalkBack target. */
 internal fun isEmojiCellFullyVisibleInViewport(bounds: Rect, viewport: Rect): Boolean =
     !bounds.isEmpty && viewport.contains(bounds)
+
+internal fun shouldUpdateEmojiPickerMask(
+    currentTopMargin: Int,
+    currentHeight: Int,
+    nextTopMargin: Int,
+    nextHeight: Int,
+): Boolean = currentTopMargin != nextTopMargin || currentHeight != nextHeight
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
