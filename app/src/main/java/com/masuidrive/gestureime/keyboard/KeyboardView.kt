@@ -90,6 +90,7 @@ class KeyboardView @JvmOverloads constructor(
     private var emojiScrollOffset = 0f
     private val emojiScrollGestures = mutableMapOf<Int, EmojiScrollGesture>()
     private val emojiViewport = RectF()
+    private var voiceSessionStatusHovered = false
     private var ownsSystemBottomInset = true
 
     internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
@@ -106,6 +107,9 @@ class KeyboardView @JvmOverloads constructor(
 
     fun setMode(mode: KeyboardMode) {
         if (state.mode == mode) return
+        if (state.mode == KeyboardMode.VOICE && mode != KeyboardMode.VOICE && state.voiceSessionActive) {
+            setVoiceSessionActive(false)
+        }
         cancelActiveGestures()
         if (mode == KeyboardMode.EMOJI) emojiScrollOffset = 0f
         state = state.copy(mode = mode)
@@ -163,11 +167,15 @@ class KeyboardView @JvmOverloads constructor(
      */
     fun setVoiceSessionActive(active: Boolean) {
         if (state.voiceSessionActive == active) return
+        if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
         state = state.copy(voiceSessionActive = active)
         accessibilityHelper.invalidateRoot()
         if (active) accessibilityHelper.announceVoiceSessionStarted()
         invalidate()
     }
+
+    internal fun isVoiceSessionStatusAccessibilityFocused(): Boolean =
+        accessibilityHelper.getAccessibilityFocusedVirtualViewId() == VOICE_SESSION_STATUS_VIRTUAL_ID
 
     fun setPreviewOnly(enabled: Boolean) {
         cancelActiveGestures()
@@ -684,8 +692,15 @@ class KeyboardView @JvmOverloads constructor(
         return true
     }
 
-    override fun dispatchHoverEvent(event: MotionEvent): Boolean {
-        return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
+    public override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+        val handled = accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
+        voiceSessionStatusHovered = when (event.actionMasked) {
+            MotionEvent.ACTION_HOVER_EXIT -> false
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE ->
+                voiceSessionStatusBounds()?.contains(event.x.toInt(), event.y.toInt()) == true
+            else -> voiceSessionStatusHovered
+        }
+        return handled
     }
 
     override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
@@ -723,8 +738,13 @@ class KeyboardView @JvmOverloads constructor(
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
 
     private inner class KeyboardAccessibilityHelper(host: View) : ExploreByTouchHelper(host) {
-        override fun getVirtualViewAt(x: Float, y: Float): Int =
-            hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
+        override fun getVirtualViewAt(x: Float, y: Float): Int {
+            val statusBounds = voiceSessionStatusBounds()
+            if (statusBounds != null && statusBounds.contains(x.toInt(), y.toInt())) {
+                return VOICE_SESSION_STATUS_VIRTUAL_ID
+            }
+            return hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
+        }
 
         override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
             hitTargets.indices.forEach { id ->
@@ -739,12 +759,17 @@ class KeyboardView @JvmOverloads constructor(
 
         override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
             if (virtualViewId == VOICE_SESSION_STATUS_VIRTUAL_ID) {
-                val bounds = voiceSessionStatusBounds() ?: return
+                // ExploreByTouchHelper may ask for an ID which was focused just before the
+                // listening state disappeared. Keep that delayed lookup well-formed while
+                // making it non-visible; otherwise it throws before the focus-clear event can
+                // be delivered.
+                val bounds = voiceSessionStatusBounds()
                 node.className = "android.widget.TextView"
                 node.contentDescription = "認識中"
-                node.isFocusable = true
+                node.isFocusable = bounds != null
                 node.isClickable = false
-                node.setBoundsInParent(bounds)
+                node.isVisibleToUser = bounds != null
+                node.setBoundsInParent(bounds ?: android.graphics.Rect(0, 0, 1, 1))
                 return
             }
             val target = hitTargets.getOrNull(virtualViewId) ?: return
@@ -795,6 +820,22 @@ class KeyboardView @JvmOverloads constructor(
 
         fun announceVoiceSessionStarted() {
             sendEventForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityEvent.TYPE_ANNOUNCEMENT)
+        }
+
+        fun clearVoiceSessionStatusFocus() {
+            if (voiceSessionStatusHovered) {
+                sendEventForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+                voiceSessionStatusHovered = false
+            }
+            if (getAccessibilityFocusedVirtualViewId() == VOICE_SESSION_STATUS_VIRTUAL_ID) {
+                getAccessibilityNodeProvider(this@KeyboardView)?.performAction(
+                    VOICE_SESSION_STATUS_VIRTUAL_ID,
+                    AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
+                    null,
+                )
+            }
+            clearKeyboardFocusForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID)
+            invalidateVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID)
         }
     }
 

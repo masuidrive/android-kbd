@@ -328,7 +328,10 @@ class KeyboardViewTest {
             val cancelBefore = keyBounds(3)
             val cancelActionsBefore = requireNotNull(provider.createAccessibilityNodeInfo(3)).actions
             val nodesBefore = requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount
-            val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply { setEnabled(true) }
+            val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
+                setEnabled(true)
+                setTouchExplorationEnabled(true)
+            }
             val announcementsBefore = accessibility.sentAccessibilityEvents.count {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
             }
@@ -345,6 +348,16 @@ class KeyboardViewTest {
             assertEquals("認識中", status.contentDescription)
             assertFalse(status.isClickable)
             assertFalse(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_CLICK, null))
+            val statusBounds = Rect().also(status::getBoundsInParent)
+            val hoverEnter = MotionEvent.obtain(0, 1, MotionEvent.ACTION_HOVER_ENTER, statusBounds.exactCenterX().toFloat(), statusBounds.exactCenterY().toFloat(), 0)
+            try {
+                assertTrue(view.dispatchHoverEvent(hoverEnter))
+            } finally {
+                hoverEnter.recycle()
+            }
+            assertTrue(accessibility.sentAccessibilityEvents.any {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
+            })
             assertEquals(announcementsBefore + 1, accessibility.sentAccessibilityEvents.count {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
             })
@@ -354,11 +367,33 @@ class KeyboardViewTest {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
             })
 
+            assertTrue(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null))
+            assertTrue(view.isVoiceSessionStatusAccessibilityFocused())
             view.setVoiceSessionActive(false)
+            assertFalse(view.isVoiceSessionStatusAccessibilityFocused())
+            assertTrue(runCatching { provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID) }.isSuccess)
             val idle = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             assertFalse(idle.draws.any { it.text == "認識中" })
             assertEquals(nodesBefore, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
         }
+    }
+
+    @Test fun `leaving voice clears a focused listening status before its virtual node disappears`() {
+        shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
+            setEnabled(true)
+            setTouchExplorationEnabled(true)
+        }
+        view.setMode(KeyboardMode.VOICE)
+        view.measure(exact(400), exact(228)); view.layout(0, 0, 400, 228)
+        view.setVoiceSessionActive(true)
+        val provider = view.accessibilityNodeProvider
+
+        assertTrue(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null))
+        assertTrue(view.isVoiceSessionStatusAccessibilityFocused())
+        view.setMode(KeyboardMode.QWERTY)
+
+        assertFalse(view.isVoiceSessionStatusAccessibilityFocused())
+        assertTrue(runCatching { provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID) }.isSuccess)
     }
 
     @Test fun `right layer swipe stays qwerty and second pointer does not duplicate voice entry`() {

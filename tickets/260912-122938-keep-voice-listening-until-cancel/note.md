@@ -58,6 +58,8 @@
 
 [2026/09/12 22:08 JST] review修正: 認識中表示をactive時だけの非clickable TalkBack virtual nodeとして公開し、active遷移ごとに`TYPE_ANNOUNCEMENT`を1回だけ送る。partial更新・同値再設定では送らず、inactive/errorでnodeを消す。Cancelのnode順・bounds・actionsは維持した。候補確定をeditorが拒否した反例では、confirm済みrecognizerを再起動せず元文字レイヤーへ戻す。queued candidate後のCancelに加えSwitchLayer、private/NO_PERSONALIZED、finish input view/input/destroy後の旧callback拒否、SMALL/STANDARD/LARGEの412/840dp表示、VOICE Cancelの右/下flickをservice/view testへ追加した。focused `VoiceRecognitionControllerTest`、`ImeServiceVoiceHoldTest`、`KeyboardViewTest` PASS。
 
+[2026/09/12 22:19 JST] review再修正: virtual statusのboundsを先にhit-testしてtouch explorationのhover対象にした。active終了またはVOICE離脱の前にhover exitとaccessibility focus clearを送り、遅延したstatus ID照会には非可視だがcontent/boundsを持つnodeを返してExploreByTouchHelperのpopulate例外を防ぐ。status中央hover、focus後のinactive/mode離脱、Cancel nodeの非click性と順序を`KeyboardViewTest`で確認し、focused `KeyboardViewTest`と`ImeServiceVoiceHoldTest` PASS。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
