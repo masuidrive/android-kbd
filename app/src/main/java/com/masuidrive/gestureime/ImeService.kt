@@ -69,7 +69,8 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private var slashBufferActive = false
     private var slashGeneration = 0L
     private var predictionGeneration = 0L
-    private var pendingPredictionSelectionDelta: Int? = null
+    private var pendingPredictionSelection: ExpectedSelectionTransition? = null
+    private var predictionRequestInFlight = false
     private var keyboardMode = KeyboardMode.QWERTY
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
@@ -169,16 +170,12 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         candidatesEnd: Int,
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
-        if (candidateSource == CandidateSource.PREDICTION && !isExpectedPredictionSelection(
-                oldSelStart,
-                oldSelEnd,
-                newSelStart,
-                newSelEnd,
-            )
-        ) {
-            invalidateConversion(clearComposing = false)
-        } else if (candidateSource != CandidateSource.PREDICTION) {
-            pendingPredictionSelectionDelta = null
+        if (candidateSource == CandidateSource.PREDICTION || predictionRequestInFlight) {
+            if (!isExpectedPredictionSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd)) {
+                invalidateConversion(clearComposing = false)
+            }
+        } else {
+            pendingPredictionSelection = null
         }
         if (reading.isNotEmpty() && (candidatesStart < 0 || newSelStart !in candidatesStart..candidatesEnd)) {
             invalidateConversion(clearComposing = false)
@@ -341,9 +338,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
                     }
                     if (candidates.isNotEmpty()) commitJapaneseCandidate(selectedCandidate.coerceAtLeast(0), editorToken)
                     else {
-                        expectPredictionSelectionAfterCommit(reading)
+                        expectPredictionSelectionAfterCommit(reading, reading)
                         if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) {
-                            pendingPredictionSelectionDelta = null
+                            pendingPredictionSelection = null
                             return
                         }
                         resetConversion(clearComposing = false)
@@ -605,7 +602,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             clearCandidateState()
             return
         }
-        expectPredictionSelectionAfterCommit(committed)
+        expectPredictionSelectionAfterCommit(committed, reading)
         textController.commitCandidate(committed)
         clearCandidateState()
         requestNextWordPrediction(editorToken)
@@ -614,9 +611,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private suspend fun commitDisplayedConversion(editorToken: Long) {
         val preview = conversionPreview
         if (preview != null) {
-            expectPredictionSelectionAfterCommit(preview)
+            expectPredictionSelectionAfterCommit(preview, preview)
             if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(preview) }) {
-                pendingPredictionSelectionDelta = null
+                pendingPredictionSelection = null
                 return
             }
             resetConversion(clearComposing = false)
@@ -624,9 +621,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         } else if (candidates.isNotEmpty()) {
             commitJapaneseCandidate(selectedCandidate.coerceAtLeast(0), editorToken)
         } else if (reading.isNotEmpty()) {
-            expectPredictionSelectionAfterCommit(reading)
+            expectPredictionSelectionAfterCommit(reading, reading)
             if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(reading) }) {
-                pendingPredictionSelectionDelta = null
+                pendingPredictionSelection = null
                 return
             }
             resetConversion(clearComposing = false)
@@ -636,9 +633,9 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
 
     private suspend fun commitConversionAs(value: String, editorToken: Long) {
         if (reading.isEmpty()) return
-        expectPredictionSelectionAfterCommit(value)
+        expectPredictionSelectionAfterCommit(value, reading)
         if (!editorSession.runIfCurrent(editorToken) { textController.commitCandidate(value) }) {
-            pendingPredictionSelectionDelta = null
+            pendingPredictionSelection = null
             return
         }
         resetConversion(clearComposing = false)
@@ -654,7 +651,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             clearCandidateState()
             return
         }
-        expectPredictionSelectionAfterCommit(committed)
+        expectPredictionSelectionAfterCommit(committed, "")
         textController.commitText(committed)
         clearCandidateState()
         requestNextWordPrediction(editorToken)
@@ -667,7 +664,12 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         }
         clearCandidateState()
         val generation = predictionGeneration
-        val state = conversionEngine.predict(context)
+        predictionRequestInFlight = true
+        val state = try {
+            conversionEngine.predict(context)
+        } finally {
+            predictionRequestInFlight = false
+        }
         if (generation != predictionGeneration || !editorSession.isCurrent(editorToken) || textController.isPrivateField) return
         applyPrediction(state)
     }
@@ -676,8 +678,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         if (candidateSource == CandidateSource.PREDICTION) resetConversion(clearComposing = false)
     }
 
-    private fun expectPredictionSelectionAfterCommit(value: String) {
-        pendingPredictionSelectionDelta = value.length
+    private fun expectPredictionSelectionAfterCommit(value: String, replacedText: String) {
+        pendingPredictionSelection = ExpectedSelectionTransition(
+            replacedLength = replacedText.length,
+            replacementLength = value.length,
+        )
     }
 
     private fun isExpectedPredictionSelection(
@@ -686,10 +691,10 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
         newSelStart: Int,
         newSelEnd: Int,
     ): Boolean {
-        val expectedDelta = pendingPredictionSelectionDelta ?: return false
-        pendingPredictionSelectionDelta = null
+        val expected = pendingPredictionSelection ?: return false
+        pendingPredictionSelection = null
         return oldSelStart == oldSelEnd && newSelStart == newSelEnd &&
-            newSelStart - oldSelStart == expectedDelta
+            newSelStart - oldSelStart == expected.replacementLength - expected.replacedLength
     }
 
     private fun applyPrediction(state: ConversionState) {
@@ -884,6 +889,11 @@ private data class CandidateSnapshot(
     val slashGeneration: Long,
     val slashBufferActive: Boolean,
     val predictionGeneration: Long,
+)
+
+private data class ExpectedSelectionTransition(
+    val replacedLength: Int,
+    val replacementLength: Int,
 )
 
 private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'

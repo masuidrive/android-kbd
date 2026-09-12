@@ -154,6 +154,8 @@ class ImeServiceEnglishSuggestionTest {
         harness.idle()
         harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!.performClick()
         harness.idle()
+        harness.service.onUpdateSelection(3, 3, 4, 4, -1, -1)
+        harness.idle()
 
         assertEquals("日本語を", harness.input.committed)
         assertEquals(listOf("日本語", "を"), harness.input.committedValues)
@@ -211,7 +213,7 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
-    fun expectedSelectionAfterCommitKeepsPredictionAndPredictionHistoryCanBeDeleted() {
+    fun compositionReplacementSelectionKeepsPredictionAndPredictionHistoryCanBeDeleted() {
         val conversion = FakeConversion(
             candidateValues = listOf(ConversionCandidate(1, "日本語")),
             prediction = { listOf(ConversionCandidate(2, "を")) },
@@ -222,13 +224,75 @@ class ImeServiceEnglishSuggestionTest {
         harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
         harness.idle()
 
-        harness.service.onUpdateSelection(0, 0, 3, 3, -1, -1)
+        harness.service.onUpdateSelection(4, 4, 3, 3, -1, -1)
         harness.idle()
         val prediction = harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }!!
         assertEquals(true, prediction.performLongClick())
         harness.idle()
 
         assertEquals(listOf(0), conversion.deletedIndexes)
+    }
+
+    @Test
+    fun sameLengthHiraganaAndKatakanaCommitSelectionKeepsPrediction() {
+        listOf(KeyAction.CommitWithoutConversion, KeyAction.ConvertToKatakana).forEach { action ->
+            val conversion = FakeConversion(
+                candidateValues = listOf(ConversionCandidate(1, "日本語")),
+                prediction = { listOf(ConversionCandidate(2, "を")) },
+            )
+            val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+            harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+            harness.idle()
+
+            harness.service.onKeyAction(action)
+            harness.idle()
+            harness.service.onUpdateSelection(4, 4, 4, 4, -1, -1)
+            harness.idle()
+
+            assertEquals("候補 1: を", harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }?.contentDescription)
+        }
+    }
+
+    @Test
+    fun expectedSelectionBeforePredictionCompletesKeepsItsResult() {
+        val pending = CompletableDeferred<List<ConversionCandidate>>()
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { pending.await() },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+
+        harness.service.onUpdateSelection(4, 4, 3, 3, -1, -1)
+        pending.complete(listOf(ConversionCandidate(2, "を")))
+        harness.idle()
+
+        assertEquals("候補 1: を", harness.root.findView { it.contentDescription?.toString() == "候補 1: を" }?.contentDescription)
+    }
+
+    @Test
+    fun externalSelectionDuringPredictionLookupDiscardsTheDelayedResult() {
+        val pending = CompletableDeferred<List<ConversionCandidate>>()
+        val conversion = FakeConversion(
+            candidateValues = listOf(ConversionCandidate(1, "日本語")),
+            prediction = { pending.await() },
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+        harness.root.findView { it.contentDescription?.toString() == "候補 1: 日本語" }!!.performClick()
+        harness.idle()
+
+        harness.input.setSelection(0, 0)
+        harness.service.onUpdateSelection(3, 3, 0, 0, -1, -1)
+        pending.complete(listOf(ConversionCandidate(2, "を")))
+        harness.idle()
+
+        assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: を" })
+        assertEquals("日本語", harness.input.committed)
     }
 
     @Test
@@ -486,7 +550,7 @@ class ImeServiceEnglishSuggestionTest {
 
     private class FakeConversion(
         private val candidateValues: List<ConversionCandidate> = emptyList(),
-        private val prediction: (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
+        private val prediction: suspend (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
     ) : ConversionEngine {
         val deletedIndexes = mutableListOf<Int>()
         val predictionContexts = mutableListOf<PredictionContext>()
