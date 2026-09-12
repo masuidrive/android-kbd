@@ -165,6 +165,8 @@ Passed: 2 / 2
 
 [2026/09/12 23:06 JST] v0.13.0をGitHub ReleasesへAPK単体で公開し、Hanger Sitesの製品ページ・操作mock・manualも更新した。human reviewでは対応実機の通常入力欄で、音声レイヤー進入後にCancel横へ「認識中」が出ること、候補を1件選ぶと1回だけ入力されて次の認識が始まること、2回以上繰り返した後にCancelで停止し旧候補が復活しないことを確認する。物理Fold/TalkBackは利用可能なら合わせて確認する。公開APKの再download hash一致、AVD/mock/自動testの証拠はPDH-verify節に記録済み。ユーザの明示close承認まではticketを閉じない。
 
+[2026/09/13 00:38 JST] v0.14.0をGitHub ReleaseへAPK単体で公開し、認証済みGitHub API経由の再downloadが38,583,304 bytes、SHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`でlocalと一致した。repository `masuidrive/android-kbd`はprivateなので、未認証の直接download URLは404となる。Hanger Sitesはdisplay nameをv0.14.0、access modeをpublicへ更新し、48ファイル全件のhashと公開index/demo/manualのbyte一致を確認した。APK/ZIPはsiteに含めていない。対応実機で10秒以上発話し、縦候補から2回連続確定、Cancel停止を確認後にclose承認を依頼する。
+
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。

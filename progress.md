@@ -226,3 +226,5 @@
 [2026/09/13 00:22] 絵文字categoryの48dp正規化を同値時にはminimumWidthとlayoutParamsを書き戻さないidempotent処理へ修正。二重適用の回帰testを追加し、以前停止したemoji commit testとfocused 8 classは6秒でPASSした。
 [2026/09/13 00:26] 48dp再レイアウト修正後の全suiteはfast-checksとAndroid unit・lint・APKの2/2 PASS。独立Terra reviewもCritical・Major・Minorすべて0件だった。
 [2026/09/13 00:31] v0.14.0をAPI 36 emulatorで確認し、音声非対応を固定panelのplain text、絵文字を等幅categoryと3行grid、独自hide rowなしで表示した。connected testは11/11 PASS。v0.14実画面をマニュアルへ追加した。
+[2026/09/13 00:38] v0.14.0 APKをGitHub Releaseへ単体公開し、GitHub API経由の再取得で38,583,304 bytesとSHA-256 `f4a8888c98d27f2d471c37b3b63d66c624477a34e470b614a220e36cd85a6311`の完全一致を確認した。repositoryはprivateのため未認証の直接URLは404になる。
+[2026/09/13 00:38] Hanger Sitesをv0.14.0へ更新してpublic公開した。localと公開側は48ファイル全件のSHA-256が一致し、公開index・demo・manualもbyte単位で一致した。siteにAPK/ZIPは含めていない。
