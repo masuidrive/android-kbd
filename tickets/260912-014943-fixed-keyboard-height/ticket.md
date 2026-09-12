@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-021714-fix-setup-safe-area-and-app-bar
 description: "Keep keyboard height stable and add a height setting"
 created_at: "2026-09-12T01:49:43Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T03:11:26Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
