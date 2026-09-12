@@ -45,6 +45,7 @@
   - 変更前の`KeyboardView`は400px幅でrow pitch 55dp、row gap 10dp、face 45dp、4行外形228dpであり、840px幅ではrow pitch 62dp、face 52dp、外形256dpへ拡大する。`KeyboardViewTest`の既存geometry回帰で確認した。
   - 変更前は500pxの一時`EXACTLY` parentを228pxへcapするapp-switch対策が存在するが、幅依存の62dp pitchがFold内幅で高さを増やす。preset化後は同じ500px入力、inset再配信、全layer/Dual Flickで選択presetの位置とtap boundsを維持する。
   - `similarity-generic`はリポジトリに存在しないためskipした。外部provider/APIは本ticketに存在しない。
+  - 最終APKをAPI 36 `emulator-5554`へ導入し、Gesture IME選択と`mInputShown=true`を確認した。412dp、840dp相当、landscapeの各有効captureで候補欄・4行・navigation safe areaが可視である。IME pickerだけ、またはIMEが出ていない中間captureは証跡から除外した。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -52,6 +53,7 @@
 論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 - `ed848d3` `[260912-014943-fixed-keyboard-height] feat(keyboard): add persistent fixed height presets`: `KeyboardHeightPreset`を端末内へ保存し、Setupの48dp RadioGroup、IME lifecycle再適用、幅とDual Flickから独立した4行測定を実装した。500pxの一時`EXACTLY`、遅延bottom inset、全layer/Dual Flick、malformed preference、再生成後のSetup選択を回帰テストで覆った。
+- `dc74d97` `[260912-014943-fixed-keyboard-height] docs(keyboard): document fixed four-row geometry`: README、manual、technical reference、device verificationへ固定geometryと有効なAPI 36 AVD evidenceを記録した。
 - mockのinner幅だけを52pxへ伸ばすCSS overrideを削除し、標準45px rowをmobile/tablet/Dual/voiceで共有した。siteに既存browser harnessがないため、`rg`でinner override不在と基準ruleを静的確認した。
 - focused JVM: `:app:testDebugUnitTest --tests ImePreferencesTest --tests SetupActivitySlashCommandsTest --tests KeyboardViewTest --tests ImeServiceVoiceLifecycleTest` PASS。full: `scripts/test-all.sh --parallel` PASS（fast-checks、android unit/lint/apk）。
 
