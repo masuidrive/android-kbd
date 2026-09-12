@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-071844-add-ime-hide-bar
 description: "Show emoji recents and integrate the AndroidX categorized picker"
 created_at: "2026-09-12T08:00:17Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T08:08:14Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
