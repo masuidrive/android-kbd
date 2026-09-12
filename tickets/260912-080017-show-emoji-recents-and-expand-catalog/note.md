@@ -34,7 +34,7 @@
 
 現行は`EmojiCatalog.entries`と公開mockの双方が固定32件で、recent最大8件をcatalog先頭へ連結している。候補欄は全高50dp、face 34dpをtop14/bottom2に置き、最上段key faceまで10dpである。ユーザは絵文字レイヤーで候補欄をカテゴリicon行へ置き換え、先頭のRecentを選ぶと下の3行へ履歴を出す方針を明示した。公式資料では`EmojiPickerView`が横方向のclickable header、縦scroll一覧、最近使用、長押しvariationを提供し、`emojiGridRows`/`emojiGridColumns`を設定できる。安定版1.6.0はEmoji 16.0をsupportしminSdk 23、現appはminSdk 28/compileSdk 36である。1.7.0-rc01はCompose側compileSdk 37.1を要求するため採用しない。未確定のproduct判断はない。
 
-独立AC読み手はAndroidX picker採用時点のAC 1〜8をすべて復元した。その後のユーザ指示で、絵文字レイヤーだけは候補欄をカテゴリicon行へ置換し、Recentはそのカテゴリ内へ表示、一覧は3行へ更新した。ユーザ自身が観察面を明示したため更新後契約のticket-human-review承認として扱う。
+独立AC読み手は最新契約のAC 1〜8をすべて復元した。絵文字レイヤーだけ候補欄を50dpのカテゴリicon行へ置換し、その下を一覧3行＋固定control 1行とする構成は全体高不変と整合する。Recentの新しい順・重複なし最大24件、確定時の先頭反映、private時の履歴非表示と通常欄での復元も操作結果として観察できるため、更新後契約をticket-human-review承認として扱う。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
