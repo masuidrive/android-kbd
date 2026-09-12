@@ -76,6 +76,67 @@ class ImeServiceVoiceHoldTest {
         assertEquals(2, h.recognizer.startCount)
     }
 
+    @Test fun voiceBottomRowEditsKeepCandidatesAndContinuousRecognitionIntact() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("音声候補"); h.idle()
+
+        listOf(
+            KeyAction.CommitText("、"),
+            KeyAction.CommitText("。"),
+            KeyAction.CommitText("？"),
+            KeyAction.CommitText("！"),
+            KeyAction.CommitText(" "),
+            KeyAction.Enter,
+            KeyAction.MoveCursor(com.masuidrive.gestureime.keyboard.Direction.LEFT),
+            KeyAction.ModifiedKey("j", com.masuidrive.gestureime.keyboard.Modifier.CTRL),
+            KeyAction.Paste,
+        ).forEach(h.service::onKeyAction)
+        h.idle()
+
+        assertEquals("、。？！ \n", h.input.text)
+        assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
+        assertTrue(h.root.findKeyboard().voiceSessionActive())
+        assertTrue(h.root.allText().contains("音声候補"))
+        assertEquals(1, h.recognizer.startCount)
+    }
+
+    @Test fun queuedVoiceBottomRowEditIsDroppedAfterCancelInvalidatesItsSession() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        val mutex = ImeService::class.java.getDeclaredField("actionMutex").apply { isAccessible = true }.get(h.service) as kotlinx.coroutines.sync.Mutex
+        runBlocking { mutex.lock() }
+        try {
+            h.service.onKeyAction(KeyAction.CommitText("、"))
+            h.service.onKeyAction(KeyAction.CancelVoice)
+        } finally {
+            mutex.unlock()
+        }
+        h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
+    }
+
+    @Test fun queuedVoiceBottomRowEditIsDroppedAfterLayerSwitchInvalidatesItsSession() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        val mutex = ImeService::class.java.getDeclaredField("actionMutex").apply { isAccessible = true }.get(h.service) as kotlinx.coroutines.sync.Mutex
+        runBlocking { mutex.lock() }
+        try {
+            h.service.onKeyAction(KeyAction.CommitText("、"))
+            h.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.NUMBERS))
+        } finally {
+            mutex.unlock()
+        }
+        h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(KeyboardMode.NUMBERS, h.root.findKeyboard().mode())
+    }
+
     @Test fun editorChangeAndErrorStopContinuousVoiceWithoutStatusOrRestart() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()

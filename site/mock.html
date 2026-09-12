@@ -141,12 +141,13 @@
   #ios-keyboard-demo .trackpad-status[hidden] { display:none; }
   #ios-keyboard-demo .voice .key.voice-cancel .key-face { font-size:13px; }
   #ios-keyboard-demo .voice .voice-bottom { position:relative; }
+  #ios-keyboard-demo .voice .key.return { position:static; width:auto; height:100%; z-index:auto; }
   #ios-keyboard-demo .voice .voice-candidate-viewport { height:165px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
   #ios-keyboard-demo .voice .voice-candidate-viewport::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .voice .voice-candidate { display:block; width:100%; height:45px; margin:0 0 10px; padding:0 14px; overflow:hidden; border:0; border-radius:5px; background:var(--ik-key); color:var(--ik-ink); font:400 15px/45px inherit; text-align:left; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 0 light-dark(#898c94,#141416); }
   #ios-keyboard-demo .voice .voice-candidate:focus-visible { outline:2px solid var(--ik-blue); outline-offset:-2px; }
   #ios-keyboard-demo .voice .voice-plain-status { display:flex; align-items:center; height:165px; margin:0; padding:0 14px; color:var(--ik-muted); font-size:14px; }
-  #ios-keyboard-demo .voice-status { position:absolute; left:calc(20% + 8px); top:0; height:45px; display:flex; align-items:center; color:var(--ik-muted); font-size:13px; pointer-events:none; }
+  #ios-keyboard-demo .voice-status { position:absolute; left:20%; top:0; width:20%; height:45px; display:flex; align-items:center; justify-content:center; color:var(--ik-muted); font-size:13px; pointer-events:none; }
   #ios-keyboard-demo .popup { position:absolute; z-index:10; pointer-events:none; filter:drop-shadow(0 3px 7px #0008); }
   #ios-keyboard-demo .popup[hidden], #ios-keyboard-demo [hidden] { display:none; }
   #ios-keyboard-demo .popup.flick { width:150px; height:150px; }
@@ -740,6 +741,7 @@
       emoji:'絵文字レイヤーへ切り替える',
       space:'Space。フリックでカーソル移動',
       return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':'Enter、上フリックでCtrl+J、下フリックでPaste',
+      'voice-punct':'タップで、。左フリックで。上フリックで？右フリックで！',
       numbers:'テンキーへ切り替える',
       kana:'タップで日本語。'+layerDirections,
       symbols:language==='kana'?'記号へ切り替える':layer==='letters'?'記号へ切り替える':'QWERTYへ戻る',
@@ -844,7 +846,10 @@
     if(voiceDemo.active) {
       const bottomRow=[
         makeKey('voice-cancel','キャンセル',{special:true,side:true,navigation:voiceNavigation,preview:'selection'}),
-        ...[1,2,3,4].map(()=>makeKey(null,''))
+        makeKey(null,''),
+        makeKey('voice-punct','、。?!',{flick:['、','。','？','！',null],preview:'press'}),
+        makeKey('space','Space',{hint:'←↓↑→'}),
+        makeKey('return','Enter',{hint:'paste',navigation:pasteNavigation})
       ];
       keyMap=new Map();keys.replaceChildren();keys.className='keys kana voice';
       const viewport=document.createElement('div');viewport.className='voice-candidate-viewport';viewport.setAttribute('aria-label','音声認識候補');

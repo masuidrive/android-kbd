@@ -658,6 +658,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onKeyAction(action: KeyAction) {
         val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
+        val voiceEditingSession = continuousVoiceEditingSessionFor(action)
         // A destructive voice-layer action must invalidate a queued candidate tap before the
         // action mutex reaches it. This closes the small queueing window after a user cancels
         // or flicks away from the layer and before a preview tap could commit/restart.
@@ -666,7 +667,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         ) {
             invalidateContinuousVoiceSession()
         }
-        if (!voiceCandidateSelection) {
+        if (!voiceCandidateSelection && voiceEditingSession == null) {
             cancelVoiceHold()
             if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         }
@@ -676,7 +677,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             actionMutex.withLock {
                 if (!editorSession.isCurrent(queuedForEditor)) return@withLock
                 if (queuedCandidateSnapshot != null && queuedCandidateSnapshot != candidateSnapshot()) return@withLock
-                runCatching { processInputAction(action, queuedForEditor) }
+                runCatching { processInputAction(action, queuedForEditor, voiceEditingSession) }
                     .onFailure {
                         clearCandidateState()
                         candidateStrip?.showStatus("変換を利用できません")
@@ -752,7 +753,25 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
     }
 
-    private suspend fun processInputAction(action: KeyAction, editorToken: Long) {
+    private fun continuousVoiceEditingSessionFor(action: KeyAction): Long? {
+        if (keyboardMode != KeyboardMode.VOICE) return null
+        return when (action) {
+            is KeyAction.CommitText,
+            KeyAction.Enter,
+            KeyAction.Paste,
+            is KeyAction.MoveCursor,
+            is KeyAction.ModifiedKey,
+            -> voiceSessionGeneration
+            else -> null
+        }
+    }
+
+    private suspend fun processInputAction(action: KeyAction, editorToken: Long, voiceEditingSession: Long? = null) {
+        if (voiceEditingSession != null) {
+            if (!isCurrentContinuousVoiceSession(voiceEditingSession, editorToken)) return
+            processContinuousVoiceEditingAction(action, editorToken)
+            return
+        }
         if (slashBufferActive && action !is KeyAction.SelectCandidate && action !is KeyAction.Backspace) {
             finishSlashRaw()
         }
@@ -886,6 +905,24 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             is KeyAction.SetModifier -> finishEnglishRaw()
             KeyAction.VoiceHold -> startVoiceLayer(editorToken)
             KeyAction.CancelVoice -> cancelVoiceSession()
+        }
+    }
+
+    /**
+     * The bottom row of VOICE intentionally edits the target without altering its recognizer,
+     * voice panel, candidates, or Mozc composition state.  Its session token also drops a tap
+     * that was queued before cancel/layer change invalidated the continuous session.
+     */
+    private fun processContinuousVoiceEditingAction(action: KeyAction, editorToken: Long) {
+        editorSession.runIfCurrent(editorToken) {
+            when (action) {
+                is KeyAction.CommitText -> textController.commitText(action.text)
+                KeyAction.Enter -> textController.enter()
+                KeyAction.Paste -> textController.paste()
+                is KeyAction.MoveCursor -> textController.moveCursor(action.direction, action.units)
+                is KeyAction.ModifiedKey -> textController.sendModifiedKey(action.label, action.modifier)
+                else -> Unit
+            }
         }
     }
 

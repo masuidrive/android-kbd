@@ -77,10 +77,10 @@ object KeyboardLayouts {
     ))
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
-        KeyboardRow(listOf(empty(10f))),
-        KeyboardRow(listOf(empty(10f))),
-        KeyboardRow(listOf(empty(10f))),
-        KeyboardRow(listOf(voiceLayerKey(), empty(8f))),
+        KeyboardRow(listOf(empty(5f))),
+        KeyboardRow(listOf(empty(5f))),
+        KeyboardRow(listOf(empty(5f))),
+        KeyboardRow(listOf(voiceLayerKey(), voiceStatusSlot(), voicePunct(), space(), enter())),
     ))
 
     private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
@@ -158,9 +158,16 @@ object KeyboardLayouts {
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
-        widthUnits = 2f,
+        widthUnits = 1f,
         dark = true,
     )
+
+    /** The spoken-state label is drawn over this non-action fifth of the voice bottom row. */
+    private fun voiceStatusSlot() = KeySpec("voice-status", KeyKind.EMPTY, null)
+
+    /** Voice punctuation commits immediately: it must never enter the Mozc reading buffer. */
+    private fun voicePunct() = KeySpec("voice-punct", KeyKind.CHARACTER,
+        value("、"), left = value("。"), up = value("？"), right = value("！"))
 
 }
 

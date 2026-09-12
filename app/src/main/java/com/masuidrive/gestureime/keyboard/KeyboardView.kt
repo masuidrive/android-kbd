@@ -160,11 +160,7 @@ class KeyboardView @JvmOverloads constructor(
         if (state.mode == KeyboardMode.EMOJI) rebuildLayout() else invalidate()
     }
 
-    /**
-     * Keeps the voice-session status in the existing empty portion of the bottom row.  It does
-     * not create a key or alter the four-row geometry, so Cancel and its flick targets retain
-     * their measured bounds.
-     */
+    /** Keeps the non-action voice status in its dedicated bottom-row fifth. */
     fun setVoiceSessionActive(active: Boolean) {
         if (state.voiceSessionActive == active) return
         if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
@@ -331,23 +327,23 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun drawVoiceSessionStatus(canvas: Canvas) {
-        val cancel = hitTargets.firstOrNull { it.spec.id == "voice-cancel" } ?: return
+        val status = hitTargets.firstOrNull { it.spec.id == "voice-status" } ?: return
         textPaint.color = context.getColor(R.color.keyboard_muted_text)
         textPaint.alpha = 255
         textPaint.textSize = sp(13f)
-        textPaint.textAlign = Paint.Align.LEFT
-        val x = cancel.bounds.right + dp(8f)
-        val y = cancel.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
-        canvas.drawText("認識中", x, y, textPaint)
         textPaint.textAlign = Paint.Align.CENTER
+        val x = status.bounds.centerX()
+        val y = status.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
+        canvas.drawText("認識中", x, y, textPaint)
     }
 
     private fun voiceSessionStatusBounds(): android.graphics.Rect? {
         if (state.mode != KeyboardMode.VOICE || !state.voiceSessionActive) return null
-        val cancel = hitTargets.firstOrNull { it.spec.id == "voice-cancel" } ?: return null
-        val left = (cancel.bounds.right + dp(8f)).toInt()
-        val right = min(width - paddingRight, left + dp(64f).toInt())
-        val bounds = android.graphics.Rect(left, cancel.bounds.top.toInt(), right, cancel.bounds.bottom.toInt())
+        val status = hitTargets.firstOrNull { it.spec.id == "voice-status" } ?: return null
+        val bounds = android.graphics.Rect(
+            status.bounds.left.toInt(), status.bounds.top.toInt(),
+            status.bounds.right.toInt(), status.bounds.bottom.toInt(),
+        )
         return bounds.takeUnless { it.isEmpty }
     }
 
@@ -481,7 +477,7 @@ class KeyboardView @JvmOverloads constructor(
         val label = when {
             spec.kind == KeyKind.MODIFIER && state.pendingModifier != null -> if (state.pendingModifier == Modifier.ALT) "A" else "C"
             spec.kind == KeyKind.BACKSPACE && spec.center != null -> spec.center.label
-            spec.id == "punct" && direction == Direction.CENTER -> "、。?!"
+            spec.id in setOf("punct", "voice-punct") && direction == Direction.CENTER -> "、。?!"
             selected && direction != Direction.CENTER -> spec.value(direction)?.label
             else -> spec.center?.label ?: modifierLabel(spec)
         } ?: ""

@@ -62,7 +62,7 @@ class KeyboardLayoutsTest {
         }
         val voice = keys(KeyboardMode.VOICE).single { it.kind == KeyKind.LAYER_SWITCH }
         assertEquals("キャンセル", voice.center?.label)
-        assertEquals(2f, voice.widthUnits)
+        assertEquals(1f, voice.widthUnits)
         assertEquals(KeyAction.CancelVoice, voice.center?.action)
         assertNull(voice.left)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), voice.up?.action)
@@ -71,6 +71,34 @@ class KeyboardLayoutsTest {
         KeyboardLayouts.all.values.flatMap { it.rows }.flatMap { it.keys }.filter { it.kind == KeyKind.MODE }.forEach { key ->
             assertNull(key.left); assertNull(key.up); assertNull(key.right); assertNull(key.down)
         }
+    }
+
+    @Test fun `voice bottom row has five equal columns and direct punctuation`() {
+        val rows = KeyboardLayouts.layout(KeyboardMode.VOICE).rows
+        assertEquals(4, rows.size)
+        assertTrue(rows.take(3).all { it.keys.single().widthUnits == 5f })
+
+        val bottom = rows.last().keys
+        assertEquals(listOf("voice-cancel", "voice-status", "voice-punct", "space", "enter"), bottom.map { it.id })
+        assertTrue(bottom.all { it.widthUnits == 1f })
+        val punctuation = bottom[2]
+        assertEquals(KeyKind.CHARACTER, punctuation.kind)
+        assertEquals(
+            listOf("、", "。", "？", "！", null),
+            Direction.entries.map { punctuation.value(it)?.label },
+        )
+        assertEquals(
+            listOf("、", "。", "？", "！"),
+            Direction.entries.mapNotNull { (punctuation.value(it)?.action as? KeyAction.CommitText)?.text },
+        )
+        assertEquals(KeyAction.CommitText(" "), bottom[3].center?.action)
+        assertEquals(KeyAction.MoveCursor(Direction.LEFT), bottom[3].left?.action)
+        assertEquals(KeyAction.MoveCursor(Direction.UP), bottom[3].up?.action)
+        assertEquals(KeyAction.MoveCursor(Direction.RIGHT), bottom[3].right?.action)
+        assertEquals(KeyAction.MoveCursor(Direction.DOWN), bottom[3].down?.action)
+        assertEquals(KeyAction.Enter, bottom[4].center?.action)
+        assertEquals(KeyAction.Paste, bottom[4].down?.action)
+        assertEquals(KeyAction.ModifiedKey("j", Modifier.CTRL), bottom[4].up?.action)
     }
 
     @Test fun `symbol layer contains ASCII only`() {

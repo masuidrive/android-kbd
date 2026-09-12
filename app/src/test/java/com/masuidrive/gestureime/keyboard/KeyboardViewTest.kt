@@ -312,7 +312,7 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `voice session status draws beside cancel without creating a key or changing its target`() {
+    @Test fun `voice status owns its empty fifth without changing four row geometry`() {
         listOf(
             Triple(412, KeyboardHeightPreset.SMALL, 208),
             Triple(840, KeyboardHeightPreset.SMALL, 208),
@@ -326,6 +326,7 @@ class KeyboardViewTest {
             view.setMode(KeyboardMode.VOICE)
             val provider = view.accessibilityNodeProvider
             val cancelBefore = keyBounds(3)
+            val punctuation = keyBounds(5)
             val cancelActionsBefore = requireNotNull(provider.createAccessibilityNodeInfo(3)).actions
             val nodesBefore = requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount
             val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
@@ -340,7 +341,7 @@ class KeyboardViewTest {
             val canvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             val status = requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID))
 
-            assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right })
+            assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right && it.x < punctuation.left })
             assertEquals(cancelBefore, keyBounds(3))
             assertEquals(cancelActionsBefore, requireNotNull(provider.createAccessibilityNodeInfo(3)).actions)
             assertEquals(height, view.measuredHeight)
@@ -349,6 +350,8 @@ class KeyboardViewTest {
             assertFalse(status.isClickable)
             assertFalse(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_CLICK, null))
             val statusBounds = Rect().also(status::getBoundsInParent)
+            assertTrue(statusBounds.left >= cancelBefore.right)
+            assertTrue(statusBounds.right <= punctuation.left)
             val hoverEnter = MotionEvent.obtain(0, 1, MotionEvent.ACTION_HOVER_ENTER, statusBounds.exactCenterX().toFloat(), statusBounds.exactCenterY().toFloat(), 0)
             try {
                 assertTrue(view.dispatchHoverEvent(hoverEnter))
