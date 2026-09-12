@@ -28,13 +28,12 @@ import org.robolectric.annotation.Config
 class CandidateStripViewTest {
     private fun view() = CandidateStripView(RuntimeEnvironment.getApplication())
 
-    @Test fun idleShowsCandidatesWithoutAnOldVoiceStartControl() {
-        val view = view(); val candidates = mutableListOf<CandidateUiEvent>(); val actions = mutableListOf<VoiceUiEvent>()
-        view.setOnCandidateSelected(candidates::add); view.setOnVoiceActionListener(actions::add)
-        view.showCandidates(CandidateUiSnapshot(20, listOf("日本語", "日本語の"), 0)); view.setVoiceState(VoiceUiSnapshot(1, VoiceUiState.Idle))
+    @Test fun candidatesDispatchTheirRenderedIndex() {
+        val view = view(); val candidates = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(candidates::add)
+        view.showCandidates(CandidateUiSnapshot(20, listOf("日本語", "日本語の"), 0))
         view.textView("日本語の").performClick()
-        assertEquals(listOf(CandidateUiEvent(20, 1)), candidates); assertTrue(actions.isEmpty())
-        assertTrue(view.allTextViews().none { it.text == "音声" })
+        assertEquals(listOf(CandidateUiEvent(20, 1)), candidates)
     }
 
     @Test fun partialCandidateUsesTheCandidateFaceButCannotBeSelected() {
@@ -56,141 +55,6 @@ class CandidateStripViewTest {
         assertTrue(final.isClickable)
         assertTrue(final.performClick())
         assertEquals(listOf(CandidateUiEvent(42, 0)), events)
-    }
-
-    @Test fun voiceCandidatesWrapAtTwoLinesWithinTheVisibleStripWhileNormalCandidatesStaySingleLine() {
-        val view = view()
-        view.measure(
-            View.MeasureSpec.makeMeasureSpec(180, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY),
-        )
-        view.layout(0, 0, 180, 50)
-
-        view.showCandidates(CandidateUiSnapshot(
-            43,
-            listOf("これは候補欄より十分に長い音声認識結果なので二行で表示されます"),
-            presentation = CandidatePresentation.VOICE,
-        ))
-        shadowOf(Looper.getMainLooper()).idle()
-        val voice = view.textView("これは候補欄より十分に長い音声認識結果なので二行で表示されます")
-        assertEquals(2, voice.maxLines)
-        assertEquals(android.text.TextUtils.TruncateAt.END, voice.ellipsize)
-        assertTrue(voice.maxWidth <= 174)
-        assertEquals(50, view.measuredHeight)
-
-        view.showCandidates(CandidateUiSnapshot(44, listOf("通常候補は従来どおり一行表示")))
-        val normal = view.textView("通常候補は従来どおり一行表示")
-        assertEquals(1, normal.maxLines)
-        assertEquals(null, normal.ellipsize)
-        assertEquals(50, view.measuredHeight)
-    }
-
-    @Test fun recordingAndRecognizingKeepTheCandidateAreaEmptyWithoutLegacyControls() {
-        val view = view()
-        view.setVoiceState(VoiceUiSnapshot(2, VoiceUiState.Recording))
-        assertTrue(view.allTextViews().isEmpty())
-        view.setVoiceState(VoiceUiSnapshot(3, VoiceUiState.Recognizing))
-        assertTrue(view.allTextViews().isEmpty())
-    }
-
-    @Test fun permissionStillOffersItsRequiredSetupAction() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(actions::add)
-        view.setVoiceState(VoiceUiSnapshot(4, VoiceUiState.PermissionRequired)); view.textView("許可").performClick()
-        assertEquals(listOf(VoiceUiEvent(4, VoiceUiAction.RequestPermission)), actions)
-    }
-
-    @Test fun backendPreviewHasNoManualConfirmationControls() {
-        val view = view(); view.setVoiceState(VoiceUiSnapshot(5, VoiceUiState.Preview("自動入力される結果")))
-        assertEquals("音声を認識しました", view.textView("音声を認識しました").text.toString())
-        assertTrue(view.allTextViews().none { it.text == "確定" || it.text == "取消" })
-    }
-
-    @Test fun partialResultUsesCandidateFaceWithoutLegacyCancelControl() {
-        val view = view()
-        view.setVoiceState(VoiceUiSnapshot(12, VoiceUiState.Partial("認識途中の文章")))
-        view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
-        view.layout(0, 0, 400, 50)
-
-        val partial = view.textView("認識途中の文章")
-        assertEquals(38, partial.height)
-        assertEquals(7f, partial.faceLayer().cornerRadius, .1f)
-        assertEquals("認識途中: 認識途中の文章", partial.contentDescription)
-        assertTrue(view.allTextViews().none { it.text == "取消" })
-    }
-
-    @Test fun permissionAndUnavailableControlsShareCandidateGeometryAndThemeColors() {
-        val view = view()
-        listOf(
-            VoiceUiState.PermissionRequired to "許可",
-            VoiceUiState.Unavailable("利用不可") to "非対応",
-        ).forEach { (state, text) ->
-            view.setVoiceState(VoiceUiSnapshot(13, state))
-            view.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY))
-            view.layout(0, 0, 400, 50)
-            val control = view.textView(text)
-            assertEquals(82, control.width)
-            assertEquals(38, control.height)
-            assertEquals(7f, control.faceLayer().cornerRadius, .1f)
-            assertEquals(Color.WHITE, control.faceColor())
-            assertEquals(Color.rgb(137, 140, 148), control.shadowLayer().color!!.defaultColor)
-            assertEquals(Color.rgb(25, 25, 27), control.currentTextColor)
-            assertTrue(control.isEnabled)
-            assertTrue(control.isClickable)
-            assertTrue(control.isFocusable)
-        }
-    }
-
-    @Test @Config(qualifiers = "night") fun permissionAndUnavailableUseDarkNormalCandidateFace() {
-        val view = view()
-        listOf(
-            VoiceUiState.PermissionRequired to "許可",
-            VoiceUiState.Unavailable("利用不可") to "非対応",
-        ).forEach { (state, text) ->
-            view.setVoiceState(VoiceUiSnapshot(14, state))
-            val control = view.textView(text)
-            assertEquals(Color.rgb(65, 65, 68), control.faceColor())
-            assertEquals(Color.rgb(20, 20, 22), control.shadowLayer().color!!.defaultColor)
-            assertEquals(Color.rgb(244, 244, 246), control.currentTextColor)
-            assertTrue(control.isClickable)
-            assertTrue(control.isFocusable)
-        }
-    }
-
-    @Test fun unavailableExplainsReasonAndPreservesCandidateInput() {
-        val view = view(); val actions = mutableListOf<VoiceUiEvent>(); val selected = mutableListOf<CandidateUiEvent>()
-        view.setOnVoiceActionListener(actions::add); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(CandidateUiSnapshot(21, listOf("候補"), 0))
-        view.setVoiceState(VoiceUiSnapshot(6, VoiceUiState.Unavailable("端末内の日本語モデルがありません")))
-        val button = view.textView("非対応")
-        assertTrue(button.isEnabled); assertTrue(button.contentDescription.toString().contains("日本語モデル"))
-        view.textView("候補").performClick(); button.performClick()
-        assertEquals(listOf(CandidateUiEvent(21, 0)), selected); assertEquals(listOf(VoiceUiEvent(6, VoiceUiAction.ExplainUnavailable)), actions)
-    }
-
-    @Test fun permissionRequiredPreservesCandidateInput() {
-        val view = view(); val selected = mutableListOf<CandidateUiEvent>(); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(CandidateUiSnapshot(22, listOf("日本語"), 0)); view.setVoiceState(VoiceUiSnapshot(7, VoiceUiState.PermissionRequired))
-        view.textView("日本語").performClick()
-        assertEquals(listOf(CandidateUiEvent(22, 0)), selected); assertTrue(view.textView("許可").isEnabled)
-    }
-
-    @Test fun hiddenRemovesVoiceControlsButPreservesCandidateInput() {
-        val view = view(); val selected = mutableListOf<CandidateUiEvent>(); view.setOnCandidateSelected(selected::add)
-        view.showCandidates(CandidateUiSnapshot(23, listOf("候補"), 0)); view.setVoiceState(VoiceUiSnapshot(8, VoiceUiState.Hidden))
-        assertTrue(view.allTextViews().none { it.text == "音声" }); view.textView("候補").performClick()
-        assertEquals(listOf(CandidateUiEvent(23, 0)), selected)
-    }
-
-    @Test fun detachedPermissionButtonKeepsItsRenderedSessionToken() {
-        val view = view(); val events = mutableListOf<VoiceUiEvent>(); view.setOnVoiceActionListener(events::add)
-        view.setVoiceState(VoiceUiSnapshot(10, VoiceUiState.PermissionRequired))
-        val oldPermission = view.textView("許可")
-
-        view.setVoiceState(VoiceUiSnapshot(11, VoiceUiState.PermissionRequired))
-        oldPermission.performClick()
-        view.textView("許可").performClick()
-
-        assertEquals(listOf(VoiceUiEvent(10, VoiceUiAction.RequestPermission), VoiceUiEvent(11, VoiceUiAction.RequestPermission)), events)
     }
 
     @Test fun bottomGapUsesTheKeyboardBackgroundColor() {
@@ -221,7 +85,7 @@ class CandidateStripViewTest {
         assertEquals(Color.rgb(137, 140, 148), first.shadowLayer().color!!.defaultColor)
     }
 
-    @Test fun candidatePresentationsUseTheKeyFaceInsetsAtPhoneAndWideWidths() {
+    @Test fun candidateFacesUseTheKeyFaceInsetsAtPhoneAndWideWidths() {
         val view = view()
         listOf(400 to 6, 840 to 13).forEach { (width, expectedInset) ->
             fun layout() {
@@ -236,27 +100,14 @@ class CandidateStripViewTest {
                 assertEquals("$width $text height", 38, face.height)
             }
 
-            view.setVoiceState(VoiceUiSnapshot(50, VoiceUiState.Hidden))
             view.showCandidates(CandidateUiSnapshot(50, listOf("通常", "次")))
             layout()
             assertFace("通常")
             assertEquals(5, view.textView("次").leftIn(view) - view.textView("通常").rightIn(view))
 
-            view.showCandidates(CandidateUiSnapshot(51, listOf("音声"), presentation = CandidatePresentation.VOICE))
-            layout()
-            assertFace("音声")
-
             view.showStatus("状態")
             layout()
             assertFace("状態")
-
-            view.setVoiceState(VoiceUiSnapshot(52, VoiceUiState.PermissionRequired))
-            layout()
-            val control = view.textView("許可")
-            assertEquals("$width control right", width - expectedInset, control.rightIn(view))
-            assertEquals("$width control top", 10, control.topIn(view))
-            assertEquals("$width control bottom", 48, control.bottomIn(view))
-            assertEquals("$width control height", 38, control.height)
         }
     }
 

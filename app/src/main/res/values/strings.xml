@@ -29,5 +29,4 @@
     <string name="ime_test_app_bar_title">masuidrive-kbd 入力テスト</string>
     <string name="ime_test_normal_input">通常入力</string>
     <string name="ime_test_private_input">機密入力（候補・Paste無効）</string>
-    <string name="ime_hide_description">キーボードを閉じる</string>
 </resources>

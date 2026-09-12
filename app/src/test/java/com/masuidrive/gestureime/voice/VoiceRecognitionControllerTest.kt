@@ -49,6 +49,7 @@ class VoiceRecognitionControllerTest {
         recognizer.supportCallback?.invoke(true)
         recognizer.listener?.onReady()
         recognizer.listener?.onPartialResults(listOf("", "途中"))
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(11))
         recognizer.listener?.onPartialResults(listOf("最新の途中結果"))
 
         assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
@@ -73,11 +74,12 @@ class VoiceRecognitionControllerTest {
         recognizer.supportCallback?.invoke(true)
         recognizer.listener?.onPartialResults(listOf("途中結果"))
         recognizer.listener?.onEndOfSpeech()
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS - 1),
+        )
         recognizer.listener?.onResults(listOf("遅れて届いた最終結果"))
 
-        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
-            Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
-        )
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
 
         assertEquals(VoiceBackendState.Preview(listOf("遅れて届いた最終結果")) to 9L, states.last())
         assertEquals("遅れて届いた最終結果", controller.confirm(9))

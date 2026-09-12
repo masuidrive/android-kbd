@@ -3,13 +3,11 @@ package com.masuidrive.gestureime.ui
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Typeface
-import android.text.TextUtils
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -31,12 +29,9 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         isHorizontalScrollBarEnabled = false
         addView(candidateRow, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
-    private val voiceControls = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     private var candidateSnapshot = CandidateUiSnapshot(0L, emptyList())
-    private var voiceSnapshot = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
     private var onCandidateLongPressed: ((CandidateUiLongPressEvent) -> Boolean)? = null
-    private var onVoiceAction: ((VoiceUiEvent) -> Unit)? = null
 
     init {
         orientation = HORIZONTAL
@@ -44,10 +39,6 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         applyFaceInsets(width)
         applyThemeColors()
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-        addView(voiceControls, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        candidateScroll.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
-            if (right - left != oldRight - oldLeft) constrainVoiceCandidateWidths()
-        }
         render()
     }
 
@@ -58,7 +49,6 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
     fun setOnCandidateLongPressed(listener: (CandidateUiLongPressEvent) -> Boolean) { onCandidateLongPressed = listener }
-    fun setOnVoiceActionListener(listener: (VoiceUiEvent) -> Unit) { onVoiceAction = listener }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
         val contentChanged = candidateSnapshot.candidates != snapshot.candidates
@@ -72,8 +62,6 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         renderCandidateMessage(message)
     }
 
-    fun setVoiceState(snapshot: VoiceUiSnapshot) { voiceSnapshot = snapshot; render() }
-
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         applyThemeColors()
@@ -85,41 +73,17 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         setBackgroundColor(background)
         candidateRow.setBackgroundColor(background)
         candidateScroll.setBackgroundColor(background)
-        voiceControls.setBackgroundColor(background)
     }
 
     private fun render() {
         candidateRow.removeAllViews()
-        voiceControls.removeAllViews()
-        val snapshot = voiceSnapshot
-        when (val state = snapshot.state) {
-            VoiceUiState.Hidden, VoiceUiState.Idle -> renderCandidates()
-            VoiceUiState.Recording, VoiceUiState.Recognizing -> renderCandidates()
-            is VoiceUiState.Partial -> renderCandidateMessage(state.text, "認識途中: ${state.text}")
-            is VoiceUiState.Preview -> renderCandidateMessage("音声を認識しました")
-            is VoiceUiState.Unavailable -> {
-                renderCandidates()
-                addVoiceButton("非対応", "音声入力を利用できない理由を表示。${state.message}", VoiceUiAction.ExplainUnavailable, snapshot.sessionToken)
-            }
-            VoiceUiState.PermissionRequired -> {
-                renderCandidates()
-                addVoiceButton("許可", "マイクの使用を許可", VoiceUiAction.RequestPermission, snapshot.sessionToken)
-            }
-        }
-        voiceControls.visibility = if (voiceControls.childCount == 0) View.GONE else View.VISIBLE
+        renderCandidates()
     }
 
     private fun renderCandidates() {
         val snapshot = candidateSnapshot
         snapshot.candidates.forEachIndexed { index, candidate ->
             candidateRow.addView(label(candidate, index == snapshot.selectedIndex).apply {
-                if (snapshot.presentation == CandidatePresentation.VOICE) {
-                    maxLines = 2
-                    ellipsize = TextUtils.TruncateAt.END
-                    includeFontPadding = false
-                    setTextSize(TypedValue.COMPLEX_UNIT_PX, 13f * resources.displayMetrics.density)
-                    maxWidth = visibleCandidateWidth()
-                }
                 isEnabled = snapshot.selectable
                 isClickable = snapshot.selectable
                 isFocusable = snapshot.selectable
@@ -134,16 +98,6 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         }
     }
 
-    private fun constrainVoiceCandidateWidths() {
-        if (candidateSnapshot.presentation != CandidatePresentation.VOICE) return
-        val width = visibleCandidateWidth()
-        repeat(candidateRow.childCount) { (candidateRow.getChildAt(it) as TextView).maxWidth = width }
-        candidateRow.requestLayout()
-    }
-
-    private fun visibleCandidateWidth(): Int =
-        candidateScroll.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels - paddingLeft - paddingRight)
-
     private fun applyFaceInsets(width: Int) {
         val horizontal = dp(if (width / resources.displayMetrics.density >= WIDE_LAYOUT_MIN_WIDTH_DP) {
             WIDE_FACE_INSET_DP
@@ -157,14 +111,6 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         candidateRow.removeAllViews()
         candidateRow.addView(label(message, false).apply { contentDescription = description; isFocusable = true }, candidateLayout())
         candidateScroll.post { candidateScroll.scrollTo(0, 0) }
-    }
-
-    private fun addVoiceButton(text: String, description: String, action: VoiceUiAction?, sessionToken: Long = voiceSnapshot.sessionToken) {
-        voiceControls.addView(label(text, false).apply {
-            contentDescription = description
-            isEnabled = action != null; isClickable = action != null; isFocusable = true
-            if (action != null) setOnClickListener { onVoiceAction?.invoke(VoiceUiEvent(sessionToken, action)) }
-        }, candidateLayout(hasLeadingGap = true))
     }
 
     private fun label(textValue: String, selected: Boolean) = TextView(context).apply {

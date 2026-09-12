@@ -11,8 +11,4 @@ sealed interface VoiceUiState {
     data object PermissionRequired : VoiceUiState
 }
 
-enum class VoiceUiAction { Cancel, RequestPermission, ExplainUnavailable }
-
 data class VoiceUiSnapshot(val sessionToken: Long, val state: VoiceUiState)
-
-data class VoiceUiEvent(val sessionToken: Long, val action: VoiceUiAction)

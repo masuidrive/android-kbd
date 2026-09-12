@@ -1,8 +1,6 @@
 package com.masuidrive.gestureime
 
 import android.content.ClipboardManager
-import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.Rect
 import android.inputmethodservice.InputMethodService
 import android.view.View
@@ -10,12 +8,8 @@ import android.view.ViewGroup
 import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.util.Consumer
 import androidx.emoji2.emojipicker.EmojiPickerView
@@ -39,12 +33,10 @@ import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
 import com.masuidrive.gestureime.ui.CandidateUiEvent
 import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
-import com.masuidrive.gestureime.ui.CandidatePresentation
 import com.masuidrive.gestureime.ui.CandidateStripView
-import com.masuidrive.gestureime.ui.VoiceUiAction
-import com.masuidrive.gestureime.ui.VoiceUiEvent
 import com.masuidrive.gestureime.ui.VoiceUiSnapshot
 import com.masuidrive.gestureime.ui.VoiceUiState
+import com.masuidrive.gestureime.ui.VoicePanelView
 import com.masuidrive.gestureime.voice.VoiceBackendState
 import com.masuidrive.gestureime.voice.VoiceRecognitionController
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +64,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
     private var candidateStrip: CandidateStripView? = null
+    private var voicePanel: VoicePanelView? = null
     private var publicEmojiPicker: EmojiPickerView? = null
     private var privateEmojiPicker: EmojiPickerView? = null
     private var emojiPickerBottomMask: View? = null
@@ -107,7 +100,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
-    private var latestVoiceUnavailableMessage: String? = null
     private var voiceHoldRequestId: Long? = null
     private var voiceHoldEditorToken = 0L
     private var voiceHoldReady = false
@@ -142,11 +134,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         pickerBodyOverscanPending.clear()
         pickerHeaders.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
-        val hideBarHeight = (28 * resources.displayMetrics.density).toInt()
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
-            it.setOwnsSystemBottomInset(false)
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -157,10 +147,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnCandidateLongPressed(::onCandidateLongPressed)
-            it.setOnVoiceActionListener(::onVoiceAction)
             it.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
             candidateStrip = it
-            setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }
         val initialPickerViewportHeight = keyboard.emojiPickerOverlayHeight().toInt()
         emojiPickerHeaderHeight = candidateHeight
@@ -182,30 +170,23 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             visibility = View.GONE
             emojiPickerBottomMask = this
         }
-        val hideBar = FrameLayout(this).apply {
-            id = R.id.ime_hide_bar
-            setBackgroundColor(getColor(R.color.keyboard_background))
-            addView(ImageButton(context).apply {
-                id = R.id.ime_hide_button
-                contentDescription = getString(R.string.ime_hide_description)
-                setImageResource(R.drawable.ic_keyboard_hide)
-                scaleType = ImageView.ScaleType.CENTER
-                imageTintList = ColorStateList.valueOf(getColor(R.color.keyboard_text))
-                setBackgroundResource(selectableItemBackgroundRes())
-                setOnClickListener { requestHideSelf(0) }
-            }, FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ))
+        val panel = VoicePanelView(this).also {
+            it.id = R.id.voice_panel
+            it.setOnCandidateSelected(::onCandidateSelected)
+            it.visibility = View.GONE
+            voicePanel = it
         }
+        setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         val content = LinearLayout(this).apply {
             id = R.id.ime_input_root
             orientation = LinearLayout.VERTICAL
             addView(strip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight))
             addView(keyboard, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            addView(hideBar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, hideBarHeight))
         }
-        keyboard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateEmojiPickerLayout(candidateHeight) }
+        keyboard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateEmojiPickerLayout(candidateHeight)
+            updateVoicePanelLayout(candidateHeight)
+        }
         return FrameLayout(this).apply {
             addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
@@ -221,17 +202,20 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 gravity = android.view.Gravity.TOP
                 topMargin = candidateHeight + initialPickerViewportHeight
             })
-            ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
-                val bottomInset = SafeAreaUi.safeAreaInsets(insets).bottom
-                hideBar.setPadding(0, 0, 0, bottomInset)
-                hideBar.layoutParams = (hideBar.layoutParams as LinearLayout.LayoutParams).apply {
-                    height = hideBarHeight + bottomInset
-                }
-                insets
-            }
-            ViewCompat.requestApplyInsets(this)
+            addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
+                gravity = android.view.Gravity.TOP
+            })
             updateEmojiPickerVisibility()
         }
+    }
+
+    private fun updateVoicePanelLayout(candidateHeight: Int) {
+        val panel = voicePanel ?: return
+        val keyboard = keyboardView ?: return
+        panel.layoutParams = (panel.layoutParams as? FrameLayout.LayoutParams ?: return).apply {
+            height = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
+        }
+        panel.requestLayout()
     }
 
     /** AndroidX owns its category header and grid; KeyboardView keeps only the fixed controls. */
@@ -258,7 +242,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun updateEmojiPickerVisibility() {
         val isEmoji = keyboardMode == KeyboardMode.EMOJI
-        candidateStrip?.visibility = if (isEmoji || (::textController.isInitialized && textController.isPrivateField)) {
+        val isVoice = keyboardMode == KeyboardMode.VOICE
+        val isPrivate = ::textController.isInitialized && textController.isPrivateField
+        candidateStrip?.visibility = if (isEmoji || isVoice || isPrivate) {
             View.INVISIBLE
         } else {
             View.VISIBLE
@@ -267,6 +253,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         publicEmojiPicker?.visibility = if (isEmoji && !showPrivate) View.VISIBLE else View.GONE
         privateEmojiPicker?.visibility = if (showPrivate) View.VISIBLE else View.GONE
         emojiPickerBottomMask?.visibility = if (isEmoji) View.VISIBLE else View.GONE
+        voicePanel?.visibility = if (isVoice && !isPrivate) View.VISIBLE else View.GONE
         updateEmojiPickerMask()
     }
 
@@ -315,6 +302,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             installEmojiCategoryTapListeners(picker, header)
             pickerHeaders[picker] = header
         }
+        val categoryWidth = resources.getDimensionPixelSize(R.dimen.emoji_picker_header_icon_holder_width)
+        repeat(header.childCount) { enforceEmojiCategoryHolderWidth(header.getChildAt(it), categoryWidth) }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
         ensureEmojiPickerBodyOverscan(picker, body)
         if (pickerBodies[picker] !== body) {
@@ -379,7 +368,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun installEmojiCategoryTapListeners(picker: EmojiPickerView, header: RecyclerView) {
+        val categoryWidth = resources.getDimensionPixelSize(R.dimen.emoji_picker_header_icon_holder_width)
         fun install(holder: View) {
+            enforceEmojiCategoryHolderWidth(holder, categoryWidth)
             var downX = 0f
             var downY = 0f
             val touchSlop = ViewConfiguration.get(holder.context).scaledTouchSlop
@@ -1078,9 +1069,15 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         values: List<String>,
         selectedIndex: Int,
         selectable: Boolean = true,
-        presentation: CandidatePresentation = CandidatePresentation.SINGLE_LINE,
     ) {
-        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable, presentation))
+        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable))
+    }
+
+    private fun showVoiceCandidates(
+        values: List<String>,
+        selectable: Boolean,
+    ) {
+        voicePanel?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectable = selectable))
     }
 
     private fun candidateSnapshot() = CandidateSnapshot(
@@ -1295,26 +1292,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardView?.setConversionActive(false)
     }
 
-    private fun onVoiceAction(event: VoiceUiEvent) {
-        if (event.sessionToken != voiceUiToken) return
-        val token = editorSession.capture()
-        when (event.action) {
-            VoiceUiAction.Cancel -> {
-                cancelVoiceHold()
-                if (editorSession.isCurrent(token)) setVoiceUi(voiceController.initialState().toUiState())
-            }
-            VoiceUiAction.RequestPermission -> startActivity(
-                Intent(this, SetupActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    .putExtra(SetupActivity.EXTRA_REQUEST_MICROPHONE_PERMISSION, true),
-            )
-            VoiceUiAction.ExplainUnavailable -> {
-                val message = latestVoiceUnavailableMessage ?: "端末内音声認識を利用できません"
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
         if (keyboardMode == KeyboardMode.VOICE) {
@@ -1323,17 +1300,19 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = listOf(state.text)
-                    showCandidateStrip(candidates, -1, selectable = false, presentation = CandidatePresentation.VOICE)
+                    showVoiceCandidates(candidates, selectable = false)
+                    setVoiceUi(state.toUiState())
                 }
                 is VoiceBackendState.Preview -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = state.candidates
-                    showCandidateStrip(candidates, -1, presentation = CandidatePresentation.VOICE)
+                    showVoiceCandidates(candidates, selectable = true)
+                    setVoiceUi(state.toUiState())
                 }
                 else -> {
                     candidateSource = CandidateSource.NONE
                     candidates = emptyList()
-                    showCandidateStrip(emptyList(), -1)
+                    showVoiceCandidates(emptyList(), selectable = false)
                     setVoiceUi(state.toUiState())
                 }
             }
@@ -1381,8 +1360,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun setVoiceUi(state: VoiceUiState) {
-        if (state is VoiceUiState.Unavailable) latestVoiceUnavailableMessage = state.message
-        candidateStrip?.setVoiceState(VoiceUiSnapshot(++voiceUiToken, state))
+        voicePanel?.setVoiceState(VoiceUiSnapshot(++voiceUiToken, state))
     }
 
     override fun onDestroy() {
@@ -1403,14 +1381,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         testEnglishSuggestionEngine = english
     }
 
-    private fun selectableItemBackgroundRes(): Int {
-        val attribute = android.util.TypedValue()
-        return if (theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, attribute, true)) {
-            attribute.resourceId
-        } else {
-            0
-        }
-    }
 }
 
 private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
@@ -1564,6 +1534,16 @@ internal fun isEmojiCategoryActivationKey(keyCode: Int, action: Int): Boolean =
 
 internal fun isEmojiCategoryAccessibilityAction(action: Int): Boolean =
     action == AccessibilityNodeInfoCompat.ACTION_CLICK
+
+/** AndroidX recycles header holders; every attachment restores the fixed tap-target width. */
+internal fun enforceEmojiCategoryHolderWidth(holder: View, width: Int) {
+    holder.minimumWidth = width
+    val params = holder.layoutParams ?: RecyclerView.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT)
+    if (params.width != width) {
+        params.width = width
+        holder.layoutParams = params
+    }
+}
 
 internal fun isEmojiCategoryContentReady(
     targetCategory: Int,

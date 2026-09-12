@@ -12,6 +12,7 @@ import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
+import com.masuidrive.gestureime.ui.VoicePanelView
 import com.masuidrive.gestureime.ui.VoiceUiSnapshot
 import com.masuidrive.gestureime.ui.VoiceUiState
 import org.junit.Assert.assertEquals
@@ -40,7 +41,7 @@ class ImeServiceVoiceLifecycleTest {
         val keyboard = root.keyboardView()
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
         assertEquals(228, keyboard.measuredHeight)
-        assertEquals(306, root.measuredHeight)
+        assertEquals(278, root.measuredHeight)
         controller.destroy()
     }
 
@@ -70,6 +71,7 @@ class ImeServiceVoiceLifecycleTest {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val root = controller.get().onCreateInputView() as ViewGroup
         val strip = root.candidateStripView()
+        val panel = root.voicePanelView()
         val width = View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY)
         val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
 
@@ -83,9 +85,9 @@ class ImeServiceVoiceLifecycleTest {
         assertEquals(emptyHeight, measuredHeight())
         strip.showCandidates(CandidateUiSnapshot(2L, listOf("compact", "clear", "candidate")))
         assertEquals(emptyHeight, measuredHeight())
-        strip.setVoiceState(VoiceUiSnapshot(3L, VoiceUiState.Recording))
+        panel.setVoiceState(VoiceUiSnapshot(3L, VoiceUiState.Recording))
         assertEquals(emptyHeight, measuredHeight())
-        strip.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
+        panel.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
         assertEquals(emptyHeight, measuredHeight())
         controller.destroy()
     }
@@ -98,7 +100,6 @@ class ImeServiceVoiceLifecycleTest {
         val keyboard = root.keyboardView()
 
         listOf(400 to 6, 840 to 13).forEach { (widthPixels, expectedLeft) ->
-            strip.setVoiceState(VoiceUiSnapshot(61, VoiceUiState.Hidden))
             strip.showCandidates(CandidateUiSnapshot(61, listOf("候補", "次")))
             root.measure(
                 View.MeasureSpec.makeMeasureSpec(widthPixels, View.MeasureSpec.EXACTLY),
@@ -161,7 +162,7 @@ class ImeServiceVoiceLifecycleTest {
 
         assertEquals(View.INVISIBLE, root.candidateStripView().visibility)
         assertEquals(228, root.keyboardView().measuredHeight)
-        assertEquals(306, root.measuredHeight)
+        assertEquals(278, root.measuredHeight)
         controller.destroy()
     }
 
@@ -180,20 +181,17 @@ class ImeServiceVoiceLifecycleTest {
     }
 
     @Test
-    fun closingAndReopeningInputViewHidesThenRecreatesVoiceControl() {
+    fun voicePanelStartsHiddenOutsideVoiceLayerAndIsRecreatedWithTheInputView() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
         val firstView = service.onCreateInputView()
-        assertTrue(firstView.hasVoiceControl())
+        assertEquals(View.GONE, firstView.voicePanelView().visibility)
+        assertEquals(View.VISIBLE, firstView.candidateStripView().visibility)
 
         service.onFinishInputView(false)
-        assertFalse(firstView.hasVoiceControl())
-
-        service.onStartInputView(EditorInfo(), true)
-        assertTrue(firstView.hasVoiceControl())
-
         val reopenedView = service.onCreateInputView()
-        assertTrue(reopenedView.hasVoiceControl())
+        assertFalse(firstView.voicePanelView() === reopenedView.voicePanelView())
+        assertEquals(View.GONE, reopenedView.voicePanelView().visibility)
         controller.destroy()
     }
 
@@ -204,12 +202,13 @@ class ImeServiceVoiceLifecycleTest {
         service.onStartInput(EditorInfo(), false)
         val root = service.onCreateInputView()
         val keyboard = root.keyboardView()
-        val strip = root.candidateStripView()
+        val panel = root.voicePanelView()
 
         service.setModeForLifecycleTest(KeyboardMode.VOICE, returnMode = KeyboardMode.KANA)
         keyboard.setMode(KeyboardMode.VOICE)
         assertEquals(KeyboardMode.VOICE, keyboard.mode())
-        strip.showCandidates(CandidateUiSnapshot(99, listOf("古い音声候補")))
+        panel.showCandidates(CandidateUiSnapshot(99, listOf("古い音声候補")))
+        panel.setVoiceState(VoiceUiSnapshot(99, VoiceUiState.Preview("古い音声候補")))
 
         service.onFinishInputView(false)
         service.onStartInputView(EditorInfo(), true)
@@ -231,12 +230,6 @@ class ImeServiceVoiceLifecycleTest {
 
         assertEquals(KeyboardMode.SYMBOLS, keyboard.mode())
         controller.destroy()
-    }
-
-    private fun View.hasVoiceControl(): Boolean {
-        if (contentDescription?.let { it.contains("音声") || it.contains("マイク") } == true) return true
-        val group = this as? ViewGroup ?: return false
-        return (0 until group.childCount).any { group.getChildAt(it).hasVoiceControl() }
     }
 
     private fun View.containsText(value: String): Boolean {
@@ -295,6 +288,15 @@ class ImeServiceVoiceLifecycleTest {
         return (0 until group.childCount)
             .asSequence()
             .mapNotNull { runCatching { group.getChildAt(it).candidateStripView() }.getOrNull() }
+            .first()
+    }
+
+    private fun View.voicePanelView(): VoicePanelView {
+        if (this is VoicePanelView) return this
+        val group = this as? ViewGroup ?: error("VoicePanelView not found")
+        return (0 until group.childCount)
+            .asSequence()
+            .mapNotNull { runCatching { group.getChildAt(it).voicePanelView() }.getOrNull() }
             .first()
     }
 

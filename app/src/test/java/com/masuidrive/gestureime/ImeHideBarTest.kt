@@ -6,8 +6,6 @@ import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
@@ -211,8 +209,17 @@ class ImeHideBarTest {
             val density = service.resources.displayMetrics.density
             val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
             assertEquals(10, header.adapter!!.itemCount)
-            val headerWidths = (0 until header.childCount).map { header.getChildAt(it).width }
-            assertTrue("header widths=$headerWidths", headerWidths.filter { it > 0 }.all { it >= (48 * density).toInt() })
+            val expectedHeaderWidth = (48 * density).toInt()
+            val attachedHeaders = (0 until header.childCount).map(header::getChildAt)
+            assertTrue(attachedHeaders.isNotEmpty())
+            assertTrue(attachedHeaders.all {
+                it.layoutParams.width == expectedHeaderWidth && it.minimumWidth == expectedHeaderWidth
+            })
+            attachedHeaders.last().performClick()
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            assertTrue((0 until header.childCount).map(header::getChildAt).all {
+                it.layoutParams.width == expectedHeaderWidth && it.minimumWidth == expectedHeaderWidth
+            })
             // The physical RecyclerView and its clip finish at the fixed control boundary;
             // category relocks can only shrink the clip, never move controls or overlap them.
             assertEquals(expectedViewport, body.height)
@@ -377,30 +384,42 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
+    fun recycledEmojiCategoryHolderIsRestoredToTheExactConfiguredWidth() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val holder = View(activity).apply {
+            layoutParams = RecyclerView.LayoutParams(96, 50)
+            minimumWidth = 72
+        }
+
+        enforceEmojiCategoryHolderWidth(holder, 48)
+
+        assertEquals(48, holder.layoutParams.width)
+        assertEquals(48, holder.minimumWidth)
+    }
+
+    @Test
+    fun candidateAndFourRowsKeepTheirGeometryWhileKeyboardOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
         val content = root.getChildAt(0) as LinearLayout
         val candidate = content.getChildAt(0) as CandidateStripView
         val keyboard = content.getChildAt(1) as KeyboardView
-        val hideBar = content.getChildAt(2) as FrameLayout
         val picker = root.getChildAt(1) as EmojiPickerView
         val density = service.resources.displayMetrics.density
         val expectedCandidateHeight = (50 * density).toInt()
-        val expectedHideHeight = (28 * density).toInt()
+        val expectedRowsHeight = (KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt()
 
         val mask = root.getChildAt(3)
-        assertEquals(4, root.childCount)
-        assertEquals(3, content.childCount)
+        assertEquals(5, root.childCount)
+        assertEquals(2, content.childCount)
         assertSame(candidate, content.getChildAt(0))
         assertSame(keyboard, content.getChildAt(1))
-        assertSame(hideBar, content.getChildAt(2))
         assertEquals(View.GONE, picker.visibility)
         assertEquals(View.GONE, mask.visibility)
         assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
         listOf(412, 840).forEach { width ->
             keyboard.measure(exact(width), exact(1_000))
-            assertEquals((KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt(), keyboard.measuredHeight)
+            assertEquals(expectedRowsHeight, keyboard.measuredHeight)
         }
 
         val firstInset = WindowInsetsCompat.Builder()
@@ -413,37 +432,25 @@ class ImeHideBarTest {
             .build()
         val noInset = WindowInsetsCompat.Builder().build()
 
-        ViewCompat.dispatchApplyWindowInsets(root, firstInset)
-        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 31)
-        ViewCompat.dispatchApplyWindowInsets(root, firstInset)
-        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 31)
-        ViewCompat.dispatchApplyWindowInsets(root, secondInset)
-        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 40)
-        ViewCompat.dispatchApplyWindowInsets(root, noInset)
-        assertHideBarInset(hideBar, keyboard, expectedHideHeight, 0)
+        ViewCompat.dispatchApplyWindowInsets(keyboard, firstInset)
+        assertKeyboardInset(keyboard, expectedRowsHeight, 31)
+        ViewCompat.dispatchApplyWindowInsets(keyboard, firstInset)
+        assertKeyboardInset(keyboard, expectedRowsHeight, 31)
+        ViewCompat.dispatchApplyWindowInsets(keyboard, secondInset)
+        assertKeyboardInset(keyboard, expectedRowsHeight, 17)
+        ViewCompat.dispatchApplyWindowInsets(keyboard, noInset)
+        assertKeyboardInset(keyboard, expectedRowsHeight, 0)
+        assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
     }
 
-    private fun assertHideBarInset(
-        hideBar: FrameLayout,
+    private fun assertKeyboardInset(
         keyboard: KeyboardView,
-        hideBarHeight: Int,
+        rowsHeight: Int,
         bottomInset: Int,
     ) {
-        assertEquals(0, keyboard.paddingBottom)
-        assertEquals(bottomInset, hideBar.paddingBottom)
-        assertEquals(hideBarHeight + bottomInset, hideBar.layoutParams.height)
-        assertEquals((KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt(), keyboard.measuredHeight)
-    }
-
-    @Test
-    fun centeredChevronRequestsImeHide() {
-        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
-        val hideButton = service.onCreateInputView().findViewById<ImageButton>(R.id.ime_hide_button)
-
-        assertEquals("キーボードを閉じる", hideButton.contentDescription)
-        assertEquals(ImageView.ScaleType.CENTER, hideButton.scaleType)
-        assertTrue(hideButton.performClick())
-        assertEquals(0, service.hideFlags)
+        keyboard.measure(exact(412), exact(1_000))
+        assertEquals(bottomInset, keyboard.paddingBottom)
+        assertEquals(rowsHeight + bottomInset, keyboard.measuredHeight)
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
@@ -458,11 +465,5 @@ class ImeHideBarTest {
         return result
     }
 
-    class HidingImeService : ImeService() {
-        var hideFlags: Int? = null
-
-        override fun requestHideSelf(flags: Int) {
-            hideFlags = flags
-        }
-    }
+    class HidingImeService : ImeService()
 }

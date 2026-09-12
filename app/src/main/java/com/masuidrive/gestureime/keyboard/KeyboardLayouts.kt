@@ -166,6 +166,6 @@ object KeyboardLayouts {
 
 /** Shared recent normalization used by the AndroidX picker provider and IME state. */
 object EmojiCatalog {
-    const val RECENT_LIMIT = 24
+    const val RECENT_LIMIT = 100
     fun visibleRecents(recents: List<String>): List<String> = recents.filter(String::isNotEmpty).distinct().take(RECENT_LIMIT)
 }

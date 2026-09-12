@@ -126,6 +126,21 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), rows[3].keys[0].down?.action)
     }
 
+    @Test fun `emoji recent normalization keeps exactly the newest one hundred distinct entries`() {
+        val newestFirst = (100 downTo 0).map { "emoji-$it" }
+
+        val bounded = EmojiCatalog.visibleRecents(newestFirst)
+        assertEquals(100, bounded.size)
+        assertEquals("emoji-100", bounded.first())
+        assertEquals("emoji-1", bounded.last())
+        assertFalse(bounded.contains("emoji-0"))
+
+        val repeated = EmojiCatalog.visibleRecents(listOf("emoji-50") + newestFirst)
+        assertEquals(100, repeated.size)
+        assertEquals("emoji-50", repeated.first())
+        assertEquals(1, repeated.count { it == "emoji-50" })
+    }
+
     @Test fun `dual kana duplicates only the central twelve keys`() {
         val single = KeyboardLayouts.layout(KeyboardMode.KANA).rows
         val dual = KeyboardLayouts.layout(KeyboardMode.KANA, dualKana = true).rows
