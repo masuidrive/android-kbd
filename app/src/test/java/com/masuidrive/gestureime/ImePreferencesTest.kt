@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -33,6 +34,24 @@ class ImePreferencesTest {
 
         preferences.edit().putInt("last_keyboard_mode", 3).apply()
         assertEquals(KeyboardMode.QWERTY, ImePreferences.getLastKeyboardMode(context))
+    }
+
+    @Test
+    fun keyboardHeightPresetDefaultsToStandardPersistsAndSafelyRejectsMalformedValues() {
+        val context = RuntimeEnvironment.getApplication()
+        val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
+        KeyboardHeightPreset.entries.forEach { preset ->
+            ImePreferences.setKeyboardHeightPreset(context, preset)
+            assertEquals(preset, ImePreferences.getKeyboardHeightPreset(context))
+        }
+
+        preferences.edit().putString("keyboard_height_preset", "too_tall").apply()
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
+        preferences.edit().putInt("keyboard_height_preset", 3).apply()
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
     }
 
     @Test

@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
@@ -39,6 +40,27 @@ class ImeServiceVoiceLifecycleTest {
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
         assertEquals(228, keyboard.measuredHeight)
         assertEquals(278, root.measuredHeight)
+        controller.destroy()
+    }
+
+    @Test
+    fun persistedHeightPresetIsAppliedWhenTheInputViewStartsAndReopens() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.LARGE)
+        val root = service.onCreateInputView() as ViewGroup
+        val width = View.MeasureSpec.makeMeasureSpec(840, View.MeasureSpec.EXACTLY)
+        val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+
+        root.measure(width, height)
+        assertEquals(248, root.keyboardView().measuredHeight)
+
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.SMALL)
+        service.onStartInputView(EditorInfo(), true)
+        root.measure(width, height)
+        assertEquals(208, root.keyboardView().measuredHeight)
+
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.STANDARD)
         controller.destroy()
     }
 

@@ -118,6 +118,13 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
+    fun setHeightPreset(preset: KeyboardHeightPreset) {
+        if (state.heightPreset == preset) return
+        cancelActiveGestures()
+        state = state.copy(heightPreset = preset)
+        rebuildLayout()
+    }
+
     fun setPreviewOnly(enabled: Boolean) {
         cancelActiveGestures()
         previewOnly = enabled
@@ -222,7 +229,7 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val wanted = (dp(rowPitchDp(width / density)) * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
+        val wanted = (rowPitch() * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
         // IME hosts can briefly repeat the previous editor's oversized exact height while
         // the input window is being attached. Cap that transient value at the four-row
         // intrinsic height, while still respecting a legitimately smaller available area.
@@ -248,7 +255,7 @@ class KeyboardView @JvmOverloads constructor(
         val keyboardTop = top + dp(8f)
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
         val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive).rows
-        val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, dp(rowPitchDp(width / density)))
+        val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
         val rowGap = dp(10f)
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         val keyboardInset = dp(if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) 10f else 3f)
@@ -281,7 +288,7 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun rowPitchDp(widthDp: Float) = if (widthDp >= DUAL_FLICK_MIN_WIDTH_DP) 62f else 55f
+    private fun rowPitch() = dp(state.heightPreset.rowPitchDp)
 
     private fun drawKey(canvas: Canvas, target: HitTarget, pointerId: Int?) {
         val selected = pointerId != null

@@ -4,6 +4,10 @@ enum class KeyboardMode(val displayName: String) {
     KANA("日本語"), NUMBERS("テンキー"), CURSOR("カーソル"), QWERTY("QWERTY"), SYMBOLS("記号"), VOICE("音声")
 }
 
+enum class KeyboardHeightPreset(val rowPitchDp: Float) {
+    SMALL(50f), STANDARD(55f), LARGE(60f),
+}
+
 enum class Direction { CENTER, LEFT, UP, RIGHT, DOWN }
 enum class Modifier { CTRL, ALT }
 enum class KanaTransform { CYCLE, SMALL, DAKUTEN, HANDAKUTEN }
@@ -80,4 +84,5 @@ data class KeyboardUiState(
     val selectedCandidateIndex: Int = -1,
     val conversionActive: Boolean = false,
     val dualFlickEnabled: Boolean = false,
+    val heightPreset: KeyboardHeightPreset = KeyboardHeightPreset.STANDARD,
 )

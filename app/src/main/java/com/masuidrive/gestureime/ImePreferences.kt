@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime
 
 import android.content.Context
+import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 
 object ImePreferences {
@@ -10,6 +11,7 @@ object ImePreferences {
     private const val LAST_KEYBOARD_MODE = "last_keyboard_mode"
     private const val ENGLISH_SUGGESTIONS = "english_suggestions_enabled"
     private const val ANDROID_USER_DICTIONARY = "android_user_dictionary_enabled"
+    private const val KEYBOARD_HEIGHT_PRESET = "keyboard_height_preset"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
@@ -72,6 +74,22 @@ object ImePreferences {
         context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(DUAL_FLICK, enabled)
+            .apply()
+    }
+
+    fun getKeyboardHeightPreset(context: Context): KeyboardHeightPreset {
+        val stored = runCatching {
+            context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+                .getString(KEYBOARD_HEIGHT_PRESET, null)
+        }.getOrNull()
+        return stored?.let { value -> KeyboardHeightPreset.entries.firstOrNull { it.name == value } }
+            ?: KeyboardHeightPreset.STANDARD
+    }
+
+    fun setKeyboardHeightPreset(context: Context, preset: KeyboardHeightPreset) {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEYBOARD_HEIGHT_PRESET, preset.name)
             .apply()
     }
 

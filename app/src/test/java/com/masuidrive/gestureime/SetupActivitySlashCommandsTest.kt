@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
+import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.LinearLayout
 import org.junit.Assert.assertEquals
@@ -90,6 +91,26 @@ class SetupActivitySlashCommandsTest {
         val sectionCards = descendants.filterIsInstance<LinearLayout>().filter { it.elevation > 0f }
         assertEquals("four visually distinct setting sections", 4, sectionCards.size)
         assertTrue(sectionCards.all { it.background != null && it.paddingLeft > 0 })
+    }
+
+    @Test
+    fun keyboardHeightChoicesDefaultToStandardAndPersistTheSelectedPreset() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        val choices = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<RadioButton>()
+        val minimum = (48 * activity.resources.displayMetrics.density).toInt()
+
+        assertEquals(listOf("小", "標準", "大"), choices.map { it.text.toString() })
+        assertEquals("標準", choices.single { it.isChecked }.text.toString())
+        assertTrue(choices.all { it.minimumHeight >= minimum })
+
+        choices.single { it.text.toString() == "大" }.performClick()
+        assertEquals(com.masuidrive.gestureime.keyboard.KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(activity))
+        activity.recreate()
+        val recreated = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<RadioButton>()
+        assertEquals("大", recreated.single { it.isChecked }.text.toString())
+        ImePreferences.setKeyboardHeightPreset(activity, com.masuidrive.gestureime.keyboard.KeyboardHeightPreset.STANDARD)
     }
 
     private fun View.descendants(): List<View> {

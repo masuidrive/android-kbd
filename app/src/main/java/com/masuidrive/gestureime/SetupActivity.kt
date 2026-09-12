@@ -19,6 +19,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Switch
@@ -27,6 +29,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 
 class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,6 +99,34 @@ class SetupActivity : AppCompatActivity() {
                 minimumHeight = controlHeight
                 isChecked = ImePreferences.isAndroidUserDictionaryEnabled(context)
                 setOnCheckedChangeListener { _, checked -> ImePreferences.setAndroidUserDictionaryEnabled(context, checked) }
+            }, matchWidth())
+            inputCard.addView(TextView(context).apply {
+                text = getString(R.string.keyboard_height)
+                textSize = 16f
+                setTextColor(getColor(R.color.setup_heading))
+                minimumHeight = controlHeight
+                gravity = Gravity.CENTER_VERTICAL
+            }, matchWidth())
+            val savedHeight = ImePreferences.getKeyboardHeightPreset(context)
+            inputCard.addView(RadioGroup(context).apply {
+                orientation = RadioGroup.VERTICAL
+                KeyboardHeightPreset.entries.forEach { preset ->
+                    addView(RadioButton(context).apply {
+                        id = View.generateViewId()
+                        text = when (preset) {
+                            KeyboardHeightPreset.SMALL -> getString(R.string.keyboard_height_small)
+                            KeyboardHeightPreset.STANDARD -> getString(R.string.keyboard_height_standard)
+                            KeyboardHeightPreset.LARGE -> getString(R.string.keyboard_height_large)
+                        }
+                        tag = preset
+                        minimumHeight = controlHeight
+                        isChecked = preset == savedHeight
+                    }, matchWidth())
+                }
+                setOnCheckedChangeListener { group, checkedId ->
+                    val preset = group.findViewById<RadioButton>(checkedId)?.tag as? KeyboardHeightPreset
+                    if (preset != null) ImePreferences.setKeyboardHeightPreset(context, preset)
+                }
             }, matchWidth())
             setSectionTitle(getString(R.string.slash_commands), padding)
             val slashCard = addCard(cardPadding)

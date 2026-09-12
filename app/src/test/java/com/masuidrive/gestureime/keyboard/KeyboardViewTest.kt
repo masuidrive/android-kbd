@@ -129,6 +129,59 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `height presets keep every layer and dual kana at a width independent four row height`() {
+        val modes = KeyboardMode.entries.toList()
+        val expected = mapOf(
+            KeyboardHeightPreset.SMALL to Triple(208, 40, 10),
+            KeyboardHeightPreset.STANDARD to Triple(228, 45, 10),
+            KeyboardHeightPreset.LARGE to Triple(248, 50, 10),
+        )
+
+        expected.forEach { (preset, dimensions) ->
+            listOf(412, 840).forEach { width ->
+                modes.forEach { mode ->
+                    view.setHeightPreset(preset)
+                    view.setMode(mode)
+                    view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
+                    view.layout(0, 0, width, view.measuredHeight)
+                    val first = keyBounds(0)
+                    val nextRowId = KeyboardLayouts.layout(mode).rows.first().keys.size
+                    val secondRow = keyBounds(nextRowId)
+                    assertEquals("$preset $width $mode outer height", dimensions.first, view.measuredHeight)
+                    assertEquals("$preset $width $mode key face", dimensions.second, first.height())
+                    assertEquals("$preset $width $mode row gap", dimensions.third, secondRow.top - first.bottom)
+                }
+                view.setHeightPreset(preset)
+                view.setMode(KeyboardMode.KANA)
+                view.setDualFlickEnabled(true)
+                view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
+                view.layout(0, 0, width, view.measuredHeight)
+                assertEquals("$preset $width dual kana outer height", dimensions.first, view.measuredHeight)
+                view.setDualFlickEnabled(false)
+            }
+        }
+    }
+
+    @Test fun `height preset survives transient exact parents and delayed bottom inset without moving keys`() {
+        KeyboardHeightPreset.entries.forEach { preset ->
+            view.setHeightPreset(preset)
+            view.measure(exact(840), exact(500))
+            view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+            val initial = keyBounds(0)
+            val expectedHeight = (preset.rowPitchDp * 4 + 8).toInt()
+            assertEquals(expectedHeight, view.measuredHeight)
+
+            view.updateBottomInset(24)
+            view.measure(exact(840), exact(500))
+            view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+            assertEquals(expectedHeight + 24, view.measuredHeight)
+            assertEquals(initial, keyBounds(0))
+            view.updateBottomInset(24)
+            assertEquals(initial, keyBounds(0))
+            view.updateBottomInset(0)
+        }
+    }
+
     @Test fun `smaller parent height constrains every mode and its accessible keys`() {
         val modes = listOf(
             KeyboardMode.QWERTY,
@@ -648,13 +701,13 @@ class KeyboardViewTest {
         fun bounds(id: Int) = Rect().also { provider.createAccessibilityNodeInfo(id)!!.getBoundsInParent(it) }
         val first = bounds(0)
         assertEquals(13, first.left)
-        assertEquals(52, first.height())
+        assertEquals(45, first.height())
         assertEquals(10, bounds(5).top - first.bottom)
         assertEquals(6, bounds(1).left - first.right)
     }
 
     @Test fun `all five four row layers share outer height face height and vertical gaps`() {
-        listOf(412 to 228, 840 to 256).forEach { (width, height) ->
+        listOf(412 to 228, 840 to 228).forEach { (width, height) ->
             val geometry = KeyboardMode.entries.associateWith { mode ->
                 view.setMode(mode)
                 view.measure(exact(width), View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST))
@@ -666,7 +719,7 @@ class KeyboardViewTest {
                 Triple(measuredHeight, first.height(), secondRow.top - first.bottom)
             }
             assertEquals("$width outer heights", 1, geometry.values.map { it.first }.distinct().size)
-            assertTrue("$width key faces", geometry.values.all { it.second == if (width >= 600) 52 else 45 })
+            assertTrue("$width key faces", geometry.values.all { it.second == 45 })
             assertTrue("$width vertical gaps", geometry.values.all { it.third == 10 })
             if (width >= 600) {
                 view.setMode(KeyboardMode.KANA)
@@ -676,7 +729,7 @@ class KeyboardViewTest {
                 val first = keyBounds(0)
                 val nextRowId = KeyboardLayouts.layout(KeyboardMode.KANA, true, false).rows.first().keys.size
                 val secondRow = keyBounds(nextRowId)
-                assertEquals("dual kana face", 52, first.height())
+                assertEquals("dual kana face", 45, first.height())
                 assertEquals("dual kana vertical gap", 10, secondRow.top - first.bottom)
                 view.setDualFlickEnabled(false)
             }
