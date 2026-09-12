@@ -35,11 +35,11 @@ target SDK 36のedge-to-edge表示に対してSetup画面がsystem bar insetを�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、設定を開いた利用者が、ステータスバーやノッチに隠れないトップアプリバーから安全に設定を確認・終了できる。
 
-- [ ] AC 1: API 35/36の縦・横画面で、トップアプリバーと設定内容がステータスバー、display cutout、下端navigation barへ入り込まない。
-- [ ] AC 2: 画面上部に「masuidrive-kbd 設定」と戻るボタンを持つトップアプリバーが表示され、設定項目をスクロールしても上部へ固定される。
-- [ ] AC 3: 戻るボタンをタップするとSetup画面が終了し、Android標準の戻る操作も同じ結果になる。
-- [ ] AC 4: Lightでは暗いsystem bar icon、Darkでは明るいsystem bar iconが使われ、トップアプリバーと設定カードの文字を判読できる。
-- [ ] AC 5: 回転やsystem bar inset再配信後もpaddingが累積せず、既存switch、スラッシュ候補、マイク権限、入力テスト、バージョン表示の操作領域と保存動作を維持する。
+- [x] AC 1: API 35/36の縦・横画面で、トップアプリバーと設定内容がステータスバー、display cutout、下端navigation barへ入り込まない。
+- [x] AC 2: 画面上部に「masuidrive-kbd 設定」と戻るボタンを持つトップアプリバーが表示され、設定項目をスクロールしても上部へ固定される。
+- [x] AC 3: 戻るボタンをタップするとSetup画面が終了し、Android標準の戻る操作も同じ結果になる。
+- [x] AC 4: Lightでは暗いsystem bar icon、Darkでは明るいsystem bar iconが使われ、トップアプリバーと設定カードの文字を判読できる。
+- [x] AC 5: 回転やsystem bar inset再配信後もpaddingが累積せず、既存switch、スラッシュ候補、マイク権限、入力テスト、バージョン表示の操作領域と保存動作を維持する。
 
 ### Architectural Invariants check
 Setup画面のView階層とWindowInsetsだけを変更し、IME入力処理、権限範囲、端末内データの扱いを変えない。

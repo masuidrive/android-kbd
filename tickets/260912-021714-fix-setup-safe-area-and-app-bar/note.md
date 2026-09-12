@@ -16,13 +16,13 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み - skip: SetupActivityは端末外provider/APIを呼ばない。
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: reviewでCritical/Majorがなく修正attemptなし。
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み - API 36 arm64 AVDのLight/Dark portraitとDark landscapeを実画面・UI hierarchyで確認。物理Foldは未接続。
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（README、manual、device verificationを更新）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -76,6 +76,13 @@
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
 
+- 対象commit `f8e926452605954ff702aa38c4f84f80f43a1c45`。独立reviewはCritical/Majorなし。Setup focused test 6/6とdiff checkがPASSした。
+
+## PDH-verify. AC裏取り
+
+- 独立VerifierがAC 1〜5をVERIFIED。API 35 Robolectricのinset/hierarchy/back 3/3、既存設定保存 3/3、full suite 2/2がPASSした。
+- API 36 arm64 AVDのLight/Dark portraitとDark landscape 2画像を確認。UI hierarchyで固定app barとScrollViewがroot直下の兄弟であること、scroll終端のversion/licenseがbottom inset上に収まることを確認した。
+
 ### AC reader
 
 - AC 1〜5はrecoverableで相互矛盾なし。safe area、固定bar、戻る、theme icon、既存設定非退行をそれぞれRobolectricとAVD観察で裏取りする。
@@ -84,12 +91,12 @@
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 - `technical-reference.md`へSetupのedge-to-edge、safe area配分、戻るicon、冪等padding、system bar appearanceを追記した。README、manualのLight/Dark画像、device verificationも同じ実画面へ更新した。
-
+- `technical-reference.md`へSetup専用edge-to-edge theme、固定56dp app bar、systemBars/displayCutout inset、Light/Dark icon appearanceを追記し、実装と突合した。
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
-
+- safe area修正、トップバー、戻る操作、Light/Dark画像、独立review/verifyまで完了。後続の高さ設定を同じ画面へ追加したAPKで利用者確認を依頼する。
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
