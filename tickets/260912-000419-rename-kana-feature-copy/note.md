@@ -1,6 +1,6 @@
 # Work Notes: 260912-000419-rename-kana-feature-copy
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -74,22 +74,25 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | 製品トップ | - | Critical/Majorなし | 解消済み | 機能01だけの変更、指定見出しと操作説明、他surface非変更を独立reviewで確認 |
+| 2 | 製品トップ | - | Critical/Majorなし | 解消済み | 追加AC3/4の価値中心の見出し・導入、layer-lineと機能01〜06非退行を独立reviewで確認 |
 
 ## PDH-verify. 検証結果
 
 - AC 1 VERIFIED: `site/index.html`と390px/840pxの実ブラウザで見出し「かなはフリック入力」の完全一致を確認。
 - AC 2 VERIFIED: 中央タップ、上下左右フリック、Mozc候補表示が自然な順序で説明されている。
-- Surface Observer: 390pxでcard幅324px、document幅390px=scroll幅390px。見出しから入力方式が直ちに分かり、説明が操作と候補表示を補っている。
-- Scope: 製品差分は機能01の1カードだけで、他カード、native、mock、manualに差分なし。
+- AC 3 VERIFIED: 390px/840pxの実ブラウザで見出し「フリックで、タップを減らす。」の完全一致を確認。
+- AC 4 VERIFIED: 導入文がかな・英字大文字・数字・記号の直接選択からタップ回数削減へつながり、レイヤー選択を主題にしていない。
+- Surface Observer: 390pxでdocument幅390px=scroll幅390px、840pxでも横overflow 0。見出し→直接選択→便益の順に自然に読める。
+- Scope: 製品差分は機能01と機能一覧の見出し・導入だけで、layer-line、他カード、native、mock、manualに差分なし。
 - Documentation: 技術的な決定変更がないため`technical-reference.md`更新なし。PDH配布物の更新も不要。
 
 最終suite:
 
 ```text
 $ scripts/test-all.sh --parallel
-Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.6xmW0N4foO
-  Starting: fast-checks (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.6xmW0N4foO/fast-checks.log)
-  Starting: android unit, lint, apk (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.6xmW0N4foO/android_unit,_lint,_apk.log)
+Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.OUIfhh4NQ0
+  Starting: fast-checks (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.OUIfhh4NQ0/fast-checks.log)
+  Starting: android unit, lint, apk (log: /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.OUIfhh4NQ0/android_unit,_lint,_apk.log)
 
 ========================================
   Summary
