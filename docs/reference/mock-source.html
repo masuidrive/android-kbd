@@ -252,8 +252,6 @@
   #ios-keyboard-demo .reopen { border:0; background:var(--ik-active); color:var(--ik-blue); width:100%; min-height:48px; font-size:15px; }
   #ios-keyboard-demo[data-device=inner] .topbar, #ios-keyboard-demo[data-device=inner] .editor-wrap { padding-left:28px; padding-right:28px; }
   #ios-keyboard-demo[data-device=inner] .keyboard { padding-left:10px; padding-right:10px; }
-  #ios-keyboard-demo[data-device=inner] .english .key-row { height:52px; }
-  #ios-keyboard-demo[data-device=inner] .kana .key-row { height:58px; }
   @media(max-width:560px) { #ios-keyboard-demo .device-picker .device-name { display:none; } #ios-keyboard-demo .device-size { min-width:0; } }
   @media(max-width:360px) { #ios-keyboard-demo .key { padding:0 2px; } #ios-keyboard-demo .topbar { padding-top:16px; } #ios-keyboard-demo .device-size { display:none; } }
 </style>
@@ -1109,7 +1107,7 @@ data class Composition(
 <p>端末の標準ユーザー辞書は <code>UserDictionary.Words</code> を、ユーザーが明示的に許可した場合だけ読み込む。LINE、Slack、ChatGPT、Claudeなどのログは、各サービスの公式エクスポートをユーザー自身が選択して端末内へ取り込み、頻出語と読み候補を生成する方式が扱いやすい。</p>
 <p>取り込み前にプレビュー、対象期間、除外語を表示する。原文を保存せず、抽出した語と頻度だけを暗号化して保持できる設計にする。連絡先、URL、メールアドレス、トークン、長い数字列、パスワードらしい文字列は既定で除外する。削除と再学習の操作を設定画面に用意する。</p>
 <h2 id="rendering"><a href="#rendering">描画とアクセシビリティ</a></h2>
-<p>Fold7外画面を狭い基準、内画面を広い基準として、幅からキー単位 <code>w</code> を計算する。内画面でもキー数とジェスチャーは変えず、キーの高さと左右余白を増やす。ヒンジやセーフ領域は <code>WindowInsets</code> を使って避ける。</p>
+<p>Fold7外画面を狭い基準、内画面を広い基準として、幅からキー単位 <code>w</code> を計算する。内画面でもキー数とジェスチャーは変えず、幅は列と左右余白だけを変える。キー4行の高さは利用者が選んだ小・標準・大presetで決め、幅やDual Flickでは変えない。ヒンジやセーフ領域は <code>WindowInsets</code> を使って避ける。</p>
 <p>副ラベルは色だけでなく位置とサイズでも主ラベルと区別する。押下、フリック選択、候補選択には4.5:1以上の文字コントラストを保つ。TalkBackには通常入力、上スワイプ、下フリックの結果をまとめた説明を付ける。触覚は方向確定、候補変更、削除開始に短く1回だけ返す。</p>
 <h2 id="security"><a href="#security">セキュリティ</a></h2>
 <p>IMEは全入力へ触れられるため、ネットワーク権限を持たない完全ローカル構成を初期値とする。ログへ入力文字列を出さない。学習データ、個人辞書、クラッシュ情報に原文を含めない。バックアップと同期を追加する場合は、対象データと送信先を明示し、利用者が明示的に有効化する。</p>

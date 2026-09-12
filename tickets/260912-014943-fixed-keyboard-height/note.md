@@ -70,7 +70,7 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | reference同期 | Minor | `sites-native-spec`、`android-native-implementation`、参照用mockが内画面でキー高さを増やす旧仕様を残していた。 | 採用・修正 | 高さpresetを幅とDual Flickから独立させた実装と矛盾するため、3ファイルを現行仕様へ同期した。 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
