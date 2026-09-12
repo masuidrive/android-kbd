@@ -9,7 +9,7 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] ユーザー承認済みのv0.11.0 APKをZIP化せずGitHub Releasesへ公開し、Sitesの製品紹介・操作モック・マニュアルを更新してGitHubへpushする。
+- [x] ユーザー承認済みのv0.11.0 APKをZIP化せずGitHub Releasesへ公開し、Sitesの製品紹介・操作モック・マニュアルを更新してGitHubへpushする。
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
@@ -139,6 +139,13 @@ Attempt 3結論: **No Critical/Major**。Attempt 2の4 findingはすべて解消
 - `agent-browser`で実配信構成の`site/demo.html`を操作した。日本語とテンキー左上から絵文字へ入り、中央の頁表示tapで1/2→2/2、2頁目☕の直接入力、💯入力後に☕をrecentから再入力してrecentが`☕, 💯`の新しい順・重複なしとなること、reload後も同じ順と2/2が復元すること、4行・overflow 0を確認した。
 - 絵文字レイヤー最下段キーを実フリックし、上=日本語、右=QWERTY、下=テンキー、左=音声入力へ到達した。日本語Spaceの左フリックでは値`ab`を変えずcaretが2から0へ移動した。nativeはlayout/view testsで同じaction mappingとSpace四方向を確認した。
 - `KeyboardMode.CURSOR`、専用カーソルレイヤー文言、mockのcursor stateは現行app/product/site/referenceから消えている。旧保存文字列`CURSOR`だけはmigration入力としてKANA fallbackへ残る。README、Product Brief、manual、site/mock、canonical references、`technical-reference.md` decisions 16/17は6レイヤー、4行、2ページ、recent、Space cursorと一致する。物理Galaxy Z Fold7は未所持で、実機開閉・hinge・physical multi-touchは未観察。
+
+### Publication (v0.11.0)
+
+- GitHub Release: `https://github.com/masuidrive/android-kbd/releases/tag/v0.11.0`。target commitは`cd8dc2952d3f37c99b4a530864b9dc64ebf5d159`、assetは未圧縮の`gesture-ime-v0.11.0.apk`。
+- APK: 34,926,352 bytes、SHA-256 `b3ed40bb2d18909172e3a05c9ad5273436e9570e0998a09da72b20561e9cfdcf`。GitHubから再downloadしてlocal成果物とbyte一致を確認した。
+- Hanger Sites: `https://fez69vft.aboutme.style/`、display name `Gesture IME v0.11.0`。local/remote 44ファイルのpath・SHA-256が全件一致し、配信内容にAPK/ZIPがないことを確認した。
+- 実ブラウザ: トップとmanualに横overflowなし。390px smartphone幅と1024px tablet幅でもdocument幅一致。heroの初期入力`ここは入力できるよ`、Light/Dark、Mobile/Tablet、Dual Flick、単独mockの`あ`入力結果、manualの17画像とv0.11.0 APKリンクを確認した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
