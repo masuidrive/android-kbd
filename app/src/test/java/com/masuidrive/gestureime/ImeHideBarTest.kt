@@ -79,6 +79,30 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun pickerGeometryRefreshSettlesAfterAnExternalWidthChange() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val picker = root.getChildAt(1) as EmojiPickerView
+        var layoutChanges = 0
+        picker.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutChanges++ }
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertEquals(840, picker.width)
+        assertTrue(layoutChanges > 0)
+        assertTrue(!picker.isLayoutRequested)
+        val settledChanges = layoutChanges
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(settledChanges, layoutChanges)
+        assertTrue(!picker.isLayoutRequested)
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
