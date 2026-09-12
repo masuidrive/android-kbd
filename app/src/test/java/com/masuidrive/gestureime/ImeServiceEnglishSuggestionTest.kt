@@ -108,6 +108,34 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
+    fun conversionEnterFlickCommitsRawReadingExactlyOnceAndClearsConversion() {
+        val harness = Harness(conversion = FakeConversion(listOf(ConversionCandidate(1, "日本語")))) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+
+        harness.service.onKeyAction(KeyAction.CommitWithoutConversion)
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.KanaInput("あ"))
+        harness.idle()
+
+        assertEquals(listOf("にほんご"), harness.input.committedValues)
+        assertEquals("にほんごあ", harness.input.visibleText)
+    }
+
+    @Test
+    fun conversionEnterLeftFlickCommitsFullWidthKatakanaExactlyOnce() {
+        val harness = Harness(conversion = FakeConversion(listOf(ConversionCandidate(1, "日本語")))) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.KanaInput("にほんご"))
+        harness.idle()
+
+        harness.service.onKeyAction(KeyAction.ConvertToKatakana)
+        harness.idle()
+
+        assertEquals(listOf("ニホンゴ"), harness.input.committedValues)
+        assertEquals("ニホンゴ", harness.input.committed)
+    }
+
+    @Test
     fun staleCandidateTapQueuedBehindNewCharacterDoesNotReplaceNewerBuffer() {
         val harness = Harness { prefix, _ -> listOf(if (prefix == "h") "hello" else "help") }
         harness.key("h")
@@ -312,6 +340,7 @@ class ImeServiceEnglishSuggestionTest {
         private var selectionStart = 0
         private var selectionEnd = 0
         val visibleText get() = text.toString()
+        val committedValues = mutableListOf<String>()
         val committed: String get() = if (composingStart < 0) text.toString() else
             text.substring(0, composingStart) + text.substring(composingEnd)
 
@@ -337,6 +366,7 @@ class ImeServiceEnglishSuggestionTest {
             val start = if (composingStart >= 0) composingStart else minOf(selectionStart, selectionEnd)
             val end = if (composingEnd >= 0) composingEnd else maxOf(selectionStart, selectionEnd)
             val replacement = text?.toString().orEmpty()
+            committedValues += replacement
             this.text.replace(start, end, replacement)
             selectionStart = start + replacement.length
             selectionEnd = selectionStart

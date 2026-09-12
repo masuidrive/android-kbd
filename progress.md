@@ -152,3 +152,4 @@
 [2026/09/12 09:23] 「フリックで、タップを減らす。」の製品コピー、機能01「かなはフリック入力」、枠線なしのhero入力欄を既存owner_only Sites `https://fez69vft.aboutme.style/`へ公開。36ファイル・3,809,462 bytesで、ローカルと公開先のpath/SHA-256が全件一致した。
 [2026/09/12 09:23] 次作業として、アプリ切り替え直後のIME高さ計算、変換中Enterの無変換・カタカナ即時確定、現行HTML/CSS基準の設定画面再点検、native音声レイヤー完成度の突合を受領した。
 [2026/09/12 09:41] アプリ切替中に親から渡る一時的な過大EXACTLY高をKeyboardViewが採用するraceを修正し、現在幅・inset由来の固定4行高を入力View開始時から再適用した。5レイヤーの過大初回measure回帰と既存lifecycle testsが成功。API 36.1 AVDでSettings検索欄と内蔵入力テストを5往復し、10表示すべてキー背景上端y=1545、候補欄と4行高不変を確認した。公開・pushは未実施。
+[2026/09/12 10:01] 変換中Enterの上フリックを元readingのひらがな、左フリックを全角カタカナとして1回で確定し、compositionと候補を即時clearするよう変更。Service回帰testと既存Enter gesture/layout testが成功し、browser mockも実pointer操作で上「あ」・左「アア」、各候補0件を確認した。公開・pushは未実施。

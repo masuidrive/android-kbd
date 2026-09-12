@@ -344,11 +344,11 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             }
             KeyAction.CommitWithoutConversion -> {
                 finishEnglishRaw()
-                showConversionPreview(reading)
+                commitConversionAs(reading)
             }
             KeyAction.ConvertToKatakana -> {
                 finishEnglishRaw()
-                showConversionPreview(reading.toKatakana())
+                commitConversionAs(reading.toKatakana())
             }
             is KeyAction.MoveCursor -> {
                 finishEnglishRaw()
@@ -591,6 +591,12 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
             textController.commitCandidate(reading)
             resetConversion(clearComposing = false)
         }
+    }
+
+    private suspend fun commitConversionAs(value: String) {
+        if (reading.isEmpty()) return
+        textController.commitCandidate(value)
+        resetConversion(clearComposing = false)
     }
 
     private fun showConversionPreview(value: String) {

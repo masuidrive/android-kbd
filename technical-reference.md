@@ -34,7 +34,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 5. スマホ・タブレットの代表値として412dpと840dp相当のエミュレータ幅を使い、Fold実機を使っていない確認は実機検証と区別して報告する。（2026-09-11 / 260910-163036, 260911-153653）
 6. Dual Flickは設定default OFFとし、利用可能幅600dp以上の日本語かなレイヤーだけ中央12キーを左右2組にする。候補・編集・レイヤー切替キーとcompositionは共有する。Foldでは閉じたスマホ幅で1組、開いたタブレット幅で2組を使える。（2026-09-11 / 260911-000706, 260911-153653）
 7. Spaceとカーソルレイヤーの上下移動は、現在Editorから得た`ExtractedText`の改行区切りlogical line間を同じ列で移動し、文書内へclampする。視覚上のsoft wrapは別行として扱わず、抽出不能時はfocus越境を避けるためno-opにする。（2026-09-11 / 260910-233809）
-8. 変換中Enterは候補確定を表示し、上で原ひらがな、左でカタカナをpreviewする。previewの確定はEnter tapで行い、raw readingは変換・復元用に保持する。（2026-09-11 / 260910-233809）
+8. 変換中Enterは候補確定を表示し、tapで現在候補、上フリックで元readingのひらがな、左フリックで全角カタカナをそれぞれ1回で確定する。確定後はcompositionと候補を消し、次のかな入力を新しいreadingとして開始する。（2026-09-11 / 260910-233809; 2026-09-12 / 260912-002431-commit-enter-flick-conversions）
 9. 音声入力はAPI 31以降の`createOnDeviceSpeechRecognizer()`だけを使用し、`ja-JP`モデルの対応を確認する。通常のnetwork recognizerへのfallbackとモデルの自動downloadは行わない。（2026-09-11 / 260910-233205）
 10. 音声入力は左下レイヤーキーを左へフリックし、方向が確定した時点で専用`VOICE` modeへ移って開始する。進入前の文字layerを保持し、候補tapまたは取消で戻る。VOICE面の左下キーは中央tapで取消、上で日本語、右でQWERTY、下でテンキーへ切り替える。（2026-09-11 / 260911-014049, 260911-055701-assign-layer-left-swipe-to-voice; 2026-09-12 / 260911-160113）
 11. native描画は保存済み正本HTMLのLight/Dark paletteをAndroidの`values`/`values-night`へ対応させ、端末`uiMode`へ自動追従する。文字倍率はキー境界内へfitし、QWERTYラベルは正本から決めた固定の大きさ・位置で描画する。popupは候補欄の高さを変えず、非focus・非touchのoverlayで上端キーから画面内へ表示する。（2026-09-11 / 260911-022705, 260911-053738; 2026-09-12 / 260911-175407）

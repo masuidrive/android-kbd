@@ -333,6 +333,14 @@
     if(commit)clearComposition();
     render();return true;
   }
+  function commitCompositionValue(value) {
+    if(!composition.reading)return false;
+    preserveComposition=true;
+    editor.focus({preventScroll:true});
+    editor.setRangeText(value,composition.start,composition.end,'end');
+    editor.dispatchEvent(new Event('input',{bubbles:true}));preserveComposition=false;
+    announce('確定：'+value);clearComposition();render();return true;
+  }
   const englishSuggestionWords=['compact','clear','quit','project','prompt','program','product','problem','keyboard','gesture','android','candidate'];
   function englishPrefix() {
     if(language!=='english'||layer!=='letters'||editor.selectionStart!==editor.selectionEnd)return null;
@@ -546,10 +554,10 @@
     else if(id==='escape')announce('ESC');
     else if(id==='ctrl-j')applyModified('j','Control');
     else if(id==='voice')announce('音声入力面を開きます');
-    else if(id==='raw-conversion'&&composition.reading) {replaceComposition(composition.candidates.indexOf(composition.reading),true);}
+    else if(id==='raw-conversion'&&composition.reading) {commitCompositionValue(composition.reading);}
     else if(id==='katakana-conversion'&&composition.reading) {
       const katakana=composition.reading.replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
-      const index=composition.candidates.indexOf(katakana);replaceComposition(index<0?composition.candidates.length-1:index,true);
+      commitCompositionValue(katakana);
     }
     else if(id==='return') {
       if(composition.reading) {announce('確定');clearComposition();}

@@ -11,10 +11,10 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部providerを経由しないIME操作
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
@@ -32,6 +32,8 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- 上・左だけを即時確定へ変更し、tap候補確定と通常時Ctrl+J/Pasteを維持する契約を確認した。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -41,10 +43,19 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
+- [x] native旧実装は上・左で`showConversionPreview`を呼び、compositionと変換状態を残していた。mockは候補index経由でcommitしていたため、候補配列に依存しない直接確定へ揃えた。
+- [x] 実ブラウザpointer操作で「あ」変換中Enter上フリック後の値「あ」・候補0件、続けて「ああ」左フリック後の値「アア」・候補0件を確認した。console errorなし。
+
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `CommitWithoutConversion`は元reading、`ConvertToKatakana`は全角カタカナを`commitCandidate`へ1回渡し、直後にMozc状態・composition・候補をresetする共通処理へ変更した。
+- ひらがな/カタカナのcommit値が各1件だけであること、次のかなが新compositionになることをService回帰testへ追加した。既存KeyboardView/Layout testで通常Enter上Ctrl+J・下Paste・変換中action割当を維持した。
+- mockも候補indexへ依存せず選択表記を直接textareaへ置換し、候補を空にする処理へ同期した。
+- 重複検出 skip: Kotlin/HTML用similarity CLIが環境に導入されていないため。
+- focused Service/KeyboardView/KeyboardLayouts testsと`scripts/test-all.sh --parallel`（fast-check、全unit、lint、APK build）が成功した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -64,6 +75,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- Decision 8をpreview二段階から、上=元reading・左=全角カタカナの即時確定へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
