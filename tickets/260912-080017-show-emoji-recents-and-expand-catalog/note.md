@@ -1,6 +1,6 @@
 # Work Notes: 260912-080017-show-emoji-recents-and-expand-catalog
 
-## Status: PDH-ticket-review
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,18 +11,18 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: AndroidX Emoji Pickerと端末内SharedPreferencesだけを使い、外部provider/API経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -65,7 +65,12 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | privacy | Major | 通常Recentのproviderをprivate pickerへ差し替えると、非同期refresh中に履歴が一時表示され得る | 採用・修正 | picker instanceをpublic/privateで分離し、private providerは常に空にした |
+| 2 | geometry | Major | カテゴリ切替直後の古い行高で確定すると4行目の上端が見える | 採用・修正 | 選択categoryの新しい行attachを待ち、preset物理高とclip/maskを分離した |
+| 3 | Recent | Major | AndroidXのdirty更新が非同期commitより先に消費されると成功後のRecent表示が古い | 採用・修正 | public commitと保存成功後だけproviderを再設定してadapterをrefreshした |
+| 4 | final review | - | `4be7208`の成功/private/stale guard、Recent adapter、mask、固定高を再確認 | 解消 | Critical 0 / Major 0 / Minor 0 |
+
+指摘修正の反例として、private→public復帰時の保存済み履歴、commit失敗、古いeditor token、空Recent、Faces/People切替、Small/Standard/Largeを各修正前後で維持した。`640f9fb`では該当service testが約121秒だった状態から13秒、`4be7208`後は10秒で完了し、Recent provider内容も`[❤️]`へ更新されることをtestで固定した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -87,3 +92,25 @@
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
+実装前に、AndroidX 1.6.0のheader/list構造、Recent providerの保存順序、カテゴリ切替時のRecyclerView配置時機、private欄でproviderを差し替えた場合の非同期漏洩、画面幅・高さpreset変更時の再計測を仮定として列挙した。AAR bytecodeとAPI 36実画面を測り、通常用とprivate用pickerを分離した。
+
+`d36a5fe`でAndroidX picker、最大24件Recent、候補face 38dp、native/mockを導入した。`19854c9`でprivate専用pickerへ分離し、`6b9926e`以降で幅・preset・category変更時のgeometryを実測値へ追従させた。カテゴリのRecyclerViewはheader選択より後で行をattach/recycleするため、stale callbackと選択categoryを識別し、picker本体はpresetの物理高へ固定、見える末尾だけclip/maskする構成へ収束した。`8c6053d`で空Recentを実際にattachされた履歴なし表示と後続2行の下端へ切った。
+
+`640f9fb`で不要なparent requestLayoutと同値mask更新を除いた。reviewで、AndroidXの選択順がlistener→provider記録→dirty設定であり、非同期commit中にdirtyを消費できることを検出した。`4be7208`でcurrent editorかつpublicのcommit成功とPreferences保存後だけpublic picker providerを明示更新し、表示中Recentの即時並替えを固定した。変更は`96b60be..4be7208`の論理commitへ分割した。
+
+重複検出はKotlin/HTMLを対象に使える同梱`similarity-generic`が環境に無いためskipし、既存helperとlayout patternを`rg`で照合した。最終`./scripts/test-all.sh --parallel` summaryは以下。
+
+```text
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+
+Passed: 2 / 2
+```
+`technical-reference.md`の決定17へ、AndroidX pickerの50dpカテゴリheader、8列3行、最大24件Recent、private provider、成功確定時だけ保存する現仕様を反映済み。決定18へ、絵文字時のoverlayとpreset固定高、入力先切替時の再適用を反映済み。
+AndroidX Emoji Picker 1.6.0はカテゴリtap後にRecyclerViewの行を非同期でattach/recycleするため、header選択直後の旧行高を新categoryの確定値として使えない。`setRecentEmojiProvider`はpicker bodyを再生成せずRecent adapterをrefreshするが、絵文字選択callbackより後にAndroidX自身のprovider記録とdirty設定が走る。アプリ側の非同期commit成功後に明示refreshする必要がある。
+API 36 arm64 emulator（1080x2400、420dpi、Light）で、空Recent、Facesから😀確定直後のRecent先頭反映、privateの空Recentとpublic復元、カテゴリ連打、Small/Standard/Large、設定と入力テストの10表示を確認した。StandardはIME top 1472、QWERTY first key top 1624、4行bottom 2173、hide bar top 2178、nav pill 2364で10表示とも不変。SmallはIME top 1524/control top 2070、Largeは1419/2044。各presetで下端cut/sliverなし。最終画像は`site/assets/emoji-categories-api36-v0.13.png`。
+
+物理Fold端末は未接続のため、最終human reviewでは公開APKをFoldの外画面・内画面で開き、絵文字レイヤーの3行高とアプリ切替直後の高さを確認する。

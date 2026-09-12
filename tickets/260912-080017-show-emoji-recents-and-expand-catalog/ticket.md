@@ -35,14 +35,14 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者が絵文字レイヤー最上部のカテゴリ行からRecentや目的のカテゴリを選び、絵文字とvariationを入力できる。
 
-- [ ] AC 1: 絵文字レイヤーを開くと、通常の変換候補faceやメッセージの代わりに、候補欄と同じ最上部50dp領域へ横方向のカテゴリicon行が表示される。
-- [ ] AC 2: カテゴリicon行の先頭にRecentがあり、選ぶと端末内の最近使った絵文字が新しい順・重複なしで下の一覧へ最大24件表示される。
-- [ ] AC 3: 絵文字レイヤーは全体高を変えず、カテゴリ行の下に縦スクロールできる絵文字一覧3行、最下段に既存のレイヤー切替と削除を表示する。
-- [ ] AC 4: Recent以外のカテゴリをタップすると対応する一覧へ移動し、variationを持つ絵文字を長押しすると肌色・性別などの選択肢を選べる。
-- [ ] AC 5: 一覧またはvariationから絵文字をタップすると現在の入力欄へ1回だけ確定し、Recentの先頭へ反映される。Recentが空のときは履歴絵文字を表示しない。
-- [ ] AC 6: private入力欄ではRecentカテゴリへ履歴を表示せず、通常欄へ戻ると保存済み履歴を復元する。
-- [ ] AC 7: 候補faceを50dp候補欄内で34dpから38dpへ広げてtop10dp/bottom2dpとし、最上段keyとの10dp間隔、先頭左余白phone 6dp/wide 13dp、候補間5dp、候補内容が変わったときの横scroll先頭resetを維持する。
-- [ ] AC 8: Android nativeと公開操作mockで最上部50dpのカテゴリicon行、Recent内容、3行一覧、縦scroll、最下段操作が対応し、Light/Darkと412dp/840dp幅で欠けや横overflowがない。
+- [x] AC 1: 絵文字レイヤーを開くと、通常の変換候補faceやメッセージの代わりに、候補欄と同じ最上部50dp領域へ横方向のカテゴリicon行が表示される。
+- [x] AC 2: カテゴリicon行の先頭にRecentがあり、選ぶと端末内の最近使った絵文字が新しい順・重複なしで下の一覧へ最大24件表示される。
+- [x] AC 3: 絵文字レイヤーは全体高を変えず、カテゴリ行の下に縦スクロールできる絵文字一覧3行、最下段に既存のレイヤー切替と削除を表示する。
+- [x] AC 4: Recent以外のカテゴリをタップすると対応する一覧へ移動し、variationを持つ絵文字を長押しすると肌色・性別などの選択肢を選べる。
+- [x] AC 5: 一覧またはvariationから絵文字をタップすると現在の入力欄へ1回だけ確定し、Recentの先頭へ反映される。Recentが空のときは履歴絵文字を表示しない。
+- [x] AC 6: private入力欄ではRecentカテゴリへ履歴を表示せず、通常欄へ戻ると保存済み履歴を復元する。
+- [x] AC 7: 候補faceを50dp候補欄内で34dpから38dpへ広げてtop10dp/bottom2dpとし、最上段keyとの10dp間隔、先頭左余白phone 6dp/wide 13dp、候補間5dp、候補内容が変わったときの横scroll先頭resetを維持する。
+- [x] AC 8: Android nativeと公開操作mockで最上部50dpのカテゴリicon行、Recent内容、3行一覧、縦scroll、最下段操作が対応し、Light/Darkと412dp/840dp幅で欠けや横overflowがない。
 
 ### Architectural Invariants check
 絵文字pickerとrecentは端末内だけで動作し、公開mockもブラウザ内だけへ保存する。入力内容や履歴を外部へ送らず、private欄では履歴を表示しないためAI-1〜AI-4と矛盾しない。

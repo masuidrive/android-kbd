@@ -199,3 +199,9 @@
 [2026/09/12 17:54] AndroidX Emoji Picker 1.6.0を導入し、候補欄位置をRecent先頭のカテゴリicon行、下を3行scroll一覧、最下段をlayer切替・削除へ変更した。Recentを24件へ拡張し、mockもカテゴリ切替・縦scroll・入力反映へ対応した。
 [2026/09/12 17:54] reviewで通常Recentがprivate欄へ一時表示され得る非同期競合を検出したため、通常用とprivate用のpickerを分離した。Fold幅・高さpreset変更時のgrid再計測、背景色、非表示カテゴリ名のTalkBack除外も修正し、全test 2/2を通過した。
 [2026/09/12 18:16] 絵文字レイヤーの通常候補欄を完全に非表示にし、同じ50dp位置をRecentの履歴iconを先頭とするAndroidXカテゴリicon行へ置換した。API 36 Light実画面でカテゴリ名文字なし、一覧3行、部分的な4行目なし、固定control行を確認。操作mockもRecentをiconで示し、412px LightとTablet Darkで横overflowなし、全test 2/2 PASSを確認した。
+[2026/09/12 19:02] 絵文字レイヤーの候補欄をRecent先頭のカテゴリicon行へ置き換え、AndroidX pickerを一覧3行へ固定する最終調整を継続。正しい実画素座標ではカテゴリ切替は動作したが、切替直後に4行目上端が見えることを発見し、再計算処理を修正中。
+[2026/09/12 20:07] AndroidXのカテゴリ切替後、新しい絵文字行が配置される約6ms前に古い高さを固定していたことを診断logで特定した。新カテゴリの3行を実際に観測してから高さを確定する修正と、Recentへ戻る経路の再検証を開始した。
+[2026/09/12 21:06] 絵文字一覧の物理高を設定presetへ固定し、カテゴリ別の可視高はclipとmaskだけで制御するよう修正した。空Recentは履歴なし表示と後続2行の実測下端で切り、API 36 LightのSmall・Standard・Largeで初期Recent、Faces、People、Recent復帰、連続tap、最下段上端の誤入力なしを確認した。
+[2026/09/12 21:27] 絵文字確定後のpicker再構築と不要な親requestLayoutを除き、Recent更新をAndroidX既定のrefreshへ戻した。maskのlayout paramsも値が変わる場合だけ更新し、候補testは13秒、閉じるバーtestは5秒で完了した。最新commitを対象に独立review、実画面のRecent・private復帰・高さpreset・アプリ切替10回、全suiteの最終確認を開始した。
+[2026/09/12 21:40] AndroidXの実呼出順をAARで再確認し、成功したpublic確定と履歴保存の後だけRecent adapterを明示更新する競合修正を入れた。独立reviewはCritical 0・Major 0・Minor 0、全suiteは2/2 PASS。API 36でRecent即時反映、private非表示と復元、カテゴリ連打、Small・Standard・Large、設定と入力テストの10表示すべて高さ不変を確認した。
+[2026/09/12 21:40] 音声レイヤーでキャンセル横に認識状態を表示し、候補確定後に旧候補を消して次の認識を開始し、キャンセルまで繰り返すticket `260912-122938-keep-voice-listening-until-cancel` を作成した。private・editor切替・IME非表示・別layer・errorでは停止し、旧callbackから確定も再開始もしない契約を独立AC読み手が承認した。
