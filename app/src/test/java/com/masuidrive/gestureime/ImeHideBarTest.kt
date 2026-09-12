@@ -238,6 +238,17 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun categoryTransitionAcceptsRowsOnlyAfterTheRequestedCategoryTitleIsFirst() {
+        // AndroidX header selection scrolls to the CATEGORY_TITLE item for that category.
+        // Rows from Recent can remain attached while Faces is becoming the first item.
+        val categoryTitlePositions = listOf(0, 18, 36)
+        assertFalse(isEmojiCategoryAtBodyStart(0, categoryTitlePositions, 1))
+        assertTrue(isEmojiCategoryAtBodyStart(18, categoryTitlePositions, 1))
+        assertFalse(isEmojiCategoryAtBodyStart(36, categoryTitlePositions, 1))
+        assertFalse(isEmojiCategoryAtBodyStart(18, categoryTitlePositions, 4))
+    }
+
+    @Test
     fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
         // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
         // The latter must not be clamped by Faces' previous actual viewport.

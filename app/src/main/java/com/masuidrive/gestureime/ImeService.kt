@@ -20,6 +20,7 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.util.Consumer
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.emoji2.emojipicker.RecentEmojiProvider
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.masuidrive.gestureime.conversion.ConversionCandidate
@@ -379,16 +380,26 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun beginEmojiCategoryTransition(picker: EmojiPickerView, targetCategory: Int) {
         val body = pickerBodies[picker] ?: return
         val generation = ++emojiCategoryTransitionGeneration
+        val previousViewport = pickerViewportHeights[picker]
+        val wasLocked = picker in pickerViewportLocked
         pickerViewportLocked.remove(picker)
-        pickerViewportCategoryTransitions[picker] = EmojiCategoryTransition(generation, targetCategory)
+        pickerViewportCategoryTransitions[picker] = EmojiCategoryTransition(
+            generation = generation,
+            targetCategory = targetCategory,
+            previousViewport = previousViewport,
+            wasLocked = wasLocked,
+            previousBodyHeight = body.layoutParams?.height,
+            previousClipBounds = body.clipBounds?.let { Rect(it) },
+        )
         // The AndroidX click scrolls after this non-consuming callback. New body content,
         // rather than a frame boundary, decides when its three rows can be measured.
+        // This also handles re-tapping the already selected category without waiting for a
+        // RecyclerView scroll callback.
+        body.post { onEmojiPickerBodyChanged(picker, body) }
         body.postDelayed(
             {
                 if (isCurrentEmojiCategoryTransition(generation, pickerViewportCategoryTransitions[picker]?.generation)) {
-                    // An already-selected category may not scroll. Clear only the pending
-                    // marker; do not settle geometry from the old body.
-                    pickerViewportCategoryTransitions.remove(picker)
+                    restoreEmojiCategoryTransition(picker, body, generation)
                 }
             },
             EMOJI_CATEGORY_TRANSITION_FALLBACK_MS,
@@ -402,12 +413,36 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             applyEmojiPickerViewport(picker, body)
             return
         }
+        // Old content remains attached briefly while AndroidX scrolls to the selected
+        // category. Its three rows are valid geometry for the old category only.
+        if (!isTargetEmojiCategoryAtBodyStart(body, transition.targetCategory)) return
         val placeholderVisible = hasVisibleEmojiEmptyCategoryPlaceholder(body)
         val observedViewport = if (placeholderVisible) null else emojiThreeRowViewport(body)
         if (isEmojiCategoryContentReady(transition.targetCategory, observedViewport, placeholderVisible)) {
             pickerViewportCategoryTransitions.remove(picker)
             applyEmojiPickerViewport(picker, body)
         }
+    }
+
+    private fun restoreEmojiCategoryTransition(picker: EmojiPickerView, body: RecyclerView, generation: Long) {
+        if (!shouldApplyEmojiPickerViewport(pickerBodies[picker], body)) return
+        val transition = pickerViewportCategoryTransitions[picker] ?: return
+        if (!isCurrentEmojiCategoryTransition(generation, transition.generation)) return
+        pickerViewportCategoryTransitions.remove(picker)
+        transition.previousViewport?.let { viewport ->
+            pickerViewportHeights[picker] = viewport
+            body.layoutParams?.let { params ->
+                val previousHeight = transition.previousBodyHeight
+                if (previousHeight != null && params.height != previousHeight) {
+                    params.height = previousHeight
+                    body.layoutParams = params
+                }
+            }
+            body.clipBounds = transition.previousClipBounds?.let { Rect(it) }
+                ?: Rect(0, 0, body.width, viewport)
+        }
+        if (transition.wasLocked) pickerViewportLocked += picker else pickerViewportLocked.remove(picker)
+        updateEmojiPickerMask()
     }
 
     private fun applyEmojiPickerViewport(picker: EmojiPickerView, body: RecyclerView) {
@@ -460,7 +495,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         body.clipBounds = Rect(0, 0, body.width, viewportHeight)
         updateEmojiPickerMask()
     }
-
 
     private fun updateEmojiPickerMask() {
         val activePicker = when {
@@ -1304,6 +1338,10 @@ private data class ExpectedSelectionTransition(
 private data class EmojiCategoryTransition(
     val generation: Long,
     val targetCategory: Int,
+    val previousViewport: Int?,
+    val wasLocked: Boolean,
+    val previousBodyHeight: Int?,
+    val previousClipBounds: Rect?,
 )
 
 private fun Char.isAsciiLetterOrDigit(): Boolean = this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9'
@@ -1322,6 +1360,9 @@ private const val MAX_ENGLISH_CANDIDATES = 5
 private const val EMOJI_PICKER_BODY_SPACER_DP = 8f
 private const val EMOJI_CATEGORY_TRANSITION_FALLBACK_MS = 200L
 private const val EMOJI_RECENT_CATEGORY_POSITION = 0
+// AndroidX EmojiPicker 1.6.0 ItemType.CATEGORY_TITLE.ordinal. ItemType is Kotlin-internal,
+// while RecyclerView.Adapter.getItemViewType() is public.
+private const val EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE = 0
 
 /** Returns the body-coordinate lower edge of three attached AndroidX emoji rows. */
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
@@ -1399,6 +1440,28 @@ internal fun isEmojiCategoryContentReady(
     emptyPlaceholderVisible: Boolean,
 ): Boolean = observedViewport != null ||
     (targetCategory == EMOJI_RECENT_CATEGORY_POSITION && emptyPlaceholderVisible)
+
+/** AndroidX scrolls a header selection to its matching category-title adapter item. */
+internal fun isEmojiCategoryAtBodyStart(
+    firstVisiblePosition: Int,
+    categoryTitlePositions: List<Int>,
+    targetCategory: Int,
+): Boolean = firstVisiblePosition == categoryTitlePositions.getOrNull(targetCategory)
+
+private fun isTargetEmojiCategoryAtBodyStart(body: RecyclerView, targetCategory: Int): Boolean {
+    val adapter = body.adapter ?: return false
+    val manager = body.layoutManager as? GridLayoutManager ?: return false
+    val categoryTitlePositions = buildList {
+        repeat(adapter.itemCount) { position ->
+            if (adapter.getItemViewType(position) == EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE) add(position)
+        }
+    }
+    return isEmojiCategoryAtBodyStart(
+        firstVisiblePosition = manager.findFirstVisibleItemPosition(),
+        categoryTitlePositions = categoryTitlePositions,
+        targetCategory = targetCategory,
+    )
+}
 
 internal fun isEmojiPlaceholderInViewport(visibility: Int, bounds: Rect, viewport: Rect): Boolean =
     visibility == View.VISIBLE && !bounds.isEmpty && Rect.intersects(bounds, viewport)
