@@ -68,6 +68,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var candidateStrip: CandidateStripView? = null
     private var publicEmojiPicker: EmojiPickerView? = null
     private var privateEmojiPicker: EmojiPickerView? = null
+    private var emojiPickerBottomMask: View? = null
     private val pickerLayoutSignatures = mutableMapOf<EmojiPickerView, Pair<Int, Int>>()
     private var conversionGeneration = 0L
     private var reading = ""
@@ -132,8 +133,19 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             candidateStrip = it
             setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         }
+        val initialPickerHeight = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
+        val pickerMaskHeight = pxForDp(EMOJI_PICKER_PARTIAL_ROW_MASK_DP)
         val publicPicker = createEmojiPicker(publicRecentProvider()).also { publicEmojiPicker = it }
         val privatePicker = createEmojiPicker(privateRecentProvider()).also { privateEmojiPicker = it }
+        val pickerBottomMask = View(this).apply {
+            id = R.id.emoji_picker_bottom_mask
+            setBackgroundColor(getColor(R.color.keyboard_background))
+            isClickable = true
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            visibility = View.GONE
+            emojiPickerBottomMask = this
+        }
         val hideBar = FrameLayout(this).apply {
             id = R.id.ime_hide_bar
             setBackgroundColor(getColor(R.color.keyboard_background))
@@ -160,11 +172,18 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateEmojiPickerLayout(candidateHeight) }
         return FrameLayout(this).apply {
             addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight).apply {
+            addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
                 gravity = android.view.Gravity.TOP
             })
-            addView(privatePicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, candidateHeight).apply {
+            addView(privatePicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
                 gravity = android.view.Gravity.TOP
+            })
+            addView(pickerBottomMask, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                pickerMaskHeight,
+            ).apply {
+                gravity = android.view.Gravity.TOP
+                topMargin = initialPickerHeight - pickerMaskHeight
             })
             ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
                 val bottomInset = SafeAreaUi.safeAreaInsets(insets).bottom
@@ -182,11 +201,22 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     /** AndroidX owns its category header and grid; KeyboardView keeps only the fixed controls. */
     private fun updateEmojiPickerLayout(candidateHeight: Int) {
         val keyboard = keyboardView ?: return
+        // AndroidX reserves the next category spacer below three complete grid rows.  This
+        // 8dp strip sits at the picker boundary, leaving all three requested rows intact.
+        val maskHeight = pxForDp(EMOJI_PICKER_PARTIAL_ROW_MASK_DP)
+        val pickerHeight = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
         listOfNotNull(publicEmojiPicker, privateEmojiPicker).forEach { picker ->
             picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return@forEach).apply {
-                height = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
+                height = pickerHeight
             }
             picker.requestLayout()
+        }
+        emojiPickerBottomMask?.let { mask ->
+            val params = mask.layoutParams as? FrameLayout.LayoutParams ?: return@let
+            params.height = maskHeight
+            params.topMargin = pickerHeight - maskHeight
+            mask.layoutParams = params
+            mask.requestLayout()
         }
     }
 
@@ -200,6 +230,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val showPrivate = isEmoji && ::textController.isInitialized && textController.isPrivateField
         publicEmojiPicker?.visibility = if (isEmoji && !showPrivate) View.VISIBLE else View.GONE
         privateEmojiPicker?.visibility = if (showPrivate) View.VISIBLE else View.GONE
+        emojiPickerBottomMask?.visibility = if (isEmoji) View.VISIBLE else View.GONE
     }
 
     private fun createEmojiPicker(provider: RecentEmojiProvider): EmojiPickerView = EmojiPickerView(this).apply {
@@ -230,6 +261,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun EmojiPickerView.hasInflatedEmojiPickerContent(): Boolean =
         findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_header) != null &&
             findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null
+
+    private fun pxForDp(value: Float): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun publicRecentProvider(): RecentEmojiProvider = object : RecentEmojiProvider {
             override fun recordSelection(emoji: String) = Unit
@@ -1061,6 +1094,7 @@ internal fun isEligibleHistoryLongPress(
 
 private const val MAX_ENGLISH_BUFFER = 64
 private const val MAX_ENGLISH_CANDIDATES = 5
+private const val EMOJI_PICKER_PARTIAL_ROW_MASK_DP = 8f
 
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle

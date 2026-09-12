@@ -39,6 +39,7 @@ class ImeHideBarTest {
         val candidate = content.getChildAt(0) as CandidateStripView
         val keyboard = content.getChildAt(1) as KeyboardView
         val picker = root.getChildAt(1) as EmojiPickerView
+        val mask = root.getChildAt(3)
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
@@ -46,7 +47,19 @@ class ImeHideBarTest {
 
         assertEquals(View.INVISIBLE, candidate.visibility)
         assertEquals(View.VISIBLE, picker.visibility)
+        assertEquals(View.VISIBLE, mask.visibility)
+        assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, mask.importantForAccessibility)
         assertEquals(2, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
+
+        val expectedMaskHeight = (8 * service.resources.displayMetrics.density).toInt()
+        KeyboardHeightPreset.entries.forEach { preset ->
+            keyboard.setHeightPreset(preset)
+            root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+            assertEquals(expectedMaskHeight, mask.height)
+            assertEquals((picker.layoutParams as FrameLayout.LayoutParams).height, mask.top + mask.height)
+        }
     }
 
     @Test
@@ -55,11 +68,13 @@ class ImeHideBarTest {
         val root = service.onCreateInputView() as FrameLayout
         val publicPicker = root.getChildAt(1) as EmojiPickerView
         val privatePicker = root.getChildAt(2) as EmojiPickerView
+        val mask = root.getChildAt(3)
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         assertEquals(View.VISIBLE, publicPicker.visibility)
         assertEquals(View.GONE, privatePicker.visibility)
+        assertEquals(View.VISIBLE, mask.visibility)
 
         service.onStartInput(EditorInfo().apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -68,6 +83,7 @@ class ImeHideBarTest {
 
         assertEquals(View.GONE, publicPicker.visibility)
         assertEquals(View.VISIBLE, privatePicker.visibility)
+        assertEquals(View.VISIBLE, mask.visibility)
 
         // A second editor switch must synchronously restore the public instance;
         // the private provider is never swapped onto the public picker.
@@ -76,6 +92,7 @@ class ImeHideBarTest {
 
         assertEquals(View.VISIBLE, publicPicker.visibility)
         assertEquals(View.GONE, privatePicker.visibility)
+        assertEquals(View.VISIBLE, mask.visibility)
     }
 
     @Test
@@ -132,12 +149,14 @@ class ImeHideBarTest {
         val expectedCandidateHeight = (50 * density).toInt()
         val expectedHideHeight = (28 * density).toInt()
 
-        assertEquals(3, root.childCount)
+        val mask = root.getChildAt(3)
+        assertEquals(4, root.childCount)
         assertEquals(3, content.childCount)
         assertSame(candidate, content.getChildAt(0))
         assertSame(keyboard, content.getChildAt(1))
         assertSame(hideBar, content.getChildAt(2))
         assertEquals(View.GONE, picker.visibility)
+        assertEquals(View.GONE, mask.visibility)
         assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
         listOf(412, 840).forEach { width ->
             keyboard.measure(exact(width), exact(1_000))
