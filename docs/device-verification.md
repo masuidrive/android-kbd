@@ -56,6 +56,10 @@ These are emulator observations. Physical vibration strength and the Galaxy Z Fo
 
 ## Mozc latency
 
+## Next-word prediction instrumentation
+
+On `Medium_Phone_API_36.1(AVD)` (API 36, arm64, `emulator-5554`), `MozcConversionEngineTest.bundledDictionaryReturnsAndSubmitsNextWordPrediction` sent `REQUEST_NWP` with preceding text `あけまして` and empty following text to the bundled `mozc.data`. Mozc returned at least one next-word candidate, and `SUBMIT_CANDIDATE` returned a nonblank committed value. `nextWordPredictionCandidateCanBeDeletedFromMozcHistory` also confirmed that `DELETE_CANDIDATE_FROM_HISTORY` was consumed for that prediction state. The connected suite completed 11 instrumentation tests with no failures on 2026-09-12. This verifies the local Mozc protocol path; a real IME tap journey on a Fold7 remains unverified.
+
 `MozcLatencyTest` ran alone in a new instrumentation process. The Mozc data asset had already been copied by earlier tests, so this is a new-process initialization measurement with a warm on-disk asset, not a factory-install asset-copy measurement.
 
 Command:

@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み - skip: Mozcと辞書はAPK同梱であり、外部provider/APIを使用しない。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -52,8 +52,12 @@
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
-     実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
-     論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
+論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- 2026-09-12: 実装前の仮定として、`REQUEST_NWP` の候補 ID は `SUBMIT_CANDIDATE` で個別確定でき、結果文字列は `Output.result.value` に返ることを、実装後の実機 instrumentation で確認する。有限文脈は UTF-16 の中間で切らず、カーソル前後各 128 code point とする。private / `NO_PERSONALIZED_LEARNING` では controller 自身が surrounding text を取得しない。`find` では similarity-generic に該当する実行物を検出できなかったため skip とする。
+- 2026-09-12: `ConversionEngine.predict`、`TextInputController.predictionContext`、`ImeService`の`PREDICTION` sourceを追加した。通常の日本語確定後だけ周辺文脈を渡し、`SUBMIT_CANDIDATE`で候補を追記して再照会する。候補token、editor token、prediction generationを照合し、自己確定のselection callbackだけは確定文字数で吸収した。かな入力・selection・editor変更・候補なしでは候補を消す。private/学習禁止欄はcontrollerで読み取り前に拒否する。
+- 2026-09-12: `4a3d208 [260912-020555-add-mozc-next-word-prediction] feat(mozc): add local next-word predictions`。focused unit tests、`connectedDebugAndroidTest`（11 tests）、`scripts/test-all.sh --parallel`がPASSした。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -72,7 +76,9 @@
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
-     他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- `technical-reference.md`に、有限context、`REQUEST_NWP` / `SUBMIT_CANDIDATE`、token・generationによる破棄、private欄の非取得、予測候補の履歴削除を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
@@ -81,8 +87,11 @@
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
-     例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
-     Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
+Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+
+- `REQUEST_NWP` は`Input.request_suggestion=true`なしでは候補を返さない。公式`SessionTest.RequestNWP`の契約を確認して設定した。
+- API 36.1 arm64 AVDで同梱`mozc.data`へ`preceding_text="あけまして"`を渡すと非空候補が返り、`SUBMIT_CANDIDATE`は非空結果を返した。予測候補に対する`DELETE_CANDIDATE_FROM_HISTORY`もconsumedされた。
 
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する
