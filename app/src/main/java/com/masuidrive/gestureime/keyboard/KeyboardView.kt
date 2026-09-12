@@ -223,11 +223,15 @@ class KeyboardView @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val wanted = (dp(rowPitchDp(width / density)) * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
-        // IME hosts can briefly repeat the previous editor's exact height while the input
-        // window is being attached. This view owns a fixed four-row intrinsic height, so
-        // accepting that transient height moves the keys for the first frame after an app
-        // switch. Width and current insets still determine the intrinsic size.
-        setMeasuredDimension(resolveSize(width, widthMeasureSpec), wanted)
+        // IME hosts can briefly repeat the previous editor's oversized exact height while
+        // the input window is being attached. Cap that transient value at the four-row
+        // intrinsic height, while still respecting a legitimately smaller available area.
+        val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
+        val measuredHeight = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.UNSPECIFIED -> wanted
+            else -> min(wanted, availableHeight)
+        }
+        setMeasuredDimension(resolveSize(width, widthMeasureSpec), measuredHeight)
     }
 
     override fun onDraw(canvas: Canvas) {

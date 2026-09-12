@@ -129,6 +129,35 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `smaller parent height constrains every mode and its accessible keys`() {
+        val modes = listOf(
+            KeyboardMode.QWERTY,
+            KeyboardMode.KANA,
+            KeyboardMode.NUMBERS,
+            KeyboardMode.SYMBOLS,
+            KeyboardMode.VOICE,
+        )
+
+        modes.forEach { mode ->
+            view.setMode(mode)
+            listOf(View.MeasureSpec.AT_MOST, View.MeasureSpec.EXACTLY).forEach { constraint ->
+                view.measure(exact(400), View.MeasureSpec.makeMeasureSpec(160, constraint))
+                view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+
+                assertEquals("$mode constraint=$constraint", 160, view.measuredHeight)
+                val provider = view.accessibilityNodeProvider
+                val host = requireNotNull(provider.createAccessibilityNodeInfo(-1))
+                repeat(host.childCount) { childIndex ->
+                    val bounds = Rect().also {
+                        requireNotNull(provider.createAccessibilityNodeInfo(childIndex)).getBoundsInParent(it)
+                    }
+                    assertTrue("$mode key $childIndex top=$bounds", bounds.top >= 0)
+                    assertTrue("$mode key $childIndex bottom=$bounds", bounds.bottom <= view.measuredHeight)
+                }
+            }
+        }
+    }
+
     @Test fun `preview consumes touch and accessibility without changing input state`() {
         view.setPreviewOnly(true)
         touch(MotionEvent.ACTION_DOWN, 40f, 20f)

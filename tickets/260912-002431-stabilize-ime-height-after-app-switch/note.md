@@ -71,7 +71,7 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 親の小さい高さ制約 | Major | 初版がheight MeasureSpecを全て捨て、小さい利用可能高でもintrinsic高を返す | 採用・解消 | intrinsicを上限にし、AT_MOST/EXACTLYは小さいspecSizeを尊重。全5modeの160px計測とa11y boundsを回帰化 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
