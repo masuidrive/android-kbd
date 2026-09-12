@@ -185,3 +185,4 @@
 [2026/09/12 15:25] 絵文字scroll reviewを修正し、公開mockはpointerupだけで確定し、cancel・capture loss・blur・visibility・resizeでは入力せずgesture stateを破棄するようにした。TalkBackは可能な方向だけを公開し、端のno-opをfalseにした。focused/full testとbrowserのblur/cancel反例を確認した。
 [2026/09/12 15:34] 絵文字scroll review attempt2を修正し、物理pointerの確定をpointerup helperだけに限定した。root clickはkeyboard・支援技術のdetail 0操作のみ処理する。公開mockで通常tap 1回、keyboard click 1回、drag/capture loss後/blur後の入力なしを確認し、focused/full testをPASSした。
 [2026/09/12 15:48] 絵文字scrollを独立AC verifyし、AC 1〜5を達成と判定した。fresh focused JVM 59/59 PASS。API 36 arm64 AVDの412dp Light/Darkと840dpで空recent 24件、残り8件へのdrag、固定4行、直接入力/recent、削除、layer flick、横収まりを実測し、公開mockもphone/tablet・Light/Darkで3行scroll、tap 1回、drag入力0回、pager/overflow 0を確認した。物理Fold7とTalkBack実操作は未実施。
+[2026/09/12 15:57] v0.12.0公開準備としてversionCodeを13、versionNameを0.12.0へ更新し、5本のAPK導線と現行manualを絵文字3行連続scrollへ同期した。未圧縮ARM64 APK `gesture-ime-v0.12.0.apk`を生成し、metadata・permission・署名を確認、full suite 2/2をPASSした。公開・push・GitHub Releaseは未実施。

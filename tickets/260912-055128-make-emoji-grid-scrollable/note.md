@@ -123,7 +123,13 @@
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-`technical-reference.md` Decision 17、native/reference mock specification、manualの現行操作説明を、recent＋catalogの上3行scroll viewport、固定AZ/delete行、空recent時のcatalog先頭24件へ更新した。公開済みv0.11のrelease notesとmanual内のv0.11履歴はpage仕様のまま保持した。
+`technical-reference.md` Decision 17、native/reference mock specification、manualの現行操作説明を、recent＋catalogの上3行scroll viewport、固定AZ/delete行、空recent時のcatalog先頭24件へ更新した。公開済みv0.11のrelease notesだけは当時のpage仕様の記録として保持し、現行manualはv0.12のscroll仕様へ更新した。
+
+## Release preparation (v0.12.0)
+
+- `versionCode`を13、`versionName`を`0.12.0`へ更新した。製品紹介、操作モック、マニュアルの5本のAPK導線はすべて`v0.12.0/gesture-ime-v0.12.0.apk`を指す。manualの現行変更節と`docs/v0.12-release-notes.md`は、上3行の連続scroll viewport、空recent時のcatalog先頭24件、固定bottom row、cancel時non-commitだけをv0.12差分として記録する。
+- `scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/APKの2/2 PASS。`app/build/outputs/apk/debug/gesture-ime-v0.12.0.apk`はversionCode 13 / versionName 0.12.0、minSdk 28、targetSdk 36、`arm64-v8a`のみ、v2署名1 signerで検査した。権限は`RECORD_AUDIO`とAndroidXのdynamic receiver permissionだけで、`INTERNET`はない。SHA-256は`e5ab16234ed43f0410f3e81ddfeab46cba7ffc47d85f39d366bb2fc72f0a29c0`。
+- `site/`内にAPK/ZIPは置かない。GitHub Release、push、Sites公開は未実施。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
