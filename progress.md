@@ -177,3 +177,4 @@
 [2026/09/12 13:44] 絵文字レイヤーreviewを修正し、現editorだけでcommit成功時にrecentを更新するservice回帰testへ日本語・英字・slash composition、commit拒否、旧editor queueを追加した。公開文言とreferenceを絵文字recentを含むレイヤー表記へ統一した。
 [2026/09/12 13:56] 絵文字レイヤーreview attempt2を修正し、中央の頁表示キーを先頭で次・最終で前へ進む操作にした。かなcomposition直結とconversion reset中のeditor切替でemojiを誤確定・recent更新しないservice回帰test、現行レイヤー遷移のreferenceを追加した。
 [2026/09/12 14:02] 絵文字レイヤーreview attempt3のfocused証跡を指定4クラスでfresh再実行し、Gradle `BUILD SUCCESSFUL`を確認した。summaryに件数がないため、4 classes PASSとしてnoteとresultへ記録した。
+[2026/09/12 14:11] v0.11.0公開準備としてAPK versionCodeを12、versionNameを0.11.0へ更新し、製品siteのAPKリンク、現行表記、safe-area・高さ・候補余白・絵文字recentの画像参照、release notesを同期した。公開・push・GitHub releaseは未実施。
