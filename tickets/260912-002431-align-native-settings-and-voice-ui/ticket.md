@@ -54,7 +54,8 @@ canceled_at: null # Do not modify manually
      例: - 423 reject ではなく 422: validation error として扱う -->
 - `site/mock.html`の候補欄、キーface、gap、色token、固定4行を音声レイヤーの視覚正本として比較する。
 - 設定画面は製品ページの余白・階層・控えめなgrayとaccentを参照し、Android標準の可読性と操作領域を保つ。
-- 既に満たす項目も実機画面で再確認し、不足だけを実装する。
+- 現行native音声レイヤーは候補欄、固定4行、キャンセル、partial/final、レイヤー切替を既に備えるため実機で再確認し、差分だけを実装する。
+- 旧マニュアル画像は現行実装を表していないため、Light/Dark設定画面と音声partial/finalの最新画像へ更新する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。

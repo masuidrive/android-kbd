@@ -32,6 +32,10 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- 事前監査ではCriticalなし。Majorは、設定画面が素の全幅control列で視覚階層が弱いことと、マニュアルの設定・音声画像が旧UIのままであること。
+- native音声は候補欄50dp、固定4行、通常キー形状の左下キャンセル、partial/final、確定・取消、上/右/下のレイヤー切替と永続化を既に実装している。機能を作り直さず実機確認と必要差分へ限定する。
+- 設定画面は既存項目と保存動作を維持し、現行HTML/CSSの余白・gray surface・accent・角丸をAndroidのLight/Darkへ翻訳する。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
