@@ -53,7 +53,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 24. 候補barはcandidate sourceと表示文字列の並びが変わった時だけ横scrollを0へ戻し、同じ内容でtokenまたは選択indexだけが変わる候補巡回では現在位置を維持する。（2026-09-11 / 260911-102706-reset-candidate-scroll-on-content-change）
 25. `KeyboardView`は描画矩形とtap矩形を分離する。横6dp・縦10dpの見える隙間は中点で隣接キーへ分け、ACTION_DOWNとaccessibility hit testで同じtap矩形を使う。EMPTY領域は入力せず、描画geometryと`GestureThresholds.selectionDp=18`を維持する。（2026-09-11 / 260911-132948-expand-key-hit-targets-through-gaps）
 26. Setup画面は初期設定・入力設定・スラッシュコマンド候補・アプリ情報の4セクションをカードとして表示し、各操作領域を48dp以上にする。表示色はAndroidのLight/Darkへ追従し、バージョン表示は`BuildConfig.VERSION_NAME`を参照する。（2026-09-12 / 260912-002431-align-native-settings-and-voice-ui）
-27. 日本語候補・ひらがな・カタカナの確定後は、通常欄の`InputConnection`からカーソル前後各128 code pointまでを取得してMozc `REQUEST_NWP`へ渡す。予測候補は通常候補欄で表示し、`SUBMIT_CANDIDATE`で直前文字列を置換せず確定して次の予測を求める。候補source、editor session、prediction generationを再確認し、かな入力、selection/editor変更、候補なしでは破棄する。privateまたは`IME_FLAG_NO_PERSONALIZED_LEARNING`欄では周辺文字列を取得せず予測を呼ばない。予測候補は長押しによる履歴削除対象外とする。（2026-09-12 / 260912-020555-add-mozc-next-word-prediction）
+27. 日本語候補・ひらがな・カタカナの確定後は、通常欄の`InputConnection`からカーソル前後各128 code pointまでを取得してMozc `REQUEST_NWP`へ渡す。予測候補は通常候補欄で表示し、`SUBMIT_CANDIDATE`で直前文字列を置換せず確定して次の予測を求める。候補source、editor session、prediction generationを再確認し、かな入力、selection/editor変更、候補なしでは破棄する。privateまたは`IME_FLAG_NO_PERSONALIZED_LEARNING`欄では周辺文字列を取得せず予測を呼ばない。Mozc予測候補の長押しは履歴削除を要求し、返った予測stateを再表示する。Android個人辞書候補は長押し削除対象外とする。（2026-09-12 / 260912-020555-add-mozc-next-word-prediction）
 
 ## 実装の注意・地雷
 

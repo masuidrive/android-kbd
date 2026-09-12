@@ -56,8 +56,9 @@
 論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 - 2026-09-12: 実装前の仮定として、`REQUEST_NWP` の候補 ID は `SUBMIT_CANDIDATE` で個別確定でき、結果文字列は `Output.result.value` に返ることを、実装後の実機 instrumentation で確認する。有限文脈は UTF-16 の中間で切らず、カーソル前後各 128 code point とする。private / `NO_PERSONALIZED_LEARNING` では controller 自身が surrounding text を取得しない。`find` では similarity-generic に該当する実行物を検出できなかったため skip とする。
-- 2026-09-12: `ConversionEngine.predict`、`TextInputController.predictionContext`、`ImeService`の`PREDICTION` sourceを追加した。通常の日本語確定後だけ周辺文脈を渡し、`SUBMIT_CANDIDATE`で候補を追記して再照会する。候補token、editor token、prediction generationを照合し、自己確定のselection callbackだけは確定文字数で吸収した。かな入力・selection・editor変更・候補なしでは候補を消す。private/学習禁止欄はcontrollerで読み取り前に拒否する。
+- 2026-09-12: `ConversionEngine.predict`、`TextInputController.predictionContext`、`ImeService`の`PREDICTION` sourceを追加した。通常の日本語確定後だけ周辺文脈を渡し、`SUBMIT_CANDIDATE`で候補を追記して再照会する。候補token、editor token、prediction generationを照合し、自己確定のselection callbackはcomposing置換前後の文字数差で吸収する。かな入力・selection・editor変更・候補なしでは候補を消す。private/学習禁止欄はcontrollerで読み取り前に拒否する。
 - 2026-09-12: `4a3d208 [260912-020555-add-mozc-next-word-prediction] feat(mozc): add local next-word predictions`。focused unit tests、`connectedDebugAndroidTest`（11 tests）、`scripts/test-all.sh --parallel`がPASSした。
+- 2026-09-12: independent reviewのMajor 1/2を`ef2599b [260912-020555-add-mozc-next-word-prediction] fix(prediction): reject stale selection results`で修正した。`にほんご→日本語`の`4→3`、ひらがな/カタカナの同長`4→4`、予測追記`3→4`の自己selectionを許可し、遅延NWP中の外部selectionはgenerationを進めて結果を破棄する。focused unit testsと`scripts/test-all.sh --parallel`がPASSした。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -72,13 +73,16 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | selection callback | Major | composing置換を確定文字数だけで照合し、正しい予測を消す | 修正済み | `ExpectedSelectionTransition`で置換前後の差を照合し、4→3/4→4/3→4と照会前後の順序を回帰testした。 |
+| 2 | async prediction | Major | NWP待機中のselection変更で古い結果が再表示される | 修正済み | `predictionRequestInFlight`中も予期しないselectionでgenerationを無効化し、遅延fakeで再表示しないことを確認した。 |
+| 3 | technical reference | Major | 予測候補の長押し削除可否が実装と矛盾 | 修正済み | Mozc予測候補の履歴削除とstate再表示、Android個人辞書候補の除外を明記した。 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 - `technical-reference.md`に、有限context、`REQUEST_NWP` / `SUBMIT_CANDIDATE`、token・generationによる破棄、private欄の非取得、予測候補の履歴削除を追記した。
+- review指摘を受け、自己commitのselection transitionと待機中のselection invalidationを追記し、予測候補の長押し削除を誤って「対象外」としていた記述を訂正した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

@@ -167,3 +167,4 @@
 [2026/09/12 11:18] target SDK 36のedge-to-edgeでSetupがstatus barへ入り込む原因をinset未処理と特定。固定トップアプリバー「masuidrive-kbd 設定」、戻る操作、systemBars/displayCutout safe area、Light/Dark system iconを整えるticket `260912-021714-fix-setup-safe-area-and-app-bar` を作成し、高さ設定ticketの先行依存にした。
 [2026/09/12 11:19] Mozc `REQUEST_NWP`へ通常欄の有限周辺文脈を渡し、確定後の次単語候補を既存候補欄へ接続した。候補tapは`SUBMIT_CANDIDATE`で直前文字を置換せず確定して再予測し、private/学習禁止欄では周辺文字列を取得しない。API 36.1 arm64 AVDで同梱辞書の`あけまして`文脈が非空候補を返し、submit結果も非空であることをinstrumentationで確認した。
 [2026/09/12 11:25] 候補欄と最上段キーの縦間隔をキー行間隔へ揃え、先頭候補の左側にも同じ外周余白を設けるticket `260912-112512-align-candidate-strip-spacing` を作成。固定高さの後、nativeと公開demoを同じ寸法基準で更新する。
+[2026/09/12 11:33] 次単語予測のreviewで見つかったselection raceを修正した。日本語composition置換の前後差を自己callbackとして照合し、NWP待機中の外部selectionはgenerationを無効化して古い候補を再表示しない。4→3、4→4、3→4と遅延照会の回帰test、full local suiteがPASSした。
