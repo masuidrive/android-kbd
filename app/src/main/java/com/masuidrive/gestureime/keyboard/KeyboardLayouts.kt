@@ -167,7 +167,7 @@ object KeyboardLayouts {
 
     /** Voice punctuation commits immediately: it must never enter the Mozc reading buffer. */
     private fun voicePunct() = KeySpec("voice-punct", KeyKind.CHARACTER,
-        value("、"), left = value("。"), up = value("？"), right = value("！"))
+        value("、"), left = value("。"), up = value("？"), right = value("！"), down = value("、"))
 
 }
 

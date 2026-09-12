@@ -396,7 +396,7 @@ class KeyboardViewTest {
         }
     }
 
-    @Test fun `voice punctuation has the full idle label and commits its direct tap`() {
+    @Test fun `voice punctuation has the full idle label and commits its direct tap and down flick`() {
         view.setMode(KeyboardMode.VOICE)
         view.measure(exact(412), exact(228)); view.layout(0, 0, 412, 228)
         val canvas = CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
@@ -406,6 +406,14 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_DOWN, punctuation.exactCenterX(), punctuation.exactCenterY())
         touch(MotionEvent.ACTION_UP, punctuation.exactCenterX(), punctuation.exactCenterY())
         assertEquals(KeyAction.CommitText("、"), actions.last())
+
+        actions.clear()
+        touch(MotionEvent.ACTION_DOWN, punctuation.exactCenterX(), punctuation.exactCenterY(), 10)
+        touch(MotionEvent.ACTION_MOVE, punctuation.exactCenterX(), punctuation.exactCenterY() + 30f, 20)
+        val downCanvas = CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        assertTrue(downCanvas.draws.any { it.text == "、" })
+        touch(MotionEvent.ACTION_UP, punctuation.exactCenterX(), punctuation.exactCenterY() + 30f, 30)
+        assertEquals(listOf(KeyAction.CommitText("、")), actions)
     }
 
     @Test fun `leaving voice clears a focused listening status before its virtual node disappears`() {

@@ -84,11 +84,11 @@ class KeyboardLayoutsTest {
         val punctuation = bottom[2]
         assertEquals(KeyKind.CHARACTER, punctuation.kind)
         assertEquals(
-            listOf("、", "。", "？", "！", null),
+            listOf("、", "。", "？", "！", "、"),
             Direction.entries.map { punctuation.value(it)?.label },
         )
         assertEquals(
-            listOf("、", "。", "？", "！"),
+            listOf("、", "。", "？", "！", "、"),
             Direction.entries.mapNotNull { (punctuation.value(it)?.action as? KeyAction.CommitText)?.text },
         )
         assertEquals(KeyAction.CommitText(" "), bottom[3].center?.action)

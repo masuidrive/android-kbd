@@ -86,6 +86,7 @@ class ImeServiceVoiceHoldTest {
             KeyAction.CommitText("。"),
             KeyAction.CommitText("？"),
             KeyAction.CommitText("！"),
+            KeyAction.CommitText("、"),
             KeyAction.CommitText(" "),
             KeyAction.Enter,
             KeyAction.MoveCursor(com.masuidrive.gestureime.keyboard.Direction.LEFT),
@@ -94,7 +95,7 @@ class ImeServiceVoiceHoldTest {
         ).forEach(h.service::onKeyAction)
         h.idle()
 
-        assertEquals("、。？！ \n", h.input.text)
+        assertEquals("、。？！、 \n", h.input.text)
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
         assertTrue(h.root.findKeyboard().voiceSessionActive())
         assertTrue(h.root.allText().contains("音声候補"))
