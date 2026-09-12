@@ -11,11 +11,13 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] 絵文字一覧をnativeと公開mockで3行scroll viewportへ変更し、recent・tap・削除・layer flick・4行高を維持する。
+- [x] 意味のあるRobolectric/unit test、focused/full test、manual/reference/progress更新を行い、実装を論理単位でcommitする。
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: APK同梱catalogと端末内SharedPreferencesだけを使い、外部providerを設けないticketである。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -41,12 +43,18 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+
+実装前に、nativeはcatalog 32件を2頁×16件へ分け、recentを空枠付きの独立1行にしていること、`KeyboardView`が全keyを同じ`GestureInterpreter`へ渡すこと、mockも同じpage stateをlocalStorageへ保存することを読んで確認した。scroll viewportでは、(1) 32件だけなら4 content rowsとなり3行viewportのscroll rangeが1 row pitch、(2) recent最大8件なら5 content rows、(3) clipped rowをhit target/accessibilityから除く必要がある、(4) drag開始後はemoji tap/long-press popupをcancelする必要がある、と測定対象を定めた。外部providerは使わない。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `4203855` `[260912-055128-make-emoji-grid-scrollable] feat(emoji): scroll continuous catalog viewport` — page state/actionを削除し、recent最大8件と32件catalogを空行なしで連結した8列content rowsを`KeyboardView`の上3行へclipした。dragが12dpを超えるとtap/long-press popupをcancelしてpixel単位でscrollし、最下行のAZ layer flickと削除は固定した。縮小されたIME hostでは実measure row pitchでscroll rangeをclampする。TalkBackはvisible nodeだけを出し、hostのforward/back actionで1行scrollする。公開mockとreference sourceも同じviewport・tap/drag分岐へ同期した。
+- focused: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew :app:testDebugUnitTest --tests com.masuidrive.gestureime.keyboard.KeyboardLayoutsTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` — PASS。空recentの先頭24件、recent連結、drag時non-commit、catalog tap、固定control row、縮小host clamp、TalkBack scroll actionを固定した。
+- full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -67,6 +75,8 @@
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
+`technical-reference.md` Decision 17、native/reference mock specification、manualの現行操作説明を、recent＋catalogの上3行scroll viewport、固定AZ/delete行、空recent時のcatalog先頭24件へ更新した。公開済みv0.11のrelease notesとmanual内のv0.11履歴はpage仕様のまま保持した。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
@@ -76,6 +86,9 @@
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
      Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+
+- `similarity-generic --language kotlin -t 0.7` はPATHに存在しないためskipした。prebuilt CLIを導入せず、変更は既存`KeyboardView`と`KeyboardLayouts`の責務内へ収めた。
+- mockの親`.keyboard`は`touch-action:none`なので、viewportへCSSの`touch-action:pan-y`だけを置いても実dragはscrollしなかった。viewport pointerをcaptureして12px超で`scrollTop`を更新し、tapはpointerupで確定、dragは確定しないようにした。browserでtapの😀入力、上dragの`scrollTop=100`、drag後の入力不変を確認した。
 
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する

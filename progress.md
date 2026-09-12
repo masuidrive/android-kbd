@@ -181,3 +181,4 @@
 [2026/09/12 14:19] release reviewで変換中Enterの上・左フリック即時確定がv0.10公開済みと確認し、v0.11.0 release notesとmanualの新規変更一覧から削除した。公開・push・GitHub releaseは未実施。
 [2026/09/12 14:30] Gesture IME v0.11.0をGitHub Releasesへ未圧縮APKとして公開し、同じ版の製品紹介・操作モック・マニュアルをHanger Sites `https://fez69vft.aboutme.style/`へ公開した。APKは34,926,352 bytes、SHA-256 `b3ed40bb2d18909172e3a05c9ad5273436e9570e0998a09da72b20561e9cfdcf`で再download後も一致。Sitesはlocal/remote 44ファイルが全件一致しAPK/ZIPなし。実ブラウザでトップ、入力可能な埋め込みdemo、Light/Dark・Mobile/Tablet・Dual Flick、390px/1024pxのoverflowなし、単独mock入力、manual 17画像とv0.11 APK導線を確認した。
 [2026/09/12 14:51] 実機画像で絵文字一覧が2行＋頁操作になっているとの指摘を受けた。ページ式を廃止し、固定4行高の上3行をrecent＋全絵文字の縦スクロールviewport、最下段を固定レイヤー操作行にするticket `260912-055128-make-emoji-grid-scrollable` を作成した。recentが空なら先頭24件で3行を埋める。
+[2026/09/12 15:10] 絵文字レイヤーの上3行をrecent＋同梱catalogの連続scroll viewportへ変更し、頁操作を撤去した。nativeと公開mockでtap・削除・layer flick・4行高を維持し、dragはtapをcancelしてscrollする。Robolectric focused testとbrowser実pointerでtap確定、drag後non-commit、scrollを確認した。

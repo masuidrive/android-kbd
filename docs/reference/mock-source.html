@@ -199,6 +199,8 @@
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
   #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:171px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport::-webkit-scrollbar { display:none; }
   #ios-keyboard-demo .kana .key-row { position:relative; }
   #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 6px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
@@ -295,6 +297,7 @@
   };
   const segmenter = new Intl.Segmenter('ja',{granularity:'grapheme'});
   const active = new Map();
+  const emojiViewportStarts = new Map(), emojiViewportDrags = new Set();
   const composition = {reading:'',start:0,end:0,candidates:[],index:0,converted:false};
   let preserveComposition = false;
   // BEGIN KEY FLICK LOGIC
@@ -364,17 +367,18 @@
   }
   // END KEY FLICK LOGIC
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
-  const emojiPages=[['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨'],['💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈']];
+  const emojiCatalog=['😀','😂','🥹','😍','😭','👍','🙏','❤️','🎉','🔥','😊','🤔','😎','🙌','👏','✨','💯','✅','📌','🚀','🎈','💡','🌸','🍀','☕','🍣','⚽','🎵','📷','💻','🧡','🌈'];
   const emojiStorageKey='gesture-ime-demo-state';
-  let emojiRecents=[], emojiPage=0;
+  let emojiRecents=[], emojiScrollTop=0;
   try {
     const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'null');
     if(Array.isArray(saved?.emojiRecents)) emojiRecents=[...new Set(saved.emojiRecents.filter(value=>typeof value==='string'))].slice(0,8);
+    if(Number.isFinite(saved?.emojiScrollTop)) emojiScrollTop=Math.max(0,saved.emojiScrollTop);
   } catch (_) {}
   function persistEmojiRecents() {
     try {
       const saved=JSON.parse(localStorage.getItem(emojiStorageKey)||'{}');
-      localStorage.setItem(emojiStorageKey,JSON.stringify({...saved,emojiRecents}));
+      localStorage.setItem(emojiStorageKey,JSON.stringify({...saved,emojiRecents,emojiScrollTop}));
     } catch (_) {}
   }
   let keyMap = new Map();
@@ -539,13 +543,10 @@
     else if(id==='symbols') {if(language==='kana'){language='english';layer='symbols';}else layer=layer==='letters'?'symbols':'letters';clearComposition();}
     else if(id==='symbol-layer') {language='english';layer='symbols';pendingModifier=null;clearComposition();}
     else if(id==='kana-numbers') {language='kana';layer='numbers';pendingModifier=null;clearComposition();}
-    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
+    else if(id==='kana-emoji') {language='kana';layer='emoji';emojiScrollTop=0;clearComposition();}
     else if(id==='numbers') {layer='numbers';clearComposition();}
     else if(id==='letters') {layer='letters';clearComposition();}
-    else if(id==='emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
-    else if(id==='emoji-prev') {emojiPage=Math.max(0,emojiPage-1);}
-    else if(id==='emoji-next') {emojiPage=Math.min(emojiPages.length-1,emojiPage+1);}
-    else if(id==='emoji-page') {emojiPage=emojiPage===emojiPages.length-1?Math.max(0,emojiPage-1):Math.min(emojiPages.length-1,emojiPage+1);}
+    else if(id==='emoji') {language='kana';layer='emoji';emojiScrollTop=0;clearComposition();}
     else if(['english','kana','globe'].includes(id)) {
       language=id==='globe'?(language==='kana'?'english':'kana'):id;layer='letters';pendingModifier=null;clearComposition();
     }else if(id==='hide') { keyboard.hidden=true;$('.reopen').hidden=false;editor.blur(); }
@@ -561,9 +562,10 @@
   const flickBackspace=()=>makeKey('flick-backspace','',{alt:'⌫',altAction:'backspace',preview:'selection'});
   const modifierGlyph=value=>value==='Control'?'C':value==='Alt'?'A':'';
   function emojiRows() {
-    const recent=emojiRecents.map((emoji,index)=>makeKey('emoji-recent-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
-    const catalog=emojiPages[emojiPage].map((emoji,index)=>makeKey('emoji-catalog-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
-    return [[...recent,...Array(Math.max(0,8-recent.length)).fill(null).map(()=>makeKey(null,''))],catalog.slice(0,8),catalog.slice(8,16),[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey('emoji-prev','‹',{special:true,gridSpan:2}),makeKey('emoji-page',(emojiPage+1)+'/'+emojiPages.length,{special:true,gridSpan:2}),makeKey('emoji-next','›',{special:true}),makeKey('backspace','⌫',{special:true})]];
+    const entries=[...emojiRecents,...emojiCatalog].map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
+    const content=[];
+    for(let index=0;index<entries.length;index+=8)content.push([...entries.slice(index,index+8),...Array(Math.max(0,8-entries.slice(index,index+8).length)).fill(null).map(()=>makeKey(null,''))]);
+    return {content,controls:[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey(null,'',{gridSpan:4}),makeKey('backspace','⌫',{special:true,gridSpan:2})]};
   }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
@@ -606,7 +608,7 @@
     ];
   }
   function keyboardRows() {
-    if(language==='kana')return layer==='emoji'?emojiRows():kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
+    if(language==='kana')return layer==='emoji'?[]:kanaRowsByLayer[layer].map(row=>row.map(createKanaKey));
     return layer==='letters'?qwertyRows():symbolRows();
   }
   function keyAriaLabel(key) {
@@ -625,7 +627,6 @@
       home:'文章の先頭へ',
       end:'文章の末尾へ',
       emoji:'絵文字レイヤーへ切り替える',
-      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':(emojiPage===emojiPages.length-1?'前の':'次の')+'絵文字ページ',
       space:'Space。フリックでカーソル移動',
       return:language==='kana'?'Enter':'Enter、下スワイプでPaste',
       numbers:'テンキーへ切り替える',
@@ -657,6 +658,7 @@
     if(key.id===null) {
       const slot=document.createElement('span');
       slot.className='key-slot';
+      if(key.gridSpan)slot.style.gridColumn='span '+key.gridSpan;
       slot.setAttribute('aria-hidden','true');
       return slot;
     }
@@ -729,6 +731,16 @@
   }
   function renderKeys() {
     keyMap=new Map();keys.replaceChildren();keys.className='keys '+(language==='kana'?'kana':'english')+(language==='kana'&&layer==='emoji'?' emoji-layer':'');
+    if(language==='kana'&&layer==='emoji') {
+      const emoji=emojiRows(),viewport=document.createElement('div');
+      viewport.className='emoji-scroll-viewport';
+      for(const row of emoji.content) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));viewport.append(line);}
+      viewport.scrollTop=emojiScrollTop;
+      viewport.addEventListener('scroll',()=>{emojiScrollTop=viewport.scrollTop;persistEmojiRecents();},{passive:true});
+      const controls=document.createElement('div');controls.className='key-row';controls.append(...emoji.controls.map(createKeyElement));
+      keys.append(viewport,controls);
+      return;
+    }
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}
   }
   function render(force=false) {
@@ -778,8 +790,10 @@
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
   keyboard.addEventListener('pointerdown',e=>{
     const element=e.target.closest('.key');if(!element||e.button!==0)return;
-    e.preventDefault();editor.focus({preventScroll:true});
     const key=keyMap.get(element.dataset.key);
+    const emojiViewport=element.closest('.emoji-scroll-viewport');
+    if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
+    e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
     const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt?key.id:null,altSelected:false,upperSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
@@ -796,6 +810,12 @@
     } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
   });
   keyboard.addEventListener('pointermove',e=>{
+    const emojiStart=emojiViewportStarts.get(e.pointerId);
+    if(emojiStart) {
+      if(Math.abs(e.clientY-emojiStart.y)>12)emojiViewportDrags.add(e.pointerId);
+      if(emojiViewportDrags.has(e.pointerId))emojiStart.viewport.scrollTop=emojiStart.scrollTop+emojiStart.y-e.clientY;
+      e.preventDefault();return;
+    }
     const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
     if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
@@ -864,15 +884,27 @@
     if(keyboard.hasPointerCapture(e.pointerId))keyboard.releasePointerCapture(e.pointerId);
     render();
   }
-  keyboard.addEventListener('pointerup',e=>finish(e));
-  keyboard.addEventListener('pointercancel',e=>finish(e,true));
-  keyboard.addEventListener('lostpointercapture',e=>finish(e,true));
+  function finishEmojiViewportGesture(pointerId) {
+    const gesture=emojiViewportStarts.get(pointerId);if(!gesture)return;
+    emojiViewportStarts.delete(pointerId);
+    if(!emojiViewportDrags.has(pointerId)&&gesture.key.text&&!applyModified(gesture.key.text,currentModifier())) {
+      if(gesture.key.emoji) { emojiRecents=[gesture.key.text,...emojiRecents.filter(value=>value!==gesture.key.text)].slice(0,8);persistEmojiRecents(); }
+      insert(gesture.key.text);
+    }
+    emojiViewportDrags.add(pointerId);
+    if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);
+    setTimeout(()=>emojiViewportDrags.delete(pointerId),0);
+  }
+  keyboard.addEventListener('pointerup',e=>{finishEmojiViewportGesture(e.pointerId);finish(e)});
+  keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
+  keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId);finish(e,true)});
   root.addEventListener('click',e=>{
     const candidate=e.target.closest('button[data-candidate-index]');
     if(candidate) {replaceComposition(Number(candidate.dataset.candidateIndex),true);return;}
     const b=e.target.closest('button[data-key]');if(!b)return;
     if(b.classList.contains('key')) {
-      if(e.detail!==0)return;
+      if(e.detail!==0&&!b.closest('.emoji-scroll-viewport'))return;
+      if(emojiViewportDrags.size)return;
       const k=keyMap.get(b.dataset.key);if(k.flick)insert(k.flick[0]);else if(k.text){if(!applyModified(k.text,currentModifier())){if(k.emoji){emojiRecents=[k.text,...emojiRecents.filter(value=>value!==k.text)].slice(0,8);persistEmojiRecents();}insert(k.text);}render();}else action(k.id);
     }else {cancelAll();action(b.dataset.key);}
   });
@@ -981,7 +1013,7 @@
 </tbody></table></div>
 <p><code>C/A</code> は記号の副ラベルと同じ高さになるよう、上側の <code>C</code> と下側の <code>A</code> に少し間を空けて固定する。上スワイプで Alt、下スワイプで Ctrl を次の1キーへ適用する。方向選択中と選択後は上下ラベルを消して、中央に選ばれた <code>A</code> または <code>C</code> を表示する。選択後のタップは修飾状態を解除する。未選択の<code>C/A</code>と<code>BS</code>はタップでも上スワイプでもポップアップを出さない。<code>BS</code>は下フリックだけで候補表示と削除を有効にする。QWERTYレイヤーの <code>#</code> は中央の <code>#</code> と右後ろの淡い <code>!</code> を重ねた <code>#!</code> キーで記号へ入り、記号レイヤーでは中央の <code>A</code> と右後ろの淡い <code>Z</code> を重ねた <code>AZ</code> キーでQWERTYへ戻る。どちらも暗い背景のモードキーとする。記号レイヤーは ASCII 文字だけを収録する。</p>
 <p>4行目のレイヤー切替キーはQWERTY形式では<code>あん</code>、テンキー形式では<code>AZ</code>とする。タップ先はキーごとの表示を維持する。文字レイヤーの左下キーでは左=音声入力、上=日本語、右=QWERTY、下=テンキーへ移動する。音声入力レイヤーでは中央=キャンセル、上=日本語、右=QWERTY、下=テンキーへ移動する。方向選択中は元の補助文字を消し、キー中央に移動先のレイヤー名だけを表示する。<code>#!</code>、<code>あん</code>、<code>AZ</code>、<code>19</code> の補助文字は主ラベルの約75%のサイズで揃える。<code>Enter</code> は上側に小さく <code>paste</code> を常時表示し、下スワイプ中は中央ラベルを小文字の <code>paste</code> へ変える。離すとクリップボード内容を確定する。QWERTYの<code>Space</code>は上側に補助表示 <code>←↓↑→</code> を置き、操作中も同じ記号列を初期表示に使う。</p>
-<p>日本語・テンキー左上の<code>☺</code>は絵文字レイヤーを開く。最上行はlocalStorageの新しい順・重複なし最大8件、次の2行は16件ずつのページ、最下行は既存layer flick、前頁、頁表示、次頁、削除である。すべての行を8列幅に揃え、空recent枠は空のままにする。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
+<p>日本語・テンキー左上の<code>☺</code>は絵文字レイヤーを開く。上3行はlocalStorageの新しい順・重複なし最大8件と同梱catalogを空行なしで続ける8列の縦scroll viewportである。recentが空ならcatalog先頭24件を表示し、最下行は既存layer flickと削除を固定する。日本語とテンキーの空白キーは<code>Space</code>とだけ表示するが、フリックで4方向カーソル移動へ入る。トラックパッドは動き始めの主方向から横軸または縦軸を選び、指を離すまで固定するため斜め移動はしない。</p>
 <h2 id="architecture"><a href="#architecture">推奨するAndroid構成</a></h2>
 <pre><code class="language-text">ImeService : InputMethodService
 ├── KeyboardRootView : ViewGroup
