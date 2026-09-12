@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-020555-add-mozc-next-word-prediction
 description: "Keep Setup below system bars and add a fixed settings app bar"
 created_at: "2026-09-12T02:17:14Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T02:48:38Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
