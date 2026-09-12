@@ -82,6 +82,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private val pickerViewportCategoryTransitions = mutableMapOf<EmojiPickerView, EmojiCategoryTransition>()
     private var emojiCategoryTransitionGeneration = 0L
     private val pickerBodies = mutableMapOf<EmojiPickerView, RecyclerView>()
+    /** Bodies which have received AndroidX's one-time provisional cell measurement. */
+    private val pickerBodyOverscanPrepared = mutableSetOf<RecyclerView>()
+    /** Prepared bodies waiting for their first attached cell before final-height restoration. */
+    private val pickerBodyOverscanPending = mutableSetOf<RecyclerView>()
     private val pickerHeaders = mutableMapOf<EmojiPickerView, RecyclerView>()
     private var emojiPickerHeaderHeight = 0
     private var emojiPickerControlTop = 0
@@ -134,6 +138,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         pickerViewportLocked.clear()
         pickerViewportCategoryTransitions.clear()
         pickerBodies.clear()
+        pickerBodyOverscanPrepared.clear()
+        pickerBodyOverscanPending.clear()
         pickerHeaders.clear()
         val candidateHeight = (50 * resources.displayMetrics.density).toInt()
         val hideBarHeight = (28 * resources.displayMetrics.density).toInt()
@@ -159,8 +165,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val initialPickerViewportHeight = keyboard.emojiPickerOverlayHeight().toInt()
         emojiPickerHeaderHeight = candidateHeight
         emojiPickerControlTop = candidateHeight + initialPickerViewportHeight
-        // AndroidX subtracts two category spacers before dividing its body into rows. Its
-        // child gets one spacer of internal overscan; the picker itself ends at controls.
+        // The picker root and its RecyclerView body end exactly at the fixed control row.
         val initialPickerHeight = candidateHeight + initialPickerViewportHeight
         val publicPicker = createEmojiPicker(publicRecentProvider()).also { publicEmojiPicker = it }
         val privatePicker = createEmojiPicker(privateRecentProvider()).also { privateEmojiPicker = it }
@@ -317,11 +322,17 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             // the old body must not settle geometry for its replacement.
             pickerViewportCategoryTransitions.remove(picker)
             pickerViewportLocked.remove(picker)
-            pickerBodies[picker] = body
+            pickerBodies.put(picker, body)?.let {
+                pickerBodyOverscanPrepared.remove(it)
+                pickerBodyOverscanPending.remove(it)
+            }
             body.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> onEmojiPickerBodyChanged(picker, body) }
             body.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
                 override fun onChildViewAttachedToWindow(view: View) {
-                    body.post { onEmojiPickerBodyChanged(picker, body) }
+                    body.post {
+                        finishEmojiPickerBodyOverscan(picker, body)
+                        onEmojiPickerBodyChanged(picker, body)
+                    }
                 }
                 override fun onChildViewDetachedFromWindow(view: View) = Unit
             })
@@ -331,16 +342,37 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 }
             })
         }
-        if (body.childCount > 0) body.post { onEmojiPickerBodyChanged(picker, body) }
+        if (body.childCount > 0) {
+            // A size change can rebind an already populated body. Its initial cell creation
+            // is complete, so restore the wrapper-owned final height synchronously.
+            finishEmojiPickerBodyOverscan(picker, body)
+            body.post { onEmojiPickerBodyChanged(picker, body) }
+        }
     }
 
-    /** Keep AndroidX's cell calculation stable inside the wrapper that clips its overscan. */
+    /**
+     * AndroidX reads this provisional child height while creating its adapter cells. The
+     * enclosing wrapper remains the final viewport height and clips the child at controls.
+     */
     private fun ensureEmojiPickerBodyOverscan(picker: EmojiPickerView, body: RecyclerView) {
         val maximumViewport = pickerViewportMaximums[picker] ?: return
-        val physicalHeight = maximumViewport + pxForDp(EMOJI_PICKER_BODY_SPACER_DP)
         val params = body.layoutParams ?: return
-        if (params.height != physicalHeight) {
-            params.height = physicalHeight
+        if (!pickerBodyOverscanPrepared.add(body)) return
+        pickerBodyOverscanPending += body
+        val provisionalHeight = maximumViewport + pxForDp(EMOJI_PICKER_BODY_SPACER_DP)
+        if (params.height != provisionalHeight) {
+            params.height = provisionalHeight
+            body.layoutParams = params
+            body.requestLayout()
+        }
+    }
+
+    /** Restore the wrapper-owned final body height once AndroidX has attached its first cell. */
+    private fun finishEmojiPickerBodyOverscan(picker: EmojiPickerView, body: RecyclerView) {
+        if (pickerBodies[picker] !== body || !pickerBodyOverscanPending.remove(body)) return
+        val params = body.layoutParams ?: return
+        if (params.height != ViewGroup.LayoutParams.MATCH_PARENT) {
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT
             body.layoutParams = params
             body.requestLayout()
         }

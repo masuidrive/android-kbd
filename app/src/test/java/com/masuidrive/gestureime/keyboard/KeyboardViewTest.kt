@@ -371,7 +371,22 @@ class KeyboardViewTest {
             assertTrue(view.isVoiceSessionStatusAccessibilityFocused())
             view.setVoiceSessionActive(false)
             assertFalse(view.isVoiceSessionStatusAccessibilityFocused())
-            assertTrue(runCatching { provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID) }.isSuccess)
+            val delayedStatus = requireNotNull(runCatching {
+                provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)
+            }.getOrThrow())
+            assertFalse(delayedStatus.isVisibleToUser)
+            val exitsAfterClear = accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
+            }
+            val staleHover = MotionEvent.obtain(2, 3, MotionEvent.ACTION_HOVER_MOVE, statusBounds.exactCenterX().toFloat(), statusBounds.exactCenterY().toFloat(), 0)
+            try {
+                view.dispatchHoverEvent(staleHover)
+            } finally {
+                staleHover.recycle()
+            }
+            assertEquals(exitsAfterClear, accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
+            })
             val idle = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             assertFalse(idle.draws.any { it.text == "認識中" })
             assertEquals(nodesBefore, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)

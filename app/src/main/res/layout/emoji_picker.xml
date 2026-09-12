@@ -11,9 +11,8 @@
         android:paddingStart="@dimen/emoji_picker_header_padding"
         android:paddingEnd="@dimen/emoji_picker_header_padding" />
 
-    <!-- This wrapper ends at the fixed control row. ImeService gives the child one internal
-         spacer of overscan for AndroidX's cell calculation, then clips drawing and touch here
-         and further clips the visible category viewport to three rows. -->
+    <!-- This wrapper and the body end at the fixed control row. ImeService clips drawing,
+         touch, and accessibility to the current three-row category viewport. -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"

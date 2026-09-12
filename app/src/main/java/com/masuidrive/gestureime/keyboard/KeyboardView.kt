@@ -769,7 +769,7 @@ class KeyboardView @JvmOverloads constructor(
                 node.isFocusable = bounds != null
                 node.isClickable = false
                 node.isVisibleToUser = bounds != null
-                node.setBoundsInParent(bounds ?: android.graphics.Rect(0, 0, 1, 1))
+                node.setBoundsInParent(bounds ?: android.graphics.Rect(-2, -2, -1, -1))
                 return
             }
             val target = hitTargets.getOrNull(virtualViewId) ?: return
@@ -824,8 +824,14 @@ class KeyboardView @JvmOverloads constructor(
 
         fun clearVoiceSessionStatusFocus() {
             if (voiceSessionStatusHovered) {
-                sendEventForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
-                voiceSessionStatusHovered = false
+                // ExploreByTouchHelper owns the hovered-ID state. Send it an actual exit so
+                // a later hover cannot emit a second exit for this vanished status node.
+                val exit = MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, -1f, -1f, 0)
+                try {
+                    this@KeyboardView.dispatchHoverEvent(exit)
+                } finally {
+                    exit.recycle()
+                }
             }
             if (getAccessibilityFocusedVirtualViewId() == VOICE_SESSION_STATUS_VIRTUAL_ID) {
                 getAccessibilityNodeProvider(this@KeyboardView)?.performAction(

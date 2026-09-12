@@ -210,17 +210,16 @@ class ImeHideBarTest {
             val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
             val density = service.resources.displayMetrics.density
             val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
-            val measurementSpacer = (8 * density).toInt()
             assertEquals(10, header.adapter!!.itemCount)
             val headerWidths = (0 until header.childCount).map { header.getChildAt(it).width }
             assertTrue("header widths=$headerWidths", headerWidths.filter { it > 0 }.all { it >= (48 * density).toInt() })
-            // AndroidX cells are measured from the preset maximum plus one spacer. Category
-            // viewport changes must only alter the clip/mask, never this physical body height.
-            assertEquals(expectedViewport + measurementSpacer, body.height)
+            // The physical RecyclerView and its clip finish at the fixed control boundary;
+            // category relocks can only shrink the clip, never move controls or overlap them.
+            assertEquals(expectedViewport, body.height)
             assertEquals(expectedViewport, body.clipBounds!!.bottom)
-            // BodyAdapter calculates a cell from (measured body - two spacers) / 3. The
-            // measured one-spacer overscan makes this exactly the preset pitch; the actual
-            // RecyclerView child is shrunk and clips touch/drawing/A11y at three rows.
+            assertEquals(keyboard.top + expectedViewport, picker.bottom)
+            // Three full attached rows use the preset pitch; the separate bounds regression
+            // below fixes their exact lower edge and excludes a fourth row from accessibility.
             val rowPitch = (preset.rowPitchDp * density).toInt()
             assertEquals(3, (expectedViewport - (8 * density).toInt()) / rowPitch)
             assertTrue(rowPitch >= (48 * density).toInt())

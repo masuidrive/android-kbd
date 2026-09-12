@@ -60,6 +60,10 @@
 
 [2026/09/12 22:19 JST] review再修正: virtual statusのboundsを先にhit-testしてtouch explorationのhover対象にした。active終了またはVOICE離脱の前にhover exitとaccessibility focus clearを送り、遅延したstatus ID照会には非可視だがcontent/boundsを持つnodeを返してExploreByTouchHelperのpopulate例外を防ぐ。status中央hover、focus後のinactive/mode離脱、Cancel nodeの非click性と順序を`KeyboardViewTest`で確認し、focused `KeyboardViewTest`と`ImeServiceVoiceHoldTest` PASS。
 
+[2026/09/12 22:24 JST] review追補: hover終了はsynthetic eventではなく`dispatchHoverEvent(ACTION_HOVER_EXIT)`へ通してExploreByTouchHelper内部のhover IDもclearする。消えたstatusの遅延照会はhost外のnonempty boundsと`isVisibleToUser=false`で安全に処理し、次hoverで余分なexitを送らないことを固定した。full suiteで再現した`ImeHideBarTest`の158px/166px差は、AndroidX初回cell計算用の8dp provisional body heightを最終body heightとして要求した誤契約だった。初期overscanはcell attachまで保持し、最終的にはwrapper-owned viewportへ戻す。最終bodyとclipはviewport、picker bottomはcontrol topで一致することをtestへ記録した。
+
+[2026/09/12 22:31 JST] 検証: 最初のfull runは`ImeServiceEnglishSuggestionTest.emojiCommitFlushesJapaneseEnglishAndSlashCompositionThenUpdatesRecentOnlyAfterSuccessfulCommit`でAndroidX `EmojiPickerBodyAdapter`のlayout loopに入り停止した。thread dumpで`EmojiPickerItems.getSize()`から繰り返すRecyclerView layoutを確認し、finalized bodyをglobal-layout bindが再度provisional化していたことを原因とした。bodyごとのprepared（初回一度）とpending（first cell attachまで）を分離して修正後、問題test単独は`--no-daemon`で12秒 PASS、focused 4対象は8秒 PASS、`scripts/test-all.sh --parallel`はfast-checks 5 checks PASSおよびAndroid unit/lint/APK 22秒 PASS。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
