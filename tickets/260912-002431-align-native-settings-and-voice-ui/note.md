@@ -47,6 +47,7 @@
   - API 36.1 emulatorの412dp相当でLight/DarkのSetupを撮影し、4カード、細い6dp赤accent、横overflowなし、縦scrollを原寸確認した。
   - Robolectricで4カードとButton/Switch/EditTextの48dp最小高、BuildConfig由来version表示、既存設定の保存を確認した。
   - 音声partial/final、非選択partial、final候補tap、取消、VOICEからの方向レイヤー切替は既存のService/View回帰testで確認した。AVDには日本語音声モデルがないため、実発話のpartial/finalは未確認としてマニュアルの制約に残した。
+  - 現行APKをAPI 36.1 emulatorで起動し、QWERTY左下を左フリックしてVOICEへ入り、「非対応」候補face、固定4行面、通常キー形状の左下「キャンセル」を一画面で確認した。`docs/screenshots/v0.10/voice-layer.png`へIME領域を無加工cropし、同一hashをsite assetへ配置した。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -62,6 +63,7 @@
 - `scripts/test-all.sh --parallel` はfast-checksとAndroid unit/lint/APK buildの両groupが成功した。
 - ローカル`site/manual.html`を390px幅で確認し、scrollWidth=innerWidth、画像読み込み欠落なし、v0.10.0表示を確認した。
 - `aac16f4`: Setupのsurface・視覚階層と意味あるRobolectric回帰。
+- `4a27e50`: v0.10版番号、SetupのLight/Dark画像、manual、technical reference、検証記録。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

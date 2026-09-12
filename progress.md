@@ -155,3 +155,4 @@
 [2026/09/12 10:01] 変換中Enterの上フリックを元readingのひらがな、左フリックを全角カタカナとして1回で確定し、compositionと候補を即時clearするよう変更。Service回帰testと既存Enter gesture/layout testが成功し、browser mockも実pointer操作で上「あ」・左「アア」、各候補0件を確認した。公開・pushは未実施。
 [2026/09/12 10:02] 変換中Enterの上フリックでひらがな、左フリックで全角カタカナを1回で確定する実装を独立レビューし、全テスト2/2 PASSを確認しました。次の設定画面・音声レイヤーticketは現行nativeとHTML/CSSを事前比較し、設定の視覚階層と古いマニュアル画像を主な修正対象に確定しました。
 [2026/09/12 10:10] v0.10設定画面を4つの角丸カードへ整理し、Light/Darkのsurface、細い赤accent、48dp操作領域、BuildConfig由来version表示をAPI36.1とRobolectricで確認。最新Light/Dark画像をmanualへ反映し、fast-check・unit・lint・APK buildがPASS。音声面は既存native契約を維持し、実発話partial/finalは日本語モデルのある実機確認待ちとして記録。
+[2026/09/12 10:16] API 36.1の現行APKでQWERTY左下を左フリックし、音声候補欄の「非対応」、固定4行面、通常キー形状の左下「キャンセル」を同時確認してv0.10画像へ更新。manualの旧v0.9音声画像を置換し、操作モックのpartial/final確認導線を追記。
