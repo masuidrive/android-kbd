@@ -272,8 +272,6 @@
   const heroEmbed=params.get('embed')==='hero';
   if(heroEmbed) {
     root.dataset.embed='hero';
-    editor.tabIndex=-1;
-    editor.setAttribute('aria-hidden','true');
   }
   let language = 'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = false, englishCandidatesEnabled = false;

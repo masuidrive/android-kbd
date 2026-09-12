@@ -55,6 +55,10 @@
 - Tablet 840pxとMobile 412pxでphoneの`scrollWidth == clientWidth`。Light背景`rgb(243,244,247)`、Dark背景`rgb(28,28,30)`、border `0px none`、console error 0を確認。
 - 重複検出 skip: hero用CSS 2宣言だけの変更で構造変更なし。
 
+2026-09-12 follow-up:
+- hero初期化に残っていた`tabIndex=-1`と`aria-hidden=true`を削除し、表示されたtextareaを通常の編集欄としてaccessibility treeとTab順へ戻した。
+- Chrome DOM snapshotに`textbox "入力を試す"`が現れ、Lightボタン後のTab移動でtextareaがactive、`tabIndex=0`、`aria-hidden`なしを確認。直接「直接編集」へ置換後、mockの「あ」キーで「直接編集あ」へ更新され、console error 0。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
