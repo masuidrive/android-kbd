@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-014204-enable-non-terminal-settings-by-default
 description: "Show Mozc next-word candidates after Japanese text is committed"
 created_at: "2026-09-12T02:05:55Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T02:09:41Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
