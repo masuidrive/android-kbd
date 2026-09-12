@@ -32,6 +32,7 @@
 - [ ] 実機feedback: nativeと操作mockから独自の閉じる行を削除し、OSの閉じる操作だけを使う
 - [ ] mock feedback: 入力欄をreadonlyにして通常キーボードを開かず、nativeにないfocus borderを表示しない
 - [ ] mock feedback: キーボード周囲を黒ではなく灰色にし、モード切替groupの上へ下側と釣り合う余白を入れる
+- [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
@@ -108,6 +109,16 @@
 | 1 | Accessibility | Minor | 消えたstatusのhover内部IDと遅延照会node | 採用・修正 | `ACTION_HOVER_EXIT`をhelperへ通し、host外nonempty boundsかつ非可視のnodeを返す。次hoverで余分なexitが出ないことも固定した。 |
 
 [2026/09/12 22:32 JST] 最新SHA `2d2ceaa6043a79e2e388a20c97eaf5eb2acf73d0` の独立再レビューはCritical 0、Major 0、Minor 0。前回のhover内部IDとghost nodeは解消し、continuous voiceのconfirm/Cancel/error/editor/private/lifecycle境界に回帰なし。絵文字bodyのprovisional overscanもbody生涯1回だけで、first cell attach後に再適用されずlayout循環と固定高退行を起こさないと判定した。
+
+### Findings (PDH-review-3)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Emoji header layout | Major | 48dp固定処理が既に同値でも`minimumWidth`を毎global layoutで再設定し、全unit suiteの`ImeServiceEnglishSuggestionTest.emojiCommit...`でRecyclerView layoutを無限に再要求する | 採用・修正 | focused 82件では通ったが全suiteでSDK main threadが100秒以上CPUを占有。thread dumpは`enforceEmojiCategoryHolderWidth`→`bindEmojiPickerViewport`→global layoutの循環を示した。`minimumWidth`・`layoutParams`を値が異なる時だけ変更し、同値2回の適用で同一LayoutParamsを保ちlayout要求しないtestを追加した。 |
+
+[2026/09/13 00:19 JST] 独立review自体はAC 1〜9についてCritical/Major/Minorなしと報告したが、親の全unit suiteで上記Majorを追加検出した。停止中workerをthread dump後に中断し、修正前の壊していない側のfocused 8 class 82/82 PASSと、修正後に同じfocused＋失敗test＋全suiteを比較する。
+
+[2026/09/13 00:22 JST] `ba10aec`で48dp正規化をidempotentにした。以前停止した`ImeServiceEnglishSuggestionTest.emojiCommit...`とfocused 8 classを合わせて6秒でBUILD SUCCESSFUL。最終HEADの全suiteはrelease文書記録commit後に一度だけ再実行する。
 
 ## PDH-verify. AC裏取り・surface観察
 
