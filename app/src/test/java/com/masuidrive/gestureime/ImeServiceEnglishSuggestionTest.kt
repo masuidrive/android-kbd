@@ -366,6 +366,18 @@ class ImeServiceEnglishSuggestionTest {
 
     @Test
     fun emojiCommitFlushesJapaneseEnglishAndSlashCompositionThenUpdatesRecentOnlyAfterSuccessfulCommit() {
+        val japanese = Harness { _, _ -> emptyList() }
+        japanese.clearEmojiRecents()
+        japanese.service.onKeyAction(KeyAction.KanaInput("か"))
+        japanese.idle()
+        assertEquals("", japanese.input.committed)
+        japanese.service.onKeyAction(KeyAction.CommitEmoji("❤️"))
+        japanese.idle()
+        assertEquals("か❤️", japanese.input.visibleText)
+        assertEquals("か❤️", japanese.input.committed)
+        assertEquals(listOf("❤️"), japanese.input.committedValues)
+        assertEquals(listOf("❤️"), ImePreferences.getEmojiRecents(japanese.service))
+
         val harness = Harness { _, _ -> emptyList() }
         harness.clearEmojiRecents()
         harness.service.onKeyAction(KeyAction.KanaInput("か"))
@@ -412,6 +424,22 @@ class ImeServiceEnglishSuggestionTest {
         harness.idle()
 
         assertEquals("か", harness.input.visibleText)
+        assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(harness.service))
+    }
+
+    @Test
+    fun emojiEditorSwitchDuringConversionResetDoesNotCommitOrUpdateRecent() {
+        val pendingReset = CompletableDeferred<Unit>()
+        val harness = Harness(conversion = FakeConversion(resetGate = pendingReset)) { _, _ -> emptyList() }
+        harness.clearEmojiRecents()
+
+        harness.service.onKeyAction(KeyAction.CommitEmoji("😀"))
+        harness.idle()
+        harness.service.onStartInput(EditorInfo(), false)
+        pendingReset.complete(Unit)
+        harness.idle()
+
+        assertEquals("", harness.input.visibleText)
         assertEquals(emptyList<String>(), ImePreferences.getEmojiRecents(harness.service))
     }
 
@@ -612,6 +640,7 @@ class ImeServiceEnglishSuggestionTest {
     private class FakeConversion(
         private val candidateValues: List<ConversionCandidate> = emptyList(),
         private val startGate: CompletableDeferred<Unit>? = null,
+        private val resetGate: CompletableDeferred<Unit>? = null,
         private val prediction: suspend (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
     ) : ConversionEngine {
         val deletedIndexes = mutableListOf<Int>()
@@ -637,6 +666,6 @@ class ImeServiceEnglishSuggestionTest {
             deletedIndexes += index
             return ConversionState("か", candidateValues, -1)
         }
-        override suspend fun reset() = Unit
+        override suspend fun reset() { resetGate?.await() }
     }
 }

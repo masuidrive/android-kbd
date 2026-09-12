@@ -554,9 +554,11 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun describe(spec: KeySpec): String = Direction.entries.mapNotNull { direction ->
         spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.label?.let { label ->
-            when (direction) {
-                else -> "${directionLabel(direction)} $label"
+            val actionLabel = when (val action = spec.value(direction)?.action) {
+                is KeyAction.ChangeEmojiPage -> if (action.delta < 0) "前の絵文字ページ" else "次の絵文字ページ"
+                else -> label
             }
+            "${directionLabel(direction)} $actionLabel"
         }
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
 

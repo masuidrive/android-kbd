@@ -73,7 +73,7 @@ object KeyboardLayouts {
             KeyboardRow(listOf(
                 layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
                 emojiPage("‹", -1, 1.6f),
-                KeySpec("emoji-page", KeyKind.MODE, FlickValue("${page + 1}/${EmojiCatalog.pages.size}", KeyAction.ChangeEmojiPage(0)), widthUnits = 1.6f, dark = true),
+                emojiPageToggle(page),
                 emojiPage("›", 1, 1.6f),
                 backspace(1.6f),
             )),
@@ -136,6 +136,17 @@ object KeyboardLayouts {
 
     private fun emojiPage(label: String, delta: Int, width: Float) = KeySpec(
         "emoji-page-$delta", KeyKind.MODE, FlickValue(label, KeyAction.ChangeEmojiPage(delta)), widthUnits = width, dark = true,
+    )
+
+    private fun emojiPageToggle(page: Int) = KeySpec(
+        "emoji-page",
+        KeyKind.MODE,
+        FlickValue(
+            "${page + 1}/${EmojiCatalog.pages.size}",
+            KeyAction.ChangeEmojiPage(if (page == EmojiCatalog.pages.lastIndex) -1 else 1),
+        ),
+        widthUnits = 1.6f,
+        dark = true,
     )
 
     private fun space(width: Float = 1f) = KeySpec("space", KeyKind.SPACE,

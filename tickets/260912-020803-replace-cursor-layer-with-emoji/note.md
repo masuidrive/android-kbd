@@ -94,6 +94,18 @@ Why は product brief のオフライン入力と、同じキーボード内で�
 - review-2 focused: `ImeServiceEnglishSuggestionTest`、`ImePreferencesTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` — 87 tests PASS。
 - review-2 full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
 
+### Findings (PDH-review-2 / attempt 2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Review | Major | referenceに専用カーソルレイヤー時代の検証・実装順序と、現行と逆のレイヤーフリック説明が残る。 | 修正 | 両native referenceとsource mirrorを、絵文字レイヤー・Spaceカーソル操作・文字レイヤー/音声入力レイヤーそれぞれの実コードどおりの遷移へ訂正した。 |
+| 2 | Review | Major | 中央の`emoji-page`は`ChangeEmojiPage(0)`で見た目だけのno-opだった。 | 修正 | 先頭頁では次、最終頁では前を送るtoggle actionにし、nativeとmockのページ表示キー、TalkBackの次/前説明、layout/view testを同期した。 |
+| 3 | Review | Major | `CommitEmoji`のconversion reset中にeditorが切り替わる競合と、かなcomposition直結のcleanupが実サービステストにない。 | 修正 | resetをsuspendするfakeでeditor token再確認を固定し、かなcompositionからの直接emoji確定・recent更新も固定した。 |
+
+- attempt2 counterexamples: page 0の中央`emoji-page`が`ChangeEmojiPage(0)`をdispatchしてcatalogが変わらなかった。旧referenceは左=記号・右=テンキー・下=QWERTYと記述していた。reset待機中にeditor tokenが変わる経路は、reset後の再確認なしなら旧editorへのcommitとrecent更新を許す。
+- attempt2 focused: `ImeServiceEnglishSuggestionTest`、`KeyboardLayoutsTest`、`KeyboardViewTest` PASS。
+- attempt2 full: `scripts/test-all.sh --parallel` — fast-checks、Android unit/lint/APK PASS。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->

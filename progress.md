@@ -175,3 +175,4 @@
 [2026/09/12 12:51] 候補faceを50dp候補欄のtop14dp/bottom2dpへ置き、最上段keyとの10dp間隔と先頭候補のphone6dp/wide13dp左外周を揃えた。API 36 AVDで候補表示を確認し、nativeと公開mockの寸法を同期した。
 [2026/09/12 13:25] カーソル専用レイヤーを絵文字4行面へ置換し、recentを端末内に新しい順・重複なし最大8件で保存した。API 36 AVDで😀の直接確定後に入力欄とrecent先頭へ表示されること、focused Robolectricとfull suiteのPASSを確認した。
 [2026/09/12 13:44] 絵文字レイヤーreviewを修正し、現editorだけでcommit成功時にrecentを更新するservice回帰testへ日本語・英字・slash composition、commit拒否、旧editor queueを追加した。公開文言とreferenceを絵文字recentを含むレイヤー表記へ統一した。
+[2026/09/12 13:56] 絵文字レイヤーreview attempt2を修正し、中央の頁表示キーを先頭で次・最終で前へ進む操作にした。かなcomposition直結とconversion reset中のeditor切替でemojiを誤確定・recent更新しないservice回帰test、現行レイヤー遷移のreferenceを追加した。

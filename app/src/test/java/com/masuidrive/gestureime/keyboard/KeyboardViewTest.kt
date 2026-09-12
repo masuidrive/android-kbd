@@ -484,6 +484,20 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
+    @Test fun `emoji page indicator toggles pages and describes the available action`() {
+        view.setMode(KeyboardMode.EMOJI)
+        val pageId = KeyboardLayouts.layout(KeyboardMode.EMOJI).rows.flatMap { it.keys }
+            .indexOfFirst { it.id == "emoji-page" }
+        val provider = view.accessibilityNodeProvider
+
+        assertTrue(provider.createAccessibilityNodeInfo(pageId)!!.contentDescription.toString().contains("次の絵文字ページ"))
+        assertTrue(provider.performAction(pageId, AccessibilityNodeInfo.ACTION_CLICK, null))
+        assertEquals(listOf(KeyAction.ChangeEmojiPage(1)), actions)
+
+        view.changeEmojiPage(1)
+        assertTrue(provider.createAccessibilityNodeInfo(pageId)!!.contentDescription.toString().contains("前の絵文字ページ"))
+    }
+
     @Test fun `emoji rows occupy the same full width and catalog tap preserves the emoji string`() {
         view.setMode(KeyboardMode.EMOJI)
         view.measure(exact(400), exact(228))

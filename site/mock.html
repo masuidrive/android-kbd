@@ -587,6 +587,7 @@
     else if(id==='emoji') {language='kana';layer='emoji';emojiPage=0;clearComposition();}
     else if(id==='emoji-prev') {emojiPage=Math.max(0,emojiPage-1);}
     else if(id==='emoji-next') {emojiPage=Math.min(emojiPages.length-1,emojiPage+1);}
+    else if(id==='emoji-page') {emojiPage=emojiPage===emojiPages.length-1?Math.max(0,emojiPage-1):Math.min(emojiPages.length-1,emojiPage+1);}
     else if(['english','kana'].includes(id)) {language=id;layer='letters';pendingModifier=null;clearComposition();}
     render();
   }
@@ -677,7 +678,7 @@
       end:'文章の末尾へ',
       escape:'ESC',
       emoji:'絵文字レイヤーへ切り替える',
-      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':'絵文字ページ',
+      'emoji-prev':'前の絵文字ページ', 'emoji-next':'次の絵文字ページ', 'emoji-page':(emojiPage===emojiPages.length-1?'前の':'次の')+'絵文字ページ',
       space:'Space。フリックでカーソル移動',
       return:composition.reading?'確定。上フリックで無変換、左フリックでカタカナ':'Enter、上フリックでCtrl+J、下フリックでPaste',
       numbers:'テンキーへ切り替える',
