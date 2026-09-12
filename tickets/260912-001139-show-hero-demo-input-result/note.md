@@ -27,6 +27,7 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+2026-09-12: 既存textareaを正本としてheroでも表示する契約が明確で、操作ロジックや単独mockは対象外のため追加判断なし。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -41,10 +42,18 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
+2026-09-12: heroの初期値、キー入力・削除・かな候補・音声候補確定、Light/Dark背景、Mobile/Tablet overflow、単独mock編集可否を実ブラウザで確認する。
+
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+2026-09-12:
+- hero専用の視覚非表示指定を、112pxの編集領域と78pxの枠線なしtextareaへ置換した。単独mockの164px/124px編集領域は維持。
+- heroの同一textareaで初期文「ここは入力できるよ」から、かな入力、削除、かな候補確定、音声候補確定まで反映されることをChromeで確認。
+- Tablet 840pxとMobile 412pxでphoneの`scrollWidth == clientWidth`。Light背景`rgb(243,244,247)`、Dark背景`rgb(28,28,30)`、border `0px none`、console error 0を確認。
+- 重複検出 skip: hero用CSS 2宣言だけの変更で構造変更なし。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -64,6 +73,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+該当なし。ブラウザmockの既存textarea表示範囲だけの変更で、Android実装決定は変わらない。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
