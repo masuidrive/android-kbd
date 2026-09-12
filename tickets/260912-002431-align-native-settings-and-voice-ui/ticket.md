@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-002431-commit-enter-flick-conversions
 description: "Align native settings and voice layer with the current HTML and CSS"
 created_at: "2026-09-12T00:24:31Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-12T00:57:12Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
