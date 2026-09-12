@@ -233,6 +233,16 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun staleCategoryCallbackCannotSettleAReplacementPickerBody() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val oldBody = RecyclerView(activity)
+        val replacementBody = RecyclerView(activity)
+
+        assertFalse(isCurrentEmojiPickerBody(replacementBody, oldBody))
+        assertTrue(isCurrentEmojiPickerBody(replacementBody, replacementBody))
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout

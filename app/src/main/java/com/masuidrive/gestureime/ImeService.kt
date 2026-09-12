@@ -240,6 +240,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             pickerViewportMaximums[picker] = viewportHeight
             // Keyboard width/height or a preset can change the AndroidX cell geometry.
             pickerViewportLocked.remove(picker)
+            pickerViewportCategoryTransitions.remove(picker)
             picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return@forEach).apply {
                 height = pickerHeight
             }
@@ -308,6 +309,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
         if (pickerBodies[picker] !== body) {
+            // An AndroidX grid rebuild replaces this RecyclerView. Any callback captured by
+            // the old body must not settle geometry for its replacement.
+            pickerViewportCategoryTransitions.remove(picker)
+            pickerViewportLocked.remove(picker)
             pickerBodies[picker] = body
             body.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyEmojiPickerViewport(picker, body) }
             body.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
@@ -395,7 +400,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun completeEmojiCategoryTransition(picker: EmojiPickerView, body: RecyclerView, generation: Long) {
-        if (isCurrentEmojiCategoryTransition(generation, pickerViewportCategoryTransitions[picker])) {
+        if (isCurrentEmojiPickerBody(pickerBodies[picker], body) &&
+            isCurrentEmojiCategoryTransition(generation, pickerViewportCategoryTransitions[picker])
+        ) {
             pickerViewportCategoryTransitions.remove(picker)
             applyEmojiPickerViewport(picker, body)
         }
@@ -1320,6 +1327,9 @@ internal fun boundedEmojiViewport(maximumViewport: Int?, observedViewport: Int?)
 
 internal fun isCurrentEmojiCategoryTransition(generation: Long, activeGeneration: Long?): Boolean =
     generation == activeGeneration
+
+internal fun isCurrentEmojiPickerBody(currentBody: RecyclerView?, callbackBody: RecyclerView): Boolean =
+    currentBody === callbackBody
 
 internal fun isEmojiCategoryActivationKey(keyCode: Int, action: Int): Boolean =
     action == android.view.KeyEvent.ACTION_UP && keyCode in setOf(
