@@ -1,6 +1,6 @@
 # Work Notes: 260912-000419-rename-kana-feature-copy
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -50,6 +50,8 @@
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 2026-09-12: `site/index.html`の機能01だけを「かなはフリック入力」へ変更し、中央タップ・上下左右フリック・Mozc候補表示を簡潔に説明した。他の機能カードとnative/mock/manualは変更していない。
+
+2026-09-12: ユーザ確認で「面」とレイヤー選択中心の説明が不適切と判明。機能一覧全体の見出しと導入を、フリックでタップ回数を減らす価値へ変更するAC 3・4を追加した。
 
 - 実装commit: `627dc34`
 

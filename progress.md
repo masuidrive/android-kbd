@@ -145,3 +145,4 @@
 [2026/09/12 09:01] 音声候補の2行表示を既存owner_only Sites `https://fez69vft.aboutme.style/`へ公開。36ファイル・3,809,600 bytesで、ローカルと公開先のpath/SHA-256が全件一致した。
 [2026/09/12 09:02] 音声候補改行の実装・検証・公開記録を `github.com/masuidrive/android-kbd` の `features/260911-234748-wrap-long-voice-candidates`へpushした。
 [2026/09/12 09:06] 製品トップの機能01を「かなはフリック入力」へ変更し、中央タップと上下左右フリックによるかな入力、Mozc候補表示を説明する文面へ更新。他の機能カードとnative/mock/manualは変更していない。公開・pushは未実施。
+[2026/09/12 09:10] 機能01の文言修正を既存owner_only Sites `https://fez69vft.aboutme.style/`へ公開。36ファイル・3,809,625 bytesで、ローカルと公開先のpath/SHA-256が全件一致した。390px/840pxの実ブラウザ表示と横overflow 0、全test suite PASS、独立review Critical/Majorなしを確認した。

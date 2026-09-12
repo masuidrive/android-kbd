@@ -37,6 +37,8 @@ canceled_at: null # Do not modify manually
 
 - [x] AC 1: 機能01の見出しが「かなはフリック入力」と表示される。
 - [x] AC 2: 機能01の説明が、中央タップと上下左右フリックによるかな入力を説明する。
+- [ ] AC 3: 機能一覧の見出しが「フリックで、タップを減らす。」と表示される。
+- [ ] AC 4: 機能一覧の導入文が、レイヤー選択ではなくフリックによるタップ回数の削減を主題にする。
 
 ### Architectural Invariants check
 静的な製品紹介文だけの変更であり、Android IMEと公開mockの動作仕様に影響しない。
@@ -49,6 +51,7 @@ canceled_at: null # Do not modify manually
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
 - 「連打しない」は見出しと説明の軸に使わず、実際の操作であるタップとフリックを主語にする。
+- 機能一覧全体はレイヤー数ではなく、上下左右のフリックで直接選んでタップ回数を減らす価値から説明する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
@@ -60,6 +63,7 @@ canceled_at: null # Do not modify manually
 
 ### Implementation Notes
 ユーザ指示: 「1は連打じゃなくて、かなはフリック入力かな。」
+追加指示: 「五つの面を、迷わず選ぶ」は使わず、フリックでタップ回数を減らす点を主題にする。
 <!-- ユーザの明示指示、またはユーザが会話で言及した事項のみ書く (関数名 / module 名レベルまで)。
      設計判断は「Design Decisions」に書く。
      Coding Engineer は Implementation Notes が空でも実装できる責務を持つ。
