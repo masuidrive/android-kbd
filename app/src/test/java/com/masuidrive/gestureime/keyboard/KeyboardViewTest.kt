@@ -106,6 +106,29 @@ class KeyboardViewTest {
         assertTrue("font scale 2.0 must not expand labels beyond their key bounds", normal.sameAs(accessibility))
     }
 
+    @Test fun `transient exact parent height cannot move the four row keyboard`() {
+        val modes = listOf(
+            KeyboardMode.QWERTY,
+            KeyboardMode.KANA,
+            KeyboardMode.NUMBERS,
+            KeyboardMode.SYMBOLS,
+            KeyboardMode.VOICE,
+        )
+
+        modes.forEach { mode ->
+            view.setMode(mode)
+            view.measure(exact(400), exact(500))
+            view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+            val transientBounds = keyBounds(0)
+
+            assertEquals("$mode intrinsic height", 228, view.measuredHeight)
+
+            view.measure(exact(400), exact(228))
+            view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+            assertEquals("$mode first key bounds", transientBounds, keyBounds(0))
+        }
+    }
+
     @Test fun `preview consumes touch and accessibility without changing input state`() {
         view.setPreviewOnly(true)
         touch(MotionEvent.ACTION_DOWN, 40f, 20f)

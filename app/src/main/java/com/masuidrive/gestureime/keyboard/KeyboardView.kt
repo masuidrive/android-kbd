@@ -150,6 +150,14 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
+    internal fun refreshIntrinsicLayout() {
+        cancelActiveGestures()
+        requestLayout()
+        if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
+        accessibilityHelper.invalidateRoot()
+        invalidate()
+    }
+
     fun cancelActiveGestures() {
         voiceHoldOwner?.second?.let { voiceHoldSink?.onVoiceHold(VoiceHoldEvent.Cancel(it)) }
         voiceHoldOwner = null
@@ -215,7 +223,11 @@ class KeyboardView @JvmOverloads constructor(
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val wanted = (dp(rowPitchDp(width / density)) * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
-        setMeasuredDimension(width, resolveSize(wanted, heightMeasureSpec))
+        // IME hosts can briefly repeat the previous editor's exact height while the input
+        // window is being attached. This view owns a fixed four-row intrinsic height, so
+        // accepting that transient height moves the keys for the first frame after an app
+        // switch. Width and current insets still determine the intrinsic size.
+        setMeasuredDimension(resolveSize(width, widthMeasureSpec), wanted)
     }
 
     override fun onDraw(canvas: Canvas) {

@@ -11,10 +11,10 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部providerを経由しないnative layout変更
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
@@ -32,6 +32,8 @@
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
+- Why/AC/固定候補欄と4行高/out-of-scopeを確認。既存寸法を変えず、入力先切替時の計測だけを安定化するため未確定product判断はない。
+
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
@@ -41,10 +43,20 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
 
+- [x] API 36.1 AVDで修正前相当の通常表示を観察し、見えていた約131物理pxはdensity 420の固定50dp候補欄と一致した。追加offsetは実切替では常時再現しなかった。
+- [x] `KeyboardView.onMeasure`へ前入力先由来を模した500px `EXACTLY`を与えると、旧実装はintrinsic 228pxでなく500pxを採用するrace条件をコードと回帰testで固定した。
+- [x] 修正版APKでSettings検索欄と内蔵入力テストを5往復し、10表示すべてkeyboard背景上端scanlineが`y=1545`で一致した。証拠は`docs/verification/260912-002431-app-switch/`。
+
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- `KeyboardView.onMeasure`が親の一時的な`EXACTLY`高を採用せず、現在幅・row pitch・padding/bottom insetから固定4行intrinsic高を決定するよう変更した。
+- `ImeService.onStartInputView`でgestureを取消してintrinsic layoutを再要求し、前入力先のhit target/measure状態を持ち越さないようにした。
+- 5レイヤーへ過大初回measureを与えた後も高さ228pxと先頭key boundsが通常measureと一致するRobolectric回帰testを追加した。
+- 重複検出 skip: Kotlin用`similarity-generic`が環境に導入されていないため。
+- `scripts/test-all.sh --parallel`: fast-check、全Android unit、lint、debug APK buildが成功した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -64,6 +76,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- Decision 17へ、一時的な過大`EXACTLY`計測を採用せず、現在幅/inset由来の4行高をlifecycle開始時に再適用する契約を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

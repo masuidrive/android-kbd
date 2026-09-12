@@ -127,6 +127,7 @@ class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
+        keyboardView?.refreshIntrinsicLayout()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
     }
 
