@@ -1,12 +1,14 @@
 package com.masuidrive.gestureime
 
 import android.app.Activity
+import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.view.inputmethod.EditorInfo
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -48,6 +50,27 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val publicPicker = root.getChildAt(1) as EmojiPickerView
+        val privatePicker = root.getChildAt(2) as EmojiPickerView
+
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(View.VISIBLE, publicPicker.visibility)
+        assertEquals(View.GONE, privatePicker.visibility)
+
+        service.onStartInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }, false)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertEquals(View.GONE, publicPicker.visibility)
+        assertEquals(View.VISIBLE, privatePicker.visibility)
+    }
+
+    @Test
     fun fourRowsAndCandidateStripKeepTheirHeightsWhileHideBarOwnsBottomInset() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
@@ -60,7 +83,7 @@ class ImeHideBarTest {
         val expectedCandidateHeight = (50 * density).toInt()
         val expectedHideHeight = (28 * density).toInt()
 
-        assertEquals(2, root.childCount)
+        assertEquals(3, root.childCount)
         assertEquals(3, content.childCount)
         assertSame(candidate, content.getChildAt(0))
         assertSame(keyboard, content.getChildAt(1))
