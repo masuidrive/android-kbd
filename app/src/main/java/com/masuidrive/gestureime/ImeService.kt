@@ -316,7 +316,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         setRecentEmojiProvider(provider)
         setOnHierarchyChangeListener(object : ViewGroup.OnHierarchyChangeListener {
             override fun onChildViewAdded(parent: View, child: View) {
-                bindEmojiPickerViewport(this@apply)
+                // AndroidX is still inside RecyclerView construction here. The picker root
+                // already clips the provisional body; wait to inspect or mutate descendants
+                // until its own initial layout has returned.
                 post { bindEmojiPickerViewport(this@apply) }
             }
 
@@ -357,7 +359,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         repeat(header.childCount) { enforceEmojiCategoryHolderWidth(header.getChildAt(it), categoryWidth) }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
         ensureEmojiPickerBodyOverscan(picker, body)
-        enforceEmojiPickerBodyBoundary(picker, body)
         if (pickerBodies[picker] !== body) {
             // An AndroidX grid rebuild replaces this RecyclerView. Any callback captured by
             // the old body must not settle geometry for its replacement.
@@ -406,15 +407,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             body.layoutParams = params
             body.requestLayout()
         }
-    }
-
-    /** Apply the fixed three-row clip before AndroidX posts its first populated body frame. */
-    private fun enforceEmojiPickerBodyBoundary(picker: EmojiPickerView, body: RecyclerView) {
-        val viewportHeight = pickerViewportHeights[picker] ?: return
-        body.clipChildren = true
-        body.clipToPadding = true
-        body.clipBounds = Rect(0, 0, body.width, viewportHeight)
-        updateEmojiPickerCellAccessibility(body, viewportHeight)
     }
 
     /** The picker root is the final boundary even while its body has provisional overscan. */

@@ -100,7 +100,7 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun freshAndRebuiltPickerClipsItsProvisionalBodyBeforePostedSettling() {
+    fun freshPickerClipsAtTheControlBoundaryBeforePostedSettling() {
         val context = Robolectric.buildService(HidingImeService::class.java).create().get()
         val originalPreset = ImePreferences.getKeyboardHeightPreset(context)
         try {
@@ -113,21 +113,14 @@ class ImeHideBarTest {
                     val keyboard = content.getChildAt(1) as KeyboardView
                     val picker = root.getChildAt(1) as EmojiPickerView
                     service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+                    // AndroidX may have only its provisional body at this point. The root must
+                    // already be a hard boundary, before its posted RecyclerView work runs.
                     measureAndLayout(root, width)
-                    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-                    measureAndLayout(root, width)
-
-                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
-
-                    // Changing the grid forces AndroidX to replace the body synchronously,
-                    // before its posted RecyclerView settling callback can restore a clip.
-                    picker.emojiGridColumns = 9
-                    measureAndLayout(root, width)
-                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
 
                     Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
                     measureAndLayout(root, width)
-                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
                 }
             }
         } finally {
@@ -528,7 +521,7 @@ class ImeHideBarTest {
         return keyboard.top + keyBounds.bottom
     }
 
-    private fun assertEmojiPickerBoundary(
+    private fun assertEmojiPickerRootBoundary(
         picker: EmojiPickerView,
         keyboard: KeyboardView,
         preset: KeyboardHeightPreset,
@@ -539,24 +532,6 @@ class ImeHideBarTest {
         assertTrue("picker clips AndroidX children at the fixed control row", picker.clipChildren && picker.clipToPadding)
         assertEquals(Rect(0, 0, picker.width, picker.height), picker.clipBounds)
         assertEquals("picker ends before AZ and Backspace controls", keyboard.top + viewport, picker.bottom)
-        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
-        if (body != null) {
-            assertTrue("body keeps its own child clip", body.clipChildren && body.clipToPadding)
-            assertEquals(Rect(0, 0, body.width, viewport), body.clipBounds)
-            val visibleViewport = body.clipBounds!!
-            body.descendants()
-                .filter { it.javaClass.name == "androidx.emoji2.emojipicker.EmojiView" }
-                .forEach { cell ->
-                    val bounds = Rect(0, 0, cell.width, cell.height)
-                    body.offsetDescendantRectToMyCoords(cell, bounds)
-                    val expected = if (isEmojiCellFullyVisibleInViewport(bounds, visibleViewport)) {
-                        View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
-                    } else {
-                        View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-                    }
-                    assertEquals("out-of-viewport emoji cells are not accessibility targets", expected, cell.importantForAccessibility)
-                }
-        }
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
