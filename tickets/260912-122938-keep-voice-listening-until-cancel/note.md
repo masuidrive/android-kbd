@@ -206,6 +206,8 @@
 
 [2026/09/13 10:11 JST] 最終独立reviewはCritical 0、Major 0、Minor 0。voice-backspaceはnativeでcenter actionだけ、repeatなし、方向actionなし。ImeServiceのgeneration/editor guard、候補・状態維持、6列geometryとaccessibility、mockの18/10px hysteresis、他キーのfinish分岐非退行を確認した。
 
+[2026/09/13 10:25 JST] 公開後に会話全体と既存`AGENTS.md`、`product-brief.md`、`technical-reference.md`、PDH文書を再点検した。恒久的なproject規則だけを`AGENTS.md`へ追加し、VOICEの列数や記号方向、Recent件数、現行versionなどの製品仕様は重複させなかった。独立reviewで公開repo配置依存とsite同期漏れ、progress対象範囲、worker規則重複を指摘され、公開repo名と4 core fileのbyte比較、作業開始・material finding・blockerのprogress記録へ修正し、汎用worker規則の重複を削除した。再reviewはCritical 0、Major 0、Minor 0。`site/{index,mock,manual,styles}`と`../masuidrive.jp/docs/products/md-kbd/`、`site/mock.html`と保存正本のbyte一致、fast-checks 5件PASSを確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -284,6 +286,8 @@ Passed: 2 / 2
 [2026/09/13 03:04 JST] AC 12を含むv0.15.1をGitHub ReleaseへAPK単体で公開し、ZIPは作成していない。公開assetの再downloadは38,764,442 bytes、SHA-256 `4e98fcb6b2226a7fbea5b7c1a4aa82013f2da3a6e9f80f89ae946714d9c11092`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `0425199`でGitHub Pages builtとなり、公開index・mock・manualは同commitとbyte一致。公開mockの実pointer操作でも音声句読点の下フリック「、」、候補3件、「認識中」、横overflow 0を確認した。対応実機では5方向popupと各記号の確定を確認し、ユーザの明示close承認まではticketを閉じない。
 
 [2026/09/13 09:38 JST] 実機差し戻しを直したv0.15.2をGitHub ReleaseへAPK単体で公開した。公開assetを再downloadし、38,583,304 bytes、SHA-256 `3a8291133665ea01ebe32bd0269c7803f5bc729d033d5ec20cd238d73acec806`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `69c646d`でGitHub Pages built、公開index・manualは同commitとbyte一致し、v0.15.2のAPK導線を確認した。サイト内にAPK/ZIPはない。対応実機では音声句読点キーを左へフリックして「。」、右へフリックして「！」が入ることを確認し、ユーザの明示close承認まではticketを閉じない。
+
+[2026/09/13 10:19 JST] AC 13を含むv0.15.3をGitHub ReleaseへAPK単体で公開し、ZIPは作成していない。公開assetを再downloadし、38,583,304 bytes、SHA-256 `c55da5b88999954968d1e36e02f65df5ed1bd69d3b4a2dacc5c8edca0df96c0d`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `5411cbd`でGitHub Pages builtとなり、公開index・mock・manualは同commitとbyte一致した。公開mockでも音声Backspaceのtap削除、4方向drag無操作、外から中心へ戻した削除、候補3件と「認識中」の維持、横overflow 0を確認した。対応実機で音声認識中のBackspaceと長発話・連続確定を確認し、ユーザの明示close承認まではticketを閉じない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
