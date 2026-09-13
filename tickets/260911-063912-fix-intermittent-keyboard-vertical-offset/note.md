@@ -89,6 +89,17 @@
 - review-2: `0647b58` + `9dd8a10`で前Major解消、新規Critical/Majorなし。Minorも`b7e551c`で解消した。
 - AC4は`KeyboardView.onSizeChanged`がwidth/height変更時にtargetを再構築し、`updateBottomInset`がpadding更新後にrebuild/requestLayoutする既存経路とWRAP_CONTENT rootが整合することを独立reviewで確認した。
 
+### Findings (PDH-review-3: v0.15.3実機差し戻し)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | 候補更新のrequestLayout抑止 | Minor | 候補内容とEnter geometryの固定は根本原因でなく将来変更を隠す | 採用・解消 | `0048c24`で先行変更`c9e7125`をrevertし、遅延insetの所有者だけを修正 |
+| 2 | technical reference | Minor | decision 18の「KeyboardViewがinsetを加える」は新契約と矛盾 | 採用・解消 | `89af79a`でIME window所有と単体Viewの従来動作を区別 |
+| 3 | v0.15.4公開導線 | Major | release作成前のAPK URLは404 | 採用・未解消 | APK・site・文書はlocal確定済み。GitHub push/releaseへの自動承認reviewが明示承認の再取得を求めたため公開待ち |
+
+- コード最終reviewはCritical/Major/Minor 0件。`ImeService`が生成するViewだけbottom inset所有を無効にし、単体`KeyboardView`のinset契約とtestを維持することを確認した。
+- v0.15.4最終版の`scripts/test-all.sh --parallel`は2/2 PASS（unit 232件、lint、APK）、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。最終APK再導入後の候補なし/ありInputMethod frameはともに`[0,1671][1080,2400]`。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
