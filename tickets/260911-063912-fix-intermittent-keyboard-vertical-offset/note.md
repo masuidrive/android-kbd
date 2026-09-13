@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -80,6 +80,9 @@
 
 [2026/09/13 20:43 JST] Android公式のedge-to-edge資料に従い、tap対象の下端は`systemBars`とホーム操作を含む`systemGestures`のbottom最大値で予約するよう変更した。InputMethodService生成直後の値をfallbackとして保持し、後続listenerが一時的に両方0を返しても消さない。1499x1680・300dpi（約800dp幅）・Dark・Dual Flick・高さ「大」で、4行目key face下端がOSホームジェスチャー領域より上に収まることを`docs/verification/v0.15.10-kana-dual-large-system-gesture-inset-fold-ratio.png`で確認した。Fold実機固有の通知順はAVDでは完全再現できないため、公開APKでの実機確認はhuman reviewに残す。
 
+- `8264e30`: `systemBars`と`systemGestures`の下端最大値、一時的な0 insetに対する最新の正値fallback保持、API 30注釈、回帰test、Dark Dual Flick Largeの画面証拠を追加した。
+- 最終`scripts/test-all.sh --parallel --connected`: fast-checks、全unit/lint/APK、実Mozc connectedの3/3 PASS。
+
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
 - `b7e551c`: private editorから始まるlifecycleでもinput view生成時点からstripを`INVISIBLE`にし、候補内容を描画せず50dpを保持するtestを追加した。
@@ -125,6 +128,7 @@
 - 独立AC verifierはAC 1〜4をすべてVERIFIEDとした。phoneの候補前後・hide/show・app switch・Dark再構成、Fold相当幅のDual Flick候補前後、候補/音声状態と全layerのgeometry testを根拠に採用した。API 28 legacy branchの実画面未取得は上記Minorと同じ扱いで、AC未達やrelease blockerではない。
 - v0.15.8 reviewはfresh preferencesの既定Largeと単純なinput view再生成だけを確認しており、明示保存済みLargeでの実アプリ切替症状を再現していないため、AC 5の根拠から除外した。
 - v0.15.9 review-4の初稿は、returned rootの高さだけをassertしてexact hostのclipを見ていないCriticalを採用した。`e157bb3`で実WindowのWRAP_CONTENT再layoutと、host/root/最下段可視までの回帰を追加した再reviewはCritical/Major/Minor 0、release blockerなし。
+- v0.15.10 review-5では、姿勢変更でbottom insetが72pxから96pxへ増えた後に0が通知されると、初期値72pxへ戻るMajorを採用した。`8264e30`で各正値を次回0通知用fallbackへ更新し、72→0、72→96→0、96→72→0の各系列を回帰test化した。古いcurrent metricsの0を常にauthoritativeとするコメントも実装契約に合わせて修正した。
 - 独立AC verifierはAC 5をVERIFIEDとした。Standardの792px表示後にLargeを明示保存し、別アプリ初回focusで866pxへ戻った74px差が、wide Standard 228dp→Large 256dpの28dp×2.625densityと一致する。Surface Observerも候補欄、4行、navigation safe area、絵文字初回の固定control非重複に違和感なしと判定した。
 - v0.15.9はAndroid commit `d35bc95`をGitHub ReleaseへAPK単体で公開した。再取得した38,785,034 bytesとSHA-256 `f31699e9029930d36c50c33cc384dd49ef9ed1bd8742b64e3a95042740ddaa94`はlocal APKと一致した。公式siteはmasuidrive.jp `b791a51`のPages run `34749323470`が成功し、公開core 4ファイルのbyte一致、412/840pxの横overflowなし、readonly editorへのmock key入力、日本語Dual Flick 4行を確認した。
 

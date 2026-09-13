@@ -271,3 +271,8 @@
 [2026/09/13 18:27] v0.15.9 APKをGitHub ReleaseへZIPなしの単体で公開し、再取得した38,785,034 bytesとSHA-256 `f31699e9029930d36c50c33cc384dd49ef9ed1bd8742b64e3a95042740ddaa94`が実画面確認済みlocal APKと完全一致した。変換中Enterは先頭候補ではなく元readingを無変換確定する契約を維持し、高さ未設定時の既定値は原因と無関係だったためStandardへ戻した。
 [2026/09/13 18:27] Android branch `d35bc95`とmasuidrive.jp main `b791a51`をpushし、Pages run `34749323470`成功、公開index・mock・manual・CSSのbyte一致を確認した。公開mockは412pxでreadonly入力欄へmockキーから「あ」を入力でき、840pxで日本語Dual Flick 4行、両幅で横overflow 0、browser error 0だった。
 [2026/09/13 20:17] masuidrive.jpトップのprojects先頭へmasuidrive-kbdカードを追加し、製品ページの操作mockとAPK downloadへ誘導した。masuidrive.jp main `722592f`をpushし、Pages run `34753999310`成功、公開トップを412pxで画像表示・横overflow 0・製品ページ遷移まで確認した。GitHub `masuidrive/android-kbd`はPublicへ変更し、未認証のv0.15.9 APK直リンクがHTTP 200で38,785,034 bytesを返すことを確認した。
+[2026/09/13 20:23] v0.15.9のFold実機画像で、最下段全体がOSのジェスチャーナビゲーション領域へ約1行分重なる未解決状態を確認した。エミュレータのnavigation bar insetだけではSamsung側のsystem overlayと一時的な0 insetを再現できていなかったため、高さticketをPDH-implementへ戻した。
+[2026/09/13 20:35] 「2本ね」をタップして別候補が確定する問題をAPI 36.1 AVDの実Mozcで再現した。表示Viewのindexは正しく、変換engineが候補選択後に別のSUBMITを重ねていたことが原因だったため、candidate IDをSUBMIT_CANDIDATEで直接確定し、複数文節の残りだけ追加確定するよう修正した。実Mozc全9 testが成功した。
+[2026/09/13 20:43] 最下段の安全領域をsystemBarsとsystemGesturesの下端最大値へ変更し、一時的な0通知でも初期予約を維持するようにした。1499x1680・約800dp幅・Dark・Dual Flick・高さ「大」で、4行目がOSホームジェスチャー領域より上に収まることをスクリーンショットで確認した。
+[2026/09/13 20:49] 公開前の全検証を再実行し、fast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3系統がすべて成功した。v0.15.10として製品ページとマニュアルの配布リンク・変更点を更新した。
+[2026/09/13 20:56] 独立reviewで、Fold姿勢変更後にsafe insetが更新されても一時的な0通知で初期値へ戻る問題を検出した。正値のたびにfallbackを更新し、72→0、72→96→0、96→72→0を回帰test化した。修正後の全検証はfast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3/3 PASSだった。

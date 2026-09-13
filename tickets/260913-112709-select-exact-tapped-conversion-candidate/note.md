@@ -1,6 +1,6 @@
 # Work Notes: 260913-112709-select-exact-tapped-conversion-candidate
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,19 +11,19 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内Mozcだけの変更で外部providerを使用しない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み - CandidateStripの表示token/index testと実Mozcのexact candidate境界testを突合した
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -49,6 +49,9 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+- `0a63529`: 変換候補を`SUBMIT_CANDIDATE`でcandidate IDどおりに確定し、複数文節でpreeditが残る場合だけ後続を`SUBMIT`する。実Mozc再現testを追加した。
+- `scripts/test-all.sh --parallel --connected`: fast-checks、全unit/lint/APK、実Mozc connectedの3/3 PASS。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -62,16 +65,24 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | candidate identity | Minor | CandidateStripからImeServiceまでの一体instrumentation testがない | 非阻害 | Viewのtoken/index単体testと実Mozcの「2本ね」ID確定testで報告された境界の両側を固定済み |
+| 2 | 複数文節 | Minor | 後方候補を選ぶ複数文節のexact regressionがない | 非阻害 | 長い複数文節、単一文節非重複、学習・履歴削除を含む実Mozc全9 testが成功し、今回の単一文節誤選択を直接固定済み |
+
+- 独立reviewはCritical/Major 0。表示indexとMozc candidate IDの対応、および`SUBMIT_CANDIDATE`結果を返す実装を確認した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
+- Design decision 31へ`SUBMIT_CANDIDATE`によるexact candidate確定と、preeditが残る場合だけ後続を確定する契約を追記した。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 確認手順: 「にほんね」を変換し、横スクロール後の「2本ね」をタップして、入力欄へ「2本ね」そのものが確定することを確認する。
+- ユーザの明示close承認まではticketを閉じない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
