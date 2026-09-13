@@ -453,6 +453,30 @@ class ImeHideBarTest {
         }
     }
 
+    @Test
+    fun initialNavigationInsetPrefersCurrentMetricsThenDecorThenLegacy() {
+        assertEquals(
+            "current metrics replace a stale decor value after rotation or Fold reconstruction",
+            24,
+            resolveInitialKeyboardBottomInset(metricsBottom = 24, decorBottom = 48, legacyBottom = 42),
+        )
+        assertEquals(
+            "a valid zero current metrics value overrides a stale decor inset",
+            0,
+            resolveInitialKeyboardBottomInset(metricsBottom = 0, decorBottom = 48, legacyBottom = 42),
+        )
+        assertEquals(
+            "missing current metrics falls back to the decor inset",
+            63,
+            resolveInitialKeyboardBottomInset(metricsBottom = null, decorBottom = 63, legacyBottom = 42),
+        )
+        assertEquals(
+            "when neither API 30 source is available, retain the legacy navigation reservation",
+            42,
+            resolveInitialKeyboardBottomInset(metricsBottom = null, decorBottom = 0, legacyBottom = 42),
+        )
+    }
+
     private fun measureAndLayout(root: View, width: Int) {
         root.measure(
             exact(width),

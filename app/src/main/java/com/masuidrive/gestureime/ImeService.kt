@@ -220,7 +220,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val decorInsets = window.window?.decorView?.rootWindowInsets
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             val decorBottom = decorInsets?.systemWindowInsetBottom ?: 0
-            return decorBottom.takeIf { it > 0 } ?: legacyNavigationBottomInset()
+            return resolveInitialKeyboardBottomInset(
+                metricsBottom = null,
+                decorBottom = decorBottom,
+                legacyBottom = legacyNavigationBottomInset(),
+            )
         }
         val decorBottom = decorInsets
             ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
@@ -231,10 +235,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             ?.windowInsets
             ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
             ?.bottom
-            ?: 0
-        // A newly created IME decor can have a non-null, zero inset before its first dispatch.
-        // Window metrics provides the stable navigation reservation for that first measurement.
-        return maxOf(decorBottom, metricsBottom)
+        // Current window metrics is authoritative whenever it is available, including a valid
+        // zero for hardware navigation. Decor insets can belong to the pre-rotation or pre-fold
+        // configuration while the IME window is being reconstructed.
+        return resolveInitialKeyboardBottomInset(
+            metricsBottom = metricsBottom,
+            decorBottom = decorBottom,
+            legacyBottom = legacyNavigationBottomInset(),
+        )
     }
 
     private fun legacyNavigationBottomInset(): Int {
@@ -1456,6 +1464,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
 }
+
+internal fun resolveInitialKeyboardBottomInset(
+    metricsBottom: Int?,
+    decorBottom: Int,
+    legacyBottom: Int,
+): Int = metricsBottom
+    ?: decorBottom.takeIf { it > 0 }
+    ?: legacyBottom
 
 private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
 
