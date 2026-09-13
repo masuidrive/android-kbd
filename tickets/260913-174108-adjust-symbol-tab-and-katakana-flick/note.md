@@ -1,6 +1,6 @@
 # Work Notes: 260913-174108-adjust-symbol-tab-and-katakana-flick
 
-## Status: PDH-implement (Native and mock implementation)
+## Status: PDH-verify (Release candidate verified)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -12,23 +12,23 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内IMEのキー入力変更で外部provider経路がない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
-- [ ] User: 記号レイヤーのEscape表示を`Esc`へ変更する
-- [ ] User: 記号レイヤーの直接入力`:`を`Tab`へ置き換える
-- [ ] User: QWERTY＋記号レイヤーに不足する印字可能ASCIIがないことを確認する
-- [ ] User: 変換中Enterの上フリックもカタカナ確定にする
+- [x] User: 記号レイヤーのEscape表示を`Esc`へ変更する
+- [x] User: 記号レイヤーの直接入力`:`を`Tab`へ置き換える
+- [x] User: QWERTY＋記号レイヤーに不足する印字可能ASCIIがないことを確認する
+- [x] User: 変換中Enterの上フリックもカタカナ確定にする
 - [ ] User: APKと製品ページをv0.15.11として公開する
 
 ## PDH-ticket-review. Ticket contract check
@@ -73,11 +73,22 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 同名symbol sweep / 対称関係 | - | No Critical/Major | 解消 | `KeyAction.Tab`はlayout、service、controller、unit testまで到達し、Kotlinのsealed actionを含む全compileが成功。 |
+| 2 | test・mock・doc追従 | - | No Critical/Major | 解消 | Native、操作mock、canonical mock、README、manual、technical-referenceの旧変換操作を全探索し同期。 |
+| 3 | 非退行 | - | No Critical/Major | 解消 | 変更前からあるQWERTY `m`下の`:`を維持し、ASCII 95文字完全一致と全suiteを再確認。 |
+
+### AC verification
+- AC 1 VERIFIED: Native screenshotで`Esc`表示、layout unit testで`KeyAction.Escape`を確認。
+- AC 2 VERIFIED: Native screenshotで`Tab`表示と直接`:`なし、実タップで通常欄から機密欄へのfocus移動、unit testで`KEYCODE_TAB` down/upを確認。
+- AC 3 VERIFIED: `m`下の`:`と印字可能ASCII 95文字完全一致をunit testで確認。
+- AC 4 VERIFIED: 412dp・840dpのAndroid MotionEvent testでtap/左/上を確認し、API 36.1 AVDの実操作で上フリックが「さ」を「サ」として確定。
+- AC 5 VERIFIED: `site/mock.html`と`docs/reference/mock-source.html`がbyte一致。mockのEsc/Tab/直接コロンなし/Tab文字、manual画像読み込み、1280px・412pxの横overflowなしをbrowserで確認。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+- Decision 8・22を「tapで無変換、左または上でカタカナ」へ更新した。
+- Decision 19をSymbolsの`Esc`・`Tab`直接tap、QWERTY `m`下の`:`、`KEYCODE_TAB` down/up送信へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
@@ -88,6 +99,7 @@
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
      Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+- `scripts/test-all.sh --parallel --connected`はunit/buildとconnected buildが同一`app/build`のdex graphを同時更新すると、中間`graph.bin`が消える競合を起こしうる。今回の判定は`--connected`の順次実行3/3 PASSを正本とした。
 
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する
