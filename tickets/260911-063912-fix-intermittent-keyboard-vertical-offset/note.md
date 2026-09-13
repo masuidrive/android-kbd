@@ -97,14 +97,15 @@
 | 2 | technical reference | Minor | decision 18の「KeyboardViewがinsetを加える」は新契約と矛盾 | 採用・解消 | `89af79a`でIME window所有と単体Viewの従来動作を区別 |
 | 3 | v0.15.4公開導線 | Major | release作成前のAPK URLは404 | 採用・未解消 | APK・site・文書はlocal確定済み。GitHub push/releaseへの自動承認reviewが明示承認の再取得を求めたため公開待ち |
 
-- コード最終reviewはCritical/Major/Minor 0件。`ImeService`が生成するViewだけbottom inset所有を無効にし、単体`KeyboardView`のinset契約とtestを維持することを確認した。
-- v0.15.4最終版の`scripts/test-all.sh --parallel`は2/2 PASS（unit 232件、lint、APK）、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。最終APK再導入後の候補なし/ありInputMethod frameはともに`[0,1671][1080,2400]`。
+- v0.15.4のコード最終reviewはCritical/Major/Minor 0件だったが、`ImeService`が生成するViewだけbottom inset所有を無効にする判断は実機の最下段侵入を見逃した。
+- v0.15.4最終版の`scripts/test-all.sh --parallel`は2/2 PASS（unit 232件、lint、APK）、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。当時の候補なし/ありInputMethod frameはともに`[0,1671][1080,2400]`だったが、最下段がnavigation barへ潜る実機観察を見逃した。
+- v0.15.4の「IME生成時はbottom inset所有を無効化する」修正は誤りだった。候補なし初期表示が低く、最下段がnavigation barへ潜った。`deb7a80`でnavigation insetを初回measure前に4行の下へseedする方式へ訂正した。最新`app-debug.apk`の実画面では候補なし/ありともInputMethod frameが`[0,1545][1080,2400]`で一致し、4行目とEnterはnavigation barの上にある。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-- `technical-reference.md` Design decision 18を更新し、IME windowがsystem navigation領域を所有し、IME内の`KeyboardView`はbottom insetを自身の高さへ加えない契約を記録した。
+- `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedする契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
