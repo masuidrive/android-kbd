@@ -46,8 +46,11 @@ class KeyboardLayoutsTest {
         val transform = keys(KeyboardMode.KANA).single { it.kind == KeyKind.ACCENT }
         assertEquals("小", transform.center?.label)
         assertEquals(KeyAction.TransformKana(KanaTransform.CYCLE), transform.center?.action)
+        assertEquals("゛", transform.left?.label)
         assertEquals(KeyAction.TransformKana(KanaTransform.DAKUTEN), transform.left?.action)
-        assertEquals(KeyAction.TransformKana(KanaTransform.SMALL), transform.up?.action)
+        assertEquals("゛", transform.up?.label)
+        assertEquals(KeyAction.TransformKana(KanaTransform.DAKUTEN), transform.up?.action)
+        assertEquals("゜", transform.right?.label)
         assertEquals(KeyAction.TransformKana(KanaTransform.HANDAKUTEN), transform.right?.action)
         assertNull(transform.down)
     }

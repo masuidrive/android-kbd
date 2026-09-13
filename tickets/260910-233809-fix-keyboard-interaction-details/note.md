@@ -1,6 +1,6 @@
 # Work Notes: 260910-233809-fix-keyboard-interaction-details
 
-## Status: PDH-open (ticket drafted; implementation and reproduction not started)
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -45,6 +45,8 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+[2026/09/13 14:44 JST] 実機feedbackにより、かなの「小」キーは上フリックも濁点に変更する。既存の左=濁点、中央=tap cycle、右=半濁点、下=未割当は維持する。`KeyboardLayouts`、CSS操作mockとその正本mirrorを同一mappingにし、方向のlabelと`KanaTransform`をunit testで固定する。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

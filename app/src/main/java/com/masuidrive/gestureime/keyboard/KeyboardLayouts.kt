@@ -118,7 +118,7 @@ object KeyboardLayouts {
         "accent", KeyKind.ACCENT,
         center = FlickValue("小", KeyAction.TransformKana(KanaTransform.CYCLE)),
         left = FlickValue("゛", KeyAction.TransformKana(KanaTransform.DAKUTEN)),
-        up = FlickValue("小", KeyAction.TransformKana(KanaTransform.SMALL)),
+        up = FlickValue("゛", KeyAction.TransformKana(KanaTransform.DAKUTEN)),
         right = FlickValue("゜", KeyAction.TransformKana(KanaTransform.HANDAKUTEN)),
         dark = true,
     )
