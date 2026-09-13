@@ -58,6 +58,7 @@
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 - [2026/09/14 02:43 JST] 未確認仮定を調査。`:`はQWERTY `m`下に存在し、既存の95文字完全一致testで網羅性を測定できる。Tabは文字列挿入ではなくAndroid key eventとして追加する。Symbolsは一対一置換で10列を維持する。
 - [2026/09/14 02:48 JST] Nativeへ`KeyAction.Tab`と`KEYCODE_TAB` down/up送信を追加し、Symbolsの直接`:`を`Tab`へ置換、Escape表示を`Esc`へ変更した。変換中Enterは左・上ともカタカナ確定へ揃えた。focused unit testはPASSし、mockも同じ配置と操作へ同期した。
+- [2026/09/14 02:59 JST] v0.15.11へversionCode 27で更新し、README、technical-reference、製品ページ、操作mock、スクリーンショット付きマニュアル、release notesを同期した。公開前の順次suiteはfast-checks、unit 241件、lint、APK build、実Mozc connected 16件が全てPASSした。並列suiteで同じbuild directoryを使ったGradle同士がdex中間ファイルを競合した1回は、順次suiteの再実行で解消した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
