@@ -111,6 +111,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var voiceHoldGeneration = 0L
     /** Invalidates queued voice-candidate commits when the dedicated layer leaves. */
     private var voiceSessionGeneration = 0L
+    private var inputWindowRelayoutPending = false
 
     override fun onCreate() {
         super.onCreate()
@@ -196,9 +197,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             updateEmojiPickerLayout(candidateHeight)
             updateVoicePanelLayout(candidateHeight)
         }
-        return IntrinsicImeInputRoot(this) { measuredWidth ->
-            synchronizeOverlayLayouts(candidateHeight, measuredWidth)
-        }.apply {
+        return IntrinsicImeInputRoot(
+            context = this,
+            beforeChildMeasure = { measuredWidth -> synchronizeOverlayLayouts(candidateHeight, measuredWidth) },
+            onIntrinsicHeightExceedsHost = { requestInputWindowRelayout() },
+        ).apply {
             addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
                 gravity = android.view.Gravity.TOP
@@ -254,6 +257,21 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (navigationShown != 0 && !resources.getBoolean(navigationShown)) return 0
         val navigationHeight = resources.getIdentifier("navigation_bar_height", "dimen", "android")
         return if (navigationHeight == 0) 0 else resources.getDimensionPixelSize(navigationHeight)
+    }
+
+    /**
+     * Non-fullscreen InputMethodService windows are WRAP_CONTENT. Requesting their relayout makes
+     * WindowManager measure mInputFrame again after it carried a previous editor's short height.
+     */
+    internal open fun requestInputWindowRelayout() {
+        if (inputWindowRelayoutPending) return
+        val imeWindow = window.window ?: return
+        inputWindowRelayoutPending = true
+        imeWindow.decorView.post {
+            inputWindowRelayoutPending = false
+            imeWindow.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            imeWindow.decorView.requestLayout()
+        }
     }
 
     private fun synchronizeOverlayLayouts(candidateHeight: Int, measuredWidth: Int) {
@@ -1508,6 +1526,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 private class IntrinsicImeInputRoot(
     context: Context,
     private val beforeChildMeasure: (Int) -> Unit = {},
+    private val onIntrinsicHeightExceedsHost: () -> Unit = {},
 ) : FrameLayout(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         beforeChildMeasure(View.MeasureSpec.getSize(widthMeasureSpec))
@@ -1521,6 +1540,7 @@ private class IntrinsicImeInputRoot(
             View.MeasureSpec.makeMeasureSpec(intrinsicHeight, View.MeasureSpec.EXACTLY),
         )
         setMeasuredDimension(measuredWidth, intrinsicHeight)
+        onIntrinsicHeightExceedsHost()
     }
 }
 

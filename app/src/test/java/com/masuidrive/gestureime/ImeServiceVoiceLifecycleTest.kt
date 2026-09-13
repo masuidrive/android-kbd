@@ -69,7 +69,7 @@ class ImeServiceVoiceLifecycleTest {
 
     @Test
     fun explicitlySavedLargePresetSurvivesAStaleStandardHeightAcrossInputViewRecreation() {
-        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val controller = Robolectric.buildService(RelayoutRecordingImeService::class.java).create()
         val service = controller.get()
         val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
         preferences.edit().clear().commit()
@@ -90,13 +90,18 @@ class ImeServiceVoiceLifecycleTest {
                 // editor/app transition. First constrain the candidate-empty state, then add
                 // candidates and measure again: neither order may shrink a saved Large preset.
                 val staleHeight = staleStandardRootHeight(service, root.keyboardView())
+                service.relayoutRequests = 0
                 measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels stale root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
+                assertEquals("$widthPixels stale host requests a WRAP_CONTENT window relayout", 1, service.relayoutRequests)
+                assertTrue("$widthPixels stale host clips the expanded root before WindowManager remeasures", root.bottom > host.height)
+                remeasureHostToIntrinsicHeight(host, root, widthPixels)
                 candidate.showCandidates(CandidateUiSnapshot(1L, listOf("候補", "変換候補")))
                 measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels candidate root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
+                remeasureHostToIntrinsicHeight(host, root, widthPixels)
 
                 // This is approximately the 45dp row pitch reported by the short screenshot,
                 // rather than merely the preceding Standard 55dp frame. A saved Large value
@@ -107,6 +112,7 @@ class ImeServiceVoiceLifecycleTest {
                 measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, shortRootHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels short root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
+                remeasureHostToIntrinsicHeight(host, root, widthPixels)
 
                 service.onFinishInputView(false)
                 service.onStartInput(EditorInfo(), true)
@@ -117,6 +123,7 @@ class ImeServiceVoiceLifecycleTest {
                 measureAndLayout(recreatedHost, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, recreated.keyboardView(), widthPixels)
                 assertEquals("$widthPixels recreated root height", expectedLargeRootHeight(service, recreated.keyboardView()), recreated.measuredHeight)
+                remeasureHostToIntrinsicHeight(recreatedHost, recreated, widthPixels)
             }
         } finally {
             preferences.edit().clear().commit()
@@ -391,6 +398,20 @@ class ImeServiceVoiceLifecycleTest {
         ))
     }
 
+    private fun remeasureHostToIntrinsicHeight(host: FrameLayout, root: ViewGroup, width: Int) {
+        val expectedHeight = root.measuredHeight
+        measureAndLayout(host, width, View.MeasureSpec.EXACTLY, expectedHeight)
+        assertEquals("WindowManager remeasures the host to the returned WRAP_CONTENT root", expectedHeight, host.measuredHeight)
+        assertEquals("returned root is no longer clipped by the host", expectedHeight, root.bottom)
+        val keyboard = root.keyboardView()
+        val keyboardNode = requireNotNull(keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1))
+        val lastKey = Rect().also {
+            requireNotNull(keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(keyboardNode.childCount - 1))
+                .getBoundsInParent(it)
+        }
+        assertTrue("last key target remains visible in the remeasured IME frame", keyboard.top + lastKey.bottom <= host.height)
+    }
+
     private fun measureAndLayout(root: ViewGroup, width: Int, heightMode: Int, height: Int) {
         root.measure(
             View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -411,5 +432,13 @@ class ImeServiceVoiceLifecycleTest {
     private fun KeyboardView.mode(): KeyboardMode {
         val field = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
         return (field.get(this) as KeyboardUiState).mode
+    }
+}
+
+class RelayoutRecordingImeService : ImeService() {
+    var relayoutRequests = 0
+
+    override fun requestInputWindowRelayout() {
+        relayoutRequests++
     }
 }
