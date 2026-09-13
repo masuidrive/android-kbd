@@ -54,6 +54,50 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun conversionEnterDispatchesRawTapAndKeepsFlicksOnAndroidViewAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                    setMode(KeyboardMode.KANA)
+                    setConversionActive(true)
+                }
+                activity.setContentView(view)
+                val enterId = KeyboardLayouts.layout(KeyboardMode.KANA, false, true).rows
+                    .flatMap { it.keys }
+                    .indexOfFirst { it.kind == KeyKind.ENTER }
+                check(enterId >= 0) { "Kana conversion layout has no Enter key" }
+
+                val distance = 30f * density
+                val gestures = listOf(
+                    "tap" to Triple(0f, 0f, KeyAction.CommitWithoutConversion),
+                    "up" to Triple(0f, -distance, KeyAction.CommitWithoutConversion),
+                    "left" to Triple(-distance, 0f, KeyAction.ConvertToKatakana),
+                )
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    view.measure(exact(width), exact(height))
+                    view.layout(0, 0, width, height)
+                    val enter = bounds(view, enterId)
+                    gestures.forEachIndexed { index, (name, gesture) ->
+                        val (dx, dy, expected) = gesture
+                        val downTime = SystemClock.uptimeMillis() + index * 10L
+                        actions.clear()
+                        dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                        if (dx != 0f || dy != 0f) {
+                            dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + dx, enter.exactCenterY() + dy)
+                        }
+                        dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + dx, enter.exactCenterY() + dy)
+                        assertEquals("$widthDp dp conversion Enter $name", listOf(expected), actions)
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun kanaSmallKeyDispatchesEveryConfiguredFlickOnAndroidViewAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

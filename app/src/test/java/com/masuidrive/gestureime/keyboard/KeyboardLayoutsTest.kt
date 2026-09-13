@@ -189,8 +189,8 @@ class KeyboardLayoutsTest {
 
     @Test fun `active conversion enter has only explicit conversion choices`() {
         val enter = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true).rows[2].keys.last()
-        assertEquals("確定", enter.center?.label)
-        assertEquals(KeyAction.CommitConversion, enter.center?.action)
+        assertEquals("無変換", enter.center?.label)
+        assertEquals(KeyAction.CommitWithoutConversion, enter.center?.action)
         assertEquals(KeyAction.CommitWithoutConversion, enter.up?.action)
         assertEquals(KeyAction.ConvertToKatakana, enter.left?.action)
         assertNull(enter.right); assertNull(enter.down)

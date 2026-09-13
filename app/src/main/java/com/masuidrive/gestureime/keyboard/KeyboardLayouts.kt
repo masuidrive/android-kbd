@@ -142,7 +142,7 @@ object KeyboardLayouts {
         right = FlickValue("→", KeyAction.MoveCursor(Direction.RIGHT)), down = FlickValue("↓", KeyAction.MoveCursor(Direction.DOWN)), widthUnits = width)
 
     private fun enter(rowSpan: Int = 1, width: Float = 1f, conversionActive: Boolean = false) = if (conversionActive) {
-        KeySpec("enter", KeyKind.ENTER, FlickValue("確定", KeyAction.CommitConversion),
+        KeySpec("enter", KeyKind.ENTER, FlickValue("無変換", KeyAction.CommitWithoutConversion),
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
             up = FlickValue("無変換", KeyAction.CommitWithoutConversion), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),

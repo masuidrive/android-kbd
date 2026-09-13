@@ -760,7 +760,7 @@ class KeyboardViewTest {
             .indexOfFirst { it.kind == KeyKind.ENTER })
         multiTouch(MotionEvent.ACTION_DOWN, listOf(0 to convertingEnter))
         multiTouch(MotionEvent.ACTION_UP, listOf(0 to convertingEnter))
-        assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.CommitConversion), actions)
+        assertEquals(listOf(KeyAction.KanaInput("あ"), KeyAction.CommitWithoutConversion), actions)
     }
 
     @Test fun `dual kana exposes two twelve-key groups only on wide layouts`() {
