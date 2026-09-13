@@ -100,6 +100,42 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun freshAndRebuiltPickerClipsItsProvisionalBodyBeforePostedSettling() {
+        val context = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val originalPreset = ImePreferences.getKeyboardHeightPreset(context)
+        try {
+            listOf(412, 840).forEach { width ->
+                KeyboardHeightPreset.entries.forEach { preset ->
+                    ImePreferences.setKeyboardHeightPreset(context, preset)
+                    val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+                    val root = service.onCreateInputView() as FrameLayout
+                    val content = root.getChildAt(0) as LinearLayout
+                    val keyboard = content.getChildAt(1) as KeyboardView
+                    val picker = root.getChildAt(1) as EmojiPickerView
+                    service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+                    measureAndLayout(root, width)
+                    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                    measureAndLayout(root, width)
+
+                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
+
+                    // Changing the grid forces AndroidX to replace the body synchronously,
+                    // before its posted RecyclerView settling callback can restore a clip.
+                    picker.emojiGridColumns = 9
+                    measureAndLayout(root, width)
+                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
+
+                    Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                    measureAndLayout(root, width)
+                    assertEmojiPickerBoundary(picker, keyboard, preset, service)
+                }
+            }
+        } finally {
+            ImePreferences.setKeyboardHeightPreset(context, originalPreset)
+        }
+    }
+
+    @Test
     fun privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
@@ -490,6 +526,37 @@ class ImeHideBarTest {
             requireNotNull(keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)).getBoundsInParent(it)
         }
         return keyboard.top + keyBounds.bottom
+    }
+
+    private fun assertEmojiPickerBoundary(
+        picker: EmojiPickerView,
+        keyboard: KeyboardView,
+        preset: KeyboardHeightPreset,
+        service: ImeService,
+    ) {
+        val density = service.resources.displayMetrics.density
+        val viewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+        assertTrue("picker clips AndroidX children at the fixed control row", picker.clipChildren && picker.clipToPadding)
+        assertEquals(Rect(0, 0, picker.width, picker.height), picker.clipBounds)
+        assertEquals("picker ends before AZ and Backspace controls", keyboard.top + viewport, picker.bottom)
+        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+        if (body != null) {
+            assertTrue("body keeps its own child clip", body.clipChildren && body.clipToPadding)
+            assertEquals(Rect(0, 0, body.width, viewport), body.clipBounds)
+            val visibleViewport = body.clipBounds!!
+            body.descendants()
+                .filter { it.javaClass.name == "androidx.emoji2.emojipicker.EmojiView" }
+                .forEach { cell ->
+                    val bounds = Rect(0, 0, cell.width, cell.height)
+                    body.offsetDescendantRectToMyCoords(cell, bounds)
+                    val expected = if (isEmojiCellFullyVisibleInViewport(bounds, visibleViewport)) {
+                        View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                    } else {
+                        View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                    }
+                    assertEquals("out-of-viewport emoji cells are not accessibility targets", expected, cell.importantForAccessibility)
+                }
+        }
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)

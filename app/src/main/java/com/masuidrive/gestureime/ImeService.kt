@@ -277,6 +277,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             picker.layoutParams = (picker.layoutParams as? FrameLayout.LayoutParams ?: return@forEach).apply {
                 height = pickerHeight
             }
+            enforceEmojiPickerControlBoundary(picker, pickerHeight)
             picker.requestLayout()
             bindEmojiPickerViewport(picker)
         }
@@ -301,6 +302,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun createEmojiPicker(provider: RecentEmojiProvider): EmojiPickerView = EmojiPickerView(this).apply {
+        // AndroidX recreates its body asynchronously. Its first body is deliberately one
+        // spacer taller while it creates cells, so the picker itself must always be a hard
+        // drawing and child boundary at the fixed control row.
+        clipChildren = true
+        clipToPadding = true
         setBackgroundColor(getColor(R.color.keyboard_background))
         emojiGridColumns = 8
         emojiGridRows = 3f
@@ -310,6 +316,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         setRecentEmojiProvider(provider)
         setOnHierarchyChangeListener(object : ViewGroup.OnHierarchyChangeListener {
             override fun onChildViewAdded(parent: View, child: View) {
+                bindEmojiPickerViewport(this@apply)
                 post { bindEmojiPickerViewport(this@apply) }
             }
 
@@ -321,6 +328,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             val signature = (right - left) to (bottom - top)
             if (signature.first <= 0 || signature.second <= 0 || pickerLayoutSignatures[picker] == signature) return@addOnLayoutChangeListener
             pickerLayoutSignatures[picker] = signature
+            enforceEmojiPickerControlBoundary(picker, bottom - top)
             // BundledEmojiListLoader creates the header/body asynchronously.  The initial
             // loader build already uses the configured rows and columns, so it must not be
             // rebuilt while its views are absent.  Only a later external size change needs
@@ -349,6 +357,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         repeat(header.childCount) { enforceEmojiCategoryHolderWidth(header.getChildAt(it), categoryWidth) }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
         ensureEmojiPickerBodyOverscan(picker, body)
+        enforceEmojiPickerBodyBoundary(picker, body)
         if (pickerBodies[picker] !== body) {
             // An AndroidX grid rebuild replaces this RecyclerView. Any callback captured by
             // the old body must not settle geometry for its replacement.
@@ -396,6 +405,24 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             params.height = provisionalHeight
             body.layoutParams = params
             body.requestLayout()
+        }
+    }
+
+    /** Apply the fixed three-row clip before AndroidX posts its first populated body frame. */
+    private fun enforceEmojiPickerBodyBoundary(picker: EmojiPickerView, body: RecyclerView) {
+        val viewportHeight = pickerViewportHeights[picker] ?: return
+        body.clipChildren = true
+        body.clipToPadding = true
+        body.clipBounds = Rect(0, 0, body.width, viewportHeight)
+        updateEmojiPickerCellAccessibility(body, viewportHeight)
+    }
+
+    /** The picker root is the final boundary even while its body has provisional overscan. */
+    private fun enforceEmojiPickerControlBoundary(picker: EmojiPickerView, height: Int) {
+        picker.clipChildren = true
+        picker.clipToPadding = true
+        if (picker.width > 0 && height > 0) {
+            picker.clipBounds = Rect(0, 0, picker.width, height)
         }
     }
 

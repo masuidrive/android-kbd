@@ -1,6 +1,6 @@
 # Work Notes: 260912-080017-show-emoji-recents-and-expand-catalog
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -51,6 +51,8 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+[2026/09/13 14:54 JST] v0.15.6実機feedback: fresh installで初めて絵文字レイヤーを選ぶと、AndroidXが最初のRecyclerView bodyをcell作成用に`viewport + 8dp`で再生成する瞬間に固定AZ/Backspace control rowへ侵食した。picker rootの暗黙のclipに依存せず、rootをdrawing/child boundaryとして明示clipし、body再生成直後にも3行viewportのclipとcell accessibilityを同期する。Robolectricでは412/840dp・小/標準/大・初回/AndroidX body再生成直後/posted settle後でpicker/bodyの下端がcontrol topを越えないことを固定した。API 36.1 AVDではfresh installの初回絵文字表示でIME frame `[0,1545][1080,2400]`、control row座標`x=105,y=2200`のtapがQWERTY切替へ到達することを確認した。Kotlin向け`similarity-generic -t 0.7`は環境に存在せずskipし、既存のboundary/viewport helperを照合した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
