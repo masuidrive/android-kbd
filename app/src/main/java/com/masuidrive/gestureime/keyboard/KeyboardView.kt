@@ -865,7 +865,8 @@ class KeyboardView @JvmOverloads constructor(
         interpreter.start(id, event.getX(index) / density, event.getY(index) / density,
             trackpad = hit.spec.kind == KeyKind.SPACE, verticalOnly = verticalOnly)
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        if (hit.spec.kind == KeyKind.CHARACTER || (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null)) {
+        if (hit.spec.kind == KeyKind.CHARACTER ||
+            (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null && hit.spec.id != "voice-backspace")) {
             scheduleTimer(id, hit, Direction.CENTER)
         }
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)

@@ -312,7 +312,7 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `voice status owns its empty fifth without changing four row geometry`() {
+    @Test fun `voice status owns its sixth-sized slot with six equal touch targets and fixed four row geometry`() {
         listOf(
             Triple(412, KeyboardHeightPreset.SMALL, 208),
             Triple(840, KeyboardHeightPreset.SMALL, 208),
@@ -326,7 +326,11 @@ class KeyboardViewTest {
             view.setMode(KeyboardMode.VOICE)
             val provider = view.accessibilityNodeProvider
             val cancelBefore = keyBounds(3)
+            val voiceStatus = keyBounds(4)
             val punctuation = keyBounds(5)
+            val space = keyBounds(6)
+            val backspace = keyBounds(7)
+            val enter = keyBounds(8)
             val cancelActionsBefore = requireNotNull(provider.createAccessibilityNodeInfo(3)).actions
             val nodesBefore = requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount
             val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
@@ -342,6 +346,13 @@ class KeyboardViewTest {
             val status = requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID))
 
             assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right && it.x < punctuation.left })
+            assertTrue(listOf(cancelBefore, voiceStatus, punctuation, space, backspace, enter).all { kotlin.math.abs(it.width() - cancelBefore.width()) <= 1 })
+            assertTrue(listOf(cancelBefore, voiceStatus, punctuation, space, backspace, enter).all { it.top == cancelBefore.top && it.bottom == cancelBefore.bottom })
+            assertTrue(cancelBefore.right <= voiceStatus.left)
+            assertTrue(voiceStatus.right <= punctuation.left)
+            assertTrue(punctuation.right <= space.left)
+            assertTrue(space.right <= backspace.left)
+            assertTrue(backspace.right <= enter.left)
             assertEquals(cancelBefore, keyBounds(3))
             assertEquals(cancelActionsBefore, requireNotNull(provider.createAccessibilityNodeInfo(3)).actions)
             assertEquals(height, view.measuredHeight)
@@ -349,6 +360,9 @@ class KeyboardViewTest {
             assertEquals("認識中", status.contentDescription)
             assertFalse(status.isClickable)
             assertFalse(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_CLICK, null))
+            val backspaceNode = requireNotNull(provider.createAccessibilityNodeInfo(7))
+            assertEquals("タップ ⌫", backspaceNode.contentDescription)
+            assertTrue(backspaceNode.isClickable)
             val statusBounds = Rect().also(status::getBoundsInParent)
             assertTrue(statusBounds.left >= cancelBefore.right)
             assertTrue(statusBounds.right <= punctuation.left)
@@ -393,6 +407,16 @@ class KeyboardViewTest {
             val idle = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             assertFalse(idle.draws.any { it.text == "認識中" })
             assertEquals(nodesBefore, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
+
+            actions.clear()
+            touch(MotionEvent.ACTION_DOWN, backspace.exactCenterX(), backspace.exactCenterY())
+            touch(MotionEvent.ACTION_UP, backspace.exactCenterX(), backspace.exactCenterY(), 10)
+            assertEquals(listOf(KeyAction.Backspace()), actions)
+            actions.clear()
+            touch(MotionEvent.ACTION_DOWN, backspace.exactCenterX(), backspace.exactCenterY(), 20)
+            touch(MotionEvent.ACTION_MOVE, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 21)
+            touch(MotionEvent.ACTION_UP, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 22)
+            assertTrue(actions.isEmpty())
         }
     }
 

@@ -73,13 +73,13 @@ class KeyboardLayoutsTest {
         }
     }
 
-    @Test fun `voice bottom row has five equal columns and direct punctuation`() {
+    @Test fun `voice bottom row has six equal columns and direct punctuation`() {
         val rows = KeyboardLayouts.layout(KeyboardMode.VOICE).rows
         assertEquals(4, rows.size)
-        assertTrue(rows.take(3).all { it.keys.single().widthUnits == 5f })
+        assertTrue(rows.take(3).all { it.keys.single().widthUnits == 6f })
 
         val bottom = rows.last().keys
-        assertEquals(listOf("voice-cancel", "voice-status", "voice-punct", "space", "enter"), bottom.map { it.id })
+        assertEquals(listOf("voice-cancel", "voice-status", "voice-punct", "space", "voice-backspace", "enter"), bottom.map { it.id })
         assertTrue(bottom.all { it.widthUnits == 1f })
         val punctuation = bottom[2]
         assertEquals(KeyKind.CHARACTER, punctuation.kind)
@@ -96,9 +96,13 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.MoveCursor(Direction.UP), bottom[3].up?.action)
         assertEquals(KeyAction.MoveCursor(Direction.RIGHT), bottom[3].right?.action)
         assertEquals(KeyAction.MoveCursor(Direction.DOWN), bottom[3].down?.action)
-        assertEquals(KeyAction.Enter, bottom[4].center?.action)
-        assertEquals(KeyAction.Paste, bottom[4].down?.action)
-        assertEquals(KeyAction.ModifiedKey("j", Modifier.CTRL), bottom[4].up?.action)
+        val backspace = bottom[4]
+        assertEquals(KeyKind.BACKSPACE, backspace.kind)
+        assertEquals(KeyAction.Backspace(), backspace.center?.action)
+        assertNull(backspace.left); assertNull(backspace.up); assertNull(backspace.right); assertNull(backspace.down)
+        assertEquals(KeyAction.Enter, bottom[5].center?.action)
+        assertEquals(KeyAction.Paste, bottom[5].down?.action)
+        assertEquals(KeyAction.ModifiedKey("j", Modifier.CTRL), bottom[5].up?.action)
     }
 
     @Test fun `symbol layer contains ASCII only`() {

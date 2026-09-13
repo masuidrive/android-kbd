@@ -757,6 +757,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (keyboardMode != KeyboardMode.VOICE) return null
         return when (action) {
             is KeyAction.CommitText,
+            is KeyAction.Backspace,
             KeyAction.Enter,
             KeyAction.Paste,
             is KeyAction.MoveCursor,
@@ -917,6 +918,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         editorSession.runIfCurrent(editorToken) {
             when (action) {
                 is KeyAction.CommitText -> textController.commitText(action.text)
+                is KeyAction.Backspace -> textController.backspace()
                 KeyAction.Enter -> textController.enter()
                 KeyAction.Paste -> textController.paste()
                 is KeyAction.MoveCursor -> textController.moveCursor(action.direction, action.units)

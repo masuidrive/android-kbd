@@ -77,10 +77,10 @@ object KeyboardLayouts {
     ))
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
-        KeyboardRow(listOf(empty(5f))),
-        KeyboardRow(listOf(empty(5f))),
-        KeyboardRow(listOf(empty(5f))),
-        KeyboardRow(listOf(voiceLayerKey(), voiceStatusSlot(), voicePunct(), space(), enter())),
+        KeyboardRow(listOf(empty(6f))),
+        KeyboardRow(listOf(empty(6f))),
+        KeyboardRow(listOf(empty(6f))),
+        KeyboardRow(listOf(voiceLayerKey(), voiceStatusSlot(), voicePunct(), space(), voiceBackspace(), enter())),
     ))
 
     private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
@@ -106,6 +106,12 @@ object KeyboardLayouts {
             else -> null
         },
         widthUnits = width,
+    )
+
+    /** Voice editing deletes one character on tap only, without a directional fallback. */
+    private fun voiceBackspace() = KeySpec(
+        "voice-backspace", KeyKind.BACKSPACE,
+        center = FlickValue("⌫", KeyAction.Backspace()),
     )
 
     private fun accent() = KeySpec(
@@ -162,7 +168,7 @@ object KeyboardLayouts {
         dark = true,
     )
 
-    /** The spoken-state label is drawn over this non-action fifth of the voice bottom row. */
+    /** The spoken-state label is drawn over this non-action sixth-sized slot of the voice bottom row. */
     private fun voiceStatusSlot() = KeySpec("voice-status", KeyKind.EMPTY, null)
 
     /** Voice punctuation commits immediately: it must never enter the Mozc reading buffer. */

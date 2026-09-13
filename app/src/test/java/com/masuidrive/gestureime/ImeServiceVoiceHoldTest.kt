@@ -87,6 +87,8 @@ class ImeServiceVoiceHoldTest {
             KeyAction.CommitText("？"),
             KeyAction.CommitText("！"),
             KeyAction.CommitText("、"),
+            KeyAction.CommitText("削"),
+            KeyAction.Backspace(),
             KeyAction.CommitText(" "),
             KeyAction.Enter,
             KeyAction.MoveCursor(com.masuidrive.gestureime.keyboard.Direction.LEFT),
@@ -337,7 +339,13 @@ class ImeServiceVoiceHoldTest {
         fun begin(){ service.onVoiceHold(VoiceHoldEvent.Begin(1)); idle(); recognizer.support?.invoke(true); if(ready) recognizer.ready(); idle() }
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
-    private class RecordingConnection(v:View):BaseInputConnection(v,true){ var text=""; var acceptCommits=true; override fun commitText(t:CharSequence?,n:Int):Boolean { if(!acceptCommits)return false; text+=t?.toString() ?: ""; return true } }
+    private class RecordingConnection(v:View):BaseInputConnection(v,true){
+        var text=""
+        var acceptCommits=true
+        override fun commitText(t:CharSequence?,n:Int):Boolean { if(!acceptCommits)return false; text+=t?.toString() ?: ""; return true }
+        override fun getTextBeforeCursor(length:Int,flags:Int):CharSequence=text.takeLast(length)
+        override fun deleteSurroundingText(beforeLength:Int,afterLength:Int):Boolean { text=text.dropLast(beforeLength); return true }
+    }
     private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; var startCount=0; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){startCount++}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun end()=listener?.onEndOfSpeech(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 
