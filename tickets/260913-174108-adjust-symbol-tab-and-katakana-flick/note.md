@@ -1,6 +1,6 @@
 # Work Notes: 260913-174108-adjust-symbol-tab-and-katakana-flick
 
-## Status: PDH-verify (Release candidate verified)
+## Status: PDH-human-review (v0.15.11 published)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -23,13 +23,13 @@
 - [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 - [x] User: 記号レイヤーのEscape表示を`Esc`へ変更する
 - [x] User: 記号レイヤーの直接入力`:`を`Tab`へ置き換える
 - [x] User: QWERTY＋記号レイヤーに不足する印字可能ASCIIがないことを確認する
 - [x] User: 変換中Enterの上フリックもカタカナ確定にする
-- [ ] User: APKと製品ページをv0.15.11として公開する
+- [x] User: APKと製品ページをv0.15.11として公開する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -94,6 +94,12 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+- GitHub Release: https://github.com/masuidrive/android-kbd/releases/tag/v0.15.11
+- APK: https://github.com/masuidrive/android-kbd/releases/download/v0.15.11/gesture-ime-v0.15.11.apk
+- 製品ページ: https://masuidrive.jp/products/md-kbd/
+- 実機確認: Symbolsで`Esc`と`Tab`を確認し、`Tab` tapで次の入力欄へfocus移動。変換中Enterを上フリックし、「さ」が「サ」で確定。
+- 公開APK: 38,599,684 bytes、SHA-256 `26f2cbf398502f00ab18fcabe458ae0eadeb73624411f7cd3f5af857a5e7f912`。再download後もbyte一致。
+- 公開site: masuidrive.jp commit `b293616`、Pages run `34773423226` success。index、mock、manual、新規画像がlocalとbyte一致し、412px横overflowなし。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
