@@ -985,7 +985,7 @@
     if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
     e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false};
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,tapOnlyMoved:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -1008,6 +1008,7 @@
     }
     const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
+    if(p.origin==='voice-backspace'&&Math.hypot(dx,dy)>=18)p.tapOnlyMoved=true;
     if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
     if(updateModifierFlick(p,dx,dy)) {
       p.element.classList.toggle('choice-active',Boolean(p.modifierChoice));
@@ -1062,13 +1063,14 @@
   });
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
+    if(p.origin==='voice-backspace'&&Math.hypot(e.clientX-p.x,e.clientY-p.y)>=18)p.tapOnlyMoved=true;
     clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','control-j-selected');
     const remaining=[...active.values()].at(-1);
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
     if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
     if(p.voiceTriggered) { /* The dedicated voice layer owns completion. */ }
-    else if(!canceled&&!p.trackpad) {
+    else if(!canceled&&!p.trackpad&&!p.tapOnlyMoved) {
       if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
       else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}
