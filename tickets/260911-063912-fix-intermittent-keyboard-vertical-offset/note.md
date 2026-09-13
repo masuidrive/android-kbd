@@ -108,12 +108,14 @@
 - Fold相当の1768x2208へ実行中に再構成し、`docs/verification/v0.15.6-height-fold-wide.png`と`v0.15.6-height-fold-wide-after-candidates.png`を目視した。Dual Flickの候補なし・候補ありはともにInputMethod frame `[0,1332][1768,2208]`で、4行目とEnterはsystem navigation barの上に完全表示された。
 - 独立reviewでv0.15.5のstale decor Major解消を確認し、新規Critical/Majorなし、release blockerなし。API 28でdecor未到着時にlegacy navigation resourceを読むproduction branchの実端末証拠がない点は、pure resolver反例testで値の優先順位を固定したうえで非阻害Minorとして記録した。
 - 独立AC verifierはAC 1〜4をすべてVERIFIEDとした。phoneの候補前後・hide/show・app switch・Dark再構成、Fold相当幅のDual Flick候補前後、候補/音声状態と全layerのgeometry testを根拠に採用した。API 28 legacy branchの実画面未取得は上記Minorと同じ扱いで、AC未達やrelease blockerではない。
+- v0.15.8 reviewではCritical/Major 0、AC 5 VERIFIED。未保存・不正値だけLargeへ解決し、全3プリセットの明示値保持、412/840px再生成test、phone・hide/show・Fold相当の実画像が一致した。旧高さticketに残っていた「標準」fallbackのMinorは現行仕様へ更新して解消した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 - `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedし、API 30以上のcurrent metrics（0を含む）を最優先する契約を記録した。
+- Design decision 16へ、未保存・不正な高さ値は「大」、明示保存済みの小・標準・大は維持する契約を追記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

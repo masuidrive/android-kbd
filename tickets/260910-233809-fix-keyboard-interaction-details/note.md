@@ -52,6 +52,8 @@
 
 [2026/09/13 16:32 JST] ユーザーの追加指定に従い、`09f6619`で変換中Enterの中央を「確定」/現在候補確定から「無変換」/元reading確定へ変更した。上=元reading、左=全角カタカナを維持し、412/840dpのproduction `KeyboardView`へtap・上・左の実`MotionEvent`を送って各actionを1回だけdispatchすること、操作mockの中央tapも候補選択位置に依存せず元readingを確定することを確認した。
 
+[2026/09/13 16:46 JST] v0.15.8 independent reviewはCritical/Major 0、AC 11 VERIFIED。候補値とreadingを分けたservice test、412/840dpの実MotionEvent、候補巡回後の実画面tapで元reading「さ」が残ることを根拠にした。ticket内に残っていた旧「確定」名称のMinorを「無変換」へ更新し、native・mock・manual・technical referenceを揃えた。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -73,6 +75,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- Design decision 8/22を、変換中Enterのtap・上フリックは元readingの無変換確定、左フリックは全角カタカナ確定という現行契約へ更新した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
