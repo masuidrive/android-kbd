@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,20 +11,20 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: IME local layoutだけの変更で外部providerを使用しない
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] 実機feedback: 候補なしの初期表示から最初のかな候補表示へ移ってもIME root総高とキー上端・下端を動かさない
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] 実機feedback: 候補なしの初期表示から最初のかな候補表示へ移ってもIME root総高とキー上端・下端を動かさない
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -105,6 +105,7 @@
 - v0.15.6最終コードで`scripts/test-all.sh --parallel`は2/2 PASS、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。生成直後の`gesture-ime-v0.15.6.apk`を再導入し、`docs/verification/v0.15.6-height-before-candidates.png`、`v0.15.6-height-after-candidates.png`、`v0.15.6-height-after-reshow.png`、`v0.15.6-height-after-app-switch.png`、`v0.15.6-height-dark-after-reconfigure.png`を目視した。1080x2400では全状態がInputMethod frame `[0,1545][1080,2400]`で一致した。
 - Fold相当の1768x2208へ実行中に再構成し、`docs/verification/v0.15.6-height-fold-wide.png`と`v0.15.6-height-fold-wide-after-candidates.png`を目視した。Dual Flickの候補なし・候補ありはともにInputMethod frame `[0,1332][1768,2208]`で、4行目とEnterはsystem navigation barの上に完全表示された。
 - 独立reviewでv0.15.5のstale decor Major解消を確認し、新規Critical/Majorなし、release blockerなし。API 28でdecor未到着時にlegacy navigation resourceを読むproduction branchの実端末証拠がない点は、pure resolver反例testで値の優先順位を固定したうえで非阻害Minorとして記録した。
+- 独立AC verifierはAC 1〜4をすべてVERIFIEDとした。phoneの候補前後・hide/show・app switch・Dark再構成、Fold相当幅のDual Flick候補前後、候補/音声状態と全layerのgeometry testを根拠に採用した。API 28 legacy branchの実画面未取得は上記Minorと同じ扱いで、AC未達やrelease blockerではない。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
