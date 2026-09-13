@@ -454,7 +454,7 @@ class ImeHideBarTest {
             assertEquals("$width first measure keeps the navigation area", 31, keyboard.paddingBottom)
             val density = service.resources.displayMetrics.density
             val expectedKeyboardHeight =
-                (KeyboardHeightPreset.STANDARD.rowPitchDp * density).toInt() * 4 +
+                (KeyboardHeightPreset.LARGE.rowPitchDp * density).toInt() * 4 +
                     (8 * density).toInt() +
                     keyboard.paddingBottom
             assertEquals("$width first measure includes all four rows and the navigation area", expectedKeyboardHeight, initialKeyboardHeight)

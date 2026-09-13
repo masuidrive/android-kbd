@@ -40,30 +40,38 @@ class ImeServiceVoiceLifecycleTest {
 
         val keyboard = root.keyboardView()
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
-        assertEquals(228, keyboard.measuredHeight)
-        assertEquals(278, root.measuredHeight)
+        assertEquals(248, keyboard.measuredHeight)
+        assertEquals(298, root.measuredHeight)
         controller.destroy()
     }
 
     @Test
-    fun persistedHeightPresetIsAppliedWhenTheInputViewStartsAndReopens() {
+    fun missingHeightPresetKeepsLargeDualKanaGeometryAcrossInputViewRecreation() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
-        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.LARGE)
-        val root = service.onCreateInputView() as ViewGroup
-        val width = View.MeasureSpec.makeMeasureSpec(840, View.MeasureSpec.EXACTLY)
-        val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+        val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+        ImePreferences.setLastKeyboardMode(service, KeyboardMode.KANA)
+        ImePreferences.setDualFlickEnabled(service, true)
+        try {
+            listOf(412, 840).forEach { widthPixels ->
+                val width = View.MeasureSpec.makeMeasureSpec(widthPixels, View.MeasureSpec.EXACTLY)
+                val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
 
-        root.measure(width, height)
-        assertEquals(248, root.keyboardView().measuredHeight)
+                val first = service.onCreateInputView() as ViewGroup
+                first.measure(width, height)
+                assertLargeKanaGeometry(first.keyboardView(), widthPixels)
 
-        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.SMALL)
-        service.onStartInputView(EditorInfo(), true)
-        root.measure(width, height)
-        assertEquals(208, root.keyboardView().measuredHeight)
-
-        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.STANDARD)
-        controller.destroy()
+                // InputMethodService creates a new tree after hide/show, app changes, and
+                // configuration recreation. An absent pre-preset preference must not fall back.
+                val recreated = service.onCreateInputView() as ViewGroup
+                recreated.measure(width, height)
+                assertLargeKanaGeometry(recreated.keyboardView(), widthPixels)
+            }
+        } finally {
+            preferences.edit().clear().commit()
+            controller.destroy()
+        }
     }
 
     @Test
@@ -161,8 +169,8 @@ class ImeServiceVoiceLifecycleTest {
         )
 
         assertEquals(View.INVISIBLE, root.candidateStripView().visibility)
-        assertEquals(228, root.keyboardView().measuredHeight)
-        assertEquals(278, root.measuredHeight)
+        assertEquals(248, root.keyboardView().measuredHeight)
+        assertEquals(298, root.measuredHeight)
         controller.destroy()
     }
 
@@ -289,6 +297,19 @@ class ImeServiceVoiceLifecycleTest {
             .asSequence()
             .mapNotNull { runCatching { group.getChildAt(it).candidateStripView() }.getOrNull() }
             .first()
+    }
+
+    private fun assertLargeKanaGeometry(keyboard: KeyboardView, widthPixels: Int) {
+        val state = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
+            .get(keyboard) as KeyboardUiState
+        assertEquals("$widthPixels mode", KeyboardMode.KANA, state.mode)
+        assertTrue("$widthPixels Dual Flick preference", state.dualFlickEnabled)
+        assertEquals("$widthPixels preset", KeyboardHeightPreset.LARGE, state.heightPreset)
+        assertEquals(
+            "$widthPixels four large rows",
+            (KeyboardHeightPreset.LARGE.rowPitchDp * 4 + 8).toInt() + keyboard.paddingBottom,
+            keyboard.measuredHeight,
+        )
     }
 
     private fun View.voicePanelView(): VoicePanelView {

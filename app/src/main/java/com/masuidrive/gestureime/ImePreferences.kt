@@ -16,6 +16,12 @@ object ImePreferences {
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
     const val EMOJI_RECENT_LIMIT = 100
+    /**
+     * Height presets were introduced after the IME had already shipped.  An absent value is
+     * therefore both a clean install and an upgrade from that version; keep the established
+     * tall four-row geometry until the user explicitly chooses a different size.
+     */
+    private val DEFAULT_KEYBOARD_HEIGHT_PRESET = KeyboardHeightPreset.LARGE
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
 
     fun isEnglishSuggestionsEnabled(context: Context): Boolean = runCatching {
@@ -85,7 +91,7 @@ object ImePreferences {
                 .getString(KEYBOARD_HEIGHT_PRESET, null)
         }.getOrNull()
         return stored?.let { value -> KeyboardHeightPreset.entries.firstOrNull { it.name == value } }
-            ?: KeyboardHeightPreset.STANDARD
+            ?: DEFAULT_KEYBOARD_HEIGHT_PRESET
     }
 
     fun setKeyboardHeightPreset(context: Context, preset: KeyboardHeightPreset) {
