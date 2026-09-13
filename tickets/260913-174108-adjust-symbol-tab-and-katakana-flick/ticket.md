@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260912-122938-keep-voice-listening-until-cancel
 description: "記号レイヤーへEscとTabを直接配置し、変換中Enterの上フリックでもカタカナ確定できるようにする"
 created_at: "2026-09-13T17:41:08Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-13T17:46:01Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
