@@ -266,3 +266,4 @@
 [2026/09/13 16:53] v0.15.8 APKをGitHub Releaseへ単体公開し、再取得した38,583,304 bytesとSHA-256 `44ad2a33c1b1d0db6a9086fd8141cee26ef585b05997b2d91cd08c8b6802ca4d`が実画面確認済みlocal APKと完全一致した。Android branch `637fde4`をpushし、masuidrive.jp main `b1d2a74`のPages build成功、公開core filesのbyte一致を確認した。公開mockは412/840pxで横overflow 0、browser error 0、かな「さ」入力後のEnter表示・tap結果とも「無変換」契約に一致した。
 [2026/09/13 17:13] v0.15.8の高さ検証はfresh preferencesの初期値だけを確認しており、設定済みの「大」がアプリ切替後に縮む添付画像の症状を再現していなかった。高さチケットをPDH-implementへ戻し、AC 5を明示保存済みプリセットの切替時保持へ訂正した。同じ切替順で実測できるまで解決扱いにしない。
 [2026/09/13 17:39] 設定値が「大」のままでもアプリ切替中の親が古い短いIME枠をEXACT指定すると、wideの4行が62dpから約45dp/行へ圧縮される症状を再現した。IME rootが候補欄と4行のintrinsic合計高を維持する修正、初回と再表示のnavigation inset統一、wide Largeの62dp復元を実装し、未設定時の既定値は原因と無関係だったため標準へ戻した。
+[2026/09/13 17:48] 独立reviewで実Android hostから返却rootへは短いAT_MOST制約が届く抜けを検出した。AOSPと同じexact host→WRAP_CONTENT rootの回帰へ修正し、too-short AT_MOSTでもLargeのintrinsic高を維持するようにした。wide Largeで絵文字・音声overlayが初回だけ60dp基準になる問題も、子measure前の幅同期で修正した。

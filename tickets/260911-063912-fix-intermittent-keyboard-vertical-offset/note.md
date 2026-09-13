@@ -70,6 +70,8 @@
 
 - 重複検出 skip: `similarity-generic`が実行環境のPATHに導入されていないため。変更は既存class内の測定分岐と単一のprivate root classに限定し、同型実装がないことを`rg`で確認した。
 
+[2026/09/13 17:48 JST] 独立reviewで、Androidの実hostは返却rootを`WRAP_CONTENT`で保持するため、短いexact hostからrootへ届くのは`AT_MOST`であり、直接rootへ`EXACTLY`を渡した初稿testは本番経路を証明しないCriticalを採用した。`b2ba867`でtoo-short `AT_MOST`もintrinsic合計へ戻し、回帰をAOSPと同じexact FrameLayout host→WRAP_CONTENT rootへ変更した。あわせて最初のmeasure前にwidth specから絵文字・音声overlay高を同期し、wide Largeの絵文字pickerが初回だけ6px短くAz行へ重なる経路を修正した。focused testと全unitは成功した。
+
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
 - `b7e551c`: private editorから始まるlifecycleでもinput view生成時点からstripを`INVISIBLE`にし、候補内容を描画せず50dpを保持するtestを追加した。
@@ -121,7 +123,7 @@
 
 - `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedし、API 30以上のcurrent metrics（0を含む）を最優先する契約を記録した。
 - Design decision 16を訂正し、未保存・不正値はStandard、600dp以上で明示選択したLargeは従来の62dp、明示保存済みの全presetはアプリ切替後も維持する契約を記録した。
-- Design decision 18へ、親が再利用したtoo-short exact frameをIME rootが子のintrinsic合計高へ戻し、初期値と後続listenerで同じnavigation bar insetを使う契約を記録した。
+- Design decision 18へ、exact hostからWRAP_CONTENT rootへ届くtoo-short `AT_MOST`を子のintrinsic合計高へ戻し、overlayを初回measure前にwidth同期し、初期値と後続listenerで同じnavigation bar insetを使う契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
