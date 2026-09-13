@@ -101,12 +101,13 @@
 - v0.15.4最終版の`scripts/test-all.sh --parallel`は2/2 PASS（unit 232件、lint、APK）、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。当時の候補なし/ありInputMethod frameはともに`[0,1671][1080,2400]`だったが、最下段がnavigation barへ潜る実機観察を見逃した。
 - v0.15.4の「IME生成時はbottom inset所有を無効化する」修正は誤りだった。候補なし初期表示が低く、最下段がnavigation barへ潜った。`deb7a80`でnavigation insetを初回measure前に4行の下へseedする方式へ訂正した。最新`app-debug.apk`の実画面では候補なし/ありともInputMethod frameが`[0,1545][1080,2400]`で一致し、4行目とEnterはnavigation barの上にある。
 - v0.15.5最終コード`327d13c`で全unit 232件・lint・APK buildは2/2 PASS、API 36.1 connected testは13/13 PASS。最終`app-debug.apk`を再導入し、`docs/verification/v0.15.5-height-before-candidates.png`と`docs/verification/v0.15.5-height-after-candidates.png`を目視した。候補なし・「さ」候補あり・IME hide/show後はいずれもInputMethod frameが`[0,1545][1080,2400]`で、4行目とEnterはnavigation barの上にある。
+- `af942fa`はAPI 30以上のinitial inset解決を訂正した。current window metricsが取得できる場合は、hardware navigationの0を含めて最優先する。取得不能な場合だけdecor inset、双方に有効値がなければlegacy navigation resourceへfallbackするため、回転・navigation mode・Fold再構成で古いdecor値を初回高さへ持ち込まない。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-- `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedする契約を記録した。
+- `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedし、API 30以上のcurrent metrics（0を含む）を最優先する契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
