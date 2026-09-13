@@ -276,3 +276,4 @@
 [2026/09/13 20:43] 最下段の安全領域をsystemBarsとsystemGesturesの下端最大値へ変更し、一時的な0通知でも初期予約を維持するようにした。1499x1680・約800dp幅・Dark・Dual Flick・高さ「大」で、4行目がOSホームジェスチャー領域より上に収まることをスクリーンショットで確認した。
 [2026/09/13 20:49] 公開前の全検証を再実行し、fast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3系統がすべて成功した。v0.15.10として製品ページとマニュアルの配布リンク・変更点を更新した。
 [2026/09/13 20:56] 独立reviewで、Fold姿勢変更後にsafe insetが更新されても一時的な0通知で初期値へ戻る問題を検出した。正値のたびにfallbackを更新し、72→0、72→96→0、96→72→0を回帰test化した。修正後の全検証はfast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3/3 PASSだった。
+[2026/09/13 21:02] v0.15.10最終APKをAPI 36.1 AVDへ再導入し、versionCode 26、versionName 0.15.10、38,801,950 bytes、SHA-256 `d8ceced3ca3bc2dc0fd3085e9e0a7722e189b0dcd944c0c5515da673ccbda618`を確認した。GitHub pushは外部originへの送信に対する自動承認審査で拒否されたため、local commitとmasuidrive.jpの未commit差分までで停止した。
