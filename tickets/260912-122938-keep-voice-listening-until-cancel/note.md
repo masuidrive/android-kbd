@@ -265,6 +265,8 @@ Passed: 2 / 2
 
 [2026/09/13 03:04 JST] AC 12を含むv0.15.1をGitHub ReleaseへAPK単体で公開し、ZIPは作成していない。公開assetの再downloadは38,764,442 bytes、SHA-256 `4e98fcb6b2226a7fbea5b7c1a4aa82013f2da3a6e9f80f89ae946714d9c11092`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `0425199`でGitHub Pages builtとなり、公開index・mock・manualは同commitとbyte一致。公開mockの実pointer操作でも音声句読点の下フリック「、」、候補3件、「認識中」、横overflow 0を確認した。対応実機では5方向popupと各記号の確定を確認し、ユーザの明示close承認まではticketを閉じない。
 
+[2026/09/13 09:38 JST] 実機差し戻しを直したv0.15.2をGitHub ReleaseへAPK単体で公開した。公開assetを再downloadし、38,583,304 bytes、SHA-256 `3a8291133665ea01ebe32bd0269c7803f5bc729d033d5ec20cd238d73acec806`でlocalと完全一致した。公式ページは`masuidrive.jp` commit `69c646d`でGitHub Pages built、公開index・manualは同commitとbyte一致し、v0.15.2のAPK導線を確認した。サイト内にAPK/ZIPはない。対応実機では音声句読点キーを左へフリックして「。」、右へフリックして「！」が入ることを確認し、ユーザの明示close承認まではticketを閉じない。
+
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
