@@ -38,6 +38,7 @@ canceled_at: null # Do not modify manually
 - [x] AC 2: QWERTY/かなを最後のレイヤーとして保存した各状態で、IME hide→showと別入力欄への切替後もキー領域の上端・下端が同じ位置を保つ。
 - [x] AC 3: 候補なし、かな候補あり、英字候補あり、音声状態表示の各状態で、候補欄の規定高以外にキー位置が動かない。
 - [x] AC 4: 端末bottom inset、外画面/内画面、画面回転またはwindow再計測後も、hit targetと描画位置が一致する。
+- [ ] AC 5: 高さをまだ選択していない利用者には「大」の4行が初回から表示され、IME再生成やアプリ切替後も「標準」へ縮まない。設定で「小」「標準」「大」を明示選択した場合は、その選択が維持される。
 
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
@@ -52,6 +53,7 @@ IME lifecycleとlayoutだけを修正し、入力内容の保存・外部送信�
 - 添付再現画像を`docs/verification/intermittent-keyboard-vertical-offset.jpg`へ保存した。
 - IME生成時の保存レイヤー復元、CandidateStrip固定高、KeyboardViewの`onMeasure`/`requestLayout`、bottom inset適用順を観測して原因を特定してから修正する。
 - v0.15.4の実機確認で最下段がOSナビゲーション領域へ潜り込んだため、高い方の4行を規定位置とし、候補表示前後の実スクリーンショットで確認する。
+- v0.15.7実機画像ではbottom inset位置は安定していた一方、未選択時の高さが「標準」へ解決され、4行全体が「大」より縮んでいた。既定だけを「大」へ変更し、明示保存済みの各プリセットは保持する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。

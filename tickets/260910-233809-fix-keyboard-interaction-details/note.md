@@ -50,6 +50,8 @@
 
 [2026/09/13 15:25 JST] `2201dd8`でnative・操作mock・正本mirrorを上/左=DAKUTENへ同期し、`e896e6b`でproduction `KeyboardView`をActivityへattachして412dp・840dpの実`MotionEvent`を通した。tap=CYCLE、上/左=DAKUTEN、右=HANDAKUTEN、下=no-opを各1回ずつ確認した。API 36.1実画面でも「小」から上へ動かした選択中ラベルが「゛」になる画像を保存した。
 
+[2026/09/13 16:32 JST] ユーザーの追加指定に従い、`09f6619`で変換中Enterの中央を「確定」/現在候補確定から「無変換」/元reading確定へ変更した。上=元reading、左=全角カタカナを維持し、412/840dpのproduction `KeyboardView`へtap・上・左の実`MotionEvent`を送って各actionを1回だけdispatchすること、操作mockの中央tapも候補選択位置に依存せず元readingを確定することを確認した。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の

@@ -63,6 +63,8 @@
 
 [2026/09/13 12:19 JST] API 36.1 AVDの通常入力欄でかなlayerを表示し、候補なしと「さ」入力後の候補5件表示を比較した。どちらもInputMethod window frameは`[0,1545][1080,2400]`で完全一致し、候補欄上端・1行目key上端・最下段key下端も画像上で不変だった。
 
+[2026/09/13 16:29 JST] v0.15.7の実機画像ではwindow下端とnavigation領域は安定していた一方、4行のkey pitchが高い「大」ではなく未選択fallbackの「標準」へ解決されていた。`c31ede9`で未保存・旧版upgrade・不正値のfallbackを「大」に変更し、明示保存済みの小・標準・大は維持した。412/840pxのかなDual Flickでinput viewを連続再生成しても248dpのキー領域を保持する回帰と、設定画面で明示した標準を再生成後も保持する回帰を追加した。
+
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
 - `b7e551c`: private editorから始まるlifecycleでもinput view生成時点からstripを`INVISIBLE`にし、候補内容を描画せず50dpを保持するtestを追加した。
