@@ -102,6 +102,9 @@
 - v0.15.4の「IME生成時はbottom inset所有を無効化する」修正は誤りだった。候補なし初期表示が低く、最下段がnavigation barへ潜った。`deb7a80`でnavigation insetを初回measure前に4行の下へseedする方式へ訂正した。最新`app-debug.apk`の実画面では候補なし/ありともInputMethod frameが`[0,1545][1080,2400]`で一致し、4行目とEnterはnavigation barの上にある。
 - v0.15.5最終コード`327d13c`で全unit 232件・lint・APK buildは2/2 PASS、API 36.1 connected testは13/13 PASS。最終`app-debug.apk`を再導入し、`docs/verification/v0.15.5-height-before-candidates.png`と`docs/verification/v0.15.5-height-after-candidates.png`を目視した。候補なし・「さ」候補あり・IME hide/show後はいずれもInputMethod frameが`[0,1545][1080,2400]`で、4行目とEnterはnavigation barの上にある。
 - `af942fa`はAPI 30以上のinitial inset解決を訂正した。current window metricsが取得できる場合は、hardware navigationの0を含めて最優先する。取得不能な場合だけdecor inset、双方に有効値がなければlegacy navigation resourceへfallbackするため、回転・navigation mode・Fold再構成で古いdecor値を初回高さへ持ち込まない。
+- v0.15.6最終コードで`scripts/test-all.sh --parallel`は2/2 PASS、API 36.1 AVDの`connectedDebugAndroidTest`は13/13 PASS。生成直後の`gesture-ime-v0.15.6.apk`を再導入し、`docs/verification/v0.15.6-height-before-candidates.png`、`v0.15.6-height-after-candidates.png`、`v0.15.6-height-after-reshow.png`、`v0.15.6-height-after-app-switch.png`、`v0.15.6-height-dark-after-reconfigure.png`を目視した。1080x2400では全状態がInputMethod frame `[0,1545][1080,2400]`で一致した。
+- Fold相当の1768x2208へ実行中に再構成し、`docs/verification/v0.15.6-height-fold-wide.png`と`v0.15.6-height-fold-wide-after-candidates.png`を目視した。Dual Flickの候補なし・候補ありはともにInputMethod frame `[0,1332][1768,2208]`で、4行目とEnterはsystem navigation barの上に完全表示された。
+- 独立reviewでv0.15.5のstale decor Major解消を確認し、新規Critical/Majorなし、release blockerなし。API 28でdecor未到着時にlegacy navigation resourceを読むproduction branchの実端末証拠がない点は、pure resolver反例testで値の優先順位を固定したうえで非阻害Minorとして記録した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
