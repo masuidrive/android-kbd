@@ -54,6 +54,8 @@
 
 [2026/09/13 15:23 JST] 初回Recent更新の境界修正を反例検証した。階層追加callback内で`bindEmojiPickerViewport`を同期実行すると、AndroidXがRecyclerView構築中にbody heightを変更して既知の`ImeServiceEnglishSuggestionTest.emojiCommit...`がlayout loopへ入った。picker rootの`clipChildren`・`clipToPadding`と固定control境界の`clipBounds`だけを同期維持し、bodyのoverscan・listener・accessibility処理は従来どおりpost/global-layout後に限定した。追加testから本番経路でない`emojiGridColumns=9`同期再構築を除き、412dp・840dpと全height presetで、posted settling前後ともpicker bottomがAZ/BS操作行の上端と一致することを固定した。既知Recent更新testとの同時focused実行は8秒でPASS。
 
+[2026/09/13 15:30 JST] v0.15.7最終APKをAPI 36.1 AVDへfresh install相当で導入し、空Recentから最初の😀を確定した直後と1秒後を撮影した。Recent先頭＋通常絵文字2行の計3行はAZ/BS行の手前で終わり、AZ中央tapは絵文字を追加せずQWERTYへ遷移した。`scripts/test-all.sh --parallel --connected`はfast-checks、全unit/lint/APK、実Mozc connectedの3/3 PASS。
+
 [2026/09/13 14:54 JST] v0.15.6実機feedback: fresh installで初めて絵文字レイヤーを選ぶと、AndroidXが最初のRecyclerView bodyをcell作成用に`viewport + 8dp`で再生成する瞬間に固定AZ/Backspace control rowへ侵食した。picker rootの暗黙のclipに依存せず、rootをdrawing/child boundaryとして明示clipし、body再生成直後にも3行viewportのclipとcell accessibilityを同期する。Robolectricでは412/840dp・小/標準/大・初回/AndroidX body再生成直後/posted settle後でpicker/bodyの下端がcontrol topを越えないことを固定した。API 36.1 AVDではfresh installの初回絵文字表示でIME frame `[0,1545][1080,2400]`、control row座標`x=105,y=2200`のtapがQWERTY切替へ到達することを確認した。Kotlin向け`similarity-generic -t 0.7`は環境に存在せずskipし、既存のboundary/viewport helperを照合した。
 
 ## PDH-review. 品質検証結果

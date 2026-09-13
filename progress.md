@@ -259,3 +259,4 @@
 [2026/09/13 14:47] 「小」キーの上フリックを濁点へ変更し、左=濁点・右=半濁点・tap=変換循環・下=未割当をnativeと操作mockで同期した。絵文字初回選択時はRecent provider更新でAndroidX picker bodyが再生成され、セル計測用の一時8dp overscanが再度入る経路を確認したため、固定AZ操作行との境界を明示的にclipし、再生成直後の回帰testと実画面確認を進める。
 [2026/09/13 15:09] v0.15.6をfresh install相当にして最初の絵文字を選び、Recent更新後の3段目がAZ操作行へ近接する状態を再現した。修正版APKではpicker rootとbodyを固定境界でclipした画像を確認したが、全unit testで既知のRecent更新testがAndroidX RecyclerViewのlayout loopへ入り停止。階層追加callback内で同期的に全geometryを再bindしたことが原因と特定し、root境界は同期維持しつつbody初期化をpost後へ戻す修正へ差し戻した。公開は全suite再PASSまで行わない。
 [2026/09/13 15:23] 絵文字pickerの固定root境界だけを同期適用し、AndroidX内部bodyの寸法・listener処理をlayout後へ戻した。初回Recent更新の既知回帰、412dp・840dpと全キーボード高さ設定の境界、かな「小」の上フリック定義を同時実行し、8秒で全focused testがPASSした。実Android Viewのフリック経路と最終端末画面を続けて検証する。
+[2026/09/13 15:30] v0.15.7最終候補はfast-checks・全unit/lint/APK・API 36.1 connected実Mozcの3/3 PASS。「小」は412dp・840dpの実Android MotionEventでtap循環、上/左濁点、右半濁点、下未割当を確認した。fresh Recentへ最初の絵文字を確定した直後と安定後の画像で3行がAZ/BS操作行へ重ならず、AZ tapがQWERTY切替として動くことも実操作で確認した。

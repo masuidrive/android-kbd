@@ -48,6 +48,8 @@
 
 [2026/09/13 14:44 JST] 実機feedbackにより、かなの「小」キーは上フリックも濁点に変更する。既存の左=濁点、中央=tap cycle、右=半濁点、下=未割当は維持する。`KeyboardLayouts`、CSS操作mockとその正本mirrorを同一mappingにし、方向のlabelと`KanaTransform`をunit testで固定する。
 
+[2026/09/13 15:25 JST] `2201dd8`でnative・操作mock・正本mirrorを上/左=DAKUTENへ同期し、`e896e6b`でproduction `KeyboardView`をActivityへattachして412dp・840dpの実`MotionEvent`を通した。tap=CYCLE、上/左=DAKUTEN、右=HANDAKUTEN、下=no-opを各1回ずつ確認した。API 36.1実画面でも「小」から上へ動かした選択中ラベルが「゛」になる画像を保存した。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
