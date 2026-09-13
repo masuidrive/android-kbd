@@ -51,6 +51,7 @@ IME lifecycleとlayoutだけを修正し、入力内容の保存・外部送信�
      例: - 423 reject ではなく 422: validation error として扱う -->
 - 添付再現画像を`docs/verification/intermittent-keyboard-vertical-offset.jpg`へ保存した。
 - IME生成時の保存レイヤー復元、CandidateStrip固定高、KeyboardViewの`onMeasure`/`requestLayout`、bottom inset適用順を観測して原因を特定してから修正する。
+- v0.15.4の実機確認で最下段がOSナビゲーション領域へ潜り込んだため、高い方の4行を規定位置とし、候補表示前後の実スクリーンショットで確認する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
