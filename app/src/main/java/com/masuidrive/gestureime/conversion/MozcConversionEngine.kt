@@ -107,34 +107,36 @@ class MozcConversionEngine(
             activeRequest = ActiveRequest.NONE
             return@withContext committed.takeIf(String::isNotEmpty)?.let(::ConversionCommit)
         }
-        val selectCommand = ProtoCommands.Command.newBuilder().setInput(
+        val submitCandidateCommand = ProtoCommands.Command.newBuilder().setInput(
             ProtoCommands.Input.newBuilder()
                 .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
                 .setId(sessionId)
                 .setCommand(
                     ProtoCommands.SessionCommand.newBuilder()
-                        .setType(ProtoCommands.SessionCommand.CommandType.SELECT_CANDIDATE)
+                        .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT_CANDIDATE)
                         .setId(candidate.id),
                 ),
         ).build()
-        val selectionOutput = evaluate(selectCommand)
-        check(selectionOutput.output.consumed) { "Mozc did not select a candidate" }
-        // SUBMIT_CANDIDATE commits only the focused segment in multi-segment
-        // conversion. The IME contract replaces the whole reading, so select
-        // the candidate and submit the complete conversion instead.
-        lastOutput = evaluate(
-            ProtoCommands.Command.newBuilder().setInput(
-                ProtoCommands.Input.newBuilder()
-                    .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
-                    .setId(sessionId)
-                    .setCommand(
-                        ProtoCommands.SessionCommand.newBuilder()
-                            .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT),
-                    ),
-            ).build(),
-        )
-        check(lastOutput.output.consumed) { "Mozc did not submit the conversion" }
-        val committed = commandResult(selectionOutput) + commandResult(lastOutput)
+        val candidateOutput = evaluate(submitCandidateCommand)
+        check(candidateOutput.output.consumed) { "Mozc did not submit the selected candidate" }
+        var committed = commandResult(candidateOutput)
+        // A long reading can leave later segments in the preedit after the tapped segment is
+        // submitted. Commit only that remainder; single-segment candidates are already done.
+        if (candidateOutput.output.hasPreedit() && candidateOutput.output.preedit.segmentCount > 0) {
+            lastOutput = evaluate(
+                ProtoCommands.Command.newBuilder().setInput(
+                    ProtoCommands.Input.newBuilder()
+                        .setType(ProtoCommands.Input.CommandType.SEND_COMMAND)
+                        .setId(sessionId)
+                        .setCommand(
+                            ProtoCommands.SessionCommand.newBuilder()
+                                .setType(ProtoCommands.SessionCommand.CommandType.SUBMIT),
+                        ),
+                ).build(),
+            )
+            check(lastOutput.output.consumed) { "Mozc did not submit the remaining conversion" }
+            committed += commandResult(lastOutput)
+        }
         if (committed.isEmpty()) return@withContext null
         state = ConversionState("", emptyList(), -1)
         activeRequest = ActiveRequest.NONE

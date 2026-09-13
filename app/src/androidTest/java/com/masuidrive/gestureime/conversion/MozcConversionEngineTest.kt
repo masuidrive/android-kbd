@@ -52,6 +52,31 @@ class MozcConversionEngineTest {
     }
 
     @Test
+    fun laterCandidateCommitsTheExactValueShownInTheStrip() = runBlocking {
+        val engine = MozcConversionEngine(
+            ApplicationProvider.getApplicationContext(),
+            userDictionaryEnabled = { false },
+        )
+        val state = engine.update("にほんね")
+        val expected = "2本ね"
+        val index = state.candidates.indexOfFirst { it.value == expected }
+        assertTrue(
+            "Mozc returned no $expected candidate: ${state.candidates.map { it.id to it.value }}",
+            index >= 0,
+        )
+
+        val committed = requireNotNull(engine.commit(index))
+
+        assertEquals(
+            "candidate index=$index id=${state.candidates[index].id} committed a different displayed candidate; " +
+                "all=${state.candidates.map { it.id to it.value }}",
+            expected,
+            committed.value,
+        )
+        engine.reset()
+    }
+
+    @Test
     fun committingLongReadingDoesNotDropLaterSegments() = runBlocking {
         val reading = "きょうはいいてんきです"
         val engine = MozcConversionEngine(ApplicationProvider.getApplicationContext())
