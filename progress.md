@@ -279,3 +279,4 @@
 [2026/09/13 21:02] v0.15.10最終APKをAPI 36.1 AVDへ再導入し、versionCode 26、versionName 0.15.10、38,801,950 bytes、SHA-256 `d8ceced3ca3bc2dc0fd3085e9e0a7722e189b0dcd944c0c5515da673ccbda618`を確認した。GitHub pushは外部originへの送信に対する自動承認審査で拒否されたため、local commitとmasuidrive.jpの未commit差分までで停止した。
 [2026/09/13 21:15] 明示承認後、Android branch `1c07662`をpushし、v0.15.10 APKをGitHub Releaseへ単体公開した。公開APKを再取得してSHA-256完全一致を確認した。masuidrive.jp main `c6261f0`をpushし、Pages run `34756551069`成功、公開製品ページは412px幅で横overflow 0、操作mock・v0.15.10表示・APK直リンクを確認した。
 [2026/09/14 02:43] 記号レイヤーのEsc表示、直接Tab、印字可能ASCII網羅性、変換中Enterの上フリックによるカタカナ確定をv0.15.11で公開するticketを定義した。現行QWERTYのm下フリックに`:`が残り、Symbolsの`:`をTabへ置換してもASCII 95文字が欠けないことを実装前に確認した。
+[2026/09/14 02:48] NativeへTabキーイベント送信を追加し、記号レイヤーを`Esc`・`Tab`表示へ変更した。変換中Enterはタップで無変換、左・上フリックでカタカナ確定へ揃えた。配置・ASCII 95文字網羅・Tab down/upのfocused unit testが成功し、操作mockも同期した。

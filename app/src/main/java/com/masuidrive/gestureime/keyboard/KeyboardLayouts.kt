@@ -32,7 +32,7 @@ object KeyboardLayouts {
     private fun symbols(): KeyboardLayout = KeyboardLayout(KeyboardMode.SYMBOLS, listOf(
         KeyboardRow("1234567890".map { text(it.toString()) }),
         KeyboardRow(listOf(modifier(), text("^"), text("_"), text("\\"), text("|"), text("~"), text("{"), text("}"), text("["), text("]"), backspace())),
-        KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), escape(), text("`"), text("!"), text("?"), text(";"), text(":"), text("<"), text(">"), text("-"))),
+        KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), escape(), text("`"), text("!"), text("?"), text(";"), tab(), text("<"), text(">"), text("-"))),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
 
@@ -123,7 +123,9 @@ object KeyboardLayouts {
         dark = true,
     )
 
-    private fun escape() = KeySpec("escape", KeyKind.CHARACTER, FlickValue("ESC", KeyAction.Escape))
+    private fun escape() = KeySpec("escape", KeyKind.CHARACTER, FlickValue("Esc", KeyAction.Escape))
+
+    private fun tab() = KeySpec("tab", KeyKind.CHARACTER, FlickValue("Tab", KeyAction.Tab))
 
     private fun punct() = KeySpec("punct", KeyKind.KANA, kanaValue("、"), left = kanaValue("。"),
         up = kanaValue("？"), right = kanaValue("！"))
@@ -144,7 +146,7 @@ object KeyboardLayouts {
     private fun enter(rowSpan: Int = 1, width: Float = 1f, conversionActive: Boolean = false) = if (conversionActive) {
         KeySpec("enter", KeyKind.ENTER, FlickValue("無変換", KeyAction.CommitWithoutConversion),
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
-            up = FlickValue("無変換", KeyAction.CommitWithoutConversion), widthUnits = width, rowSpan = rowSpan)
+            up = FlickValue("カタカナ", KeyAction.ConvertToKatakana), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),
         up = FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)),
         down = FlickValue("paste", KeyAction.Paste), widthUnits = width, rowSpan = rowSpan)

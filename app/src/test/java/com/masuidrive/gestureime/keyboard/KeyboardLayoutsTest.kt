@@ -112,7 +112,9 @@ class KeyboardLayoutsTest {
         keys(KeyboardMode.SYMBOLS).filter { it.kind == KeyKind.CHARACTER }.flatMap { Direction.entries.mapNotNull(it::value) }
             .forEach { value -> assertTrue(value.label.all { it.code in 0..127 }) }
         assertFalse(keys(KeyboardMode.SYMBOLS).isEmpty())
-        assertEquals(KeyAction.Escape, keys(KeyboardMode.SYMBOLS).single { it.id == "escape" }.center?.action)
+        val escape = keys(KeyboardMode.SYMBOLS).single { it.id == "escape" }
+        assertEquals("Esc", escape.center?.label)
+        assertEquals(KeyAction.Escape, escape.center?.action)
     }
 
     @Test fun `qwerty and symbol layers cover every printable ASCII character`() {
@@ -127,8 +129,11 @@ class KeyboardLayoutsTest {
         assertEquals(expected, actual)
     }
 
-    @Test fun `symbol layer exposes backtick and minus as direct taps without symbol flicks`() {
+    @Test fun `symbol layer exposes escape tab backtick and minus as direct taps without symbol flicks`() {
         val symbols = keys(KeyboardMode.SYMBOLS)
+        assertEquals(KeyAction.Escape, symbols.single { it.center?.label == "Esc" }.center?.action)
+        assertEquals(KeyAction.Tab, symbols.single { it.center?.label == "Tab" }.center?.action)
+        assertFalse(symbols.any { it.center?.label == ":" })
         assertEquals(KeyAction.CommitText("`"), symbols.single { it.center?.label == "`" }.center?.action)
         assertEquals(KeyAction.CommitText("-"), symbols.single { it.center?.label == "-" }.center?.action)
         symbols.filter { it.kind == KeyKind.CHARACTER }.forEach { key ->
@@ -136,6 +141,7 @@ class KeyboardLayoutsTest {
         }
         assertEquals(KeyAction.CommitText("\""), keys(KeyboardMode.QWERTY).single { it.center?.label == "l" }.down?.action)
         assertEquals(KeyAction.CommitText("/"), keys(KeyboardMode.QWERTY).single { it.center?.label == "b" }.down?.action)
+        assertEquals(KeyAction.CommitText(":"), keys(KeyboardMode.QWERTY).single { it.center?.label == "m" }.down?.action)
     }
 
     @Test fun `number minus key exposes its five specified ASCII values`() {
@@ -191,7 +197,7 @@ class KeyboardLayoutsTest {
         val enter = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true).rows[2].keys.last()
         assertEquals("無変換", enter.center?.label)
         assertEquals(KeyAction.CommitWithoutConversion, enter.center?.action)
-        assertEquals(KeyAction.CommitWithoutConversion, enter.up?.action)
+        assertEquals(KeyAction.ConvertToKatakana, enter.up?.action)
         assertEquals(KeyAction.ConvertToKatakana, enter.left?.action)
         assertNull(enter.right); assertNull(enter.down)
     }
@@ -205,7 +211,7 @@ class KeyboardLayoutsTest {
 
         val converting = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true)
             .rows.flatMap { it.keys }.single { it.kind == KeyKind.ENTER }
-        assertEquals(FlickValue("無変換", KeyAction.CommitWithoutConversion), converting.up)
+        assertEquals(FlickValue("カタカナ", KeyAction.ConvertToKatakana), converting.up)
     }
 
     private fun keys(mode: KeyboardMode) = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }

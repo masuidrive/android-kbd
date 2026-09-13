@@ -213,6 +213,11 @@ class TextInputController(
         sendKey(KeyEvent.KEYCODE_ESCAPE)
     }
 
+    fun tab() {
+        finishComposition()
+        sendKey(KeyEvent.KEYCODE_TAB)
+    }
+
     fun paste() {
         if (isPrivateField || !clipboard.hasPrimaryClip()) return
         val clip = clipboard.primaryClip ?: return

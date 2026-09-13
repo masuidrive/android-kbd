@@ -956,6 +956,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 resetConversion(clearComposing = false)
                 editorSession.runIfCurrent(editorToken) { textController.escape() }
             }
+            KeyAction.Tab -> {
+                finishEnglishRaw()
+                resetConversion(clearComposing = false)
+                editorSession.runIfCurrent(editorToken) { textController.tab() }
+            }
             KeyAction.CommitConversion -> {
                 finishEnglishRaw()
                 commitDisplayedConversion(editorToken)

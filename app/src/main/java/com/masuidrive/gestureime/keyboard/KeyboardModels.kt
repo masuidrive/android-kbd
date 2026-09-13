@@ -52,6 +52,7 @@ sealed interface KeyAction {
     data class SetModifier(val modifier: Modifier?) : KeyAction
     data class TransformKana(val transform: KanaTransform) : KeyAction
     data object Escape : KeyAction
+    data object Tab : KeyAction
     data object CommitConversion : KeyAction
     data object CommitWithoutConversion : KeyAction
     data object ConvertToKatakana : KeyAction

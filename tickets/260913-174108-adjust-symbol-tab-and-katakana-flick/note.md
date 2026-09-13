@@ -1,6 +1,6 @@
 # Work Notes: 260913-174108-adjust-symbol-tab-and-katakana-flick
 
-## Status: PDH-open (Ticket contract ready)
+## Status: PDH-implement (Native and mock implementation)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,9 +9,9 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -57,6 +57,7 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 - [2026/09/14 02:43 JST] 未確認仮定を調査。`:`はQWERTY `m`下に存在し、既存の95文字完全一致testで網羅性を測定できる。Tabは文字列挿入ではなくAndroid key eventとして追加する。Symbolsは一対一置換で10列を維持する。
+- [2026/09/14 02:48 JST] Nativeへ`KeyAction.Tab`と`KEYCODE_TAB` down/up送信を追加し、Symbolsの直接`:`を`Tab`へ置換、Escape表示を`Esc`へ変更した。変換中Enterは左・上ともカタカナ確定へ揃えた。focused unit testはPASSし、mockも同じ配置と操作へ同期した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

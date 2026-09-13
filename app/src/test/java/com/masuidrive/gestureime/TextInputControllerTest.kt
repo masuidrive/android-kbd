@@ -263,6 +263,13 @@ class TextInputControllerTest {
     }
 
     @Test
+    fun tabSendsDownAndUpKeyEvents() {
+        controller.tab()
+
+        assertEquals(listOf(KeyEvent.KEYCODE_TAB, KeyEvent.KEYCODE_TAB), input.keyEvents)
+    }
+
+    @Test
     fun directedKanaTransformsOnlyApplyToMatchingKana() {
         controller.appendComposing("は")
         assertEquals("ば", controller.transformKana(KanaTransform.DAKUTEN))

@@ -54,7 +54,7 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
-    @Test fun conversionEnterDispatchesRawTapAndKeepsFlicksOnAndroidViewAtPhoneAndTabletWidths() {
+    @Test fun conversionEnterDispatchesRawTapAndKatakanaFlicksOnAndroidViewAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val actions = mutableListOf<KeyAction>()
@@ -73,7 +73,7 @@ class KeyboardViewVoicePunctuationTest {
                 val distance = 30f * density
                 val gestures = listOf(
                     "tap" to Triple(0f, 0f, KeyAction.CommitWithoutConversion),
-                    "up" to Triple(0f, -distance, KeyAction.CommitWithoutConversion),
+                    "up" to Triple(0f, -distance, KeyAction.ConvertToKatakana),
                     "left" to Triple(-distance, 0f, KeyAction.ConvertToKatakana),
                 )
                 listOf(412f, 840f).forEach { widthDp ->
