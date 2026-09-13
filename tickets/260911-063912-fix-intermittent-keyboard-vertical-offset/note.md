@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -19,10 +19,10 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] 実機feedback: 候補なしの初期表示から最初のかな候補表示へ移ってもIME root総高とキー上端・下端を動かさない
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
@@ -72,6 +72,10 @@
 
 [2026/09/13 17:48 JST] 独立reviewで、Androidの実hostは返却rootを`WRAP_CONTENT`で保持するため、短いexact hostからrootへ届くのは`AT_MOST`であり、直接rootへ`EXACTLY`を渡した初稿testは本番経路を証明しないCriticalを採用した。`b2ba867`でtoo-short `AT_MOST`もintrinsic合計へ戻し、回帰をAOSPと同じexact FrameLayout host→WRAP_CONTENT rootへ変更した。あわせて最初のmeasure前にwidth specから絵文字・音声overlay高を同期し、wide Largeの絵文字pickerが初回だけ6px短くAz行へ重なる経路を修正した。focused testと全unitは成功した。
 
+[2026/09/13 18:04 JST] 再reviewで、rootだけintrinsic高へ広げても短いexact hostがclipするCriticalを採用した。`e157bb3`でintrinsic超過時に実IME Windowを`MATCH_PARENT × WRAP_CONTENT`へ戻し、decorへ再layoutを要求するproduction経路を追加した。回帰testは初回clip、relayout要求、WindowManager相当の再測定後のhost/root同高、最下段accessibility keyの可視まで確認する。再reviewはCritical/Major/Minor 0、release blockerなし。最終` scripts/test-all.sh --parallel --connected`はfast-checks、全unit/lint/APK、実Mozc connectedの3/3 PASS。
+
+[2026/09/13 18:04 JST] API 36.1 AVDを1768x2208・420dpiにし、設定でStandardを明示して短いInputMethod window `Requested h=792`を先に表示した。IMEを閉じてLargeを明示保存し、Settings検索という別アプリへ切り替えると初回から`Requested h=866`、frame `[0,1342][1768,2208]`へ復元し、prefsは`LARGE`のままだった。`docs/verification/v0.15.9-height-wide-standard-to-large-app-switch-final.png`で4行と最下段の可視を確認した。同じ866pxのまま絵文字を初回表示し、`v0.15.9-emoji-wide-large-first-open-final.png`でpickerがAz/BS control行へ重ならないことを確認した。
+
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
 - `b7e551c`: private editorから始まるlifecycleでもinput view生成時点からstripを`INVISIBLE`にし、候補内容を描画せず50dpを保持するtestを追加した。
@@ -116,6 +120,8 @@
 - 独立reviewでv0.15.5のstale decor Major解消を確認し、新規Critical/Majorなし、release blockerなし。API 28でdecor未到着時にlegacy navigation resourceを読むproduction branchの実端末証拠がない点は、pure resolver反例testで値の優先順位を固定したうえで非阻害Minorとして記録した。
 - 独立AC verifierはAC 1〜4をすべてVERIFIEDとした。phoneの候補前後・hide/show・app switch・Dark再構成、Fold相当幅のDual Flick候補前後、候補/音声状態と全layerのgeometry testを根拠に採用した。API 28 legacy branchの実画面未取得は上記Minorと同じ扱いで、AC未達やrelease blockerではない。
 - v0.15.8 reviewはfresh preferencesの既定Largeと単純なinput view再生成だけを確認しており、明示保存済みLargeでの実アプリ切替症状を再現していないため、AC 5の根拠から除外した。
+- v0.15.9 review-4の初稿は、returned rootの高さだけをassertしてexact hostのclipを見ていないCriticalを採用した。`e157bb3`で実WindowのWRAP_CONTENT再layoutと、host/root/最下段可視までの回帰を追加した再reviewはCritical/Major/Minor 0、release blockerなし。
+- 独立AC verifierはAC 5をVERIFIEDとした。Standardの792px表示後にLargeを明示保存し、別アプリ初回focusで866pxへ戻った74px差が、wide Standard 228dp→Large 256dpの28dp×2.625densityと一致する。Surface Observerも候補欄、4行、navigation safe area、絵文字初回の固定control非重複に違和感なしと判定した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -123,7 +129,7 @@
 
 - `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedし、API 30以上のcurrent metrics（0を含む）を最優先する契約を記録した。
 - Design decision 16を訂正し、未保存・不正値はStandard、600dp以上で明示選択したLargeは従来の62dp、明示保存済みの全presetはアプリ切替後も維持する契約を記録した。
-- Design decision 18へ、exact hostからWRAP_CONTENT rootへ届くtoo-short `AT_MOST`を子のintrinsic合計高へ戻し、overlayを初回measure前にwidth同期し、初期値と後続listenerで同じnavigation bar insetを使う契約を記録した。
+- Design decision 18へ、exact hostからWRAP_CONTENT rootへ届くtoo-short `AT_MOST`を子のintrinsic合計高へ戻し、IME WindowをWRAP_CONTENTで再layoutする。overlayを初回measure前にwidth同期し、初期値と後続listenerで同じnavigation bar insetを使う契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

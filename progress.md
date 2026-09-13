@@ -267,3 +267,4 @@
 [2026/09/13 17:13] v0.15.8の高さ検証はfresh preferencesの初期値だけを確認しており、設定済みの「大」がアプリ切替後に縮む添付画像の症状を再現していなかった。高さチケットをPDH-implementへ戻し、AC 5を明示保存済みプリセットの切替時保持へ訂正した。同じ切替順で実測できるまで解決扱いにしない。
 [2026/09/13 17:39] 設定値が「大」のままでもアプリ切替中の親が古い短いIME枠をEXACT指定すると、wideの4行が62dpから約45dp/行へ圧縮される症状を再現した。IME rootが候補欄と4行のintrinsic合計高を維持する修正、初回と再表示のnavigation inset統一、wide Largeの62dp復元を実装し、未設定時の既定値は原因と無関係だったため標準へ戻した。
 [2026/09/13 17:48] 独立reviewで実Android hostから返却rootへは短いAT_MOST制約が届く抜けを検出した。AOSPと同じexact host→WRAP_CONTENT rootの回帰へ修正し、too-short AT_MOSTでもLargeのintrinsic高を維持するようにした。wide Largeで絵文字・音声overlayが初回だけ60dp基準になる問題も、子measure前の幅同期で修正した。
+[2026/09/13 18:04] rootだけを広げても短いhostがclipする独立reviewのCriticalを受け、intrinsic超過時にIME WindowをWRAP_CONTENTで再layoutする経路を追加した。最終suiteは3/3 PASS。API 36.1 Fold相当でStandard 792pxを表示後、Large明示→Settings別アプリ切替の初回から866pxへ復元し、4行と最下段、絵文字初回のAz/BS非重複をスクリーンショットで確認した。
