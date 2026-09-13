@@ -122,6 +122,7 @@
 - v0.15.8 reviewはfresh preferencesの既定Largeと単純なinput view再生成だけを確認しており、明示保存済みLargeでの実アプリ切替症状を再現していないため、AC 5の根拠から除外した。
 - v0.15.9 review-4の初稿は、returned rootの高さだけをassertしてexact hostのclipを見ていないCriticalを採用した。`e157bb3`で実WindowのWRAP_CONTENT再layoutと、host/root/最下段可視までの回帰を追加した再reviewはCritical/Major/Minor 0、release blockerなし。
 - 独立AC verifierはAC 5をVERIFIEDとした。Standardの792px表示後にLargeを明示保存し、別アプリ初回focusで866pxへ戻った74px差が、wide Standard 228dp→Large 256dpの28dp×2.625densityと一致する。Surface Observerも候補欄、4行、navigation safe area、絵文字初回の固定control非重複に違和感なしと判定した。
+- v0.15.9はAndroid commit `d35bc95`をGitHub ReleaseへAPK単体で公開した。再取得した38,785,034 bytesとSHA-256 `f31699e9029930d36c50c33cc384dd49ef9ed1bd8742b64e3a95042740ddaa94`はlocal APKと一致した。公式siteはmasuidrive.jp `b791a51`のPages run `34749323470`が成功し、公開core 4ファイルのbyte一致、412/840pxの横overflowなし、readonly editorへのmock key入力、日本語Dual Flick 4行を確認した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

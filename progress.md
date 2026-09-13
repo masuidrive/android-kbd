@@ -268,3 +268,5 @@
 [2026/09/13 17:39] 設定値が「大」のままでもアプリ切替中の親が古い短いIME枠をEXACT指定すると、wideの4行が62dpから約45dp/行へ圧縮される症状を再現した。IME rootが候補欄と4行のintrinsic合計高を維持する修正、初回と再表示のnavigation inset統一、wide Largeの62dp復元を実装し、未設定時の既定値は原因と無関係だったため標準へ戻した。
 [2026/09/13 17:48] 独立reviewで実Android hostから返却rootへは短いAT_MOST制約が届く抜けを検出した。AOSPと同じexact host→WRAP_CONTENT rootの回帰へ修正し、too-short AT_MOSTでもLargeのintrinsic高を維持するようにした。wide Largeで絵文字・音声overlayが初回だけ60dp基準になる問題も、子measure前の幅同期で修正した。
 [2026/09/13 18:04] rootだけを広げても短いhostがclipする独立reviewのCriticalを受け、intrinsic超過時にIME WindowをWRAP_CONTENTで再layoutする経路を追加した。最終suiteは3/3 PASS。API 36.1 Fold相当でStandard 792pxを表示後、Large明示→Settings別アプリ切替の初回から866pxへ復元し、4行と最下段、絵文字初回のAz/BS非重複をスクリーンショットで確認した。
+[2026/09/13 18:27] v0.15.9 APKをGitHub ReleaseへZIPなしの単体で公開し、再取得した38,785,034 bytesとSHA-256 `f31699e9029930d36c50c33cc384dd49ef9ed1bd8742b64e3a95042740ddaa94`が実画面確認済みlocal APKと完全一致した。変換中Enterは先頭候補ではなく元readingを無変換確定する契約を維持し、高さ未設定時の既定値は原因と無関係だったためStandardへ戻した。
+[2026/09/13 18:27] Android branch `d35bc95`とmasuidrive.jp main `b791a51`をpushし、Pages run `34749323470`成功、公開index・mock・manual・CSSのbyte一致を確認した。公開mockは412pxでreadonly入力欄へmockキーから「あ」を入力でき、840pxで日本語Dual Flick 4行、両幅で横overflow 0、browser error 0だった。
