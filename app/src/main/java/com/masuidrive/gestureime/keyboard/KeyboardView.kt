@@ -20,6 +20,7 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 
 class KeyboardView @JvmOverloads constructor(
@@ -93,6 +94,7 @@ class KeyboardView @JvmOverloads constructor(
     private val emojiViewport = RectF()
     private var voiceSessionStatusHovered = false
     private var ownsSystemBottomInset = true
+    private var systemBottomInsetFallback = 0
     private var retainsIntrinsicHeightInIme = false
 
     internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
@@ -218,6 +220,10 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
+    internal fun setSystemBottomInsetFallback(bottom: Int) {
+        systemBottomInsetFallback = bottom.coerceAtLeast(0)
+    }
+
     /** The navigation inset remains below the four key rows and does not change their pitch. */
     internal fun setOwnsSystemBottomInset(ownsInset: Boolean) {
         if (ownsSystemBottomInset == ownsInset) return
@@ -226,7 +232,10 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     internal fun applySystemBottomInset(bottom: Int) {
-        if (ownsSystemBottomInset) updateBottomInset(bottom)
+        if (ownsSystemBottomInset) {
+            if (bottom > 0) systemBottomInsetFallback = bottom
+            updateBottomInset(bottom.takeIf { it > 0 } ?: systemBottomInsetFallback)
+        }
     }
 
     internal fun refreshIntrinsicLayout() {
@@ -1136,12 +1145,15 @@ class KeyboardView @JvmOverloads constructor(
 private object ViewCompatInsets {
     fun install(view: View) {
         ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
-            (v as? KeyboardView)?.applySystemBottomInset(navigationBarBottomInset(insets))
+            (v as? KeyboardView)?.applySystemBottomInset(systemBarBottomInset(insets))
             insets
         }
     }
 }
 
-/** Mirrors ImeService.initialKeyboardBottomInset so a later listener cannot change the inset type. */
-internal fun navigationBarBottomInset(insets: WindowInsetsCompat): Int =
-    insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars()).bottom
+/** Keeps keys above both visible system UI and the home-gesture priority area. */
+internal fun systemBarBottomInset(insets: WindowInsetsCompat): Int =
+    max(
+        insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()).bottom,
+        insets.getInsets(WindowInsetsCompat.Type.systemGestures()).bottom,
+    )

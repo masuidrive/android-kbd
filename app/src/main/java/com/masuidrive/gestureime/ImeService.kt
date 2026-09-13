@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.util.Consumer
+import androidx.annotation.RequiresApi
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.emoji2.emojipicker.RecentEmojiProvider
 import androidx.recyclerview.widget.GridLayoutManager
@@ -50,6 +51,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.math.max
 
 open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -146,7 +148,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             // The navigation area belongs below the four key rows. Seed it before the input
             // view's first measure; otherwise a later candidate layout is the first chance to
             // add it and the whole IME jumps upward.
-            it.updateBottomInset(initialKeyboardBottomInset())
+            val initialBottomInset = initialKeyboardBottomInset()
+            // Some OEM IME windows dispatch a transient zero system-bar inset while their
+            // navigation overlay is already visible. Keep the first stable reservation until a
+            // later positive system-bar inset replaces it.
+            it.setSystemBottomInsetFallback(initialBottomInset)
+            it.updateBottomInset(initialBottomInset)
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -233,18 +240,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 legacyBottom = legacyNavigationBottomInset(),
             )
         }
-        val decorBottom = decorInsets
-            ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
-            ?.bottom
-            ?: 0
+        val decorBottom = decorInsets?.let(::inputSafeBottomInset) ?: 0
         val metricsBottom = getSystemService(WindowManager::class.java)
             ?.currentWindowMetrics
             ?.windowInsets
-            ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
-            ?.bottom
-        // Current window metrics is authoritative whenever it is available, including a valid
-        // zero for hardware navigation. Decor insets can belong to the pre-rotation or pre-fold
-        // configuration while the IME window is being reconstructed.
+            ?.let(::inputSafeBottomInset)
+        // Prefer a positive current metric. A zero can be transient while an OEM reconstructs
+        // the IME window, so software-navigation resources provide the initial reservation.
         return resolveInitialKeyboardBottomInset(
             metricsBottom = metricsBottom,
             decorBottom = decorBottom,
@@ -1548,9 +1550,17 @@ internal fun resolveInitialKeyboardBottomInset(
     metricsBottom: Int?,
     decorBottom: Int,
     legacyBottom: Int,
-): Int = metricsBottom
-    ?: decorBottom.takeIf { it > 0 }
-    ?: legacyBottom
+): Int = when {
+    metricsBottom == null -> decorBottom.takeIf { it > 0 } ?: legacyBottom
+    metricsBottom > 0 -> metricsBottom
+    else -> legacyBottom
+}
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun inputSafeBottomInset(insets: WindowInsets): Int = max(
+    insets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars()).bottom,
+    insets.getInsets(WindowInsets.Type.systemGestures()).bottom,
+)
 
 private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
 

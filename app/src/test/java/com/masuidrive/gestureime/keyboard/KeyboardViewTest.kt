@@ -25,6 +25,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.util.concurrent.TimeUnit
 
@@ -181,14 +182,100 @@ class KeyboardViewTest {
         }
     }
 
-    @Test fun `inset listener uses navigation bars instead of the IME bottom`() {
+    @Test fun `inset listener uses the complete system bar bottom instead of the IME bottom`() {
         val insets = WindowInsetsCompat.Builder()
-            .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
-            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 47))
+            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 47))
             .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 149))
             .build()
 
-        assertEquals(31, navigationBarBottomInset(insets))
+        assertEquals(47, systemBarBottomInset(insets))
+    }
+
+    @Test fun `home gesture inset reserves space when system bars report zero`() {
+        val insets = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+            .setInsets(WindowInsetsCompat.Type.systemGestures(), Insets.of(0, 0, 0, 68))
+            .build()
+
+        assertEquals(68, systemBarBottomInset(insets))
+    }
+
+    @Test fun `transient zero system bar inset keeps the seeded OEM navigation reservation`() {
+        view.setSystemBottomInsetFallback(96)
+        view.updateBottomInset(96)
+
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .build(),
+        )
+        assertEquals(96, view.paddingBottom)
+
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 72))
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 72))
+                .build(),
+        )
+        assertEquals(72, view.paddingBottom)
+
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .build(),
+        )
+        assertEquals(72, view.paddingBottom)
+    }
+
+    @Test fun `larger posture inset becomes the fallback for a later zero dispatch`() {
+        view.setSystemBottomInsetFallback(72)
+        view.updateBottomInset(72)
+
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 96))
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 96))
+                .build(),
+        )
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .build(),
+        )
+
+        assertEquals(96, view.paddingBottom)
+    }
+
+    @Test fun `smaller posture inset becomes the fallback for a later zero dispatch`() {
+        view.setSystemBottomInsetFallback(96)
+        view.updateBottomInset(96)
+
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 72))
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 72))
+                .build(),
+        )
+        ViewCompat.dispatchApplyWindowInsets(
+            view,
+            WindowInsetsCompat.Builder()
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .build(),
+        )
+
+        assertEquals(72, view.paddingBottom)
     }
 
     private fun expectedRowPitch(preset: KeyboardHeightPreset, width: Int): Int = when {

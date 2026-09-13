@@ -491,9 +491,14 @@ class ImeHideBarTest {
             resolveInitialKeyboardBottomInset(metricsBottom = 24, decorBottom = 48, legacyBottom = 42),
         )
         assertEquals(
-            "a valid zero current metrics value overrides a stale decor inset",
-            0,
+            "a zero current metric keeps the software navigation resource reservation",
+            42,
             resolveInitialKeyboardBottomInset(metricsBottom = 0, decorBottom = 48, legacyBottom = 42),
+        )
+        assertEquals(
+            "hardware navigation remains zero when the software navigation resource is absent",
+            0,
+            resolveInitialKeyboardBottomInset(metricsBottom = 0, decorBottom = 48, legacyBottom = 0),
         )
         assertEquals(
             "missing current metrics falls back to the decor inset",

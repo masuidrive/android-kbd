@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -75,6 +75,10 @@
 [2026/09/13 18:04 JST] 再reviewで、rootだけintrinsic高へ広げても短いexact hostがclipするCriticalを採用した。`e157bb3`でintrinsic超過時に実IME Windowを`MATCH_PARENT × WRAP_CONTENT`へ戻し、decorへ再layoutを要求するproduction経路を追加した。回帰testは初回clip、relayout要求、WindowManager相当の再測定後のhost/root同高、最下段accessibility keyの可視まで確認する。再reviewはCritical/Major/Minor 0、release blockerなし。最終` scripts/test-all.sh --parallel --connected`はfast-checks、全unit/lint/APK、実Mozc connectedの3/3 PASS。
 
 [2026/09/13 18:04 JST] API 36.1 AVDを1768x2208・420dpiにし、設定でStandardを明示して短いInputMethod window `Requested h=792`を先に表示した。IMEを閉じてLargeを明示保存し、Settings検索という別アプリへ切り替えると初回から`Requested h=866`、frame `[0,1342][1768,2208]`へ復元し、prefsは`LARGE`のままだった。`docs/verification/v0.15.9-height-wide-standard-to-large-app-switch-final.png`で4行と最下段の可視を確認した。同じ866pxのまま絵文字を初回表示し、`v0.15.9-emoji-wide-large-first-open-final.png`でpickerがAz/BS control行へ重ならないことを確認した。
+
+[2026/09/13 20:23 JST] ユーザのFold実機画像で、v0.15.9の最下段4行目がOSのジェスチャーナビゲーション領域へ約1行分重なるため、前回のhuman review根拠を不十分としてPDH-implementへ戻した。API 36.1 AVDでは`navigationBars()` bottomが取得できたが、実機ではInputMethodServiceのcurrent metricsまたは子Viewへのdispatchが一時的に0となる経路、もしくはAPI 34以降のsystem overlayをnavigationBarsだけでは含めない経路が残る。公式Android資料のsystem bars insetを基準にし、0 dispatchで初期fallbackを消さない回帰を追加する。
+
+[2026/09/13 20:43 JST] Android公式のedge-to-edge資料に従い、tap対象の下端は`systemBars`とホーム操作を含む`systemGestures`のbottom最大値で予約するよう変更した。InputMethodService生成直後の値をfallbackとして保持し、後続listenerが一時的に両方0を返しても消さない。1499x1680・300dpi（約800dp幅）・Dark・Dual Flick・高さ「大」で、4行目key face下端がOSホームジェスチャー領域より上に収まることを`docs/verification/v0.15.10-kana-dual-large-system-gesture-inset-fold-ratio.png`で確認した。Fold実機固有の通知順はAVDでは完全再現できないため、公開APKでの実機確認はhuman reviewに残す。
 
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
