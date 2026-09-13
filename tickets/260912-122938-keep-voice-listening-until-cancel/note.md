@@ -39,6 +39,7 @@
 - [x] voice feedback: 最下段右側へ「、。？！」・Space・Enterを配置し、認識中もsessionと候補を保ったまま入力できるようにする
 - [x] voice feedback: 「、。？！」の4記号を全てフリックでも入力できるよう、既存3方向を維持して下フリックへ「、」を追加する
 - [x] voice feedback: 実機の音声句読点キーで左右フリックも認識し、左「。」・右「！」を確定できるようにする
+- [x] voice feedback: 音声最下段へtap専用Backspaceを追加し、認識中もsessionと候補を保ったまま1文字削除できるようにする
 - [x] review finding: 48dp category幅の再適用で同じlayoutParamsを毎layout書き戻さず、全unit suiteのRecyclerView layout loopを止める
 - [x] 予測診断: 日本語と英語の次単語予測がほぼ出ない条件を実装・辞書・呼出境界に分けて記録する
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
@@ -76,6 +77,8 @@
 
 [2026/09/13 09:21 JST] PDH-human-review -> PDH-implement — 実機では音声句読点キーの左右フリックが認識されず、AC 12を未達と判定した。popup renderer単体ではなく、KeyboardViewのACTION_DOWN/MOVE/UPからKeyAction.CommitTextまで水平gestureを通す回帰testを先に追加して原因を修正する。
 
+[2026/09/13 09:45 JST] PDH-human-review -> PDH-implement — ユーザの追加指示をAC 13へ反映した。音声最下段を固定高の6列にし、tap専用BackspaceをSpaceとEnterの間へ追加する。録音・処理・候補中の削除でも連続sessionと候補を維持し、nativeと操作mockを同期する。
+
 [2026/09/13 01:30 JST] human reviewの追加feedbackで、灰色と外枠のある独立demoより製品トップへ一体化した操作面を優先する判断へ更新した。`demo.html`を廃止して全導線を`index.html#demo`へ寄せ、PC新規visitorは珍しいDual Flick日本語を最初に見せる。既存保存stateはversion付きで一度だけ新defaultへ移行し、その後の利用者操作を保持する。readonly初期案内は最初の文字入力でだけ消し、カーソル移動では消さない。
 
 [2026/09/13 01:47 JST] `8a73512`でトップ内操作mockを白背景・外枠なしへ統合し、案内をeditor labelとreadonly初期文へ移した。PC新規状態をTablet・日本語かな・Dual Flick ON、touch端末を表示幅に応じたMobile/Tabletとし、v2保存stateで利用者の選択を再読込後も保持する。`site/demo.html`を削除し、製品紹介・manual・実装referenceの現行導線を`index.html#demo`へ統一した。確定版46ファイルを`masuidrive.jp`の`docs/products/md-kbd/`へ配置し、commit `396f780`をmainへpushした。
@@ -103,6 +106,8 @@
 [2026/09/13 02:47 JST] `77d0346`でVOICE句読点の未使用downへ直接`CommitText("、")`を追加した。center「、」・left「。」・up「？」・right「！」は維持し、popupとTalkBack説明、native layout/view/service test、操作mockと正本mirror、technical-referenceを同期した。focused Android test、mock JS syntax、similarity、mirror、fast-checksはPASS。ブラウザではready候補3件と「認識中」を保ったままdown flickで入力値が「、」になった。
 
 [2026/09/13 09:33 JST] `daed7c5`で`KeyboardView.pointerDown()`の縦専用判定を、上下値を持つ全CHARACTERから、上下値を持ち左右値が未定義のCHARACTERへ限定した。これによりVOICE句読点は通常の5方向判定へ入り、tap・left・up・right・downが「、・。・？・！・、」の`CommitText`へ到達する。`d0eab80`ではproduction `KeyboardView`をActivityへattachし、実densityとaccessibility nodeの実boundsから5方向の`MotionEvent`を`dispatchTouchEvent`へ送るconnected回帰testを追加した。壊していない側としてQWERTY縦フリック、modifier、centerなしBS、Space trackpad、layer keyの分岐が従来条件のままなことを前後比較した。
+
+[2026/09/13 10:11 JST] `d0d9f5a`でVOICE最下段を6等分し、tapだけに`Backspace(false)`を持つ`voice-backspace`をSpaceとEnterの間へ追加した。長押しrepeat timerから除外し、方向actionは持たない。ImeServiceはBackspaceをeditor tokenとvoice generationでguardする連続音声編集経路へ加え、候補・状態・recognizerを変えず`TextInputController.backspace()`だけを実行する。mock、README、manual、technical-reference、保存正本も同期。`0575fbb`と`e251ffa`でmockのdrag判定をnativeと同じ18px選択・10px中心復帰hysteresisへ修正し、production Android Viewのconnected testへ6列、tap、4方向no-op、中心復帰を追加した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -192,6 +197,15 @@
 
 [2026/09/13 09:33 JST] reviewerは、旧条件が上下値だけでVOICE句読点を縦専用化して左右を捨てていたこと、修正後は左右actionを持つCHARACTERだけ通常5方向へ入ることを確認した。connected testはActivityにattachしたproduction ViewへDOWN/MOVE/UPをdispatchし、actionを直接呼ばずView→GestureInterpreter→dispatch→CommitTextの終端を観測する。実装reviewと追加test reviewはいずれもCritical・Major・Minor 0件。
 
+### Findings (PDH-review-10)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | Native / mock tap-only parity | Major | mockのVOICE Backspaceが18px超のdrag releaseでも削除した | 採用・修正 | `0575fbb`でdrag選択時のactionを抑止し、4方向no-opをbrowserで固定した。 |
+| 2 | Native / mock return hysteresis | Major | mockは一度外へ出ると中心へ戻しても削除せず、nativeのCENTER復帰と異なった | 採用・修正 | `e251ffa`でnativeと同じ18px選択・10px復帰へ揃え、tap・4方向・中心復帰をbrowserとconnected testで固定した。 |
+
+[2026/09/13 10:11 JST] 最終独立reviewはCritical 0、Major 0、Minor 0。voice-backspaceはnativeでcenter actionだけ、repeatなし、方向actionなし。ImeServiceのgeneration/editor guard、候補・状態維持、6列geometryとaccessibility、mockの18/10px hysteresis、他キーのfinish分岐非退行を確認した。
+
 ## PDH-verify. AC裏取り・surface観察
 
 [2026/09/12 22:43 JST] AC 1〜5を達成と判定した。fresh focused testは92/92 PASS（ImeServiceVoiceHold 16、VoiceRecognitionController 8、KeyboardView 46、ImeHideBar/picker 22）、fresh assembleは37/37、install PASS。API 36 arm64 AVDでは端末内ja-JP modelなしのためVOICEは「非対応」とCancelを表示し「認識中」は出さず、固定4行、Cancel復帰、上→かな、右→QWERTY、下→数字を実swipeで確認した。412/840 mockでは実pointerで候補確定と次の認識を2周、3周目候補、Cancel後2.5秒の旧timer非復活を確認した。Settings searchと入力テストの10回切替はIME crop hash 10/10一致。Small/Standard/Largeの絵文字一覧も3行、4行目sliverなし、control下端固定。native証跡は`/tmp/voice-continuous-native-final.png`、mock証跡は`/tmp/voice-continuous-mock-final.png`。実機発話と物理Fold/TalkBack操作はhuman reviewへ残す。
@@ -230,6 +244,8 @@ Passed: 2 / 2
 
 [2026/09/13 09:33 JST] 実機差し戻し後のAC 12を達成と再判定した。`scripts/test-all.sh --parallel`はfast-checksとAndroid全unit・lint・APKの2/2 PASS。API 36 arm64 AVDの`connectedDebugAndroidTest`は新しいproduction Viewの実タッチtestを含む12/12 PASS。追加testはtap・left・up・right・downを実際の`MotionEvent`として送り、「、・。・？・！・、」の`CommitText`を各1件確認した。v0.15.2 APKはversionCode 18、versionName 0.15.2、minSdk 28、targetSdk 36、38,583,304 bytes、SHA-256 `3a8291133665ea01ebe32bd0269c7803f5bc729d033d5ec20cd238d73acec806`。
 
+[2026/09/13 10:11 JST] AC 13を達成と判定した。`scripts/test-all.sh --parallel`はfast-checksとAndroid全unit・lint・APKの2/2 PASS。API 36 arm64 AVDの`connectedDebugAndroidTest`は13/13 PASS。production Viewへ送る実`MotionEvent`で412/840dpの6列同幅・同じbottom row、Backspace tap 1回、上下左右30dp drag無操作、30dp外出後10dp中心復帰で1回削除を確認した。操作mockもlistening/readyでtap削除、4方向no-op、中心復帰、候補3件と「認識中」維持、横overflow 0を確認。v0.15.3 APKはversionCode 19、versionName 0.15.3、minSdk 28、targetSdk 36、arm64-v8a、38,583,304 bytes、SHA-256 `c55da5b88999954968d1e36e02f65df5ed1bd69d3b4a2dacc5c8edca0df96c0d`で、INTERNET権限なし。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
 他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -249,6 +265,8 @@ Passed: 2 / 2
 [2026/09/13 02:47 JST] `technical-reference.md` decision 10、README、操作mock、マニュアル、v0.15.1 release notesをVOICE句読点のdown「、」と、4記号全てをflickで入力できる説明へ同期した。
 
 [2026/09/13 09:33 JST] `technical-reference.md`の5方向契約自体は正しく、今回の変更は`KeyboardView`が契約どおり左右gestureをinterpreterへ渡す修正なので本文変更は不要と判定した。README、製品ページ、マニュアル、v0.15.2 release notesを実タッチ経路の左右修正と配布版へ同期した。
+
+[2026/09/13 10:11 JST] `technical-reference.md` decision 10、README、操作mockと保存正本、manual、v0.15.3 release notesをVOICE最下段6列、tap専用削除、連続session・候補維持へ同期した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
