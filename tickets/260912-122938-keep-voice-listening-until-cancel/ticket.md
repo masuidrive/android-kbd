@@ -41,7 +41,7 @@ canceled_at: null # Do not modify manually
 - [x] AC 3: 対応環境の通常フローでは候補選択と次の認識を2回以上繰り返せる。キャンセルをタップすると認識・未確定候補を破棄して進入前の文字レイヤーへ戻り、この連続sessionですでに確定した文字は残す。その後の旧callbackを表示・確定しない。
 - [x] AC 4: private欄では音声入力を開始しない。通常欄からprivate欄・別editorへの切替、IME非表示、別layerへの切替時は停止し、切替前の途中結果・最終結果・候補tapは入力も次の認識も起こさない。認識errorは固定候補領域のtap不能なplain textで表示し、自動再試行しない。
 - [x] AC 5: 10秒以上の発話を終えると認識中のまま停止せず、認識器の最終結果、または最終結果が返らない場合は最後の有効な途中結果を、AC 2と同じ選択可能な最終候補として1行1候補の縦一覧へ表示する。候補選択後の再開始を含む2周で、Android nativeと公開操作mockの全体4行高と最下段touch targetが変わらず、412dp・840dpでキャンセル、状態表示、既存の上下右flickが欠けない。
-- [x] AC 6: 絵文字layerのRecent categoryには成功確定した最近の絵文字を新しい順・重複なしで最大100件まで通常の絵文字gridへ並べ、101件目では最古の1件を除く。文字入力の候補欄shortcutとは共有表示せず、category iconは全て同じ固定幅で、categoryや選択状態によって横幅が変わらない。
+- [x] AC 6: 絵文字layerのRecent categoryには成功確定した最近の絵文字を新しい順・重複なしで最大100件まで通常の絵文字gridへ並べ、101件目では最古の1件を除く。文字入力の候補欄shortcutとは共有表示せず、category iconは全て同じ固定幅で、categoryや選択状態によって横幅が変わらない。空のRecentから最初の絵文字を選んで一覧が更新された直後も、絵文字gridは最下段のAZ・Backspace操作行へ重ならない。
 - [x] AC 7: Android native IMEと公開操作mockは独自の閉じる行を表示しない。Android native IMEはOSが提供するキーボード終了操作で閉じられる。候補・category領域と4行key領域の固定高は独自行の削除後も変動しない。
 - [x] AC 8: 公開操作mockの入力欄はreadonlyで通常のキーボード入力を受け付けず、focus時にもnative入力面にないborderを表示しない。mock内のキー・候補・音声候補による入力結果とカーソルは同じ欄へ引き続き反映される。
 - [x] AC 9: 公開操作mockのキーボード周囲は黒ではなく外側ページになじむ灰色で表示し、上のモード切替groupには下側との釣り合いが分かる余白を確保する。Mobile・Tablet・Dual FlickとLight・Darkを切り替えても周囲色と余白が崩れない。
@@ -65,6 +65,7 @@ canceled_at: null # Do not modify manually
 - 端末非対応・認識不能・権限未許可・モデルなしは固定候補領域の非action plain textで表示し、自動再試行しない。
 - 音声候補は通常候補stripから分離し、上3行相当の固定領域を使う縦scroll一覧とする。端末非対応・errorは同領域のplain textとして扱い、認識中表示は最下段のキャンセル右隣に置く。
 - Recentの保存上限は100件とし、AndroidX Emoji PickerのRecent categoryへだけ供給する。
+- AndroidX Emoji Pickerの初回Recent更新では一覧が非同期再生成されるため、picker本体と新しい一覧の両方を固定3行の境界でclipする。
 - OSと重複する28dpの独自hide barは削除する。
 
 ### Out-of-scope
