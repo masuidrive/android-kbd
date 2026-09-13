@@ -116,11 +116,11 @@ class ImeHideBarTest {
                     // AndroidX may have only its provisional body at this point. The root must
                     // already be a hard boundary, before its posted RecyclerView work runs.
                     measureAndLayout(root, width)
-                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service, settled = false)
 
                     Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
                     measureAndLayout(root, width)
-                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service, settled = true)
                 }
             }
         } finally {
@@ -454,7 +454,7 @@ class ImeHideBarTest {
             assertEquals("$width first measure keeps the navigation area", 31, keyboard.paddingBottom)
             val density = service.resources.displayMetrics.density
             val expectedKeyboardHeight =
-                (KeyboardHeightPreset.LARGE.rowPitchDp * density).toInt() * 4 +
+                (KeyboardHeightPreset.STANDARD.rowPitchDp * density).toInt() * 4 +
                     (8 * density).toInt() +
                     keyboard.paddingBottom
             assertEquals("$width first measure includes all four rows and the navigation area", expectedKeyboardHeight, initialKeyboardHeight)
@@ -465,7 +465,8 @@ class ImeHideBarTest {
             ViewCompat.dispatchApplyWindowInsets(
                 keyboard,
                 WindowInsetsCompat.Builder()
-                    .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 31))
+                    .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
+                    .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
                     .build(),
             )
             measureAndLayout(root, width)
@@ -526,9 +527,14 @@ class ImeHideBarTest {
         keyboard: KeyboardView,
         preset: KeyboardHeightPreset,
         service: ImeService,
+        settled: Boolean,
     ) {
         val density = service.resources.displayMetrics.density
-        val viewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+        val rowPitchDp = if (
+            settled && preset == KeyboardHeightPreset.LARGE &&
+            keyboard.width / density >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP
+        ) 62f else preset.rowPitchDp
+        val viewport = (8 * density).toInt() + (rowPitchDp * density * 3).toInt()
         assertTrue("picker clips AndroidX children at the fixed control row", picker.clipChildren && picker.clipToPadding)
         assertEquals(Rect(0, 0, picker.width, picker.height), picker.clipBounds)
         assertEquals("picker ends before AZ and Backspace controls", keyboard.top + viewport, picker.bottom)

@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime
 
 import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Rect
 import android.inputmethodservice.InputMethodService
 import android.os.Build
@@ -140,6 +141,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
+            it.setRetainsIntrinsicHeightInIme(true)
             // The navigation area belongs below the four key rows. Seed it before the input
             // view's first measure; otherwise a later candidate layout is the first chance to
             // add it and the whole IME jumps upward.
@@ -194,7 +196,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             updateEmojiPickerLayout(candidateHeight)
             updateVoicePanelLayout(candidateHeight)
         }
-        return FrameLayout(this).apply {
+        return IntrinsicImeInputRoot(this).apply {
             addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
                 gravity = android.view.Gravity.TOP
@@ -1482,6 +1484,27 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         testEnglishSuggestionEngine = english
     }
 
+}
+
+/**
+ * InputMethodService can measure a newly created input view with the previous editor's exact
+ * window height. The content is still a fixed candidate row plus four keyboard rows, so let it
+ * replace only a too-short exact measurement with the already measured child total.
+ */
+private class IntrinsicImeInputRoot(context: Context) : FrameLayout(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        if (View.MeasureSpec.getMode(heightMeasureSpec) != View.MeasureSpec.EXACTLY) return
+        val content = getChildAt(0) as? ViewGroup ?: return
+        val intrinsicHeight = (0 until content.childCount).sumOf { content.getChildAt(it).measuredHeight }
+        if (intrinsicHeight <= measuredHeight) return
+
+        content.measure(
+            View.MeasureSpec.makeMeasureSpec(measuredWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(intrinsicHeight, View.MeasureSpec.EXACTLY),
+        )
+        setMeasuredDimension(measuredWidth, intrinsicHeight)
+    }
 }
 
 internal fun resolveInitialKeyboardBottomInset(

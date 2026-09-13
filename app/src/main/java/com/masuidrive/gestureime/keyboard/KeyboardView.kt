@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.PathInterpolator
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
@@ -92,6 +93,7 @@ class KeyboardView @JvmOverloads constructor(
     private val emojiViewport = RectF()
     private var voiceSessionStatusHovered = false
     private var ownsSystemBottomInset = true
+    private var retainsIntrinsicHeightInIme = false
 
     internal fun hitTargetIndexAt(x: Float, y: Float): Int = hitTargets.indexOfLast {
         it.spec.kind != KeyKind.EMPTY && isTargetVisible(it) && it.tapBounds.contains(x, y) &&
@@ -150,6 +152,13 @@ class KeyboardView @JvmOverloads constructor(
         cancelActiveGestures()
         state = state.copy(heightPreset = preset)
         rebuildLayout()
+    }
+
+    /** The IME input root must replace a stale host height with this four-row view's own size. */
+    internal fun setRetainsIntrinsicHeightInIme(enabled: Boolean) {
+        if (retainsIntrinsicHeightInIme == enabled) return
+        retainsIntrinsicHeightInIme = enabled
+        requestLayout()
     }
 
     fun setEmojiRecents(recents: List<String>) {
@@ -289,14 +298,19 @@ class KeyboardView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val wanted = (rowPitch() * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
-        // IME hosts can briefly repeat the previous editor's oversized exact height while
-        // the input window is being attached. Cap that transient value at the four-row
-        // intrinsic height, while still respecting a legitimately smaller available area.
-        val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
-        val measuredHeight = when (MeasureSpec.getMode(heightMeasureSpec)) {
-            MeasureSpec.UNSPECIFIED -> wanted
-            else -> min(wanted, availableHeight)
+        val wanted = (rowPitch(width) * 4 + dp(8f) + paddingTop + paddingBottom).toInt()
+        // Standalone previews must respect a genuinely smaller parent. InputMethodService
+        // input roots opt in below: the host can carry a previous editor's short exact frame
+        // through hide/show or an editor switch, and that stale value is not usable geometry.
+        val measuredHeight = if (retainsIntrinsicHeightInIme) {
+            // InputMethodService can carry a previous IME frame through hide/show and editor
+            // changes. Its parent turns that stale value into an AT_MOST child constraint.
+            wanted
+        } else {
+            when (MeasureSpec.getMode(heightMeasureSpec)) {
+                MeasureSpec.UNSPECIFIED -> wanted
+                else -> min(wanted, MeasureSpec.getSize(heightMeasureSpec))
+            }
         }
         setMeasuredDimension(resolveSize(width, widthMeasureSpec), measuredHeight)
     }
@@ -444,7 +458,12 @@ class KeyboardView @JvmOverloads constructor(
         return true
     }
 
-    private fun rowPitch() = dp(state.heightPreset.rowPitchDp)
+    /** Restores the pre-preset 62dp Dual Flick geometry for the user's explicit Large choice. */
+    private fun rowPitch(measuredWidth: Int = width): Float {
+        val wideLarge = state.heightPreset == KeyboardHeightPreset.LARGE &&
+            measuredWidth / density >= DUAL_FLICK_MIN_WIDTH_DP
+        return dp(if (wideLarge) 62f else state.heightPreset.rowPitchDp)
+    }
 
     private fun drawKey(canvas: Canvas, target: HitTarget, pointerId: Int?) {
         val selected = pointerId != null
@@ -1112,10 +1131,13 @@ class KeyboardView @JvmOverloads constructor(
 
 private object ViewCompatInsets {
     fun install(view: View) {
-        view.setOnApplyWindowInsetsListener { v, insets ->
-            @Suppress("DEPRECATION") val bottom = insets.systemWindowInsetBottom
-            (v as? KeyboardView)?.applySystemBottomInset(bottom)
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            (v as? KeyboardView)?.applySystemBottomInset(navigationBarBottomInset(insets))
             insets
         }
     }
 }
+
+/** Mirrors ImeService.initialKeyboardBottomInset so a later listener cannot change the inset type. */
+internal fun navigationBarBottomInset(insets: WindowInsetsCompat): Int =
+    insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars()).bottom

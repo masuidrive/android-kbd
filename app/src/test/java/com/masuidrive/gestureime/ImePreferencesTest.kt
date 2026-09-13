@@ -63,22 +63,21 @@ class ImePreferencesTest {
     }
 
     @Test
-    fun missingAndLegacyKeyboardHeightPresetsMigrateToLargeWhileExplicitChoicesPersist() {
+    fun keyboardHeightPresetDefaultsToStandardPersistsAndSafelyRejectsMalformedValues() {
         val context = RuntimeEnvironment.getApplication()
         val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
         preferences.edit().clear().commit()
 
-        // An absent key covers both a reinstall and upgrades from before height presets.
-        assertEquals(KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(context))
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
         KeyboardHeightPreset.entries.forEach { preset ->
             ImePreferences.setKeyboardHeightPreset(context, preset)
             assertEquals(preset, ImePreferences.getKeyboardHeightPreset(context))
         }
 
         preferences.edit().putString("keyboard_height_preset", "too_tall").apply()
-        assertEquals(KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(context))
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
         preferences.edit().putInt("keyboard_height_preset", 3).apply()
-        assertEquals(KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(context))
+        assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
     }
 
     @Test

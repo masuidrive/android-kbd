@@ -40,33 +40,78 @@ class ImeServiceVoiceLifecycleTest {
 
         val keyboard = root.keyboardView()
         assertEquals(ViewGroup.LayoutParams.WRAP_CONTENT, keyboard.layoutParams.height)
-        assertEquals(248, keyboard.measuredHeight)
-        assertEquals(298, root.measuredHeight)
+        assertEquals(228, keyboard.measuredHeight)
+        assertEquals(278, root.measuredHeight)
         controller.destroy()
     }
 
     @Test
-    fun missingHeightPresetKeepsLargeDualKanaGeometryAcrossInputViewRecreation() {
+    fun persistedHeightPresetIsAppliedWhenTheInputViewStartsAndReopens() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.LARGE)
+        val root = service.onCreateInputView() as ViewGroup
+        val width = View.MeasureSpec.makeMeasureSpec(840, View.MeasureSpec.EXACTLY)
+        val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+
+        root.measure(width, height)
+        assertEquals(256, root.keyboardView().measuredHeight)
+
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.SMALL)
+        service.onStartInputView(EditorInfo(), true)
+        root.measure(width, height)
+        assertEquals(208, root.keyboardView().measuredHeight)
+
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.STANDARD)
+        controller.destroy()
+    }
+
+    @Test
+    fun explicitlySavedLargePresetSurvivesAStaleStandardHeightAcrossInputViewRecreation() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()
         val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
         preferences.edit().clear().commit()
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.LARGE)
         ImePreferences.setLastKeyboardMode(service, KeyboardMode.KANA)
         ImePreferences.setDualFlickEnabled(service, true)
         try {
             listOf(412, 840).forEach { widthPixels ->
-                val width = View.MeasureSpec.makeMeasureSpec(widthPixels, View.MeasureSpec.EXACTLY)
-                val height = View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST)
+                val root = service.onCreateInputView() as ViewGroup
+                val candidate = root.candidateStripView()
+                measureAndLayout(root, widthPixels, View.MeasureSpec.AT_MOST, 1_000)
+                assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
 
-                val first = service.onCreateInputView() as ViewGroup
-                first.measure(width, height)
-                assertLargeKanaGeometry(first.keyboardView(), widthPixels)
+                // A host can reuse the previous Standard-sized IME frame on hide/show or an
+                // editor/app transition. First constrain the candidate-empty state, then add
+                // candidates and measure again: neither order may shrink a saved Large preset.
+                val staleHeight = staleStandardRootHeight(service, root.keyboardView())
+                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
+                assertEquals("$widthPixels stale root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
+                candidate.showCandidates(CandidateUiSnapshot(1L, listOf("候補", "変換候補")))
+                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
+                assertEquals("$widthPixels candidate root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
 
-                // InputMethodService creates a new tree after hide/show, app changes, and
-                // configuration recreation. An absent pre-preset preference must not fall back.
+                // This is approximately the 45dp row pitch reported by the short screenshot,
+                // rather than merely the preceding Standard 55dp frame. A saved Large value
+                // must still restore its own four-row geometry.
+                val shortRootHeight = candidateHeight(service) +
+                    (45 * service.resources.displayMetrics.density).toInt() * 4 +
+                    (8 * service.resources.displayMetrics.density).toInt()
+                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, shortRootHeight)
+                assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
+                assertEquals("$widthPixels short root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
+
+                service.onFinishInputView(false)
+                service.onStartInput(EditorInfo(), true)
+                service.onStartInputView(EditorInfo(), true)
                 val recreated = service.onCreateInputView() as ViewGroup
-                recreated.measure(width, height)
-                assertLargeKanaGeometry(recreated.keyboardView(), widthPixels)
+                recreated.candidateStripView().showCandidates(CandidateUiSnapshot(2L, listOf("候補")))
+                measureAndLayout(recreated, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                assertLargePresetMeasurement(service, recreated.keyboardView(), widthPixels)
+                assertEquals("$widthPixels recreated root height", expectedLargeRootHeight(service, recreated.keyboardView()), recreated.measuredHeight)
             }
         } finally {
             preferences.edit().clear().commit()
@@ -169,8 +214,8 @@ class ImeServiceVoiceLifecycleTest {
         )
 
         assertEquals(View.INVISIBLE, root.candidateStripView().visibility)
-        assertEquals(248, root.keyboardView().measuredHeight)
-        assertEquals(298, root.measuredHeight)
+        assertEquals(228, root.keyboardView().measuredHeight)
+        assertEquals(278, root.measuredHeight)
         controller.destroy()
     }
 
@@ -299,17 +344,47 @@ class ImeServiceVoiceLifecycleTest {
             .first()
     }
 
-    private fun assertLargeKanaGeometry(keyboard: KeyboardView, widthPixels: Int) {
+    private fun assertLargePresetMeasurement(service: ImeService, keyboard: KeyboardView, widthPixels: Int) {
         val state = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
             .get(keyboard) as KeyboardUiState
+        assertEquals("$widthPixels saved preference", KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(service))
+        assertEquals("$widthPixels state", KeyboardHeightPreset.LARGE, state.heightPreset)
         assertEquals("$widthPixels mode", KeyboardMode.KANA, state.mode)
         assertTrue("$widthPixels Dual Flick preference", state.dualFlickEnabled)
-        assertEquals("$widthPixels preset", KeyboardHeightPreset.LARGE, state.heightPreset)
+        assertTrue("$widthPixels density", service.resources.displayMetrics.density > 0f)
         assertEquals(
-            "$widthPixels four large rows",
-            (KeyboardHeightPreset.LARGE.rowPitchDp * 4 + 8).toInt() + keyboard.paddingBottom,
+            "$widthPixels measured large rows",
+            expectedLargeKeyboardHeight(service, keyboard),
             keyboard.measuredHeight,
         )
+    }
+
+    private fun staleStandardRootHeight(service: ImeService, keyboard: KeyboardView): Int =
+        candidateHeight(service) + keyboardHeight(service, KeyboardHeightPreset.STANDARD, keyboard)
+
+    private fun expectedLargeRootHeight(service: ImeService, keyboard: KeyboardView): Int =
+        candidateHeight(service) + expectedLargeKeyboardHeight(service, keyboard)
+
+    private fun expectedLargeKeyboardHeight(service: ImeService, keyboard: KeyboardView): Int =
+        keyboardHeight(service, KeyboardHeightPreset.LARGE, keyboard)
+
+    private fun keyboardHeight(service: ImeService, preset: KeyboardHeightPreset, keyboard: KeyboardView): Int {
+        val density = service.resources.displayMetrics.density
+        val wideLargePitch = if (
+            preset == KeyboardHeightPreset.LARGE &&
+            keyboard.width / density >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP
+        ) 62f else preset.rowPitchDp
+        return (wideLargePitch * density).toInt() * 4 + (8 * density).toInt() + keyboard.paddingBottom
+    }
+
+    private fun candidateHeight(service: ImeService): Int = (50 * service.resources.displayMetrics.density).toInt()
+
+    private fun measureAndLayout(root: ViewGroup, width: Int, heightMode: Int, height: Int) {
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(height, heightMode),
+        )
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
     }
 
     private fun View.voicePanelView(): VoicePanelView {

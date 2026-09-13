@@ -24,6 +24,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
+import androidx.core.graphics.Insets
+import androidx.core.view.WindowInsetsCompat
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -132,14 +134,10 @@ class KeyboardViewTest {
 
     @Test fun `height presets keep every layer and dual kana at a width independent four row height`() {
         val modes = KeyboardMode.entries.toList()
-        val expected = mapOf(
-            KeyboardHeightPreset.SMALL to Triple(208, 40, 10),
-            KeyboardHeightPreset.STANDARD to Triple(228, 45, 10),
-            KeyboardHeightPreset.LARGE to Triple(248, 50, 10),
-        )
-
-        expected.forEach { (preset, dimensions) ->
+        KeyboardHeightPreset.entries.forEach { preset ->
             listOf(412, 840).forEach { width ->
+                val rowPitch = expectedRowPitch(preset, width)
+                val dimensions = Triple(rowPitch * 4 + 8, rowPitch - 10, 10)
                 modes.forEach { mode ->
                     view.setHeightPreset(preset)
                     view.setMode(mode)
@@ -169,7 +167,7 @@ class KeyboardViewTest {
             view.measure(exact(840), exact(500))
             view.layout(0, 0, view.measuredWidth, view.measuredHeight)
             val initial = keyBounds(0)
-            val expectedHeight = (preset.rowPitchDp * 4 + 8).toInt()
+            val expectedHeight = expectedRowPitch(preset, 840) * 4 + 8
             assertEquals(expectedHeight, view.measuredHeight)
 
             view.updateBottomInset(24)
@@ -181,6 +179,21 @@ class KeyboardViewTest {
             assertEquals(initial, keyBounds(0))
             view.updateBottomInset(0)
         }
+    }
+
+    @Test fun `inset listener uses navigation bars instead of the IME bottom`() {
+        val insets = WindowInsetsCompat.Builder()
+            .setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
+            .setInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 31))
+            .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 149))
+            .build()
+
+        assertEquals(31, navigationBarBottomInset(insets))
+    }
+
+    private fun expectedRowPitch(preset: KeyboardHeightPreset, width: Int): Int = when {
+        preset == KeyboardHeightPreset.LARGE && width >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP -> 62
+        else -> preset.rowPitchDp.toInt()
     }
 
     @Test fun `smaller parent height constrains every mode and its accessible keys`() {
