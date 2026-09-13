@@ -135,11 +135,7 @@ class KeyboardView @JvmOverloads constructor(
         if (state.conversionActive == active) return
         this.active.filterValues { it.spec.kind == KeyKind.ENTER }.keys.toList().forEach(::discardPointer)
         state = state.copy(conversionActive = active)
-        // Conversion only exchanges the Enter label and its actions. Its rows, spans, and
-        // dimensions are unchanged, so propagating requestLayout() to the IME window here can
-        // make a host remeasure and move the whole keyboard when the first candidate appears.
-        // Rebuild targets for the new Enter actions without changing the measured geometry.
-        rebuildLayout(requestParentLayout = false)
+        rebuildLayout()
     }
 
     fun setDualFlickEnabled(enabled: Boolean) {
@@ -195,9 +191,9 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun rebuildLayout(requestParentLayout: Boolean = true) {
+    private fun rebuildLayout() {
         if (width > 0 && height > 0) buildHitTargets(paddingTop.toFloat())
-        if (requestParentLayout) requestLayout()
+        requestLayout()
         accessibilityHelper.invalidateRoot()
         invalidate()
     }

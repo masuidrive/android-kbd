@@ -1,17 +1,10 @@
 package com.masuidrive.gestureime
 
-import android.app.Activity
-import android.content.ClipboardManager
 import android.graphics.Rect
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
-import com.masuidrive.gestureime.conversion.ConversionCandidate
-import com.masuidrive.gestureime.conversion.ConversionCommit
-import com.masuidrive.gestureime.conversion.ConversionEngine
-import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
@@ -22,8 +15,6 @@ import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import com.masuidrive.gestureime.ui.VoicePanelView
 import com.masuidrive.gestureime.ui.VoiceUiSnapshot
 import com.masuidrive.gestureime.ui.VoiceUiState
-import com.masuidrive.gestureime.voice.VoiceRecognitionController
-import com.masuidrive.gestureime.voice.VoiceRecognizerFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,47 +28,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ImeServiceVoiceLifecycleTest {
-    @Test
-    fun firstKanaCandidatesKeepTheMeasuredImeRootHeightWithoutRequestingKeyboardRelayout() {
-        val controller = Robolectric.buildService(ImeService::class.java).create()
-        val service = controller.get()
-        val input = BaseInputConnection(View(service), true)
-        service.installTestDependencies(
-            voice = VoiceRecognitionController(
-                sdkInt = 30,
-                hasPermission = { false },
-                onDeviceAvailable = { false },
-                factory = VoiceRecognizerFactory { error("voice is not used") },
-                onState = service::onVoiceState,
-            ),
-            text = TextInputController(
-                connection = { input },
-                context = service,
-                clipboard = service.getSystemService(ClipboardManager::class.java),
-            ),
-            conversion = ImmediateCandidateConversion,
-        )
-        service.onStartInput(EditorInfo(), false)
-        val root = service.onCreateInputView()
-        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(root)
-        service.onStartInputView(EditorInfo(), false)
-        measureAndLayout(root)
-        shadowOf(android.os.Looper.getMainLooper()).idle()
-        measureAndLayout(root)
-        val initialHeight = root.measuredHeight
-        val keyboard = root.keyboardView()
-        assertFalse(keyboard.isLayoutRequested)
-
-        service.onKeyAction(KeyAction.KanaInput("か"))
-        shadowOf(android.os.Looper.getMainLooper()).idle()
-
-        assertTrue(root.containsText("候補"))
-        assertFalse("candidate actions must not remeasure the IME keyboard", keyboard.isLayoutRequested)
-        measureAndLayout(root)
-        assertEquals(initialHeight, root.measuredHeight)
-        controller.destroy()
-    }
-
     @Test
     fun inputViewIncludesKeyboardIntrinsicHeightWithoutAnExactParent() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
@@ -288,14 +238,6 @@ class ImeServiceVoiceLifecycleTest {
         return (0 until group.childCount).any { group.getChildAt(it).containsText(value) }
     }
 
-    private fun measureAndLayout(root: View) {
-        root.measure(
-            View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
-        )
-        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
-    }
-
     private fun View.allTextViews(): List<android.widget.TextView> {
         val result = mutableListOf<android.widget.TextView>()
         fun collect(current: View) {
@@ -361,18 +303,5 @@ class ImeServiceVoiceLifecycleTest {
     private fun KeyboardView.mode(): KeyboardMode {
         val field = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
         return (field.get(this) as KeyboardUiState).mode
-    }
-
-    private object ImmediateCandidateConversion : ConversionEngine {
-        override suspend fun start(reading: String) = ConversionState(
-            reading = reading,
-            candidates = listOf(ConversionCandidate(1, "候補")),
-            selectedIndex = 0,
-        )
-
-        override suspend fun update(reading: String) = start(reading)
-        override suspend fun nextCandidate() = start("")
-        override suspend fun commit(index: Int): ConversionCommit? = null
-        override suspend fun reset() = Unit
     }
 }
