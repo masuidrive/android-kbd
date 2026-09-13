@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-human-review (Awaiting close approval)
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,19 +11,20 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: IME local layoutだけの変更で外部providerを使用しない
-- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [ ] 実機feedback: 候補なしの初期表示から最初のかな候補表示へ移ってもIME root総高とキー上端・下端を動かさない
+- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -56,6 +57,12 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+[2026/09/13 11:56 JST] PDH-human-review -> PDH-implement — v0.15.3実機の同一Chrome入力欄で、候補なしの初期表示ではIME上端が低く、最初のかな入力で候補が現れると上端が約1行分上へ移動した。既存AC 1/3を未達と再判定した。候補View自体のvisibilityは現行コードで通常欄なら常時VISIBLEなので、候補内容更新に伴うrequestLayout、初回のwindow/inset計測、root WRAP_CONTENTの順序を実Viewで測り、候補あり・なしのroot measured heightを同一に固定する。
+
+[2026/09/13 12:19 JST] 原因は初回measure後に遅延到着したsystem bottom insetだった。`KeyboardView.onMeasure()`はpaddingBottomをdesired heightに含むため、最初の候補描画が起こす次のlayoutでIME rootが上へ伸びていた。IME windowがすでにsystem navigation領域を所有しているため、IMEが生成する`KeyboardView`だけ`setOwnsSystemBottomInset(false)`とした。単体`KeyboardView`の従来動作は維持した。`e147481`で、412/840pxの初回measure→bottom inset 31px遅延到着→最初の候補描画の順に、root高・keyboard高・first key下端が不変の回帰testを追加した。候補内容とEnter geometryを固定する先行変更`c9e7125`は根本原因ではなく将来のEnter変更を隠すため、独立reviewを受け`0048c24`でrevertした。
+
+[2026/09/13 12:19 JST] API 36.1 AVDの通常入力欄でかなlayerを表示し、候補なしと「さ」入力後の候補5件表示を比較した。どちらもInputMethod window frameは`[0,1545][1080,2400]`で完全一致し、候補欄上端・1行目key上端・最下段key下端も画像上で不変だった。
+
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
 - `b7e551c`: private editorから始まるlifecycleでもinput view生成時点からstripを`INVISIBLE`にし、候補内容を描画せず50dpを保持するtestを追加した。
@@ -86,7 +93,7 @@
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
-- `technical-reference.md` Design decision 17へ、候補欄固定50dpとKeyboardView intrinsic `WRAP_CONTENT`によるIME root高の契約を追記する。
+- `technical-reference.md` Design decision 18を更新し、IME windowがsystem navigation領域を所有し、IME内の`KeyboardView`はbottom insetを自身の高さへ加えない契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
