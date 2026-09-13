@@ -205,10 +205,7 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
-    /**
-     * The standalone keyboard keeps the navigation inset below its rows. IME containers can
-     * leave the system navigation area to the window, without resizing their key rows.
-     */
+    /** The navigation inset remains below the four key rows and does not change their pitch. */
     internal fun setOwnsSystemBottomInset(ownsInset: Boolean) {
         if (ownsSystemBottomInset == ownsInset) return
         ownsSystemBottomInset = ownsInset

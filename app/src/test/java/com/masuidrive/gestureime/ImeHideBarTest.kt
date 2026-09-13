@@ -410,9 +410,9 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun delayedNavigationInsetAndFirstCandidatesKeepTheImeRootAndKeysFixed() {
+    fun seededNavigationInsetAndFirstCandidatesKeepTheImeRootAndKeysFixed() {
         listOf(412, 840).forEach { width ->
-            val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+            val service = Robolectric.buildService(SeededNavigationInsetImeService::class.java).create().get()
             val root = service.onCreateInputView() as FrameLayout
             val content = root.getChildAt(0) as LinearLayout
             val candidate = content.getChildAt(0) as CandidateStripView
@@ -422,8 +422,17 @@ class ImeHideBarTest {
             val initialRootHeight = root.measuredHeight
             val initialKeyboardHeight = keyboard.measuredHeight
             val initialFirstKey = firstKeyBottomInRoot(keyboard)
+            assertEquals("$width first measure keeps the navigation area", 31, keyboard.paddingBottom)
+            val density = service.resources.displayMetrics.density
+            val expectedKeyboardHeight =
+                (KeyboardHeightPreset.STANDARD.rowPitchDp * density).toInt() * 4 +
+                    (8 * density).toInt() +
+                    keyboard.paddingBottom
+            assertEquals("$width first measure includes all four rows and the navigation area", expectedKeyboardHeight, initialKeyboardHeight)
+            assertEquals("$width first measure includes the fixed candidate row", (50 * density).toInt() + expectedKeyboardHeight, initialRootHeight)
 
-            // This models the navigation inset delivered only after the IME's first measure.
+            // The same inset may arrive again after attach, then the candidate replaces its
+            // children and requests another host measure. Neither transition may move keys.
             ViewCompat.dispatchApplyWindowInsets(
                 keyboard,
                 WindowInsetsCompat.Builder()
@@ -431,7 +440,7 @@ class ImeHideBarTest {
                     .build(),
             )
             measureAndLayout(root, width)
-            assertEquals("$width delayed inset must not become keyboard padding", 0, keyboard.paddingBottom)
+            assertEquals("$width delayed inset stays at its seeded height", 31, keyboard.paddingBottom)
             assertEquals("$width delayed inset must not grow the IME root", initialRootHeight, root.measuredHeight)
             assertEquals("$width delayed inset must not move key faces", initialFirstKey, firstKeyBottomInRoot(keyboard))
 
@@ -472,4 +481,8 @@ class ImeHideBarTest {
     }
 
     class HidingImeService : ImeService()
+
+    class SeededNavigationInsetImeService : ImeService() {
+        override fun initialKeyboardBottomInset() = 31
+    }
 }

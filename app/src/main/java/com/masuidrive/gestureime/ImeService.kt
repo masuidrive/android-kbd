@@ -3,9 +3,12 @@ package com.masuidrive.gestureime
 import android.content.ClipboardManager
 import android.graphics.Rect
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewConfiguration
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -137,10 +140,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
-            // The IME window owns the system navigation area.  Letting the keyboard add a
-            // bottom inset after its first measure changes the input-view height when a
-            // candidate update happens to trigger the next layout pass.
-            it.setOwnsSystemBottomInset(false)
+            // The navigation area belongs below the four key rows. Seed it before the input
+            // view's first measure; otherwise a later candidate layout is the first chance to
+            // add it and the whole IME jumps upward.
+            it.updateBottomInset(initialKeyboardBottomInset())
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -211,6 +214,34 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             })
             updateEmojiPickerVisibility()
         }
+    }
+
+    internal open fun initialKeyboardBottomInset(): Int {
+        val decorInsets = window.window?.decorView?.rootWindowInsets
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            val decorBottom = decorInsets?.systemWindowInsetBottom ?: 0
+            return decorBottom.takeIf { it > 0 } ?: legacyNavigationBottomInset()
+        }
+        val decorBottom = decorInsets
+            ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
+            ?.bottom
+            ?: 0
+        val metricsBottom = getSystemService(WindowManager::class.java)
+            ?.currentWindowMetrics
+            ?.windowInsets
+            ?.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars())
+            ?.bottom
+            ?: 0
+        // A newly created IME decor can have a non-null, zero inset before its first dispatch.
+        // Window metrics provides the stable navigation reservation for that first measurement.
+        return maxOf(decorBottom, metricsBottom)
+    }
+
+    private fun legacyNavigationBottomInset(): Int {
+        val navigationShown = resources.getIdentifier("config_showNavigationBar", "bool", "android")
+        if (navigationShown != 0 && !resources.getBoolean(navigationShown)) return 0
+        val navigationHeight = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        return if (navigationHeight == 0) 0 else resources.getDimensionPixelSize(navigationHeight)
     }
 
     private fun updateVoicePanelLayout(candidateHeight: Int) {
