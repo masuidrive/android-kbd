@@ -18,6 +18,7 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
+import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -409,59 +410,53 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun candidateAndFourRowsKeepTheirGeometryWhileKeyboardOwnsBottomInset() {
-        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
-        val root = service.onCreateInputView() as FrameLayout
-        val content = root.getChildAt(0) as LinearLayout
-        val candidate = content.getChildAt(0) as CandidateStripView
-        val keyboard = content.getChildAt(1) as KeyboardView
-        val picker = root.getChildAt(1) as EmojiPickerView
-        val density = service.resources.displayMetrics.density
-        val expectedCandidateHeight = (50 * density).toInt()
-        val expectedRowsHeight = (KeyboardHeightPreset.STANDARD.rowPitchDp * 4 + 8).toInt()
-
-        val mask = root.getChildAt(3)
-        assertEquals(5, root.childCount)
-        assertEquals(2, content.childCount)
-        assertSame(candidate, content.getChildAt(0))
-        assertSame(keyboard, content.getChildAt(1))
-        assertEquals(View.GONE, picker.visibility)
-        assertEquals(View.GONE, mask.visibility)
-        assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
+    fun delayedNavigationInsetAndFirstCandidatesKeepTheImeRootAndKeysFixed() {
         listOf(412, 840).forEach { width ->
-            keyboard.measure(exact(width), exact(1_000))
-            assertEquals(expectedRowsHeight, keyboard.measuredHeight)
+            val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+            val root = service.onCreateInputView() as FrameLayout
+            val content = root.getChildAt(0) as LinearLayout
+            val candidate = content.getChildAt(0) as CandidateStripView
+            val keyboard = content.getChildAt(1) as KeyboardView
+            measureAndLayout(root, width)
+
+            val initialRootHeight = root.measuredHeight
+            val initialKeyboardHeight = keyboard.measuredHeight
+            val initialFirstKey = firstKeyBottomInRoot(keyboard)
+
+            // This models the navigation inset delivered only after the IME's first measure.
+            ViewCompat.dispatchApplyWindowInsets(
+                keyboard,
+                WindowInsetsCompat.Builder()
+                    .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 31))
+                    .build(),
+            )
+            measureAndLayout(root, width)
+            assertEquals("$width delayed inset must not become keyboard padding", 0, keyboard.paddingBottom)
+            assertEquals("$width delayed inset must not grow the IME root", initialRootHeight, root.measuredHeight)
+            assertEquals("$width delayed inset must not move key faces", initialFirstKey, firstKeyBottomInRoot(keyboard))
+
+            // CandidateStripView replaces its child views, which requests this next host layout.
+            candidate.showCandidates(CandidateUiSnapshot(1L, listOf("候補", "変換候補")))
+            measureAndLayout(root, width)
+            assertEquals("$width first candidates must not grow the IME root", initialRootHeight, root.measuredHeight)
+            assertEquals("$width first candidates must not resize four key rows", initialKeyboardHeight, keyboard.measuredHeight)
+            assertEquals("$width first candidates must not move key faces", initialFirstKey, firstKeyBottomInRoot(keyboard))
         }
-
-        val firstInset = WindowInsetsCompat.Builder()
-            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 31))
-            .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 12))
-            .build()
-        val secondInset = WindowInsetsCompat.Builder()
-            .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.of(0, 0, 0, 17))
-            .setInsets(WindowInsetsCompat.Type.displayCutout(), Insets.of(0, 0, 0, 40))
-            .build()
-        val noInset = WindowInsetsCompat.Builder().build()
-
-        ViewCompat.dispatchApplyWindowInsets(keyboard, firstInset)
-        assertKeyboardInset(keyboard, expectedRowsHeight, 31)
-        ViewCompat.dispatchApplyWindowInsets(keyboard, firstInset)
-        assertKeyboardInset(keyboard, expectedRowsHeight, 31)
-        ViewCompat.dispatchApplyWindowInsets(keyboard, secondInset)
-        assertKeyboardInset(keyboard, expectedRowsHeight, 17)
-        ViewCompat.dispatchApplyWindowInsets(keyboard, noInset)
-        assertKeyboardInset(keyboard, expectedRowsHeight, 0)
-        assertEquals(expectedCandidateHeight, candidate.layoutParams.height)
     }
 
-    private fun assertKeyboardInset(
-        keyboard: KeyboardView,
-        rowsHeight: Int,
-        bottomInset: Int,
-    ) {
-        keyboard.measure(exact(412), exact(1_000))
-        assertEquals(bottomInset, keyboard.paddingBottom)
-        assertEquals(rowsHeight + bottomInset, keyboard.measuredHeight)
+    private fun measureAndLayout(root: View, width: Int) {
+        root.measure(
+            exact(width),
+            View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
+        )
+        root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+    }
+
+    private fun firstKeyBottomInRoot(keyboard: KeyboardView): Int {
+        val keyBounds = Rect().also {
+            requireNotNull(keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)).getBoundsInParent(it)
+        }
+        return keyboard.top + keyBounds.bottom
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)

@@ -210,8 +210,8 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     /**
-     * The standalone keyboard keeps the navigation inset below its rows. IME containers with
-     * a bottom affordance can move that inset to the affordance instead, without resizing keys.
+     * The standalone keyboard keeps the navigation inset below its rows. IME containers can
+     * leave the system navigation area to the window, without resizing their key rows.
      */
     internal fun setOwnsSystemBottomInset(ownsInset: Boolean) {
         if (ownsSystemBottomInset == ownsInset) return

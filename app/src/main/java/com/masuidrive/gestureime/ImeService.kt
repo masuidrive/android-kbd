@@ -137,6 +137,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val keyboard = KeyboardView(this).also {
             it.actionSink = this
             it.voiceHoldSink = this
+            // The IME window owns the system navigation area.  Letting the keyboard add a
+            // bottom inset after its first measure changes the input-view height when a
+            // candidate update happens to trigger the next layout pass.
+            it.setOwnsSystemBottomInset(false)
             keyboardMode = ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
