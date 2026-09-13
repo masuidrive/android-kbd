@@ -122,6 +122,10 @@ class KeyboardView @JvmOverloads constructor(
     /** Height covered by the picker below its 50dp category header: top inset plus three rows. */
     internal fun emojiPickerOverlayHeight(): Float = dp(8f) + currentEmojiRowPitch() * 3f
 
+    /** Uses the pending parent width before this view has received its first layout. */
+    internal fun emojiPickerOverlayHeightForWidth(measuredWidth: Int): Float =
+        dp(8f) + rowPitch(measuredWidth) * 3f
+
     fun setModifier(modifier: Modifier?) {
         state = state.copy(pendingModifier = modifier)
         accessibilityHelper.invalidateRoot()

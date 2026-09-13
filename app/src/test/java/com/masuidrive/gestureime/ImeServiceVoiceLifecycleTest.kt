@@ -4,6 +4,7 @@ import android.graphics.Rect
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
@@ -78,19 +79,22 @@ class ImeServiceVoiceLifecycleTest {
         try {
             listOf(412, 840).forEach { widthPixels ->
                 val root = service.onCreateInputView() as ViewGroup
+                val host = imeHost(service, root)
                 val candidate = root.candidateStripView()
-                measureAndLayout(root, widthPixels, View.MeasureSpec.AT_MOST, 1_000)
+                // AOSP's mInputFrame is exact, but our returned root is WRAP_CONTENT inside it,
+                // so it receives the previous IME frame as an AT_MOST child constraint.
+                measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, 1_000)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
 
                 // A host can reuse the previous Standard-sized IME frame on hide/show or an
                 // editor/app transition. First constrain the candidate-empty state, then add
                 // candidates and measure again: neither order may shrink a saved Large preset.
                 val staleHeight = staleStandardRootHeight(service, root.keyboardView())
-                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels stale root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
                 candidate.showCandidates(CandidateUiSnapshot(1L, listOf("候補", "変換候補")))
-                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels candidate root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
 
@@ -100,7 +104,7 @@ class ImeServiceVoiceLifecycleTest {
                 val shortRootHeight = candidateHeight(service) +
                     (45 * service.resources.displayMetrics.density).toInt() * 4 +
                     (8 * service.resources.displayMetrics.density).toInt()
-                measureAndLayout(root, widthPixels, View.MeasureSpec.EXACTLY, shortRootHeight)
+                measureAndLayout(host, widthPixels, View.MeasureSpec.EXACTLY, shortRootHeight)
                 assertLargePresetMeasurement(service, root.keyboardView(), widthPixels)
                 assertEquals("$widthPixels short root height", expectedLargeRootHeight(service, root.keyboardView()), root.measuredHeight)
 
@@ -108,8 +112,9 @@ class ImeServiceVoiceLifecycleTest {
                 service.onStartInput(EditorInfo(), true)
                 service.onStartInputView(EditorInfo(), true)
                 val recreated = service.onCreateInputView() as ViewGroup
+                val recreatedHost = imeHost(service, recreated)
                 recreated.candidateStripView().showCandidates(CandidateUiSnapshot(2L, listOf("候補")))
-                measureAndLayout(recreated, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
+                measureAndLayout(recreatedHost, widthPixels, View.MeasureSpec.EXACTLY, staleHeight)
                 assertLargePresetMeasurement(service, recreated.keyboardView(), widthPixels)
                 assertEquals("$widthPixels recreated root height", expectedLargeRootHeight(service, recreated.keyboardView()), recreated.measuredHeight)
             }
@@ -378,6 +383,13 @@ class ImeServiceVoiceLifecycleTest {
     }
 
     private fun candidateHeight(service: ImeService): Int = (50 * service.resources.displayMetrics.density).toInt()
+
+    private fun imeHost(service: ImeService, root: ViewGroup): FrameLayout = FrameLayout(service).apply {
+        addView(root, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ))
+    }
 
     private fun measureAndLayout(root: ViewGroup, width: Int, heightMode: Int, height: Int) {
         root.measure(

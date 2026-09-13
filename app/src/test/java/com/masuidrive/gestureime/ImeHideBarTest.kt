@@ -116,11 +116,11 @@ class ImeHideBarTest {
                     // AndroidX may have only its provisional body at this point. The root must
                     // already be a hard boundary, before its posted RecyclerView work runs.
                     measureAndLayout(root, width)
-                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service, settled = false)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
 
                     Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
                     measureAndLayout(root, width)
-                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service, settled = true)
+                    assertEmojiPickerRootBoundary(picker, keyboard, preset, service)
                 }
             }
         } finally {
@@ -527,11 +527,10 @@ class ImeHideBarTest {
         keyboard: KeyboardView,
         preset: KeyboardHeightPreset,
         service: ImeService,
-        settled: Boolean,
     ) {
         val density = service.resources.displayMetrics.density
         val rowPitchDp = if (
-            settled && preset == KeyboardHeightPreset.LARGE &&
+            preset == KeyboardHeightPreset.LARGE &&
             keyboard.width / density >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP
         ) 62f else preset.rowPitchDp
         val viewport = (8 * density).toInt() + (rowPitchDp * density * 3).toInt()

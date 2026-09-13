@@ -196,7 +196,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             updateEmojiPickerLayout(candidateHeight)
             updateVoicePanelLayout(candidateHeight)
         }
-        return IntrinsicImeInputRoot(this).apply {
+        return IntrinsicImeInputRoot(this) { measuredWidth ->
+            synchronizeOverlayLayouts(candidateHeight, measuredWidth)
+        }.apply {
             addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             addView(publicPicker, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
                 gravity = android.view.Gravity.TOP
@@ -254,19 +256,31 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         return if (navigationHeight == 0) 0 else resources.getDimensionPixelSize(navigationHeight)
     }
 
-    private fun updateVoicePanelLayout(candidateHeight: Int) {
+    private fun synchronizeOverlayLayouts(candidateHeight: Int, measuredWidth: Int) {
+        val keyboard = keyboardView ?: return
+        val viewportHeight = keyboard.emojiPickerOverlayHeightForWidth(measuredWidth).toInt()
+        val overlayHeight = candidateHeight + viewportHeight
+        val pickerNeedsSync = emojiPickerControlTop != overlayHeight ||
+            listOfNotNull(publicEmojiPicker, privateEmojiPicker).any { it.layoutParams.height != overlayHeight }
+        if (pickerNeedsSync) updateEmojiPickerLayout(candidateHeight, measuredWidth)
+        if (voicePanel?.layoutParams?.height != overlayHeight) updateVoicePanelLayout(candidateHeight, measuredWidth)
+    }
+
+    private fun updateVoicePanelLayout(candidateHeight: Int, measuredWidth: Int? = null) {
         val panel = voicePanel ?: return
         val keyboard = keyboardView ?: return
         panel.layoutParams = (panel.layoutParams as? FrameLayout.LayoutParams ?: return).apply {
-            height = candidateHeight + keyboard.emojiPickerOverlayHeight().toInt()
+            height = candidateHeight + (measuredWidth?.let(keyboard::emojiPickerOverlayHeightForWidth)
+                ?: keyboard.emojiPickerOverlayHeight()).toInt()
         }
         panel.requestLayout()
     }
 
     /** AndroidX owns its category header and grid; KeyboardView keeps only the fixed controls. */
-    private fun updateEmojiPickerLayout(candidateHeight: Int) {
+    private fun updateEmojiPickerLayout(candidateHeight: Int, measuredWidth: Int? = null) {
         val keyboard = keyboardView ?: return
-        val viewportHeight = keyboard.emojiPickerOverlayHeight().toInt()
+        val viewportHeight = (measuredWidth?.let(keyboard::emojiPickerOverlayHeightForWidth)
+            ?: keyboard.emojiPickerOverlayHeight()).toInt()
         val pickerHeight = candidateHeight + viewportHeight
         emojiPickerHeaderHeight = candidateHeight
         emojiPickerControlTop = candidateHeight + viewportHeight
@@ -1487,14 +1501,17 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 }
 
 /**
- * InputMethodService can measure a newly created input view with the previous editor's exact
- * window height. The content is still a fixed candidate row plus four keyboard rows, so let it
- * replace only a too-short exact measurement with the already measured child total.
+ * InputMethodService can pass a newly created input view the previous editor's short exact or
+ * AT_MOST window height. The content is a fixed candidate row plus four keyboard rows, so use
+ * its measured child total whenever the host's transient constraint is too short.
  */
-private class IntrinsicImeInputRoot(context: Context) : FrameLayout(context) {
+private class IntrinsicImeInputRoot(
+    context: Context,
+    private val beforeChildMeasure: (Int) -> Unit = {},
+) : FrameLayout(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        beforeChildMeasure(View.MeasureSpec.getSize(widthMeasureSpec))
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        if (View.MeasureSpec.getMode(heightMeasureSpec) != View.MeasureSpec.EXACTLY) return
         val content = getChildAt(0) as? ViewGroup ?: return
         val intrinsicHeight = (0 until content.childCount).sumOf { content.getChildAt(it).measuredHeight }
         if (intrinsicHeight <= measuredHeight) return
