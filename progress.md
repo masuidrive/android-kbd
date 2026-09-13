@@ -277,3 +277,4 @@
 [2026/09/13 20:49] 公開前の全検証を再実行し、fast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3系統がすべて成功した。v0.15.10として製品ページとマニュアルの配布リンク・変更点を更新した。
 [2026/09/13 20:56] 独立reviewで、Fold姿勢変更後にsafe insetが更新されても一時的な0通知で初期値へ戻る問題を検出した。正値のたびにfallbackを更新し、72→0、72→96→0、96→72→0を回帰test化した。修正後の全検証はfast-checks、全unit・lint・APK build、API 36.1実Mozc connected testの3/3 PASSだった。
 [2026/09/13 21:02] v0.15.10最終APKをAPI 36.1 AVDへ再導入し、versionCode 26、versionName 0.15.10、38,801,950 bytes、SHA-256 `d8ceced3ca3bc2dc0fd3085e9e0a7722e189b0dcd944c0c5515da673ccbda618`を確認した。GitHub pushは外部originへの送信に対する自動承認審査で拒否されたため、local commitとmasuidrive.jpの未commit差分までで停止した。
+[2026/09/13 21:15] 明示承認後、Android branch `1c07662`をpushし、v0.15.10 APKをGitHub Releaseへ単体公開した。公開APKを再取得してSHA-256完全一致を確認した。masuidrive.jp main `c6261f0`をpushし、Pages run `34756551069`成功、公開製品ページは412px幅で横overflow 0、操作mock・v0.15.10表示・APK直リンクを確認した。
