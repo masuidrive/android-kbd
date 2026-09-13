@@ -1,6 +1,6 @@
 # Work Notes: 260911-063912-fix-intermittent-keyboard-vertical-offset
 
-## Status: PDH-human-review
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -19,10 +19,10 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] 実機feedback: 候補なしの初期表示から最初のかな候補表示へ移ってもIME root総高とキー上端・下端を動かさない
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
@@ -64,6 +64,11 @@
 [2026/09/13 12:19 JST] API 36.1 AVDの通常入力欄でかなlayerを表示し、候補なしと「さ」入力後の候補5件表示を比較した。どちらもInputMethod window frameは`[0,1545][1080,2400]`で完全一致し、候補欄上端・1行目key上端・最下段key下端も画像上で不変だった。
 
 [2026/09/13 16:29 JST] v0.15.7の実機画像ではwindow下端とnavigation領域は安定していた一方、4行のkey pitchが高い「大」ではなく未選択fallbackの「標準」へ解決されていた。`c31ede9`で未保存・旧版upgrade・不正値のfallbackを「大」に変更し、明示保存済みの小・標準・大は維持した。412/840pxのかなDual Flickでinput viewを連続再生成しても248dpのキー領域を保持する回帰と、設定画面で明示した標準を再生成後も保持する回帰を追加した。
+[2026/09/13 17:13 JST] ユーザ確認で、添付画像は高さ未選択の初期状態ではなく「大」を使用している状態からアプリ切替後だけ4行が縮んだ症状だと判明した。v0.15.8のfresh preferences検証は別経路であり、添付画像の問題を再現・解決した証拠にならない。AC 5を明示保存済みプリセットの切替時保持へ戻し、StatusをPDH-implementへ差し戻した。SharedPreferences値、`KeyboardUiState.heightPreset`、`KeyboardView`実測高、IME root/window高、density/configurationを同じ切替順で観測する。
+
+[2026/09/13 17:39 JST] 保存値と`KeyboardUiState.heightPreset`がLargeのままでも、入力先切替時に親が前の短いIME frameを`EXACTLY`で渡すと、wideの4行が本来の62dp row pitchから約45dp/rowへ圧縮される状態を回帰testで再現した。添付画像も正常時の約163px pitchに対して約117px pitchで、プリセット間の10%差では説明できない。`1e3e9f2`でIME内の`KeyboardView`をintrinsic高で測り、too-short exact rootを候補欄と4行の子合計高へ戻した。初期値と後続listenerのnavigation inset種別もvisibility非依存のnavigation barへ統一し、600dp以上のLargeを従来の62dpへ復元した。v0.15.8で変更した未設定fallbackは原因と無関係だったためStandardへ戻した。
+
+- 重複検出 skip: `similarity-generic`が実行環境のPATHに導入されていないため。変更は既存class内の測定分岐と単一のprivate root classに限定し、同型実装がないことを`rg`で確認した。
 
 - `0647b58`: `KeyboardView`を`height=0, weight=1`から`WRAP_CONTENT`へ変更し、IMEの`AT_MOST`計測でもintrinsic高をroot desired heightへ含めるようにした。
 - `9dd8a10`: private editorでcandidate stripを`GONE`にしていた別の50dp移動を`INVISIBLE`へ変更し、通常→password→通常のroot/keyboard高不変を固定した。
@@ -108,14 +113,15 @@
 - Fold相当の1768x2208へ実行中に再構成し、`docs/verification/v0.15.6-height-fold-wide.png`と`v0.15.6-height-fold-wide-after-candidates.png`を目視した。Dual Flickの候補なし・候補ありはともにInputMethod frame `[0,1332][1768,2208]`で、4行目とEnterはsystem navigation barの上に完全表示された。
 - 独立reviewでv0.15.5のstale decor Major解消を確認し、新規Critical/Majorなし、release blockerなし。API 28でdecor未到着時にlegacy navigation resourceを読むproduction branchの実端末証拠がない点は、pure resolver反例testで値の優先順位を固定したうえで非阻害Minorとして記録した。
 - 独立AC verifierはAC 1〜4をすべてVERIFIEDとした。phoneの候補前後・hide/show・app switch・Dark再構成、Fold相当幅のDual Flick候補前後、候補/音声状態と全layerのgeometry testを根拠に採用した。API 28 legacy branchの実画面未取得は上記Minorと同じ扱いで、AC未達やrelease blockerではない。
-- v0.15.8 reviewではCritical/Major 0、AC 5 VERIFIED。未保存・不正値だけLargeへ解決し、全3プリセットの明示値保持、412/840px再生成test、phone・hide/show・Fold相当の実画像が一致した。旧高さticketに残っていた「標準」fallbackのMinorは現行仕様へ更新して解消した。
+- v0.15.8 reviewはfresh preferencesの既定Largeと単純なinput view再生成だけを確認しており、明示保存済みLargeでの実アプリ切替症状を再現していないため、AC 5の根拠から除外した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 - `technical-reference.md` Design decision 18を訂正し、system navigation bottom insetを`KeyboardView`の初回measure前に4行の下へseedし、API 30以上のcurrent metrics（0を含む）を最優先する契約を記録した。
-- Design decision 16へ、未保存・不正な高さ値は「大」、明示保存済みの小・標準・大は維持する契約を追記した。
+- Design decision 16を訂正し、未保存・不正値はStandard、600dp以上で明示選択したLargeは従来の62dp、明示保存済みの全presetはアプリ切替後も維持する契約を記録した。
+- Design decision 18へ、親が再利用したtoo-short exact frameをIME rootが子のintrinsic合計高へ戻し、初期値と後続listenerで同じnavigation bar insetを使う契約を記録した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
@@ -123,7 +129,7 @@
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
 
 - 確認手順: 任意アプリで通常欄をfocusし、IMEをhide/showする。別入力欄とpassword欄へ切り替えても候補欄50dpと4行key clusterの上端・下端が動かないことを確認する。
-- v0.15.8確認手順: 高さを未選択の新規導入状態で通常欄を開き、高い「大」の4行が表示されることを確認する。IME hide/showとアプリ切替後も高さが変わらず、設定で標準を選んだ場合だけ標準が維持されることを確認する。
+- AC 5確認手順: 設定画面で「大」を一度明示選択して保存値を確認する。同じIME serviceのまま入力テスト→Chrome等の別アプリ→入力テストと切り替え、各初回focus、IME hide/show、Fold相当の幅変更後も「大」の4行高が維持されることを確認する。
 - ユーザの明示close承認まではticketを閉じない。
 
 ## Discoveries

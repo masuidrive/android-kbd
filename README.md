@@ -2,7 +2,7 @@
 
 スマホ幅とタブレット幅で使える、オフライン日本語入力対応の Android IME です。Foldでは閉じたスマホ幅と開いたタブレット幅の両方へ同じ操作体系で対応します。かな、テンキー、絵文字、QWERTY、記号、音声の4行レイヤーを Custom View で描画し、絵文字のrecentは端末内だけに保存します。同梱した Mozc 辞書でかな漢字変換と確定後の次単語予測を行います。入力文字をログや端末外へ送信しません。
 
-現行の公開準備版は **v0.15.8**（versionCode 24）です。配布用の未圧縮APK名は `gesture-ime-v0.15.8.apk` です。
+現行の公開準備版は **v0.15.9**（versionCode 25）です。配布用の未圧縮APK名は `gesture-ime-v0.15.9.apk` です。
 
 ## 必要な環境
 
@@ -33,7 +33,7 @@ adb shell ime set com.masuidrive.gestureime/.ImeService
 
 セットアップ画面は、status barの下に固定した「masuidrive-kbd 設定」バーから戻れます。設定内容だけをスクロールでき、Light/Darkのsystem bar iconもAndroidテーマへ追従します。
 
-入力設定の「キーボードの高さ」では小・標準・大を選べ、初期値は大です。大は60dp row pitchで、キー4行は248dpです。選択済みの高さはIME再表示後も維持します。画面幅とDual Flickは列数だけを変え、候補欄50dpとnavigation barのsafe areaはキー4行の高さへ加えません。
+入力設定の「キーボードの高さ」では小・標準・大を選べ、初期値は標準です。小は50dp row pitchで208dp、標準は55dpで228dp、大はスマホ幅で60dp・248dpです。大を選んだ600dp以上の画面では、Dual Flick導入前から使っていた62dp row pitch・256dpを維持します。選択済みの高さはIME再表示やアプリ切替後も維持します。候補欄50dpとnavigation barのsafe areaはキー4行の高さへ加えません。
 
 左下のレイヤーキーは、左へフリックすると音声入力、上で日本語、右でQWERTY、下でテンキーへ切り替えます。記号は「#!」キーで開きます。Enterは上フリックでCtrl+J、下でPasteです。候補内容が変わると候補欄は先頭へ戻り、選択中候補だけをaccent色で示します。独自のキーボードを閉じる行はなく、AndroidのOS操作でIMEを閉じます。
 
