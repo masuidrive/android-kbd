@@ -54,6 +54,54 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun kanaSmallKeyDispatchesEveryConfiguredFlickOnAndroidViewAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                    setMode(KeyboardMode.KANA)
+                }
+                activity.setContentView(view)
+                val accentId = KeyboardLayouts.layout(KeyboardMode.KANA, false, false).rows
+                    .flatMap { it.keys }
+                    .indexOfFirst { it.kind == KeyKind.ACCENT }
+                check(accentId >= 0) { "Kana layout has no small-key accent" }
+                val distance = 30f * density
+                val flicks = listOf(
+                    "tap" to Triple(0f, 0f, KeyAction.TransformKana(KanaTransform.CYCLE)),
+                    "up" to Triple(0f, -distance, KeyAction.TransformKana(KanaTransform.DAKUTEN)),
+                    "left" to Triple(-distance, 0f, KeyAction.TransformKana(KanaTransform.DAKUTEN)),
+                    "right" to Triple(distance, 0f, KeyAction.TransformKana(KanaTransform.HANDAKUTEN)),
+                    "down" to Triple(0f, distance, null),
+                )
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    view.measure(exact(width), exact(height))
+                    view.layout(0, 0, width, height)
+                    val accent = bounds(view, accentId)
+                    val centerX = accent.exactCenterX()
+                    val centerY = accent.exactCenterY()
+                    flicks.forEachIndexed { index, (name, flick) ->
+                        val (dx, dy, expected) = flick
+                        actions.clear()
+                        val downTime = SystemClock.uptimeMillis() + index * 10L
+                        dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, centerX, centerY)
+                        if (dx != 0f || dy != 0f) {
+                            dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, centerX + dx, centerY + dy)
+                        }
+                        dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, centerX + dx, centerY + dy)
+                        val expectedActions = expected?.let(::listOf) ?: emptyList()
+                        assertEquals("$widthDp dp Kana small-key $name", expectedActions, actions)
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun voiceBackspaceIsTapOnlyAcrossSixEqualColumnsOnAndroidView() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
