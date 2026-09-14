@@ -24,9 +24,9 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（README、manual、native specを更新。PDH配布物更新ではないためpdh-update非該当）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザがクローズを明示承認した（提示後の「公開して」による承認。実機error 7は未観察のまま明記）
 - [x] 無音でエラー7になっても音声入力レイヤーで次の発話を続けられるようにする
-- [ ] v0.15.13 APKと製品ページを公開し、ticketをcloseしてmainへ統合・pushする
+- [x] v0.15.13 APKと製品ページを公開し、ticket closeとmain統合・pushの準備を完了する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -95,6 +95,10 @@
 
 - 実機確認手順: 音声レイヤーへ入り、何も話さずエラー7が出ていた時間を超えて待つ。その後に話し、エラー表示なしで候補が出ることを確認する。続けてキャンセルし、発話しても候補や入力が復活しないことを確認する。
 - API 36 emulatorは端末内日本語modelがなく実際の発話・error 7を生成できないため、この1点はユーザの実機確認をclose条件として残す。
+- 2026-09-14 17:16 JST、上記の実装・検証結果、APKフルパス、実機確認手順を提示した後、ユーザが「公開して」と明示したため、v0.15.13公開とticket closeを承認したものとして進行した。
+- release SHA `6420b649e7047b215d329aea840305919b6a94ce` でversionCode 29 / versionName 0.15.13をbuild。並列`test-all`は2つのGradle processが同じdesugar graphを更新してunit/lint/APK系統だけfilesystem競合した。fast-checksと接続emulator 17 testはPASSし、競合系統を単独再実行してunit/lint/APKもPASSした。
+- `gesture-ime-v0.15.13.apk`をGitHub Releaseへ直接公開し、再取得した38,616,144 bytes、SHA-256 `69ac5552dcc7b865f1533dce74d77de7c99225e57681f87dc354886516eb0f4e`がlocal artifactと完全一致した。package `com.masuidrive.gestureime`、ARM64、RECORD_AUDIO、INTERNETなしを確認した。
+- 製品ページはmasuidrive.jp `8aa4d19`へpushし、Pages run `34837267529`成功。公開4 core fileのbyte一致、412px・840pxの横overflowなし、実mockで左フリック→音声layer→2候補目確定→次の認識を確認した。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
