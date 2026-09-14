@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "無音で終了した音声認識を自動再開して次の発話を待てるようにする"
 created_at: "2026-09-14T07:56:02Z"
 started_at: 2026-09-14T07:57:46Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-14T11:20:08Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
