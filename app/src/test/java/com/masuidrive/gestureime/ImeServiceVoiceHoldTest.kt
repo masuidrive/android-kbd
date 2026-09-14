@@ -10,6 +10,7 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoicePanelView
 import com.masuidrive.gestureime.voice.*
@@ -188,7 +189,7 @@ class ImeServiceVoiceHoldTest {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.level(6f); h.idle()
-        assertEquals(.6f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+        assertEquals(normalizeVoiceInputLevel(6f), requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
 
         h.recognizer.result("選択待ち"); h.idle()
         assertNull(h.root.findKeyboard().voiceInputLevel())
@@ -201,7 +202,7 @@ class ImeServiceVoiceHoldTest {
             java.time.Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
         )
         h.recognizer.support?.invoke(true); h.recognizer.level(9f); h.idle()
-        assertEquals(.9f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+        assertEquals(normalizeVoiceInputLevel(9f), requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
 
         h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
         assertNull(h.root.findKeyboard().voiceInputLevel())

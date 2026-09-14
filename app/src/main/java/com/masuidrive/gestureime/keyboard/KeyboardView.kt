@@ -20,10 +20,20 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
 import kotlin.math.abs
+import kotlin.math.atan
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
-internal fun normalizeVoiceInputLevel(rmsDb: Float): Float = (rmsDb / 10f).coerceIn(0f, 1f)
+private const val VOICE_INPUT_LEVEL_STEPS = 24
+private const val VOICE_INPUT_LEVEL_SCALE_DB = 20.0
+
+/** Maps any finite provider-specific RMS value monotonically into a bounded display level. */
+internal fun normalizeVoiceInputLevel(rmsDb: Float): Float {
+    require(rmsDb.isFinite()) { "RMS input level must be finite" }
+    val bounded = atan(rmsDb.toDouble() / VOICE_INPUT_LEVEL_SCALE_DB) / Math.PI + 0.5
+    return (bounded * VOICE_INPUT_LEVEL_STEPS).roundToInt().toFloat() / VOICE_INPUT_LEVEL_STEPS
+}
 
 class KeyboardView @JvmOverloads constructor(
     context: Context,
@@ -187,11 +197,19 @@ class KeyboardView @JvmOverloads constructor(
         invalidate()
     }
 
-    /** SpeechRecognizer RMS has no documented range, so the renderer owns its finite clamp. */
-    fun setVoiceInputLevel(rmsDb: Float?) {
-        val normalized = rmsDb?.takeIf { state.voiceSessionActive && it.isFinite() }?.let(::normalizeVoiceInputLevel)
-        if (state.voiceInputLevel == normalized) return
+    /** SpeechRecognizer RMS has no documented range, so the renderer owns bounded quantization. */
+    fun setVoiceInputLevel(rmsDb: Float?): Boolean {
+        if (rmsDb != null && !rmsDb.isFinite()) return false
+        val normalized = rmsDb?.takeIf { state.voiceSessionActive }?.let(::normalizeVoiceInputLevel)
+        if (state.voiceInputLevel == normalized) return false
         state = state.copy(voiceInputLevel = normalized)
+        invalidate()
+        return true
+    }
+
+    fun showVoiceInputLevelBaseline() {
+        if (!state.voiceSessionActive || state.voiceInputLevel == 0f) return
+        state = state.copy(voiceInputLevel = 0f)
         invalidate()
     }
 

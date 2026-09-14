@@ -1440,7 +1440,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             keyboardView?.setVoiceSessionActive(state.isContinuousVoiceSession())
             when (state) {
                 VoiceBackendState.Recording,
-                VoiceBackendState.Recognizing -> keyboardView?.setVoiceInputLevel(0f)
+                VoiceBackendState.Recognizing -> keyboardView?.showVoiceInputLevelBaseline()
                 is VoiceBackendState.Partial -> Unit
                 else -> keyboardView?.setVoiceInputLevel(null)
             }

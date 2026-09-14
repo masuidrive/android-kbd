@@ -527,27 +527,52 @@ class KeyboardViewTest {
         val statusBounds = keyBounds(4)
         val originalHeight = view.measuredHeight
 
-        fun waveform(level: Float?): List<RoundDraw> {
-            view.setVoiceInputLevel(level)
+        fun waveformState(): List<RoundDraw> {
             return CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
                 .roundRects.filter { draw ->
                     draw.rect.left >= statusBounds.left && draw.rect.right <= statusBounds.right && draw.rect.width() <= 3f
                 }
         }
+        fun waveform(level: Float?): List<RoundDraw> {
+            view.setVoiceInputLevel(level)
+            return waveformState()
+        }
 
-        val silent = waveform(-5f)
-        val mid = waveform(5f)
-        val loud = waveform(50f)
-        assertEquals(4, silent.size)
+        view.showVoiceInputLevelBaseline()
+        val baseline = waveformState()
+        val quiet = waveform(-40f)
+        val mid = waveform(-10f)
+        val loud = waveform(10f)
+        assertEquals(4, baseline.size)
+        assertEquals(2f, baseline.maxOf { it.rect.height() }, .01f)
+        assertEquals(4, quiet.size)
         assertEquals(4, mid.size)
         assertEquals(4, loud.size)
-        assertTrue(mid.maxOf { it.rect.height() } > silent.maxOf { it.rect.height() })
+        assertTrue(quiet.maxOf { it.rect.height() } > baseline.maxOf { it.rect.height() })
+        assertTrue(mid.maxOf { it.rect.height() } > quiet.maxOf { it.rect.height() })
         assertTrue(loud.maxOf { it.rect.height() } > mid.maxOf { it.rect.height() })
         assertEquals(0, waveform(null).size)
         assertEquals(originalHeight, view.measuredHeight)
-        assertEquals(0f, normalizeVoiceInputLevel(-1f), 0f)
-        assertEquals(.5f, normalizeVoiceInputLevel(5f), 0f)
-        assertEquals(1f, normalizeVoiceInputLevel(11f), 0f)
+        assertTrue(normalizeVoiceInputLevel(-40f) < normalizeVoiceInputLevel(-10f))
+        assertTrue(normalizeVoiceInputLevel(-10f) < normalizeVoiceInputLevel(5f))
+        assertTrue(normalizeVoiceInputLevel(5f) < normalizeVoiceInputLevel(40f))
+        assertEquals(0f, normalizeVoiceInputLevel(-Float.MAX_VALUE), 0f)
+        assertEquals(1f, normalizeVoiceInputLevel(Float.MAX_VALUE), 0f)
+        val orderedLevels = listOf(
+            -Float.MAX_VALUE, -1_000_000f, -1_000f, -100f, -40f, -10f, -1f,
+            0f, 1f, 5f, 10f, 40f, 100f, 1_000f, 1_000_000f, Float.MAX_VALUE,
+        ).map(::normalizeVoiceInputLevel)
+        assertTrue(orderedLevels.all { it in 0f..1f })
+        assertTrue(orderedLevels.zipWithNext().all { (left, right) -> left <= right })
+
+        view.setVoiceInputLevel(-10f)
+        val quantized = view.voiceInputLevel()
+        assertFalse(view.setVoiceInputLevel(-10.1f))
+        assertEquals(quantized, view.voiceInputLevel())
+        assertFalse(view.setVoiceInputLevel(Float.NaN))
+        assertFalse(view.setVoiceInputLevel(Float.POSITIVE_INFINITY))
+        assertFalse(view.setVoiceInputLevel(Float.NEGATIVE_INFINITY))
+        assertEquals(quantized, view.voiceInputLevel())
     }
 
     @Test fun `voice punctuation has the full idle label and commits every flick direction`() {
@@ -1201,6 +1226,9 @@ class KeyboardViewTest {
             super.drawRoundRect(rect, rx, ry, paint)
         }
     }
+
+    private fun KeyboardView.voiceInputLevel(): Float? =
+        (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceInputLevel
 
     private fun exact(size: Int) = android.view.View.MeasureSpec.makeMeasureSpec(size, android.view.View.MeasureSpec.EXACTLY)
 }
