@@ -58,7 +58,7 @@
 - commit `3504748`: controller→service→viewのRMS経路、有限値/generation guard、clamp描画、native regression tests。
 - commit `49c3ef2`: browser mock、native spec、technical reference、README、manualの整合。
 - focused test: `ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew testDebugUnitTest --tests 'com.masuidrive.gestureime.voice.VoiceRecognitionControllerTest' --tests 'com.masuidrive.gestureime.keyboard.KeyboardViewTest' --tests 'com.masuidrive.gestureime.ImeServiceVoiceHoldTest'` PASS。負値/中間/過大RMS、音量と高さの単調増加、Preview、無音再開、非無音error、取消、旧generation callback、4行高さ不変を確認した。
-- final code SHA `49c3ef2`で`scripts/test-all.sh --parallel` PASS（fast-checks、Android unit/lint/apk、2/2）。`similarity-generic`はPATHに未導入のため重複検出skip（環境制約）。
+- code SHA `49c3ef2`で`scripts/test-all.sh --parallel` PASS（fast-checks、Android unit/lint/apk、2/2）。後続のreview修正`b9603a1`でこの証拠は更新し、同SHAで再実行した。`similarity-generic`はPATHに未導入のため重複検出skip（環境制約）。
 - mock surface: ローカル`mock.html?voiceDelayMs=1200`をagent-browserで実際に左フリックし、412pxで波形4本が`4.625/6.766/5.438/4px`へ変化、Previewで0本、2番目候補tap後に再び4本、keyboard高さ278px維持、`scrollWidth=innerWidth=412`を確認した。840pxでも高さ278pxと横overflowなしを確認した。スクリーンショットは`/tmp/md-kbd-voice-waveform.png`（一時検証物、commit対象外）。
 
 ## PDH-review. 品質検証結果
@@ -74,7 +74,17 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | AC1 / RMS正規化 | Major | `rmsDb / 10` clampでは負値`-40`と`-10`がともに0になり、入力が大きいほど波形も大きくなる契約を満たさない | 採用・修正済み | 値域保証なしという既知条件に直接関係する。`atan(rms/20)/π+0.5`で全有限値を有界かつ単調に写して24段階へ量子化した |
+| 2 | 描画頻度 | Minor | `onRmsChanged`のたびに全Viewをinvalidateすると高頻度callbackで不要な再描画が生じる | 採用・修正済み | 同じ表示段階の通知を捨てれば見た目を変えず負荷を抑えられる。setterの戻り値で同一段階が更新なしであることを固定した |
+
+- before反例: `normalizeVoiceInputLevel(-40f) == 0f`かつ`normalizeVoiceInputLevel(-10f) == 0f`で、異なる負の入力レベルが同じ最小波形になった。
+- after: `-40f -> 0.1667`、`-10f -> 0.3333`、`10f -> 0.6667`。`-Float.MAX_VALUE -> 0`から`Float.MAX_VALUE -> 1`まで代表16点が範囲内かつ非減少であることをtestした。quiet/common rangeの描画高もbaseline < -40 < -10 < 10となる。
+- 未通知時はraw `0dB`と混同せず`showVoiceInputLevelBaseline()`で表示level 0を設定する。NaNと±Infinityは現在の表示を変えず、Controllerでもserviceへ通知しない。
+- 描画量子化は24段階。`-10f`と`-10.1f`のように同じ段階へ入る通知では`setVoiceInputLevel`がfalseを返し、state更新と`invalidate()`を行わない。
+- 壊していない側の確認: Preview、無音再開、非無音error、取消の既存状態遷移を含む`ImeServiceVoiceHoldTest`を修正前後でPASS確認し、候補・認識sessionの出力は不変。
+- fix commit `b9603a1`: 負値を保持する単調有界変換、未通知baseline分離、24段階量子化、非有限値無視、回帰test。
+- focused test: `ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew testDebugUnitTest --tests 'com.masuidrive.gestureime.keyboard.KeyboardViewTest' --tests 'com.masuidrive.gestureime.ImeServiceVoiceHoldTest'` PASS。
+- final code SHA `b9603a1`で`scripts/test-all.sh --parallel`を再実行し、fast-checks、Android unit/lint/apkの2/2 PASS。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
