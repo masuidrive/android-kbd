@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 既存のAndroid端末内SpeechRecognizerだけを使い、外部provider pathはない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -51,6 +51,15 @@
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 - `[PDH-ticket-human-review] -> [PDH-implement]` — ユーザの明示依頼とRequired Probes完了により実装開始。
 - 書く前の仮定: `onRmsChanged`はmain threadのactive recognizer generation中に複数回届くが端末ごとの値域は一定でない。旧recognizerのcallback、候補表示中、取消後、別editor sessionでは描画へ反映してはならない。RMS通知が一度もない端末でも既存の認識状態と入力操作は維持する。
+- Android 36 SDKの`RecognitionListener.onRmsChanged` Javadocを確認し、sound level feedback用だがcallback自体と値域には保証がないことを確認した。有限値だけを渡し、描画側で0〜1へclampし、通知前は高さ最小の4本波形を表示する設計を採用した。
+- `VoiceRecognitionController`がrecognizer generationを照合したRMSだけを`ImeService`へ通知し、serviceがeditor token、private状態、VOICE layerを再照合して`KeyboardView`へ渡す。Preview、取消、layer/editor/IME切替、errorはlevelをnullへ戻し、無音自動再開は新generationを0から開始する。
+- 既存6等分`voice-status` slot内へ「認識中」と4本バーを横並びで描画した。hit target、候補panel、4行の測定値、TalkBack nodeは変更していない。
+- 公開mockは実マイクを使わず140ms周期のデモ値で同じ4本波形を動かし、Preview/取消/layer切替でtimerと表示を破棄する。`site/mock.html`と`docs/reference/mock-source.html`はbyte-identical。
+- commit `3504748`: controller→service→viewのRMS経路、有限値/generation guard、clamp描画、native regression tests。
+- commit `49c3ef2`: browser mock、native spec、technical reference、README、manualの整合。
+- focused test: `ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew testDebugUnitTest --tests 'com.masuidrive.gestureime.voice.VoiceRecognitionControllerTest' --tests 'com.masuidrive.gestureime.keyboard.KeyboardViewTest' --tests 'com.masuidrive.gestureime.ImeServiceVoiceHoldTest'` PASS。負値/中間/過大RMS、音量と高さの単調増加、Preview、無音再開、非無音error、取消、旧generation callback、4行高さ不変を確認した。
+- final code SHA `49c3ef2`で`scripts/test-all.sh --parallel` PASS（fast-checks、Android unit/lint/apk、2/2）。`similarity-generic`はPATHに未導入のため重複検出skip（環境制約）。
+- mock surface: ローカル`mock.html?voiceDelayMs=1200`をagent-browserで実際に左フリックし、412pxで波形4本が`4.625/6.766/5.438/4px`へ変化、Previewで0本、2番目候補tap後に再び4本、keyboard高さ278px維持、`scrollWidth=innerWidth=412`を確認した。840pxでも高さ278pxと横overflowなしを確認した。スクリーンショットは`/tmp/md-kbd-voice-waveform.png`（一時検証物、commit対象外）。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -70,6 +79,7 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+- `technical-reference.md` 10へ、RMS callbackのgeneration/editor guard、表示側clamp、状態別clear、無音再開時の再初期化を追記した。`docs/reference/sites-native-spec.txt`、README、manual、browser mockも同じ表示契約へ揃えた。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
@@ -80,6 +90,7 @@
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
      Implementation で対応した場合は実装ログに合わせて、ticket に書き戻しが必要な場合は PM に flag する。 -->
+- `onRmsChanged`は音声入力レベル用途だが、Android APIはcallback頻度・発生・数値範囲を保証しない。したがって波形は環境の相対的な目安であり、騒音判定や数値表示には使わない。
 
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する
