@@ -40,6 +40,7 @@ internal fun interface VoiceRecognizerFactory {
 
 internal interface VoiceRecognizerListener {
     fun onReady()
+    fun onInputLevel(rmsDb: Float)
     fun onEndOfSpeech()
     fun onPartialResults(results: List<String>)
     fun onResults(results: List<String>)
@@ -52,13 +53,18 @@ class VoiceRecognitionController internal constructor(
     private val onDeviceAvailable: () -> Boolean,
     private val factory: VoiceRecognizerFactory,
     private val onState: (VoiceBackendState, Long) -> Unit,
+    private val onInputLevel: (Float, Long) -> Unit = { _, _ -> },
 ) {
     companion object {
         internal const val END_OF_SPEECH_GRACE_MS = 500L
         internal const val SILENCE_RESTART_DELAY_MS = 250L
     }
 
-    constructor(context: Context, onState: (VoiceBackendState, Long) -> Unit) : this(
+    constructor(
+        context: Context,
+        onState: (VoiceBackendState, Long) -> Unit,
+        onInputLevel: (Float, Long) -> Unit = { _, _ -> },
+    ) : this(
         sdkInt = Build.VERSION.SDK_INT,
         hasPermission = {
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -71,6 +77,7 @@ class VoiceRecognitionController internal constructor(
             else error("On-device speech recognition requires Android 12")
         },
         onState = onState,
+        onInputLevel = onInputLevel,
     )
 
     private var generation = 0L
@@ -100,6 +107,7 @@ class VoiceRecognitionController internal constructor(
         val activeGeneration = generation
         val created = runCatching { factory.create(object : VoiceRecognizerListener {
             override fun onReady() = deliver(activeGeneration, VoiceBackendState.Recording)
+            override fun onInputLevel(rmsDb: Float) = deliverInputLevel(activeGeneration, rmsDb)
             override fun onEndOfSpeech() {
                 deliver(activeGeneration, partialState())
                 scheduleEndOfSpeechFallback(activeGeneration)
@@ -177,6 +185,12 @@ class VoiceRecognitionController internal constructor(
 
     private fun deliver(activeGeneration: Long, state: VoiceBackendState) {
         if (activeGeneration == generation) onState(state, editorToken)
+    }
+
+    private fun deliverInputLevel(activeGeneration: Long, rmsDb: Float) {
+        if (activeGeneration == generation && preview == null && rmsDb.isFinite()) {
+            onInputLevel(rmsDb, editorToken)
+        }
     }
 
     private fun finishWith(activeGeneration: Long, state: VoiceBackendState) {
@@ -301,7 +315,7 @@ private class AndroidVoiceRecognizer(
     )
     override fun onError(error: Int) = listener.onError(error)
     override fun onBeginningOfSpeech() = Unit
-    override fun onRmsChanged(rmsdB: Float) = Unit
+    override fun onRmsChanged(rmsdB: Float) = listener.onInputLevel(rmsdB)
     override fun onBufferReceived(buffer: ByteArray?) = Unit
     override fun onPartialResults(partialResults: Bundle?) = listener.onPartialResults(
         partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty(),

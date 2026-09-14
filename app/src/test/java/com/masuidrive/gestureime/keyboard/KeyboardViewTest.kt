@@ -520,6 +520,36 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `voice waveform clamps provider levels grows with sound and clears without changing geometry`() {
+        view.setMode(KeyboardMode.VOICE)
+        view.measure(exact(412), exact(228)); view.layout(0, 0, 412, 228)
+        view.setVoiceSessionActive(true)
+        val statusBounds = keyBounds(4)
+        val originalHeight = view.measuredHeight
+
+        fun waveform(level: Float?): List<RoundDraw> {
+            view.setVoiceInputLevel(level)
+            return CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+                .roundRects.filter { draw ->
+                    draw.rect.left >= statusBounds.left && draw.rect.right <= statusBounds.right && draw.rect.width() <= 3f
+                }
+        }
+
+        val silent = waveform(-5f)
+        val mid = waveform(5f)
+        val loud = waveform(50f)
+        assertEquals(4, silent.size)
+        assertEquals(4, mid.size)
+        assertEquals(4, loud.size)
+        assertTrue(mid.maxOf { it.rect.height() } > silent.maxOf { it.rect.height() })
+        assertTrue(loud.maxOf { it.rect.height() } > mid.maxOf { it.rect.height() })
+        assertEquals(0, waveform(null).size)
+        assertEquals(originalHeight, view.measuredHeight)
+        assertEquals(0f, normalizeVoiceInputLevel(-1f), 0f)
+        assertEquals(.5f, normalizeVoiceInputLevel(5f), 0f)
+        assertEquals(1f, normalizeVoiceInputLevel(11f), 0f)
+    }
+
     @Test fun `voice punctuation has the full idle label and commits every flick direction`() {
         view.setMode(KeyboardMode.VOICE)
         view.measure(exact(412), exact(228)); view.layout(0, 0, 412, 228)

@@ -23,6 +23,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+internal fun normalizeVoiceInputLevel(rmsDb: Float): Float = (rmsDb / 10f).coerceIn(0f, 1f)
+
 class KeyboardView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -179,9 +181,17 @@ class KeyboardView @JvmOverloads constructor(
     fun setVoiceSessionActive(active: Boolean) {
         if (state.voiceSessionActive == active) return
         if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
-        state = state.copy(voiceSessionActive = active)
+        state = state.copy(voiceSessionActive = active, voiceInputLevel = if (active) state.voiceInputLevel else null)
         accessibilityHelper.invalidateRoot()
         if (active) accessibilityHelper.announceVoiceSessionStarted()
+        invalidate()
+    }
+
+    /** SpeechRecognizer RMS has no documented range, so the renderer owns its finite clamp. */
+    fun setVoiceInputLevel(rmsDb: Float?) {
+        val normalized = rmsDb?.takeIf { state.voiceSessionActive && it.isFinite() }?.let(::normalizeVoiceInputLevel)
+        if (state.voiceInputLevel == normalized) return
+        state = state.copy(voiceInputLevel = normalized)
         invalidate()
     }
 
@@ -356,9 +366,33 @@ class KeyboardView @JvmOverloads constructor(
         textPaint.alpha = 255
         textPaint.textSize = sp(13f)
         textPaint.textAlign = Paint.Align.CENTER
-        val x = status.bounds.centerX()
+        val labelWidth = textPaint.measureText("認識中")
+        val amplitude = state.voiceInputLevel
+        val barWidth = dp(1.5f)
+        val barGap = dp(1.5f)
+        val barCount = 4
+        val waveWidth = barWidth * barCount + barGap * (barCount - 1)
+        val groupWidth = if (amplitude == null) labelWidth else labelWidth + dp(4f) + waveWidth
+        val x = status.bounds.centerX() - groupWidth / 2f + labelWidth / 2f
         val y = status.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
         canvas.drawText("認識中", x, y, textPaint)
+        if (amplitude == null) return
+
+        keyPaint.color = context.getColor(R.color.keyboard_muted_text)
+        keyPaint.alpha = 255
+        val waveLeft = x + labelWidth / 2f + dp(4f)
+        val waveCenterY = status.bounds.centerY()
+        val shape = floatArrayOf(0.55f, 1f, 0.72f, 0.42f)
+        shape.forEachIndexed { index, multiplier ->
+            val height = dp(2f) + dp(12f) * amplitude * multiplier
+            val left = waveLeft + index * (barWidth + barGap)
+            canvas.drawRoundRect(
+                RectF(left, waveCenterY - height / 2f, left + barWidth, waveCenterY + height / 2f),
+                barWidth / 2f,
+                barWidth / 2f,
+                keyPaint,
+            )
+        }
     }
 
     private fun voiceSessionStatusBounds(): android.graphics.Rect? {

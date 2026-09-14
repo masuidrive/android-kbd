@@ -122,7 +122,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             context = applicationContext,
             clipboard = getSystemService(ClipboardManager::class.java),
         )
-        voiceController = VoiceRecognitionController(applicationContext, ::onVoiceState)
+        voiceController = VoiceRecognitionController(applicationContext, ::onVoiceState, ::onVoiceInputLevel)
         // The picker default provider is asynchronous and may retain an old selection. Our
         // providers own all recents, so clear the library store before either picker exists.
         getSharedPreferences("androidx.emoji2.emojipicker.preferences", MODE_PRIVATE).edit().clear().commit()
@@ -1439,6 +1439,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (keyboardMode == KeyboardMode.VOICE) {
             keyboardView?.setVoiceSessionActive(state.isContinuousVoiceSession())
             when (state) {
+                VoiceBackendState.Recording,
+                VoiceBackendState.Recognizing -> keyboardView?.setVoiceInputLevel(0f)
+                is VoiceBackendState.Partial -> Unit
+                else -> keyboardView?.setVoiceInputLevel(null)
+            }
+            when (state) {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
                     candidates = listOf(state.text)
@@ -1483,6 +1489,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             }
         }
         setVoiceUi(state.toUiState())
+    }
+
+    internal fun onVoiceInputLevel(rmsDb: Float, token: Long) {
+        if (!editorSession.isCurrent(token) || textController.isPrivateField || keyboardMode != KeyboardMode.VOICE) return
+        keyboardView?.setVoiceInputLevel(rmsDb)
     }
 
     private fun commitVoiceHold(requestId: Long, token: Long, text: String) {

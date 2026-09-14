@@ -154,8 +154,9 @@ class ImeServiceVoiceHoldTest {
         assertEquals(1, h.recognizer.startCount)
 
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
-        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.level(8f); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY); h.idle()
         assertTrue(!h.root.findKeyboard().voiceSessionActive())
+        assertNull(h.root.findKeyboard().voiceInputLevel())
         assertEquals(2, h.recognizer.startCount)
     }
 
@@ -181,6 +182,29 @@ class ImeServiceVoiceHoldTest {
         assertEquals("", h.input.text)
         h.recognizer.result("続きの発話"); h.idle()
         assertTrue(h.root.allText().contains("続きの発話"))
+    }
+
+    @Test fun voiceInputLevelAppearsOnlyDuringRecognitionAndReturnsAfterSilenceRestart() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.level(6f); h.idle()
+        assertEquals(.6f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+
+        h.recognizer.result("選択待ち"); h.idle()
+        assertNull(h.root.findKeyboard().voiceInputLevel())
+        h.root.findText("選択待ち").performClick(); h.idle()
+        assertEquals(0f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+
+        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+        assertEquals(0f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(
+            java.time.Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+        h.recognizer.support?.invoke(true); h.recognizer.level(9f); h.idle()
+        assertEquals(.9f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+
+        h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
+        assertNull(h.root.findKeyboard().voiceInputLevel())
     }
 
     @Test fun editorChangeCancelsAPendingSilenceRestart() {
@@ -377,7 +401,7 @@ class ImeServiceVoiceHoldTest {
     ) {
         val controller=Robolectric.buildService(ImeService::class.java).create(); val service=controller.get()
         val input=RecordingConnection(View(RuntimeEnvironment.getApplication())); val recognizer=FakeRecognizer(); val conversion=FakeConversion(); lateinit var root:View
-        init { ImePreferences.setEnglishSuggestionsEnabled(service, false); val text=TextInputController({input},service,service.getSystemService(ClipboardManager::class.java)); val voice=VoiceRecognitionController(35,{permission},{onDevice},{ l->recognizer.listener=l;recognizer },service::onVoiceState); service.installTestDependencies(voice,text,conversion); service.onStartInput(EditorInfo(),false); root=service.onCreateInputView() }
+        init { ImePreferences.setEnglishSuggestionsEnabled(service, false); val text=TextInputController({input},service,service.getSystemService(ClipboardManager::class.java)); val voice=VoiceRecognitionController(35,{permission},{onDevice},{ l->recognizer.listener=l;recognizer },service::onVoiceState,service::onVoiceInputLevel); service.installTestDependencies(voice,text,conversion); service.onStartInput(EditorInfo(),false); root=service.onCreateInputView() }
         fun begin(){ service.onVoiceHold(VoiceHoldEvent.Begin(1)); idle(); recognizer.support?.invoke(true); if(ready) recognizer.ready(); idle() }
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
@@ -388,7 +412,7 @@ class ImeServiceVoiceHoldTest {
         override fun getTextBeforeCursor(length:Int,flags:Int):CharSequence=text.takeLast(length)
         override fun deleteSurroundingText(beforeLength:Int,afterLength:Int):Boolean { text=text.dropLast(beforeLength); return true }
     }
-    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; var startCount=0; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){startCount++}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun end()=listener?.onEndOfSpeech(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
+    private class FakeRecognizer:VoiceRecognizer { var listener:VoiceRecognizerListener?=null; var support:((Boolean?)->Unit)?=null; var startCount=0; override fun checkJapaneseSupport(c:(Boolean?)->Unit){support=c}; override fun start(){startCount++}; override fun stop(){}; override fun cancel(){}; override fun destroy(){}; fun ready()=listener?.onReady(); fun level(rmsDb:Float)=listener?.onInputLevel(rmsDb); fun end()=listener?.onEndOfSpeech(); fun partial(s:String)=listener?.onPartialResults(listOf(s)); fun result(vararg s:String)=listener?.onResults(s.toList()); fun error(code:Int)=listener?.onError(code) }
     private class FakeConversion:ConversionEngine { private var resetGate:CompletableDeferred<Unit>?=null; fun armReset(){resetGate=CompletableDeferred()}; fun releaseReset(){resetGate?.complete(Unit)}; override suspend fun start(reading:String)=ConversionState(reading, emptyList(),-1); override suspend fun update(reading:String)=start(reading); override suspend fun nextCandidate()=start(""); override suspend fun commit(index:Int)=null; override suspend fun reset(){ resetGate?.await() } }
 
     private fun View.allText():List<String> { val result=mutableListOf<String>(); fun visit(v:View){ if(v is android.widget.TextView) result+=v.text.toString(); if(v is android.view.ViewGroup) repeat(v.childCount){visit(v.getChildAt(it))} }; visit(this); return result }
@@ -397,4 +421,5 @@ class ImeServiceVoiceHoldTest {
     private fun View.findCandidateStrip(): CandidateStripView { if(this is CandidateStripView)return this; if(this is android.view.ViewGroup)repeat(childCount){runCatching{return getChildAt(it).findCandidateStrip()}}; error("missing candidate strip") }
     private fun KeyboardView.mode(): KeyboardMode = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).mode
     private fun KeyboardView.voiceSessionActive(): Boolean = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceSessionActive
+    private fun KeyboardView.voiceInputLevel(): Float? = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceInputLevel
 }

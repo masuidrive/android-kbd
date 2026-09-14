@@ -16,6 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class VoiceRecognitionControllerTest {
     private val states = mutableListOf<Pair<VoiceBackendState, Long>>()
+    private val inputLevels = mutableListOf<Pair<Float, Long>>()
     private val recognizer = FakeRecognizer()
 
     @Test
@@ -218,6 +219,31 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
+    fun inputLevelUsesTheCurrentRecognizerGenerationAndIgnoresNonFiniteAndFinishedCallbacks() {
+        val controller = controller()
+        controller.start(18, continueAfterSilence = true)
+        recognizer.supportCallback?.invoke(true)
+        val firstListener = recognizer.listener
+
+        firstListener?.onInputLevel(-3f)
+        firstListener?.onInputLevel(4.5f)
+        firstListener?.onInputLevel(Float.NaN)
+        assertEquals(listOf(-3f to 18L, 4.5f to 18L), inputLevels)
+
+        firstListener?.onError(SpeechRecognizer.ERROR_NO_MATCH)
+        firstListener?.onInputLevel(9f)
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onInputLevel(7f)
+        recognizer.listener?.onResults(listOf("完了"))
+        recognizer.listener?.onInputLevel(10f)
+
+        assertEquals(listOf(-3f to 18L, 4.5f to 18L, 7f to 18L), inputLevels)
+    }
+
+    @Test
     fun stopWaitsForFinalResult() {
         val controller = controller()
         controller.start(5)
@@ -269,6 +295,7 @@ class VoiceRecognitionControllerTest {
         onDeviceAvailable = { available },
         factory = VoiceRecognizerFactory { listener -> recognizer.apply { this.listener = listener } },
         onState = { state, token -> states += state to token },
+        onInputLevel = { level, token -> inputLevels += level to token },
     )
 
     private class FakeRecognizer : VoiceRecognizer {
