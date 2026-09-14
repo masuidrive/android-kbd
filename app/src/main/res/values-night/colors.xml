@@ -22,4 +22,5 @@
     <color name="candidate_selected">#A8CEFF</color>
     <color name="candidate_selected_text">#102844</color>
     <color name="candidate_background">#414144</color>
+    <color name="candidate_difference_text">#8EDCFF</color>
 </resources>

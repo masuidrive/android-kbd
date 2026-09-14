@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
@@ -13,6 +17,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.masuidrive.gestureime.R
+
+private const val MAX_HIGHLIGHT_CANDIDATES = 8
+private const val MAX_DIFF_MATRIX_CELLS = 262_144
 
 /** Fixed voice-layer surface for partial text, errors, and one selectable candidate per row. */
 class VoicePanelView @JvmOverloads constructor(
@@ -80,8 +87,9 @@ class VoicePanelView @JvmOverloads constructor(
 
     private fun renderCandidates() {
         val snapshot = candidates
+        val differenceMasks = candidateDifferenceMasks(snapshot.candidates)
         snapshot.candidates.forEachIndexed { index, candidate ->
-            rows.addView(textRow(candidate).apply {
+            rows.addView(textRow(highlightDifferences(candidate, differenceMasks[index])).apply {
                 isEnabled = snapshot.selectable
                 isClickable = snapshot.selectable
                 isFocusable = snapshot.selectable
@@ -113,7 +121,35 @@ class VoicePanelView @JvmOverloads constructor(
         }, rowLayout())
     }
 
-    private fun textRow(value: String) = TextView(context).apply {
+    private fun highlightDifferences(value: String, differences: BooleanArray): CharSequence {
+        if (differences.none { it }) return value
+        val styled = SpannableString(value)
+        val codePoints = value.codePoints().toArray()
+        var utf16Offset = 0
+        var rangeStart = -1
+        codePoints.forEachIndexed { index, codePoint ->
+            if (differences[index] && rangeStart < 0) rangeStart = utf16Offset
+            if (!differences[index] && rangeStart >= 0) {
+                applyDifferenceStyle(styled, rangeStart, utf16Offset)
+                rangeStart = -1
+            }
+            utf16Offset += Character.charCount(codePoint)
+        }
+        if (rangeStart >= 0) applyDifferenceStyle(styled, rangeStart, utf16Offset)
+        return styled
+    }
+
+    private fun applyDifferenceStyle(text: SpannableString, start: Int, end: Int) {
+        text.setSpan(
+            ForegroundColorSpan(context.getColor(R.color.candidate_difference_text)),
+            start,
+            end,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        text.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+
+    private fun textRow(value: CharSequence) = TextView(context).apply {
         text = value
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         setTextColor(context.getColor(R.color.keyboard_text))
@@ -133,4 +169,71 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+}
+
+/** Marks code points that are not part of every candidate's pairwise longest common subsequence. */
+private fun candidateDifferenceMasks(candidates: List<String>): List<BooleanArray> {
+    val codePoints = candidates.map { it.codePoints().toArray() }
+    val noDifferences = { codePoints.map { BooleanArray(it.size) } }
+    if (codePoints.size !in 2..MAX_HIGHLIGHT_CANDIDATES) return noDifferences()
+    val common = codePoints.map { BooleanArray(it.size) { true } }
+    for (leftIndex in 0 until codePoints.lastIndex) {
+        for (rightIndex in leftIndex + 1 until codePoints.size) {
+            val (leftMatches, rightMatches) = alignedMatches(codePoints[leftIndex], codePoints[rightIndex])
+                ?: return noDifferences()
+            common[leftIndex].indices.forEach { common[leftIndex][it] = common[leftIndex][it] && leftMatches[it] }
+            common[rightIndex].indices.forEach { common[rightIndex][it] = common[rightIndex][it] && rightMatches[it] }
+        }
+    }
+    return common.map { flags -> BooleanArray(flags.size) { !flags[it] } }
+}
+
+private fun alignedMatches(left: IntArray, right: IntArray): Pair<BooleanArray, BooleanArray>? {
+    val leftMatches = BooleanArray(left.size)
+    val rightMatches = BooleanArray(right.size)
+    val sharedLimit = minOf(left.size, right.size)
+    var prefix = 0
+    while (prefix < sharedLimit && left[prefix] == right[prefix]) {
+        leftMatches[prefix] = true
+        rightMatches[prefix] = true
+        prefix++
+    }
+    var suffix = 0
+    while (
+        suffix < sharedLimit - prefix &&
+        left[left.lastIndex - suffix] == right[right.lastIndex - suffix]
+    ) {
+        leftMatches[left.lastIndex - suffix] = true
+        rightMatches[right.lastIndex - suffix] = true
+        suffix++
+    }
+    val leftLength = left.size - prefix - suffix
+    val rightLength = right.size - prefix - suffix
+    val rowWidth = rightLength + 1
+    val matrixCells = (leftLength + 1L) * rowWidth
+    if (matrixCells > MAX_DIFF_MATRIX_CELLS) return null
+    val lengths = IntArray(matrixCells.toInt())
+    fun lengthAt(leftOffset: Int, rightOffset: Int) = lengths[leftOffset * rowWidth + rightOffset]
+    for (leftOffset in leftLength - 1 downTo 0) {
+        for (rightOffset in rightLength - 1 downTo 0) {
+            lengths[leftOffset * rowWidth + rightOffset] = if (left[prefix + leftOffset] == right[prefix + rightOffset]) {
+                lengthAt(leftOffset + 1, rightOffset + 1) + 1
+            } else {
+                maxOf(lengthAt(leftOffset + 1, rightOffset), lengthAt(leftOffset, rightOffset + 1))
+            }
+        }
+    }
+    var leftOffset = 0
+    var rightOffset = 0
+    while (leftOffset < leftLength && rightOffset < rightLength) {
+        when {
+            left[prefix + leftOffset] == right[prefix + rightOffset] -> {
+                leftMatches[prefix + leftOffset++] = true
+                rightMatches[prefix + rightOffset++] = true
+            }
+            lengthAt(leftOffset + 1, rightOffset) >= lengthAt(leftOffset, rightOffset + 1) -> leftOffset++
+            else -> rightOffset++
+        }
+    }
+    return leftMatches to rightMatches
 }

@@ -4,7 +4,7 @@ base_branch: features/260913-174108-adjust-symbol-tab-and-katakana-flick
 description: "音声認識候補どうしで異なる文字を強調し、似た全文候補を判別しやすくする"
 created_at: "2026-09-14T01:31:11Z"
 started_at: 2026-09-14T01:32:54Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-14T05:41:04Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -15,10 +15,10 @@ canceled_at: null # Do not modify manually
 
 ### What / Acceptance Criteria
 音声入力を使う人が、よく似た全文候補の違う部分をひと目で見分けて選べるようになる。
-- [ ] AC 1: 複数の音声認識候補が表示されたとき、候補間で異なる文字だけがアクセント色と太字で表示される。
-- [ ] AC 2: 全文が同じ候補では文字が強調されず、候補が1件だけの場合も通常の表示になる。
-- [ ] AC 3: 強調表示された候補をタップすると、その候補の全文だけが入力され、音声認識が再開する。
-- [ ] AC 4: Androidネイティブと製品ページの操作mockで、同じ候補差分が強調される。
+- [x] AC 1: 複数の音声認識候補が表示されたとき、候補間で異なる文字だけがアクセント色と太字で表示される。
+- [x] AC 2: 全文が同じ候補では文字が強調されず、候補が1件だけの場合も通常の表示になる。
+- [x] AC 3: 強調表示された候補をタップすると、その候補の全文だけが入力され、音声認識が再開する。
+- [x] AC 4: Androidネイティブと製品ページの操作mockで、同じ候補差分が強調される。
 
 ### Architectural Invariants check
 AI-1〜AI-4と矛盾しない。認識結果の比較と表示は端末内で行い、入力文字列を保存・送信しない。

@@ -282,3 +282,10 @@
 [2026/09/14 02:48] NativeへTabキーイベント送信を追加し、記号レイヤーを`Esc`・`Tab`表示へ変更した。変換中Enterはタップで無変換、左・上フリックでカタカナ確定へ揃えた。配置・ASCII 95文字網羅・Tab down/upのfocused unit testが成功し、操作mockも同期した。
 [2026/09/14 02:59] v0.15.11公開候補は順次実行したfast-checks、unit 241件、lint、APK build、実Mozc connected 16件が全て成功した。API 36.1 AVDでSymbolsのTabが次の入力欄へfocusを移し、変換中Enterの上フリックが「さ」を「サ」で確定することを実操作とスクリーンショットで確認した。製品ページのmockでもEsc・Tab表示、直接コロンなし、Tab文字入力、1280pxと412pxの横overflowなしを確認した。
 [2026/09/14 03:05] Android branchをpushし、v0.15.11 APKをGitHub Releaseへ単体公開した。公開APKを再取得して38,599,684 bytes、SHA-256 `26f2cbf398502f00ab18fcabe458ae0eadeb73624411f7cd3f5af857a5e7f912`の完全一致を確認した。masuidrive.jp main `b293616`をpushし、Pages run `34773423226`成功、公開index・mock・manual・新規画像のbyte一致と412px横overflowなし、公開mockのEsc・Tab表示と直接コロンなしを確認した。
+[2026/09/14 10:31] 音声認識の似た全文候補で異なる文字だけを強調する作業を開始した。
+[2026/09/14 10:50] 音声候補差分をnativeと操作mockで青い太字表示へ変更した。レビューで見つかった重複文字の整列差と長文時の比較負荷を修正し、長文では全文と選択を保ったまま装飾だけを安全に省略する。
+[2026/09/14 10:55] API 36.1 AVDの実Android Viewで、提示された3候補の差分が順に「を・ほ」「を・欲」「が・欲」だけ強調されるinstrumentation testを確認した。独立再レビューはCritical・Majorなし。
+[2026/09/14 10:56] 音声候補差分の最終候補でfast-checks・全unit・lint・APK buildが2/2、API 36.1 AVDのinstrumentationが17/17成功した。チケットをhuman review待ちへ移した。
+[2026/09/14 12:18] 音声候補差分commitを再ビルドし、最新成果物`app-debug.apk`の生成とGitHub作業ブランチ同期を確認した。旧公開版用に残っている`gesture-ime-v0.15.11.apk`とは区別した。
+[2026/09/14 12:24] ユーザの公開承認を受け、音声候補の差分強調をv0.15.12・versionCode 28としてAPKと製品ページへ公開する作業を開始した。
+[2026/09/14 12:34] v0.15.12 APKをGitHub Releaseへ単体公開し、再取得した38,599,756 bytesとSHA-256 `450ab93c8f571316cebfbf366f4f6656929d5b750a9028cff009de1b1679f86e`がlocal APKと完全一致した。masuidrive.jp main `55cf085`をpushし、Pages run `34802979326`成功、公開4ファイルのbyte一致、412px・840pxの横overflowなし、音声候補差分と2行目確定後の連続認識を実ブラウザで確認した。
