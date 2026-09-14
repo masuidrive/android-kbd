@@ -12,20 +12,20 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 端末内Android SpeechRecognizerだけを使い、外部provider/API経路はない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer観察済み（接続API 36 emulatorのinstrumentation 3/3 PASS。日本語端末内modelがないため実providerのerror 7再現はhuman reviewへ明示）
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（README、manual、native specを更新。PDH配布物更新ではないためpdh-update非該当）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
-- [ ] 無音でエラー7になっても音声入力レイヤーで次の発話を続けられるようにする
+- [x] 無音でエラー7になっても音声入力レイヤーで次の発話を続けられるようにする
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -60,6 +60,8 @@
 - controller generationで古いcallbackを無効化し、同じgenerationに紐づく250msの再開Runnableをcancel/destroy/start時に削除する。待機中はRecognizingを通知して音声レイヤーを有効に保つ。
 - 変更後、無音エラー6・7の再開、途中結果の候補化、cancel、入力欄切替、古いcallback破棄、単発hold非再開、RECOGNIZER_BUSY非再開を含む37 testがPASSした。
 - similarity-genericは環境に導入されていないため重複検出をskipした。変更は既存controller内のlifecycle helperと既存testへの追加に限定した。
+- 論理commit: `290fec7`（controller/service実装と回帰test）、`925b6ee`（README・manual・native/technical reference）。
+- final product SHA `925b6eedb7d1c70a9b29e95d147c80e3590bdd91` で `ANDROID_HOME="$HOME/Library/Android/sdk" scripts/test-all.sh --parallel --connected` を実行し、fast-checks、unit/lint/APK、API 36 emulator instrumentationの3/3がPASSした。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -74,16 +76,24 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 再試行制御 | Minor | 即時に6/7を返し続けるproviderではキャンセルまで250msごとにrecognizerを再生成する | 採用済み仕様 | 無待機spinではなく、「キャンセルまで次の発話を待つ」というACを満たす。自動再開を6/7だけに限定し、利用者がキャンセルできる。 |
+
+- 独立review（対象 `925b6eedb7d1c70a9b29e95d147c80e3590bdd91`）はCritical/Majorなし。AC 1〜4の実装対応とfocused regression PASSを確認した。
+- 修正前後の反例はRECOGNIZER_BUSY、partialありNO_MATCH、単発holdを使用した。修正前29 test PASS、修正後は同じ経路を含む37 test PASSで出力を維持した。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
+- Decision 21へ、partialなしのNO_MATCH/SPEECH_TIMEOUTだけ250ms後に同じeditor tokenで再開することと、cancel・他error・IME/editor終了で再開予約を破棄することを追記した。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 実機確認手順: 音声レイヤーへ入り、何も話さずエラー7が出ていた時間を超えて待つ。その後に話し、エラー表示なしで候補が出ることを確認する。続けてキャンセルし、発話しても候補や入力が復活しないことを確認する。
+- API 36 emulatorは端末内日本語modelがなく実際の発話・error 7を生成できないため、この1点はユーザの実機確認をclose条件として残す。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
