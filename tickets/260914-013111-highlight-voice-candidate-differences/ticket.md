@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260913-174108-adjust-symbol-tab-and-katakana-flick
 description: "音声認識候補どうしで異なる文字を強調し、似た全文候補を判別しやすくする"
 created_at: "2026-09-14T01:31:11Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-14T01:32:54Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
