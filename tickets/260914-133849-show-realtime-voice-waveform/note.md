@@ -1,6 +1,6 @@
 # Work Notes: 260914-133849-show-realtime-voice-waveform
 
-## Status: PDH-implement (In progress 2026-09-14 22:41 JST)
+## Status: PDH-human-review (Review requested 2026-09-14 23:18 JST)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -16,14 +16,14 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 既存のAndroid端末内SpeechRecognizerだけを使い、外部provider pathはない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -86,6 +86,19 @@
 - focused test: `ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew testDebugUnitTest --tests 'com.masuidrive.gestureime.keyboard.KeyboardViewTest' --tests 'com.masuidrive.gestureime.ImeServiceVoiceHoldTest'` PASS。
 - final code SHA `b9603a1`で`scripts/test-all.sh --parallel`を再実行し、fast-checks、Android unit/lint/apkの2/2 PASS。
 
+### Findings (PDH-review-2)
+
+- 独立再reviewはCritical/Majorなし。負のRMS値の順序、未通知baselineとの分離、24段階量子化による不要な再描画抑制、generation/editor/private/VOICE guard、全終了経路でのclearを確認した。
+- final code SHA `b9603a1`で`scripts/test-all.sh --parallel --connected`を実行し、fast-checks、Android unit/lint/apk、API 36.1 AVDの実Mozc instrumentationが3/3 PASS。
+
+## PDH-verify. AC裏取りとsurface観察
+
+- AC1: native実装、Robolectric、browser mockでは達成を確認した。`onRmsChanged`から4本波形までの経路と`-40 < -10 < 10`の描画高を固定し、mockでは412px/840pxでリアルタイム変動を観察した。API 36.1 AVDには日本語端末内音声modelがないため、本物のマイク入力へ追従するnative E2Eだけは未確認。
+- AC2: fake recognizerで無音error 6/7後の250ms再開、新generationのlevel表示、旧generation callback拒否を確認した。実機の日本語端末内modelで無音待機後に再発話するE2Eは未確認。
+- AC3: Preview、取消、非無音error、layer/editor/IME切替でのclear、候補確定後の次回認識、4行高さ不変をRobolectricとmockで確認した。
+- Surface Observer: final APKをAPI 36.1 AVDへinstallし、入力テスト画面のQWERTYから左フリックで実native音声layerへ遷移した。通常layerと音声layerのIME外形高さは同一で、キーの重なり・横overflowはない。端末内modelなしのerror表示では波形と認識状態が消えている。証拠はticket-local `tmp/native-ime.png`と`tmp/native-voice.png`（git対象外）。
+- 実マイクE2Eを除く決定論的な検証は完了した。実機で「無音→発話」「error 7自動再開→発話」「候補preview→確定→次の認識」を確認してAC1/AC2を最終承認する。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -95,6 +108,9 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+- review APK: `/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/app-debug.apk`。versionCode 29、versionName 0.15.13、38,820,150 bytes、SHA-256 `92d70a5540e7ff886b01b3c88dd8c4b5972ca32e01bb3c173e0636898917dc42`。
+- 実機確認手順: 音声layerへ左フリックし、静かな状態と発話中で`認識中`横の4本波形が変わることを確認する。無言でerror 7相当の自動再開を待ってから再び発話し、波形と候補が戻ることを確認する。候補previewでは波形が消え、候補確定後に次の認識と波形が再開し、取消で消えることを確認する。
+- 公開・close前の未完了は上記の実マイク確認だけ。コード、mock、ドキュメント、全自動test、native高さ/error surfaceは確認済み。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
