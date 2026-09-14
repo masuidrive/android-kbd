@@ -75,6 +75,37 @@ class VoicePanelViewTest {
     }
 
     @Test
+    fun insertedTextAndSupplementaryCharactersAreHighlightedAsWholeCharacters() {
+        listOf(
+            listOf("今日は晴れ", "今日はよく晴れ") to listOf(emptyList(), listOf("よく")),
+            listOf("候補😀です", "候補😃です") to listOf(listOf("😀"), listOf("😃")),
+        ).forEachIndexed { index, (candidates, expected) ->
+            val view = view()
+            view.showCandidates(CandidateUiSnapshot(45L + index, candidates))
+            view.setVoiceState(VoiceUiSnapshot(55L + index, VoiceUiState.Preview(candidates.first())))
+            assertEquals(expected, view.allTextViews().map(::highlightedText))
+        }
+    }
+
+    @Test
+    fun repeatedCharactersUseTheSameDeterministicAlignmentAsTheMock() {
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(47, listOf("aa", "ab")))
+        view.setVoiceState(VoiceUiSnapshot(57, VoiceUiState.Preview("aa")))
+        assertEquals(listOf(listOf(1 to 2), listOf(1 to 2)), view.allTextViews().map(::highlightedRanges))
+    }
+
+    @Test
+    fun excessiveDiffWorkKeepsFullCandidatesVisibleWithoutBlockingForHighlighting() {
+        val candidates = listOf("あ".repeat(600), "い".repeat(600))
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(48, candidates))
+        view.setVoiceState(VoiceUiSnapshot(58, VoiceUiState.Preview(candidates.first())))
+        assertEquals(candidates, view.allTextViews().map { it.text.toString() })
+        assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+    }
+
+    @Test
     fun partialAndUnavailableArePlainNonClickablePanelText() {
         val view = view()
         listOf(
@@ -130,6 +161,13 @@ class VoicePanelViewTest {
         return text.getSpans(0, text.length, ForegroundColorSpan::class.java)
             .sortedBy(text::getSpanStart)
             .map { text.subSequence(text.getSpanStart(it), text.getSpanEnd(it)).toString() }
+    }
+
+    private fun highlightedRanges(view: TextView): List<Pair<Int, Int>> {
+        val text = view.text as Spanned
+        return text.getSpans(0, text.length, ForegroundColorSpan::class.java)
+            .sortedBy(text::getSpanStart)
+            .map { text.getSpanStart(it) to text.getSpanEnd(it) }
     }
 
     private fun View.allTextViews(): List<TextView> = descendants().filterIsInstance<TextView>()

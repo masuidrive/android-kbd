@@ -16,9 +16,10 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.RecyclerView
 import com.masuidrive.gestureime.R
+
+private const val MAX_HIGHLIGHT_CANDIDATES = 8
+private const val MAX_DIFF_MATRIX_CELLS = 262_144
 
 /** Fixed voice-layer surface for partial text, errors, and one selectable candidate per row. */
 class VoicePanelView @JvmOverloads constructor(
@@ -140,7 +141,7 @@ class VoicePanelView @JvmOverloads constructor(
 
     private fun applyDifferenceStyle(text: SpannableString, start: Int, end: Int) {
         text.setSpan(
-            ForegroundColorSpan(context.getColor(R.color.app_accent)),
+            ForegroundColorSpan(context.getColor(R.color.candidate_difference_text)),
             start,
             end,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
@@ -173,11 +174,13 @@ class VoicePanelView @JvmOverloads constructor(
 /** Marks code points that are not part of every candidate's pairwise longest common subsequence. */
 private fun candidateDifferenceMasks(candidates: List<String>): List<BooleanArray> {
     val codePoints = candidates.map { it.codePoints().toArray() }
-    if (codePoints.size < 2) return codePoints.map { BooleanArray(it.size) }
+    val noDifferences = { codePoints.map { BooleanArray(it.size) } }
+    if (codePoints.size !in 2..MAX_HIGHLIGHT_CANDIDATES) return noDifferences()
     val common = codePoints.map { BooleanArray(it.size) { true } }
     for (leftIndex in 0 until codePoints.lastIndex) {
         for (rightIndex in leftIndex + 1 until codePoints.size) {
             val (leftMatches, rightMatches) = alignedMatches(codePoints[leftIndex], codePoints[rightIndex])
+                ?: return noDifferences()
             common[leftIndex].indices.forEach { common[leftIndex][it] = common[leftIndex][it] && leftMatches[it] }
             common[rightIndex].indices.forEach { common[rightIndex][it] = common[rightIndex][it] && rightMatches[it] }
         }
@@ -185,15 +188,49 @@ private fun candidateDifferenceMasks(candidates: List<String>): List<BooleanArra
     return common.map { flags -> BooleanArray(flags.size) { !flags[it] } }
 }
 
-private fun alignedMatches(left: IntArray, right: IntArray): Pair<BooleanArray, BooleanArray> {
-    val result = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-        override fun getOldListSize() = left.size
-        override fun getNewListSize() = right.size
-        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int) =
-            left[oldItemPosition] == right[newItemPosition]
-        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int) = true
-    }, false)
-    val leftMatches = BooleanArray(left.size) { result.convertOldPositionToNew(it) != RecyclerView.NO_POSITION }
-    val rightMatches = BooleanArray(right.size) { result.convertNewPositionToOld(it) != RecyclerView.NO_POSITION }
+private fun alignedMatches(left: IntArray, right: IntArray): Pair<BooleanArray, BooleanArray>? {
+    val leftMatches = BooleanArray(left.size)
+    val rightMatches = BooleanArray(right.size)
+    val sharedLimit = minOf(left.size, right.size)
+    var prefix = 0
+    while (prefix < sharedLimit && left[prefix] == right[prefix]) {
+        leftMatches[prefix] = true
+        rightMatches[prefix] = true
+        prefix++
+    }
+    var suffix = 0
+    while (
+        suffix < sharedLimit - prefix &&
+        left[left.lastIndex - suffix] == right[right.lastIndex - suffix]
+    ) {
+        leftMatches[left.lastIndex - suffix] = true
+        rightMatches[right.lastIndex - suffix] = true
+        suffix++
+    }
+    val leftLength = left.size - prefix - suffix
+    val rightLength = right.size - prefix - suffix
+    if (leftLength.toLong() * rightLength > MAX_DIFF_MATRIX_CELLS) return null
+    val lengths = Array(leftLength + 1) { IntArray(rightLength + 1) }
+    for (leftOffset in leftLength - 1 downTo 0) {
+        for (rightOffset in rightLength - 1 downTo 0) {
+            lengths[leftOffset][rightOffset] = if (left[prefix + leftOffset] == right[prefix + rightOffset]) {
+                lengths[leftOffset + 1][rightOffset + 1] + 1
+            } else {
+                maxOf(lengths[leftOffset + 1][rightOffset], lengths[leftOffset][rightOffset + 1])
+            }
+        }
+    }
+    var leftOffset = 0
+    var rightOffset = 0
+    while (leftOffset < leftLength && rightOffset < rightLength) {
+        when {
+            left[prefix + leftOffset] == right[prefix + rightOffset] -> {
+                leftMatches[prefix + leftOffset++] = true
+                rightMatches[prefix + rightOffset++] = true
+            }
+            lengths[leftOffset + 1][rightOffset] >= lengths[leftOffset][rightOffset + 1] -> leftOffset++
+            else -> rightOffset++
+        }
+    }
     return leftMatches to rightMatches
 }
