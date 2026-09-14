@@ -291,3 +291,6 @@
 [2026/09/14 12:34] v0.15.12 APKをGitHub Releaseへ単体公開し、再取得した38,599,756 bytesとSHA-256 `450ab93c8f571316cebfbf366f4f6656929d5b750a9028cff009de1b1679f86e`がlocal APKと完全一致した。masuidrive.jp main `55cf085`をpushし、Pages run `34802979326`成功、公開4ファイルのbyte一致、412px・840pxの横overflowなし、音声候補差分と2行目確定後の連続認識を実ブラウザで確認した。
 [2026/09/14 14:43] 音声候補差分ticketをcloseしてbase branchへsquash統合し、全開発履歴をmain `734c405`へfast-forwardしてGitHubへpushした。GitHubのdefault branchも古い初期featureからmainへ更新した。
 [2026/09/14 16:56] 音声入力レイヤーで無音時のエラー6・7から自動復帰し、キャンセルまで次の発話を待てるようにする作業をチケット260914-075602で開始した。
+[2026/09/14 17:10] 無音エラー6・7だけを250ms後に新しい端末内認識へつなぐ実装とlifecycle回帰testを追加した。final product SHA `925b6ee`でfast-checks、unit/lint/APK、接続API 36 emulator instrumentationの3/3 PASS、独立reviewはCritical/Majorなし。実機の日本語端末内modelによるerror 7再現確認をhuman reviewへ残した。
+[2026/09/14 17:16] ユーザの公開承認を、無音復帰ticketのclose承認とv0.15.13公開指示として受領し、APK・GitHub Release・製品ページの公開作業を開始した。
+[2026/09/14 20:17] v0.15.13 APKをGitHub Releaseへ直接公開し、再取得した38,616,144 bytesとSHA-256 `69ac5552dcc7b865f1533dce74d77de7c99225e57681f87dc354886516eb0f4e`がlocal artifactと完全一致した。製品ページはmasuidrive.jp `8aa4d19`へpushし、Pages run `34837267529`成功、公開4ファイルのbyte一致、412px・840pxの横overflowなし、音声layerの候補確定後の連続認識を実ブラウザで確認した。

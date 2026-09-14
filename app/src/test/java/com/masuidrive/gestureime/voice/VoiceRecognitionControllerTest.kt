@@ -123,6 +123,65 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
+    fun continuousRecognitionRestartsAfterSilenceErrorsWithoutShowingAnError() {
+        listOf(SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_NO_MATCH).forEach { error ->
+            states.clear()
+            val controller = controller()
+            controller.start(14, continueAfterSilence = true)
+            recognizer.supportCallback?.invoke(true)
+            val silentListener = recognizer.listener
+            silentListener?.onError(error)
+
+            assertEquals(VoiceBackendState.Recognizing to 14L, states.last())
+            assertEquals(1, recognizer.startCount)
+
+            Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+                Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+            )
+            recognizer.supportCallback?.invoke(true)
+            assertEquals(2, recognizer.startCount)
+
+            silentListener?.onResults(listOf("古い結果"))
+            recognizer.listener?.onResults(listOf("次の発話"))
+            assertEquals(VoiceBackendState.Preview(listOf("次の発話")) to 14L, states.last())
+            assertEquals("次の発話", controller.confirm(14))
+
+            recognizer.reset()
+        }
+    }
+
+    @Test
+    fun cancelPreventsAScheduledSilenceRestart() {
+        val controller = controller()
+        controller.start(15, continueAfterSilence = true)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onError(SpeechRecognizer.ERROR_NO_MATCH)
+        controller.cancel()
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+
+        assertEquals(VoiceBackendState.Idle to 15L, states.last())
+        assertEquals(1, recognizer.startCount)
+    }
+
+    @Test
+    fun oneShotRecognitionStillReportsNoMatchWithoutRestarting() {
+        val controller = controller()
+        controller.start(16)
+        recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onError(SpeechRecognizer.ERROR_NO_MATCH)
+
+        Shadows.shadowOf(Looper.getMainLooper()).idleFor(
+            Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+
+        assertTrue(states.last().first is VoiceBackendState.Unavailable)
+        assertEquals(1, recognizer.startCount)
+    }
+
+    @Test
     fun busyErrorDoesNotPromoteAPartial() {
         val controller = controller()
         controller.start(13)
@@ -223,5 +282,12 @@ class VoiceRecognitionControllerTest {
         override fun stop() { stopped = true }
         override fun cancel() = Unit
         override fun destroy() { destroyed = true }
+        fun reset() {
+            listener = null
+            supportCallback = null
+            startCount = 0
+            stopped = false
+            destroyed = false
+        }
     }
 }

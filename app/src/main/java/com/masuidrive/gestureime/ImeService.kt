@@ -1079,7 +1079,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun startContinuousVoiceRecognition(token: Long, session: Long) {
         if (!isCurrentContinuousVoiceSession(session, token)) return
-        voiceController.start(token)
+        voiceController.start(token, continueAfterSilence = true)
     }
 
     private fun isCurrentContinuousVoiceSession(session: Long, token: Long): Boolean =

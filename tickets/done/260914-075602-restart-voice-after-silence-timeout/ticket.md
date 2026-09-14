@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "無音で終了した音声認識を自動再開して次の発話を待てるようにする"
 created_at: "2026-09-14T07:56:02Z"
 started_at: 2026-09-14T07:57:46Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-14T11:20:08Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -17,10 +17,10 @@ Product Brief の6レイヤーを同じジェスチャー体系で素早く使�
 ### What / Acceptance Criteria
 この ticket が終わると、音声入力レイヤーの利用者が、無言の時間を挟んでもキャンセルするまで次の発話を続けて入力できるようになる。
 
-- [ ] AC 1: 音声入力レイヤーで有効な途中結果がないまま無音系エラー6（SPEECH_TIMEOUT）または7（NO_MATCH）が発生すると、エラー表示へ切り替わらず「認識中」のまま次の発話を待つ。
-- [ ] AC 2: 無音系エラーの前に有効な途中結果がある場合は、従来どおりその結果を選択可能な候補として残し、候補を選ぶと入力して次の認識へ進む。
-- [ ] AC 3: キャンセル、レイヤー切替、入力欄切替、IME終了後は無音系エラーから再開せず、終了済み認識の遅延結果も入力しない。
-- [ ] AC 4: 権限不足、端末内日本語モデル不足、認識器処理中など無音以外のエラーは従来どおり利用者へ表示し、自動再開しない。
+- [x] AC 1: 音声入力レイヤーで有効な途中結果がないまま無音系エラー6（SPEECH_TIMEOUT）または7（NO_MATCH）が発生すると、エラー表示へ切り替わらず「認識中」のまま次の発話を待つ。
+- [x] AC 2: 無音系エラーの前に有効な途中結果がある場合は、従来どおりその結果を選択可能な候補として残し、候補を選ぶと入力して次の認識へ進む。
+- [x] AC 3: キャンセル、レイヤー切替、入力欄切替、IME終了後は無音系エラーから再開せず、終了済み認識の遅延結果も入力しない。
+- [x] AC 4: 権限不足、端末内日本語モデル不足、認識器処理中など無音以外のエラーは従来どおり利用者へ表示し、自動再開しない。
 
 ### Architectural Invariants check
 端末内 SpeechRecognizer のセッション制御だけを変更し、AI-1 のネットワーク非使用、AI-2 の入力非送信、AI-3 の小さな変換境界と矛盾しない。
