@@ -9,9 +9,9 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -53,6 +53,13 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- 修正前の反例として、無音とは別分岐の「途中結果あり + NO_MATCHは候補へ昇格」「RECOGNIZER_BUSYはUnavailable」「権限・モデル不足」を含むVoiceRecognitionControllerTestとImeServiceVoiceHoldTestの29 testがPASSすることを確認した。
+- 依存仮定: `onError(6|7)`を受けたSpeechRecognizerは終了済みで再利用せず、新しいrecognizerが必要。factoryの生成・support確認を通常start経路からやり直す。
+- 依存仮定: 連続音声レイヤーと単発holdは同じcontrollerを使う。`continueAfterSilence`を連続レイヤーのstartだけで有効にし、単発holdのエラー終了は維持した。
+- controller generationで古いcallbackを無効化し、同じgenerationに紐づく250msの再開Runnableをcancel/destroy/start時に削除する。待機中はRecognizingを通知して音声レイヤーを有効に保つ。
+- 変更後、無音エラー6・7の再開、途中結果の候補化、cancel、入力欄切替、古いcallback破棄、単発hold非再開、RECOGNIZER_BUSY非再開を含む37 testがPASSした。
+- similarity-genericは環境に導入されていないため重複検出をskipした。変更は既存controller内のlifecycle helperと既存testへの追加に限定した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
