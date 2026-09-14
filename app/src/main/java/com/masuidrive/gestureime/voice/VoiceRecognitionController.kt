@@ -55,6 +55,7 @@ class VoiceRecognitionController internal constructor(
 ) {
     companion object {
         internal const val END_OF_SPEECH_GRACE_MS = 500L
+        internal const val SILENCE_RESTART_DELAY_MS = 250L
     }
 
     constructor(context: Context, onState: (VoiceBackendState, Long) -> Unit) : this(
@@ -79,6 +80,7 @@ class VoiceRecognitionController internal constructor(
     private var preview: List<String>? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var endOfSpeechFallback: Runnable? = null
+    private var silenceRestart: Runnable? = null
 
     fun initialState(): VoiceBackendState = when {
         sdkInt < Build.VERSION_CODES.S -> VoiceBackendState.Unavailable("Android 12以降で利用できます")
@@ -87,7 +89,7 @@ class VoiceRecognitionController internal constructor(
         else -> VoiceBackendState.Idle
     }
 
-    fun start(token: Long) {
+    fun start(token: Long, continueAfterSilence: Boolean = false) {
         requireMainThread()
         when (val initial = initialState()) {
             VoiceBackendState.Idle -> Unit
@@ -118,6 +120,8 @@ class VoiceRecognitionController internal constructor(
                 val lastPartial = partial?.takeIf(String::isNotBlank)
                 if (lastPartial != null && error.isEligibleForPartialFallback()) {
                     finishWithPreview(activeGeneration, listOf(lastPartial))
+                } else if (continueAfterSilence && error.isSilenceError()) {
+                    scheduleSilenceRestart(activeGeneration)
                 } else {
                     finishWith(activeGeneration, VoiceBackendState.Unavailable(errorMessage(error)))
                 }
@@ -193,6 +197,7 @@ class VoiceRecognitionController internal constructor(
     private fun invalidate(destroy: Boolean) {
         generation++
         clearEndOfSpeechFallback()
+        clearSilenceRestart()
         partial = null
         preview = null
         recognizer?.let {
@@ -225,6 +230,24 @@ class VoiceRecognitionController internal constructor(
         endOfSpeechFallback = null
     }
 
+    private fun scheduleSilenceRestart(activeGeneration: Long) {
+        if (activeGeneration != generation) return
+        val token = editorToken
+        invalidate(destroy = true)
+        onState(VoiceBackendState.Recognizing, token)
+        val restartGeneration = generation
+        silenceRestart = Runnable {
+            silenceRestart = null
+            if (restartGeneration != generation || token != editorToken) return@Runnable
+            start(token, continueAfterSilence = true)
+        }.also { mainHandler.postDelayed(it, SILENCE_RESTART_DELAY_MS) }
+    }
+
+    private fun clearSilenceRestart() {
+        silenceRestart?.let(mainHandler::removeCallbacks)
+        silenceRestart = null
+    }
+
     private fun errorMessage(error: Int) = when (error) {
         SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
             "日本語の端末内音声モデルがありません"
@@ -238,6 +261,9 @@ class VoiceRecognitionController internal constructor(
         SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
         SpeechRecognizer.ERROR_CLIENT,
     )
+
+    private fun Int.isSilenceError(): Boolean = this == SpeechRecognizer.ERROR_NO_MATCH ||
+        this == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
 }
 
 @RequiresApi(Build.VERSION_CODES.S)

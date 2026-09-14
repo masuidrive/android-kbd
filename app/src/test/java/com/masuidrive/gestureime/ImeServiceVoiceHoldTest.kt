@@ -140,7 +140,7 @@ class ImeServiceVoiceHoldTest {
         assertEquals(KeyboardMode.NUMBERS, h.root.findKeyboard().mode())
     }
 
-    @Test fun editorChangeAndErrorStopContinuousVoiceWithoutStatusOrRestart() {
+    @Test fun editorChangeAndNonSilenceErrorStopContinuousVoiceWithoutStatusOrRestart() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
@@ -154,9 +154,51 @@ class ImeServiceVoiceHoldTest {
         assertEquals(1, h.recognizer.startCount)
 
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
-        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY); h.idle()
         assertTrue(!h.root.findKeyboard().voiceSessionActive())
         assertEquals(2, h.recognizer.startCount)
+    }
+
+    @Test fun noMatchWithoutSpeechKeepsTheVoiceLayerActiveAndAcceptsTheNextUtterance() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        val silentListener = h.recognizer.listener
+
+        h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+
+        assertTrue(h.root.findKeyboard().voiceSessionActive())
+        assertFalse(h.root.allText().any { it.contains("error 7") })
+        assertEquals(1, h.recognizer.startCount)
+
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(
+            java.time.Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        assertEquals(2, h.recognizer.startCount)
+
+        silentListener?.onResults(listOf("古い結果")); h.idle()
+        assertEquals("", h.input.text)
+        h.recognizer.result("続きの発話"); h.idle()
+        assertTrue(h.root.allText().contains("続きの発話"))
+    }
+
+    @Test fun editorChangeCancelsAPendingSilenceRestart() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        val silentListener = h.recognizer.listener
+        h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+
+        h.service.onStartInput(EditorInfo(), false)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(
+            java.time.Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
+        )
+        silentListener?.onResults(listOf("別の入力欄へ漏れる結果")); h.idle()
+
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals("", h.input.text)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
     }
 
     @Test fun rapidDoubleTapOfOneVoicePreviewCommitsAndRestartsOnlyOnce() {
