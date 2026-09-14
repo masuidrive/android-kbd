@@ -1,6 +1,6 @@
 # Work Notes: 260914-133849-show-realtime-voice-waveform
 
-## Status: PDH-ticket-human-review (Approved 2026-09-14 22:39 JST)
+## Status: PDH-implement (In progress 2026-09-14 22:41 JST)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -49,6 +49,8 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+- `[PDH-ticket-human-review] -> [PDH-implement]` — ユーザの明示依頼とRequired Probes完了により実装開始。
+- 書く前の仮定: `onRmsChanged`はmain threadのactive recognizer generation中に複数回届くが端末ごとの値域は一定でない。旧recognizerのcallback、候補表示中、取消後、別editor sessionでは描画へ反映してはならない。RMS通知が一度もない端末でも既存の認識状態と入力操作は維持する。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
