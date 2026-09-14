@@ -1,6 +1,9 @@
 package com.masuidrive.gestureime.ui
 
 import android.graphics.drawable.GradientDrawable
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
@@ -38,6 +41,37 @@ class VoicePanelViewTest {
 
         candidates[1].performClick()
         assertEquals(listOf(CandidateUiEvent(41, 1)), events)
+    }
+
+    @Test
+    fun finalCandidatesHighlightOnlyCharactersThatDifferAcrossAlternatives() {
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(42, listOf(
+            "タブレットとかでも横幅を大きめにしてほしい",
+            "タブレットとかでも横幅を大きめにして欲しい",
+            "タブレットとかでも横幅が大きめにして欲しい",
+        )))
+        view.setVoiceState(VoiceUiSnapshot(52, VoiceUiState.Preview("候補あり")))
+
+        val rows = view.allTextViews()
+        assertEquals(listOf(listOf("を", "ほ"), listOf("を", "欲"), listOf("が", "欲")), rows.map(::highlightedText))
+        rows.forEach { row ->
+            val text = row.text as Spanned
+            assertEquals(2, text.getSpans(0, text.length, StyleSpan::class.java).size)
+        }
+    }
+
+    @Test
+    fun oneOrIdenticalCandidatesKeepNormalTextStyle() {
+        listOf(
+            listOf("候補はひとつ"),
+            listOf("同じ候補", "同じ候補"),
+        ).forEachIndexed { index, candidates ->
+            val view = view()
+            view.showCandidates(CandidateUiSnapshot(43L + index, candidates))
+            view.setVoiceState(VoiceUiSnapshot(53L + index, VoiceUiState.Preview(candidates.first())))
+            assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+        }
     }
 
     @Test
@@ -89,6 +123,14 @@ class VoicePanelViewTest {
 
     private fun View.textView(value: String): TextView =
         allTextViews().single { it.text.toString() == value }
+
+    private fun highlightedText(view: TextView): List<String> {
+        val text = view.text
+        if (text !is Spanned) return emptyList()
+        return text.getSpans(0, text.length, ForegroundColorSpan::class.java)
+            .sortedBy(text::getSpanStart)
+            .map { text.subSequence(text.getSpanStart(it), text.getSpanEnd(it)).toString() }
+    }
 
     private fun View.allTextViews(): List<TextView> = descendants().filterIsInstance<TextView>()
 
