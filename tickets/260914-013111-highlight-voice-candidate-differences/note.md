@@ -1,6 +1,6 @@
 # Work Notes: 260914-013111-highlight-voice-candidate-differences
 
-## Status: PDH-ticket-human-review
+## Status: PDH-close (v0.15.12 publication in progress)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -24,7 +24,7 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -97,7 +97,9 @@
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
 - 音声レイヤーで似た候補を表示し、助詞や漢字だけが青い太字になること、各行をタップすると選んだ全文だけが入力され認識中へ戻ることを確認してもらう。
-- 実装・自動検証・独立reviewは完了。ticket closeはユーザの明示承認待ち。
+- 実装・自動検証・独立reviewを完了し、ticket closeをユーザの明示承認待ちとして提示した。
+- [2026/09/14 12:24 JST] 実装・検証結果と作業ブランチpush後、ユーザが「公開して」と明示したため、v0.15.12の公開とticket closeを承認したものとして進行する。
+- merge直後に失う利用者機能はない。音声候補の全文、並び順、tap確定、連続認識を維持し、差分装飾だけを追加する。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
