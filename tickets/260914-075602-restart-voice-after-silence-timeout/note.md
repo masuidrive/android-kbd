@@ -26,6 +26,7 @@
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 - [x] 無音でエラー7になっても音声入力レイヤーで次の発話を続けられるようにする
+- [ ] v0.15.13 APKと製品ページを公開し、ticketをcloseしてmainへ統合・pushする
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
