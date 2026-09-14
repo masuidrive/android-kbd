@@ -209,14 +209,17 @@ private fun alignedMatches(left: IntArray, right: IntArray): Pair<BooleanArray, 
     }
     val leftLength = left.size - prefix - suffix
     val rightLength = right.size - prefix - suffix
-    if (leftLength.toLong() * rightLength > MAX_DIFF_MATRIX_CELLS) return null
-    val lengths = Array(leftLength + 1) { IntArray(rightLength + 1) }
+    val rowWidth = rightLength + 1
+    val matrixCells = (leftLength + 1L) * rowWidth
+    if (matrixCells > MAX_DIFF_MATRIX_CELLS) return null
+    val lengths = IntArray(matrixCells.toInt())
+    fun lengthAt(leftOffset: Int, rightOffset: Int) = lengths[leftOffset * rowWidth + rightOffset]
     for (leftOffset in leftLength - 1 downTo 0) {
         for (rightOffset in rightLength - 1 downTo 0) {
-            lengths[leftOffset][rightOffset] = if (left[prefix + leftOffset] == right[prefix + rightOffset]) {
-                lengths[leftOffset + 1][rightOffset + 1] + 1
+            lengths[leftOffset * rowWidth + rightOffset] = if (left[prefix + leftOffset] == right[prefix + rightOffset]) {
+                lengthAt(leftOffset + 1, rightOffset + 1) + 1
             } else {
-                maxOf(lengths[leftOffset + 1][rightOffset], lengths[leftOffset][rightOffset + 1])
+                maxOf(lengthAt(leftOffset + 1, rightOffset), lengthAt(leftOffset, rightOffset + 1))
             }
         }
     }
@@ -228,7 +231,7 @@ private fun alignedMatches(left: IntArray, right: IntArray): Pair<BooleanArray, 
                 leftMatches[prefix + leftOffset++] = true
                 rightMatches[prefix + rightOffset++] = true
             }
-            lengths[leftOffset + 1][rightOffset] >= lengths[leftOffset][rightOffset + 1] -> leftOffset++
+            lengthAt(leftOffset + 1, rightOffset) >= lengthAt(leftOffset, rightOffset + 1) -> leftOffset++
             else -> rightOffset++
         }
     }

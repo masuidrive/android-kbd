@@ -97,12 +97,16 @@ class VoicePanelViewTest {
 
     @Test
     fun excessiveDiffWorkKeepsFullCandidatesVisibleWithoutBlockingForHighlighting() {
-        val candidates = listOf("あ".repeat(600), "い".repeat(600))
-        val view = view()
-        view.showCandidates(CandidateUiSnapshot(48, candidates))
-        view.setVoiceState(VoiceUiSnapshot(58, VoiceUiState.Preview(candidates.first())))
-        assertEquals(candidates, view.allTextViews().map { it.text.toString() })
-        assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+        listOf(
+            listOf("あ".repeat(600), "い".repeat(600)),
+            listOf("あ".repeat(131_072), "い"),
+        ).forEachIndexed { index, candidates ->
+            val view = view()
+            view.showCandidates(CandidateUiSnapshot(48L + index, candidates))
+            view.setVoiceState(VoiceUiSnapshot(58L + index, VoiceUiState.Preview(candidates.first())))
+            assertEquals(candidates, view.allTextViews().map { it.text.toString() })
+            assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+        }
     }
 
     @Test

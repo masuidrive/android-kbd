@@ -417,10 +417,10 @@
     const leftMatches=Array(left.length).fill(false),rightMatches=Array(right.length).fill(false),sharedLimit=Math.min(left.length,right.length);let prefix=0,suffix=0;
     while(prefix<sharedLimit&&left[prefix]===right[prefix]){leftMatches[prefix]=true;rightMatches[prefix]=true;prefix++;}
     while(suffix<sharedLimit-prefix&&left[left.length-1-suffix]===right[right.length-1-suffix]){leftMatches[left.length-1-suffix]=true;rightMatches[right.length-1-suffix]=true;suffix++;}
-    const leftLength=left.length-prefix-suffix,rightLength=right.length-prefix-suffix;if(leftLength*rightLength>262144)return null;
-    const lengths=Array.from({length:leftLength+1},()=>new Uint32Array(rightLength+1));
-    for(let i=leftLength-1;i>=0;i--)for(let j=rightLength-1;j>=0;j--)lengths[i][j]=left[prefix+i]===right[prefix+j]?lengths[i+1][j+1]+1:Math.max(lengths[i+1][j],lengths[i][j+1]);
-    let i=0,j=0;while(i<leftLength&&j<rightLength){if(left[prefix+i]===right[prefix+j]){leftMatches[prefix+i++]=true;rightMatches[prefix+j++]=true;}else if(lengths[i+1][j]>=lengths[i][j+1])i++;else j++;}
+    const leftLength=left.length-prefix-suffix,rightLength=right.length-prefix-suffix,rowWidth=rightLength+1,matrixCells=(leftLength+1)*rowWidth;if(matrixCells>262144)return null;
+    const lengths=new Uint32Array(matrixCells),at=(i,j)=>lengths[i*rowWidth+j];
+    for(let i=leftLength-1;i>=0;i--)for(let j=rightLength-1;j>=0;j--)lengths[i*rowWidth+j]=left[prefix+i]===right[prefix+j]?at(i+1,j+1)+1:Math.max(at(i+1,j),at(i,j+1));
+    let i=0,j=0;while(i<leftLength&&j<rightLength){if(left[prefix+i]===right[prefix+j]){leftMatches[prefix+i++]=true;rightMatches[prefix+j++]=true;}else if(at(i+1,j)>=at(i,j+1))i++;else j++;}
     return [leftMatches,rightMatches];
   }
   function voiceCandidateDifferenceMasks(candidates) {
