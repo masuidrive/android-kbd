@@ -288,3 +288,4 @@
 [2026/09/14 10:56] 音声候補差分の最終候補でfast-checks・全unit・lint・APK buildが2/2、API 36.1 AVDのinstrumentationが17/17成功した。チケットをhuman review待ちへ移した。
 [2026/09/14 12:18] 音声候補差分commitを再ビルドし、最新成果物`app-debug.apk`の生成とGitHub作業ブランチ同期を確認した。旧公開版用に残っている`gesture-ime-v0.15.11.apk`とは区別した。
 [2026/09/14 12:24] ユーザの公開承認を受け、音声候補の差分強調をv0.15.12・versionCode 28としてAPKと製品ページへ公開する作業を開始した。
+[2026/09/14 12:34] v0.15.12 APKをGitHub Releaseへ単体公開し、再取得した38,599,756 bytesとSHA-256 `450ab93c8f571316cebfbf366f4f6656929d5b750a9028cff009de1b1679f86e`がlocal APKと完全一致した。masuidrive.jp main `55cf085`をpushし、Pages run `34802979326`成功、公開4ファイルのbyte一致、412px・840pxの横overflowなし、音声候補差分と2行目確定後の連続認識を実ブラウザで確認した。

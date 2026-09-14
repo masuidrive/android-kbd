@@ -55,6 +55,7 @@
 - [2026/09/14 10:50 JST] 初回reviewでnative/mockの重複文字tie-break不一致と、長文・多数候補での比較負荷がMajorとして見つかった。両surfaceを共通のprefix/suffix除外＋決定的LCSへ揃え、8候補または差分matrix 262,144 cellを超える場合は全文とtapを維持したまま装飾だけを省略する。`aa`/`ab`、600文字の全面差分、挿入、補助平面Unicodeを回帰testへ追加し、Light/Darkの差分色も通常文字で4.5:1を超える専用色へ変更した。
 - [2026/09/14 10:55 JST] Android instrumentationで実際の`VoicePanelView`を生成し、提示された3候補が順に`を・ほ`、`を・欲`、`が・欲`だけを専用色・太字にすることを確認した。
 - [2026/09/14 10:56 JST] 最終候補で`scripts/test-all.sh --parallel`のfast-checks・全unit・lint・APK buildが2/2 PASSし、API 36.1 AVDの`connectedDebugAndroidTest`は新規実View検証を含む17/17 PASSした。
+- [2026/09/14 12:25 JST] v0.15.12・versionCode 28の最終SHA `8d7dffd`でfast-checks・全unit・lint・APK buildが2/2、API 36.1 AVD instrumentationが17/17 PASSした。APKは`com.masuidrive.gestureime`、ARM64、`RECORD_AUDIO`のみで`INTERNET`権限なし。
 - 論理commit: `3498874` native/mock差分表示、`c3447f4` manual、`77072ec` parity・負荷・contrast修正、`370a133` flat matrix上限修正。instrumentationと最終検証記録は最終ticket commitへまとめる。
 - 重複検出 skip: `similarity-generic`が開発環境へinstallされていないため。変更はNative内の差分計算1実装、mock内の対応1実装で、異なるruntime間の意図的な同等処理である。
 
@@ -100,6 +101,12 @@
 - 実装・自動検証・独立reviewを完了し、ticket closeをユーザの明示承認待ちとして提示した。
 - [2026/09/14 12:24 JST] 実装・検証結果と作業ブランチpush後、ユーザが「公開して」と明示したため、v0.15.12の公開とticket closeを承認したものとして進行する。
 - merge直後に失う利用者機能はない。音声候補の全文、並び順、tap確定、連続認識を維持し、差分装飾だけを追加する。
+- GitHub Release: https://github.com/masuidrive/android-kbd/releases/tag/v0.15.12
+- APK: https://github.com/masuidrive/android-kbd/releases/download/v0.15.12/gesture-ime-v0.15.12.apk
+- 公開APK: 38,599,756 bytes、SHA-256 `450ab93c8f571316cebfbf366f4f6656929d5b750a9028cff009de1b1679f86e`。公開後に再取得し、local成果物とbyte一致。
+- 製品ページ: https://masuidrive.jp/products/md-kbd/
+- 公開site: masuidrive.jp commit `55cf085`、Pages run `34802979326` success。index、mock、manual、CSSがlocalとbyte一致した。
+- 公開browser確認: 412pxと840pxで横overflowなし、browser errorなし。左フリックで音声レイヤーへ入り、3候補の差分が順に`を・ほ`、`を・欲`、`が・欲`だけ強調された。2行目tapで2行目全文だけが入力され、認識中へ戻った。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
