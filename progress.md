@@ -286,3 +286,4 @@
 [2026/09/14 10:50] 音声候補差分をnativeと操作mockで青い太字表示へ変更した。レビューで見つかった重複文字の整列差と長文時の比較負荷を修正し、長文では全文と選択を保ったまま装飾だけを安全に省略する。
 [2026/09/14 10:55] API 36.1 AVDの実Android Viewで、提示された3候補の差分が順に「を・ほ」「を・欲」「が・欲」だけ強調されるinstrumentation testを確認した。独立再レビューはCritical・Majorなし。
 [2026/09/14 10:56] 音声候補差分の最終候補でfast-checks・全unit・lint・APK buildが2/2、API 36.1 AVDのinstrumentationが17/17成功した。チケットをhuman review待ちへ移した。
+[2026/09/14 12:18] 音声候補差分commitを再ビルドし、最新成果物`app-debug.apk`の生成とGitHub作業ブランチ同期を確認した。旧公開版用に残っている`gesture-ime-v0.15.11.apk`とは区別した。
