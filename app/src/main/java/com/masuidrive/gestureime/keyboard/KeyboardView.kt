@@ -474,7 +474,12 @@ class KeyboardView @JvmOverloads constructor(
         contentWidth: Float,
     ) {
         emojiScrollOffset = emojiScrollOffset.coerceIn(0f, emojiScrollRange(rowPitch))
-        emojiViewport.set(0f, keyboardTop, width.toFloat(), keyboardTop + rowPitch * 3f - rowGap)
+        emojiViewport.set(
+            contentLeft + contentWidth / 8f,
+            keyboardTop,
+            width.toFloat(),
+            keyboardTop + rowPitch * 3f - rowGap,
+        )
         val unit = contentWidth / 8f
         fun addRow(row: KeyboardRow, top: Float, scrollable: Boolean) {
             var x = contentLeft
@@ -491,7 +496,9 @@ class KeyboardView @JvmOverloads constructor(
             }
         }
         KeyboardLayouts.emojiContentRows(state.emojiRecents).forEachIndexed { index, row ->
-            addRow(row, keyboardTop + rowPitch * index - emojiScrollOffset, scrollable = true)
+            // AndroidX scrolls the seven-column body above these rows. The first-column
+            // layer rail is part of KeyboardView and must remain fixed and touchable.
+            addRow(row, keyboardTop + rowPitch * index, scrollable = false)
         }
         addRow(KeyboardLayouts.emojiControlRow(), keyboardTop + rowPitch * 3f, scrollable = false)
     }

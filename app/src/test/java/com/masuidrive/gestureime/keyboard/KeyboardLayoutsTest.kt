@@ -149,15 +149,22 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
-    @Test fun `emoji layer reserves three picker rows and keeps fixed controls`() {
+    @Test fun `emoji layer keeps the kana layer switch rail beside seven picker columns`() {
         val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", "❤️", "😀"))
         val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", "❤️", "😀")).rows
         assertEquals(4, rows.size)
         assertEquals(3, contentRows.size)
-        assertTrue(contentRows.flatMap { it.keys }.all { it.kind == KeyKind.EMPTY })
-        assertTrue(contentRows.all { row -> row.keys.size == 1 && row.keys.single().widthUnits == 8f })
+        assertTrue(contentRows.all { row ->
+            row.keys.size == 2 && row.keys[0].widthUnits == 1f && row.keys[1].widthUnits == 7f
+        })
+        assertEquals(listOf("☺", "#!", "19"), contentRows.map { it.keys.first().center?.label })
+        assertEquals(
+            listOf(KeyboardMode.EMOJI, KeyboardMode.SYMBOLS, KeyboardMode.NUMBERS),
+            contentRows.map { (it.keys.first().center?.action as KeyAction.SwitchLayer).target },
+        )
         assertEquals(contentRows.take(3), rows.take(3))
         assertEquals(3, rows[3].keys.size)
+        assertEquals(listOf(1f, 6f, 1f), rows[3].keys.map { it.widthUnits })
         assertEquals(KeyKind.EMPTY, rows[3].keys[1].kind)
         assertEquals(KeyAction.Backspace(), rows[3].keys[2].center?.action)
         assertEquals(KeyboardMode.QWERTY, (rows[3].keys[0].center?.action as KeyAction.SwitchLayer).target)

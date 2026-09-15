@@ -35,7 +35,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class ImeHideBarTest {
     @Test
-    fun emojiLayerReplacesCandidateSlotWithThePickerAndLeavesOnlyTheControlRowInKeyboardView() {
+    fun emojiLayerReplacesCandidateSlotAndKeepsTheFixedRailWithTheControlRow() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
         val content = root.getChildAt(0) as LinearLayout
@@ -43,6 +43,7 @@ class ImeHideBarTest {
         val keyboard = content.getChildAt(1) as KeyboardView
         val picker = root.getChildAt(1) as EmojiPickerView
         val mask = root.getChildAt(3)
+        val railProxy = root.getChildAt(5)
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
@@ -52,7 +53,8 @@ class ImeHideBarTest {
         assertEquals(View.VISIBLE, picker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, mask.importantForAccessibility)
-        assertEquals(2, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
+        assertEquals(5, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
+        assertEquals(View.VISIBLE, railProxy.visibility)
 
         KeyboardHeightPreset.entries.forEach { preset ->
             keyboard.setHeightPreset(preset)
@@ -67,7 +69,37 @@ class ImeHideBarTest {
             assertEquals(0, mask.height)
             assertEquals(expectedControlTop, mask.top)
             assertEquals(expectedControlTop, picker.layoutParams.height)
+            assertEquals(emojiLayerRailWidth(412), railProxy.width)
+            assertEquals(candidate.height, railProxy.top)
+            assertEquals(expectedControlTop, railProxy.bottom)
         }
+    }
+
+    @Test
+    fun emojiRailProxyForwardsLayerTapsToTheProductionKeyboardView() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val railProxy = root.getChildAt(5)
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        measureAndLayout(root, 412)
+
+        fun tapRail(y: Float) {
+            listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP).forEachIndexed { index, action ->
+                android.view.MotionEvent.obtain(0, index * 10L, action, railProxy.width / 2f, y, 0).also {
+                    railProxy.dispatchTouchEvent(it)
+                    it.recycle()
+                }
+            }
+        }
+
+        tapRail(80f)
+        assertEquals("記号キーボード", keyboard.contentDescription)
+
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        tapRail(135f)
+        assertEquals("テンキーキーボード", keyboard.contentDescription)
     }
 
     @Test
@@ -189,8 +221,16 @@ class ImeHideBarTest {
         assertTrue(picker.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null)
         root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
 
         assertEquals(840, picker.width)
+        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+        val railWidth = emojiLayerRailWidth(840)
+        val bodyParams = body.layoutParams as ViewGroup.MarginLayoutParams
+        assertEquals(railWidth, bodyParams.leftMargin)
+        assertEquals(840 - railWidth, bodyParams.width)
+        assertEquals(railWidth, root.getChildAt(5).width)
+        assertEquals(840 / 8f, bodyParams.width / 7f, .2f)
         assertTrue(layoutChanges > 0)
         assertTrue(!picker.isLayoutRequested)
         val settledChanges = layoutChanges
@@ -239,6 +279,7 @@ class ImeHideBarTest {
             val density = service.resources.displayMetrics.density
             val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
             assertEquals(10, header.adapter!!.itemCount)
+            assertEquals(7, picker.emojiGridColumns)
             val expectedHeaderWidth = (48 * density).toInt()
             val attachedHeaders = (0 until header.childCount).map(header::getChildAt)
             assertTrue(attachedHeaders.isNotEmpty())
@@ -254,6 +295,12 @@ class ImeHideBarTest {
             // category relocks can only shrink the clip, never move controls or overlap them.
             assertEquals(expectedViewport, body.height)
             assertEquals(expectedViewport, body.clipBounds!!.bottom)
+            val railWidth = emojiLayerRailWidth(picker.width)
+            assertEquals(0, header.left)
+            assertEquals(picker.width, header.width)
+            assertEquals(railWidth, body.left)
+            assertEquals(picker.width - railWidth, body.width)
+            assertEquals(picker.width / 8f, body.width / 7f, .2f)
             assertEquals(keyboard.top + expectedViewport, picker.bottom)
             // Three full attached rows use the preset pitch; the separate bounds regression
             // below fixes their exact lower edge and excludes a fourth row from accessibility.
