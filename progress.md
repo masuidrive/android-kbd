@@ -304,3 +304,4 @@
 [2026/09/15 16:16] 入力種別による初期レイヤー選択を実装した。数字・電話・日時はテンキーを優先し、URL・メール・各種文字password・非numericのASCII強制はQWERTY、通常欄は最後の手動選択を維持する。同一editor restartで手動レイヤーが戻るreview指摘とprivate絵文字testの旧期待を修正し、再reviewはCritical・Majorなしとなった。
 [2026/09/15 16:48] 入力種別対応の最終候補`13134f6`で独立reviewはCritical/Major/Minorなし、AC1〜5をverifyした。scheduler依存だった絵文字幅testは同期座標seamと実Android 412→840 testへ置換し、最終suiteは3/3 PASS。412dp・840dp相当の実画面で数字=テンキー、メール・password=QWERTY、4行高とsafe area不変を確認した。
 [2026/09/15 16:53] v0.15.14公開準備を開始した。入力種別による初期レイヤー選択、音声入力中の小型波形、絵文字レイヤー左端の固定切替列を同じリリースへまとめ、README・製品ページ・マニュアル・release notesを更新した。
+[2026/09/15 16:55] release SHA `a155826`でfast-checks、全unit・lint・APK build、API 36 arm64 emulatorの接続testが3/3 PASSした。v0.15.14 APKは38,634,832 bytes、SHA-256 `852d9c6813fd6887eedceb456ecc7ea8104caa1e8881924bf3fc3b0a7d697f88`、package `com.masuidrive.gestureime`、versionCode 30、arm64-v8a、RECORD_AUDIOあり、INTERNETなし、zipalign成功を確認した。
