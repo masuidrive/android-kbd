@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "音声入力中のマイク音量を小さなリアルタイム波形で表示する"
 created_at: "2026-09-14T13:38:49Z"
 started_at: 2026-09-14T13:42:15Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-15T05:24:20Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
