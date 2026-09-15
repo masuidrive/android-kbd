@@ -13,18 +13,18 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Android標準のローカル`EditorInfo`だけを読む変更で、外部provider経路がない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 - 2026-09-15: ユーザの「数字を要求しているときはテンキーレイヤー」「同じようなのもサポート」という明示依頼を、Android標準の入力class/variationで観察できる契約へ整理した。
@@ -43,6 +43,7 @@
   - Android標準契約: `InputType` のclass/variationで数字・電話・日時・URI・メール・各パスワードを判別でき、`EditorInfo.IME_FLAG_FORCE_ASCII`でASCII要求を判別できる。
   - 既存テンキー確認: 数字に加えて `-`、`+`、`.`、`,`、`/`、`*` を入力できるため、符号付き数・小数へ既存配列を使える。
   - 実装後計測: 各入力種別の単体テストと、412dp/840dp相当で入力欄切替・入力ビュー再生成を観察し、AC未達なら公開を止める。
+  - 最終結果: selector/lifecycle/入力テスト画面/絵文字幅変更のfocused suite、fresh JVM全unit 269件×2、実Android 412→840境界testが成功した。rootの実Android操作でも412dpと840dp相当で数字=NUMBERS、メール・password=QWERTY、通常欄=手動かな復帰、4行高と下端safe areaを確認した。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -95,6 +96,11 @@
 - reviewerは修正後HEAD `d0c9b3d`でCritical/Majorなしと判定した。前回Major 3件はproduction/test/technical-referenceへ反映済み。
 - selector・lifecycle・入力テスト・private pickerのfocused suiteは成功し、picker幅変更testも独立2回成功した。Minorのretry-passは最終full suiteで再確認する。
 
+### Findings (PDH-review-3)
+
+- 最終HEAD `13134f6`でCritical/Major/Minorなし。scheduler依存の待機helperは削除され、productionの座標適用seamを412→840の同期unitと実Android instrumentationで厳密に検証する構成となった。
+- `scripts/test-all.sh --parallel --connected` はfast-checks、Android unit/lint/APK、接続Android real Mozcの3/3 PASS。
+
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
@@ -102,9 +108,10 @@
 - `technical-reference.md` Design decision 32へ、入力class/variationのlayer分類、`IME_FLAG_FORCE_ASCII`の優先、自動選択と保存値の分離、手動切替だけが保存する契約を追加した。
 
 ## PDH-human-review. 人間レビュー
-<!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
-     ユーザの明示承認なしに PDH-close へ進まない。
-     途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+- 変更内容: 呼び出し元の入力種別から初期NUMBERS/QWERTYを選び、通常欄では最後の手動レイヤーを復元する。自動選択は保存値を変更せず、同一editor restartでは手動選択を維持する。
+- 確認手順: 設定の「入力を試す」で数字、メール、password、通常欄を順にタップする。数字はテンキー、メール/passwordはQWERTY、通常欄は最後の手動レイヤーとなる。数字欄で手動切替後のrestartも現在レイヤーを維持する。
+- Surface証拠: `tmp/native-phone-number.png`、`tmp/native-phone-email.png`、`tmp/native-phone-normal-after-manual.png`、`tmp/native-wide-number.png`、`tmp/native-wide-email.png`、`tmp/native-wide-password.png`。
+- ユーザは本作業列に対してfull-auto、push・公開までを明示しており、直前の絵文字rail・音声波形と合わせた公開を承認済み。各review修正と最終3/3 PASSを提示済みのため、その承認を本ticketのcloseへ適用する。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
