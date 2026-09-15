@@ -313,10 +313,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun updateEmojiLayerRailProxyLayout(candidateHeight: Int, measuredWidth: Int, viewportHeight: Int) {
         val proxy = emojiLayerRailProxy ?: return
-        val railWidth = emojiLayerRailWidth(measuredWidth)
+        val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(measuredWidth) ?: return
         val params = proxy.layoutParams as? FrameLayout.LayoutParams ?: return
-        if (params.width == railWidth && params.height == viewportHeight && params.topMargin == candidateHeight) return
-        params.width = railWidth
+        if (params.width == geometry.railRight && params.height == viewportHeight && params.topMargin == candidateHeight) return
+        params.width = geometry.railRight
         params.height = viewportHeight
         params.topMargin = candidateHeight
         proxy.layoutParams = params
@@ -476,13 +476,15 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     ) {
         val pickerWidth = pendingPickerWidth ?: picker.width
         if (pickerWidth <= 0) return
-        val railWidth = emojiLayerRailWidth(pickerWidth)
-        val bodyWidth = pickerWidth - railWidth
+        val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(pickerWidth) ?: return
         val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-        if (params.width == bodyWidth && params.leftMargin == railWidth && params.rightMargin == 0) return
-        params.width = bodyWidth
-        params.leftMargin = railWidth
-        params.rightMargin = 0
+        val rightMargin = pickerWidth - geometry.contentRight
+        if (params.width == geometry.bodyWidth && params.leftMargin == geometry.railRight &&
+            params.rightMargin == rightMargin
+        ) return
+        params.width = geometry.bodyWidth
+        params.leftMargin = geometry.railRight
+        params.rightMargin = rightMargin
         body.layoutParams = params
         body.requestLayout()
     }
@@ -599,6 +601,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun onEmojiPickerBodyChanged(picker: EmojiPickerView, body: RecyclerView) {
         if (!shouldApplyEmojiPickerViewport(pickerBodies[picker], body)) return
+        // AndroidX reapplies MATCH_PARENT width while moving between categories. Restore the
+        // shared rail/content bounds before observing or clipping the replacement geometry.
+        applyEmojiPickerBodyRail(picker, body)
         pickerViewportHeights[picker]?.let { updateEmojiPickerCellAccessibility(body, it) }
         val transition = pickerViewportCategoryTransitions[picker]
         if (transition == null) {
@@ -1688,9 +1693,6 @@ private const val EMOJI_RECENT_CATEGORY_POSITION = 0
 // AndroidX EmojiPicker 1.6.0 ItemType.CATEGORY_TITLE.ordinal. ItemType is Kotlin-internal,
 // while RecyclerView.Adapter.getItemViewType() is public.
 private const val EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE = 0
-
-/** One of the former eight equal emoji cells becomes the fixed layer-switch rail. */
-internal fun emojiLayerRailWidth(totalWidth: Int): Int = (totalWidth / 8f).toInt()
 
 /** Returns the body-coordinate lower edge of three attached AndroidX emoji rows. */
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {

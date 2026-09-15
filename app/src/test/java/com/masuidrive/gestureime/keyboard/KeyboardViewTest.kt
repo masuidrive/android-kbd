@@ -836,6 +836,20 @@ class KeyboardViewTest {
         assertTrue(right.right > 390)
     }
 
+    @Test fun `emoji overlay geometry follows the keyboard content insets at phone and wide widths`() {
+        val phone = view.emojiLayerHorizontalGeometryForWidth(412)
+        assertEquals(3, phone.contentLeft)
+        assertEquals(54, phone.railRight)
+        assertEquals(409, phone.contentRight)
+        assertEquals(355, phone.bodyWidth)
+
+        val wide = view.emojiLayerHorizontalGeometryForWidth(840)
+        assertEquals(10, wide.contentLeft)
+        assertEquals(113, wide.railRight)
+        assertEquals(830, wide.contentRight)
+        assertEquals(717, wide.bodyWidth)
+    }
+
     @Test fun `emoji rail routes taps and rejects unassigned flicks through production motion events`() {
         val rail = listOf(
             0 to KeyboardMode.EMOJI,

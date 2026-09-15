@@ -69,7 +69,7 @@ class ImeHideBarTest {
             assertEquals(0, mask.height)
             assertEquals(expectedControlTop, mask.top)
             assertEquals(expectedControlTop, picker.layoutParams.height)
-            assertEquals(emojiLayerRailWidth(412), railProxy.width)
+            assertEquals(keyboard.emojiLayerHorizontalGeometryForWidth(412).railRight, railProxy.width)
             assertEquals(candidate.height, railProxy.top)
             assertEquals(expectedControlTop, railProxy.bottom)
         }
@@ -225,18 +225,59 @@ class ImeHideBarTest {
 
         assertEquals(840, picker.width)
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
-        val railWidth = emojiLayerRailWidth(840)
+        val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
+        val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(840)
         val bodyParams = body.layoutParams as ViewGroup.MarginLayoutParams
-        assertEquals(railWidth, bodyParams.leftMargin)
-        assertEquals(840 - railWidth, bodyParams.width)
-        assertEquals(railWidth, root.getChildAt(5).width)
-        assertEquals(840 / 8f, bodyParams.width / 7f, .2f)
+        assertEquals(geometry.railRight, bodyParams.leftMargin)
+        assertEquals(geometry.bodyWidth, bodyParams.width)
+        assertEquals(840 - geometry.contentRight, bodyParams.rightMargin)
+        assertEquals(geometry.railRight, root.getChildAt(5).width)
+        assertTrue(kotlin.math.abs(bodyParams.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
         assertTrue(layoutChanges > 0)
         assertTrue(!picker.isLayoutRequested)
         val settledChanges = layoutChanges
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         assertEquals(settledChanges, layoutChanges)
         assertTrue(!picker.isLayoutRequested)
+    }
+
+    @Test
+    fun categoryTransitionRestoresAndroidXFullWidthBodyToKeyboardContentBounds() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val picker = root.getChildAt(1) as EmojiPickerView
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        root.measure(exact(413), exact(1_000)); root.layout(0, 0, 413, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val header = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_header)
+        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+        val androidXParams = body.layoutParams as ViewGroup.MarginLayoutParams
+        androidXParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+        androidXParams.leftMargin = 0
+        androidXParams.rightMargin = 0
+        body.layoutParams = androidXParams
+        assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, body.layoutParams.width)
+
+        header.getChildAt(header.childCount - 1).performClick()
+        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val currentBody = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+        val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(412)
+        val restored = currentBody.layoutParams as ViewGroup.MarginLayoutParams
+        assertEquals(geometry.railRight, currentBody.left)
+        assertEquals(geometry.bodyWidth, currentBody.width)
+        assertEquals(geometry.railRight, restored.leftMargin)
+        assertEquals(412 - geometry.contentRight, restored.rightMargin)
+        assertEquals(7, picker.emojiGridColumns)
+        assertTrue((currentBody.adapter?.itemCount ?: 0) > 0)
     }
 
     @Test
@@ -295,12 +336,13 @@ class ImeHideBarTest {
             // category relocks can only shrink the clip, never move controls or overlap them.
             assertEquals(expectedViewport, body.height)
             assertEquals(expectedViewport, body.clipBounds!!.bottom)
-            val railWidth = emojiLayerRailWidth(picker.width)
+            val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(picker.width)
             assertEquals(0, header.left)
             assertEquals(picker.width, header.width)
-            assertEquals(railWidth, body.left)
-            assertEquals(picker.width - railWidth, body.width)
-            assertEquals(picker.width / 8f, body.width / 7f, .2f)
+            assertEquals(geometry.railRight, body.left)
+            assertEquals(geometry.bodyWidth, body.width)
+            assertEquals(geometry.contentRight, body.right)
+            assertTrue(kotlin.math.abs(body.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
             assertEquals(keyboard.top + expectedViewport, picker.bottom)
             // Three full attached rows use the preset pitch; the separate bounds regression
             // below fixes their exact lower edge and excludes a fourth row from accessibility.
