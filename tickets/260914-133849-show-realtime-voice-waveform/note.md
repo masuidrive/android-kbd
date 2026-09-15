@@ -19,12 +19,12 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [-] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み - skip: native実マイクE2Eだけは日本語端末内modelのないAVDで補完不能。NOT VERIFIEDの範囲と実機補完手順を提示し、ユーザが制約を承知した上で公開を明示指示した
 - [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -111,6 +111,7 @@
 - review APK: `/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/app-debug.apk`。versionCode 29、versionName 0.15.13、38,820,150 bytes、SHA-256 `92d70a5540e7ff886b01b3c88dd8c4b5972ca32e01bb3c173e0636898917dc42`。
 - 実機確認手順: 音声layerへ左フリックし、静かな状態と発話中で`認識中`横の4本波形が変わることを確認する。無言でerror 7相当の自動再開を待ってから再び発話し、波形と候補が戻ることを確認する。候補previewでは波形が消え、候補確定後に次の認識と波形が再開し、取消で消えることを確認する。
 - 公開・close前の未完了は上記の実マイク確認だけ。コード、mock、ドキュメント、全自動test、native高さ/error surfaceは確認済み。
+- `[2026-09-15 00:02 JST]` ユーザが「合わせてpushして公開して」と明示した。実マイクE2Eの未確認範囲を直前に提示済みであり、その制約を残したままのhuman review承認・close・公開指示として記録した。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
