@@ -246,6 +246,97 @@ class ImeServiceVoiceLifecycleTest {
     }
 
     @Test
+    fun editorSelectionSurvivesStartCreateStartViewOrderWithoutChangingSavedMode() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+        ImePreferences.setLastKeyboardMode(service, KeyboardMode.KANA)
+        try {
+            val numberEditor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            }
+            service.onStartInput(numberEditor, false)
+            val root = service.onCreateInputView() as ViewGroup
+            assertEquals(KeyboardMode.NUMBERS, root.keyboardView().mode())
+
+            service.onStartInputView(numberEditor, false)
+            assertEquals(KeyboardMode.NUMBERS, root.keyboardView().mode())
+            assertEquals(KeyboardMode.KANA, ImePreferences.getLastKeyboardMode(service))
+
+            listOf(412, 840).forEach { width ->
+                root.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
+                )
+                assertEquals("$width keyboard height", 228, root.keyboardView().measuredHeight)
+                assertEquals("$width root height", 278, root.measuredHeight)
+            }
+        } finally {
+            preferences.edit().clear().commit()
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun editorSelectionAlsoAppliesWhenInputViewExistsBeforeStartOrStartViewRunsFirst() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+        ImePreferences.setLastKeyboardMode(service, KeyboardMode.SYMBOLS)
+        try {
+            val firstRoot = service.onCreateInputView()
+            assertEquals(KeyboardMode.SYMBOLS, firstRoot.keyboardView().mode())
+
+            val emailEditor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+            service.onStartInput(emailEditor, false)
+            assertEquals(KeyboardMode.QWERTY, firstRoot.keyboardView().mode())
+            assertEquals(KeyboardMode.QWERTY, service.onCreateInputView().keyboardView().mode())
+
+            service.onFinishInput()
+            val numberEditor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_PHONE }
+            service.onStartInputView(numberEditor, false)
+            assertEquals(KeyboardMode.NUMBERS, service.onCreateInputView().keyboardView().mode())
+            assertEquals(KeyboardMode.SYMBOLS, ImePreferences.getLastKeyboardMode(service))
+        } finally {
+            preferences.edit().clear().commit()
+            controller.destroy()
+        }
+    }
+
+    @Test
+    fun manualLayerChoicePersistsAcrossRecreationAndBecomesOrdinaryEditorFallback() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+        ImePreferences.setLastKeyboardMode(service, KeyboardMode.KANA)
+        try {
+            val numberEditor = EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER }
+            service.onStartInput(numberEditor, false)
+            service.onCreateInputView()
+            service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS))
+            shadowOf(android.os.Looper.getMainLooper()).idle()
+
+            assertEquals(KeyboardMode.SYMBOLS, ImePreferences.getLastKeyboardMode(service))
+            assertEquals(KeyboardMode.SYMBOLS, service.onCreateInputView().keyboardView().mode())
+
+            service.onStartInput(numberEditor, true)
+            assertEquals(KeyboardMode.NUMBERS, service.onCreateInputView().keyboardView().mode())
+            assertEquals(KeyboardMode.SYMBOLS, ImePreferences.getLastKeyboardMode(service))
+
+            service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            assertEquals(KeyboardMode.SYMBOLS, service.onCreateInputView().keyboardView().mode())
+        } finally {
+            preferences.edit().clear().commit()
+            controller.destroy()
+        }
+    }
+
+    @Test
     fun voicePanelStartsHiddenOutsideVoiceLayerAndIsRecreatedWithTheInputView() {
         val controller = Robolectric.buildService(ImeService::class.java).create()
         val service = controller.get()

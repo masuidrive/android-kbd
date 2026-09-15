@@ -105,6 +105,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var pendingPredictionSelection: ExpectedSelectionTransition? = null
     private var predictionRequestInFlight = false
     private var keyboardMode = KeyboardMode.QWERTY
+    private var editorKeyboardMode: KeyboardMode? = null
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
@@ -157,7 +158,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             // later positive system-bar inset replaces it.
             it.setSystemBottomInsetFallback(initialBottomInset)
             it.updateBottomInset(initialBottomInset)
-            keyboardMode = ImePreferences.getLastKeyboardMode(this)
+            keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
@@ -771,6 +772,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
+        if (editorKeyboardMode == null) selectKeyboardModeForEditor(info)
+        keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
+        keyboardView?.setMode(keyboardMode)
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         keyboardView?.refreshIntrinsicLayout()
@@ -789,8 +793,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         updateEmojiPickerVisibility()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
-        keyboardMode = ImePreferences.getLastKeyboardMode(this)
-        keyboardView?.setMode(keyboardMode)
+        selectKeyboardModeForEditor(attribute)
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -806,6 +809,18 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardView?.cancelActiveGestures()
         textController.finishComposition()
         super.onFinishInput()
+        editorKeyboardMode = null
+    }
+
+    private fun selectKeyboardModeForEditor(info: EditorInfo) {
+        val selected = selectInitialKeyboardMode(
+            inputType = info.inputType,
+            imeOptions = info.imeOptions,
+            lastExplicitMode = ImePreferences.getLastKeyboardMode(this),
+        )
+        editorKeyboardMode = selected
+        keyboardMode = selected
+        keyboardView?.setMode(selected)
     }
 
     override fun onUpdateSelection(
@@ -1081,6 +1096,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 finishEnglishRaw()
                 if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession()
                 ImePreferences.setLastKeyboardMode(this, action.target)
+                editorKeyboardMode = action.target
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
                 updateEmojiPickerVisibility()
@@ -1182,6 +1198,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         showCandidateStrip(emptyList(), -1)
         if (keyboardMode == KeyboardMode.VOICE) {
             keyboardMode = voiceReturnMode
+            editorKeyboardMode = voiceReturnMode
             keyboardView?.setMode(voiceReturnMode)
             updateEmojiPickerVisibility()
         }
