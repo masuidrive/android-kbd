@@ -3,7 +3,7 @@ priority: 2
 base_branch: default
 description: "呼び出し元の入力種別に合う初期レイヤーを選ぶ"
 created_at: "2026-09-15T06:46:28Z"
-started_at: null
+started_at: 2026-09-15T06:51:02Z
 closed_at: null
 canceled_at: null
 ---
