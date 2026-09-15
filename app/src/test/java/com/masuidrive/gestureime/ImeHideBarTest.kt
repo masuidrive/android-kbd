@@ -673,6 +673,10 @@ class ImeHideBarTest {
         maxPasses: Int = 8,
     ) {
         repeat(maxPasses) {
+            // This root is measured directly and is not attached to a ViewRootImpl. A child
+            // requestLayout therefore cannot set the root's force-layout flag as it does on
+            // device; force the equivalent parent traversal before reusing the same specs.
+            root.forceLayout()
             root.measure(exact(width), exact(height))
             root.layout(0, 0, width, height)
             Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
