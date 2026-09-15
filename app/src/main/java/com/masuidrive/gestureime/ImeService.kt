@@ -76,6 +76,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var emojiPickerBottomMask: View? = null
     private var emojiLayerRailProxy: View? = null
     private val pickerLayoutSignatures = mutableMapOf<EmojiPickerView, Pair<Int, Int>>()
+    private val pickerDesiredWidths = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportHeights = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportMaximums = mutableMapOf<EmojiPickerView, Int>()
     private val pickerViewportLocked = mutableSetOf<EmojiPickerView>()
@@ -133,6 +134,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // A fresh input view owns fresh pickers; do not retain its detached predecessors.
         pickerLayoutSignatures.clear()
+        pickerDesiredWidths.clear()
         pickerViewportHeights.clear()
         pickerViewportMaximums.clear()
         pickerViewportLocked.clear()
@@ -302,6 +304,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val viewportHeight = keyboard.emojiPickerOverlayHeightForWidth(measuredWidth).toInt()
         val overlayHeight = candidateHeight + viewportHeight
         listOfNotNull(publicEmojiPicker, privateEmojiPicker).forEach { picker ->
+            pickerDesiredWidths[picker] = measuredWidth
             pickerBodies[picker]?.let { body -> applyEmojiPickerBodyRail(picker, body, measuredWidth) }
         }
         val pickerNeedsSync = emojiPickerControlTop != overlayHeight ||
@@ -354,9 +357,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             }
             enforceEmojiPickerControlBoundary(picker, pickerHeight)
             picker.requestLayout()
-            bindEmojiPickerViewport(picker)
+            bindEmojiPickerViewport(picker, measuredWidth)
         }
-        updateEmojiPickerMask()
+        updateEmojiPickerMask(measuredWidth)
     }
 
     private fun updateEmojiPickerVisibility() {
@@ -392,6 +395,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         setRecentEmojiProvider(provider)
         setOnHierarchyChangeListener(object : ViewGroup.OnHierarchyChangeListener {
             override fun onChildViewAdded(parent: View, child: View) {
+                // A category/adapter refresh can replace AndroidX's whole content tree during
+                // the same parent measure. Constrain a newly inflated body before that first
+                // layout; waiting for global-layout would expose one full-width frame.
+                (child as? ViewGroup)
+                    ?.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
+                    ?.let { applyEmojiPickerBodyRail(this@apply, it, pickerDesiredWidths[this@apply]) }
                 // AndroidX is still inside RecyclerView construction here. The picker root
                 // already clips the provisional body; wait to inspect or mutate descendants
                 // until its own initial layout has returned.
@@ -422,7 +431,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
     }
 
-    private fun bindEmojiPickerViewport(picker: EmojiPickerView) {
+    private fun bindEmojiPickerViewport(picker: EmojiPickerView, pendingPickerWidth: Int? = null) {
         val header = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_header) ?: return
         if (pickerHeaders[picker] !== header) {
             // AndroidX's default manager divides phone width among all ten categories, which
@@ -434,7 +443,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val categoryWidth = resources.getDimensionPixelSize(R.dimen.emoji_picker_header_icon_holder_width)
         repeat(header.childCount) { enforceEmojiCategoryHolderWidth(header.getChildAt(it), categoryWidth) }
         val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) ?: return
-        applyEmojiPickerBodyRail(picker, body)
+        applyEmojiPickerBodyRail(picker, body, pendingPickerWidth)
         ensureEmojiPickerBodyOverscan(picker, body)
         if (pickerBodies[picker] !== body) {
             // An AndroidX grid rebuild replaces this RecyclerView. Any callback captured by
@@ -474,19 +483,25 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         body: RecyclerView,
         pendingPickerWidth: Int? = null,
     ) {
-        val pickerWidth = pendingPickerWidth ?: picker.width
+        val pickerWidth = pendingPickerWidth ?: pickerDesiredWidths[picker] ?: picker.width
         if (pickerWidth <= 0) return
         val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(pickerWidth) ?: return
-        val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return
         val rightMargin = pickerWidth - geometry.contentRight
-        if (params.width == geometry.bodyWidth && params.leftMargin == geometry.railRight &&
-            params.rightMargin == rightMargin
-        ) return
-        params.width = geometry.bodyWidth
-        params.leftMargin = geometry.railRight
-        params.rightMargin = rightMargin
-        body.layoutParams = params
-        body.requestLayout()
+        val content = body.parent as? ViewGroup ?: return
+        var changed = false
+        if (content.paddingLeft != geometry.railRight || content.paddingRight != rightMargin) {
+            content.setPadding(geometry.railRight, content.paddingTop, rightMargin, content.paddingBottom)
+            changed = true
+        }
+        val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        if (params.width != ViewGroup.LayoutParams.MATCH_PARENT || params.leftMargin != 0 || params.rightMargin != 0) {
+            params.width = ViewGroup.LayoutParams.MATCH_PARENT
+            params.leftMargin = 0
+            params.rightMargin = 0
+            body.layoutParams = params
+            changed = true
+        }
+        if (changed) content.requestLayout()
     }
 
     /**
@@ -701,7 +716,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         visit(body)
     }
 
-    private fun updateEmojiPickerMask() {
+    private fun updateEmojiPickerMask(pendingPickerWidth: Int? = null) {
         val activePicker = when {
             privateEmojiPicker?.visibility == View.VISIBLE -> privateEmojiPicker
             publicEmojiPicker?.visibility == View.VISIBLE -> publicEmojiPicker
@@ -712,9 +727,17 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             val params = mask.layoutParams as? FrameLayout.LayoutParams ?: return@let
             val topMargin = emojiPickerHeaderHeight + visibleBodyHeight
             val height = (emojiPickerControlTop - topMargin).coerceAtLeast(0)
-            if (shouldUpdateEmojiPickerMask(params.topMargin, params.height, topMargin, height)) {
+            val geometry = (pendingPickerWidth ?: activePicker.width).takeIf { it > 0 }
+                ?.let { keyboardView?.emojiLayerHorizontalGeometryForWidth(it) }
+            val width = geometry?.bodyWidth ?: params.width
+            val leftMargin = geometry?.railRight ?: params.leftMargin
+            if (shouldUpdateEmojiPickerMask(params.topMargin, params.height, topMargin, height) ||
+                params.width != width || params.leftMargin != leftMargin
+            ) {
                 params.topMargin = topMargin
                 params.height = height
+                params.width = width
+                params.leftMargin = leftMargin
                 mask.layoutParams = params
             }
         }
@@ -1735,14 +1758,13 @@ private fun emptyRecentViewport(body: RecyclerView): Int? =
 internal fun emptyRecentViewportFromBounds(
     placeholderBounds: Rect?,
     emojiBounds: List<Rect>,
-    columns: Int = 8,
 ): Int? {
     val placeholder = placeholderBounds ?: return null
     val rowsAfterPlaceholder = emojiBounds
         .groupBy { it.top }
         .toSortedMap()
         .values
-        .filter { row -> row.first().top >= placeholder.bottom && row.size >= columns }
+        .filter { row -> row.first().top >= placeholder.bottom && row.size >= EMOJI_PICKER_BODY_COLUMNS }
     return rowsAfterPlaceholder.getOrNull(1)?.maxOf { it.bottom }
 }
 

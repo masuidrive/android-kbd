@@ -207,6 +207,33 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun shrunkenEmojiViewportMaskStartsAfterRailAndEndsAtKeyboardContentRight() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        val content = root.getChildAt(0) as LinearLayout
+        val keyboard = content.getChildAt(1) as KeyboardView
+        val picker = root.getChildAt(1) as EmojiPickerView
+        val mask = root.getChildAt(3)
+        val railProxy = root.getChildAt(5)
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        @Suppress("UNCHECKED_CAST")
+        val viewports = ImeService::class.java.getDeclaredField("pickerViewportHeights").apply { isAccessible = true }
+            .get(service) as MutableMap<EmojiPickerView, Int>
+        viewports[picker] = 100
+        service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+        measureAndLayout(root, 412)
+
+        val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(412)
+        assertTrue(mask.height > 0)
+        assertEquals(geometry.railRight, mask.left)
+        assertEquals(geometry.contentRight, mask.right)
+        assertEquals(railProxy.right, mask.left)
+    }
+
+    @Test
     fun pickerGeometryRefreshSettlesAfterAnExternalWidthChange() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
@@ -228,11 +255,14 @@ class ImeHideBarTest {
         val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
         val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(840)
         val bodyParams = body.layoutParams as ViewGroup.MarginLayoutParams
-        assertEquals(geometry.railRight, bodyParams.leftMargin)
-        assertEquals(geometry.bodyWidth, bodyParams.width)
-        assertEquals(840 - geometry.contentRight, bodyParams.rightMargin)
+        assertEquals(geometry.railRight, body.left)
+        assertEquals(geometry.bodyWidth, body.width)
+        assertEquals(geometry.contentRight, body.right)
+        assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, bodyParams.width)
+        assertEquals(0, bodyParams.leftMargin)
+        assertEquals(0, bodyParams.rightMargin)
         assertEquals(geometry.railRight, root.getChildAt(5).width)
-        assertTrue(kotlin.math.abs(bodyParams.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
+        assertTrue(kotlin.math.abs(body.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
         assertTrue(layoutChanges > 0)
         assertTrue(!picker.isLayoutRequested)
         val settledChanges = layoutChanges
@@ -274,8 +304,9 @@ class ImeHideBarTest {
         val restored = currentBody.layoutParams as ViewGroup.MarginLayoutParams
         assertEquals(geometry.railRight, currentBody.left)
         assertEquals(geometry.bodyWidth, currentBody.width)
-        assertEquals(geometry.railRight, restored.leftMargin)
-        assertEquals(412 - geometry.contentRight, restored.rightMargin)
+        assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, restored.width)
+        assertEquals(0, restored.leftMargin)
+        assertEquals(0, restored.rightMargin)
         assertEquals(7, picker.emojiGridColumns)
         assertTrue((currentBody.adapter?.itemCount ?: 0) > 0)
     }
@@ -390,7 +421,7 @@ class ImeHideBarTest {
 
     @Test
     fun emptyRecentViewportEndsAfterItsPlaceholderAndTwoCompleteFollowingRows() {
-        fun row(top: Int) = List(8) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
+        fun row(top: Int) = List(7) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
         val placeholder = Rect(0, 21, 412, 165)
         val first = row(186)
         val second = row(316)
@@ -398,7 +429,18 @@ class ImeHideBarTest {
 
         assertEquals(446, emptyRecentViewportFromBounds(placeholder, first + second + fourth))
         assertNull(emptyRecentViewportFromBounds(placeholder, first))
-        assertNull(emptyRecentViewportFromBounds(placeholder, first + second.take(7)))
+        assertNull(emptyRecentViewportFromBounds(placeholder, first + second.take(6)))
+    }
+
+    @Test
+    fun returningFromAnotherCategoryLocksEmptyRecentAfterTwoCompleteSevenColumnRows() {
+        fun row(top: Int) = List(7) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
+        val placeholder = Rect(0, 21, 355, 165)
+        val observedViewport = emptyRecentViewportFromBounds(placeholder, row(186) + row(316))
+
+        assertEquals(446, observedViewport)
+        assertTrue(isEmojiCategoryContentReady(0, observedViewport, true))
+        assertFalse(isEmojiCategoryContentReady(1, observedViewport, true))
     }
 
     @Test
