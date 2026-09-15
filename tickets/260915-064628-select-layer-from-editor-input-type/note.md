@@ -58,6 +58,10 @@
 - 2026-09-15 修正後focused test: `./gradlew testDebugUnitTest --tests 'com.masuidrive.gestureime.EditorKeyboardModeSelectorTest' --tests 'com.masuidrive.gestureime.ImeServiceVoiceLifecycleTest' --tests 'com.masuidrive.gestureime.ImeTestActivitySafeAreaTest' --rerun-tasks` → `BUILD SUCCESSFUL in 6s`, `29 actionable tasks: 29 executed`、22件成功。412px/840pxの標準presetはkeyboard 228px/root 278pxを維持した。
 - 2026-09-15 重複検出: `similarity-generic`が環境にinstallされていないためskip。新規純粋関数は1ファイル、testのcallback順3ケースは異なる状態遷移を固定し、共通化対象になるproduction重複は目視で見つからなかった。
 - 2026-09-15 logical commits: `4bf2b8b`（純粋選択関数、IME lifecycle、単体・回帰test）、`009002b`（入力テストfieldと利用者/技術文書）。
+- 2026-09-15 review修正: 数字・電話・日時classを`IME_FLAG_FORCE_ASCII`より先に判定し、数字用途を常に`NUMBERS`にした。新規editorだけを自動選択し、同一editorの`onStartInput(..., restarting=true)`は手動選択した現在modeを維持する。password欄のprivate emoji testは、初期QWERTYを確認してから手動でEMOJIへ切り替え、専用private pickerとmaskを検証する契約へ更新した。
+- 2026-09-15 review focused: 変更経路だけの8件は`--rerun-tasks`で`BUILD SUCCESSFUL in 5s`, `29 actionable tasks: 29 executed`。`ImeHideBarTest`・selector・lifecycle全47件の初回は変更外の`pickerGeometryRefreshSettlesAfterAnExternalWidthChange`が`expected 717 but was 783`で1件失敗し、同じ全47件の再実行は`BUILD SUCCESSFUL in 6s`, `29 actionable tasks: 29 executed`となった。この1件はretry-passとしてrootの最終full suiteで再確認する。
+- 2026-09-15 壊していない側の前後記録: 通常text＋保存済み`SYMBOLS`は変更前focused 22件と修正後focused 47件の両方で`SYMBOLS`、email address＋保存済み`KANA`も両方で`QWERTY`。数値初回`NUMBERS`→手動`SYMBOLS`→同一editor restart後`SYMBOLS`→finish後の新規数値editor`NUMBERS`を新しいlifecycle testで固定した。
+- 2026-09-15 review fix commit: `fbb1f0c`（numeric class優先、restart時の手動mode維持、private picker testの新初期mode対応、technical-reference整合）。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -72,7 +76,9 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 回帰test | Major | password editor開始直後もEMOJI表示を期待する既存private picker testがAC 2のQWERTY自動選択と衝突 | 採用・修正済み | password開始直後のQWERTYとpicker非表示を確認後、手動EMOJI切替でprivate picker分離を検証するよう変更 |
+| 2 | lifecycle | Major | 同一editorの`restarting=true`で手動選択modeが自動modeへ戻る | 採用・修正済み | `editorKeyboardMode`があるrestartは現在値を維持し、finish後の新規editorだけ再分類するtestを追加 |
+| 3 | 分類優先度 | Major | NUMBER等と`IME_FLAG_FORCE_ASCII`併用時にQWERTYとなり、数字用途のテンキー要求を外す | 採用・修正済み | 数字・電話・日時classを先に`NUMBERS`へ分類し、非numericだけFORCE_ASCIIをQWERTYへ反映 |
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
