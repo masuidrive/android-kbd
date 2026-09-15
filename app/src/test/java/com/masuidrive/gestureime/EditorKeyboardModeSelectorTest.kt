@@ -50,11 +50,23 @@ class EditorKeyboardModeSelectorTest {
     }
 
     @Test
-    fun forceAsciiUsesQwertyRegardlessOfInputClass() {
+    fun numericClassTakesPriorityOverForceAscii() {
+        assertEquals(
+            KeyboardMode.NUMBERS,
+            selectInitialKeyboardMode(
+                InputType.TYPE_CLASS_NUMBER,
+                EditorInfo.IME_FLAG_FORCE_ASCII,
+                KeyboardMode.KANA,
+            ),
+        )
+    }
+
+    @Test
+    fun forceAsciiUsesQwertyForNonNumericInput() {
         assertEquals(
             KeyboardMode.QWERTY,
             selectInitialKeyboardMode(
-                InputType.TYPE_CLASS_NUMBER,
+                InputType.TYPE_CLASS_TEXT,
                 EditorInfo.IME_FLAG_FORCE_ASCII,
                 KeyboardMode.KANA,
             ),

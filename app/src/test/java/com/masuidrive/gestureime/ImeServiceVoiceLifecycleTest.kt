@@ -325,6 +325,11 @@ class ImeServiceVoiceLifecycleTest {
             assertEquals(KeyboardMode.SYMBOLS, service.onCreateInputView().keyboardView().mode())
 
             service.onStartInput(numberEditor, true)
+            assertEquals(KeyboardMode.SYMBOLS, service.onCreateInputView().keyboardView().mode())
+            assertEquals(KeyboardMode.SYMBOLS, ImePreferences.getLastKeyboardMode(service))
+
+            service.onFinishInput()
+            service.onStartInput(numberEditor, false)
             assertEquals(KeyboardMode.NUMBERS, service.onCreateInputView().keyboardView().mode())
             assertEquals(KeyboardMode.SYMBOLS, ImePreferences.getLastKeyboardMode(service))
 

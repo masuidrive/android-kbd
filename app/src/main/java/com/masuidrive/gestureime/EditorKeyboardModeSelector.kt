@@ -9,8 +9,6 @@ internal fun selectInitialKeyboardMode(
     imeOptions: Int,
     lastExplicitMode: KeyboardMode,
 ): KeyboardMode {
-    if (imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII != 0) return KeyboardMode.QWERTY
-
     val inputClass = inputType and InputType.TYPE_MASK_CLASS
     if (inputClass == InputType.TYPE_CLASS_NUMBER ||
         inputClass == InputType.TYPE_CLASS_PHONE ||
@@ -18,6 +16,8 @@ internal fun selectInitialKeyboardMode(
     ) {
         return KeyboardMode.NUMBERS
     }
+
+    if (imeOptions and EditorInfo.IME_FLAG_FORCE_ASCII != 0) return KeyboardMode.QWERTY
 
     if (inputClass != InputType.TYPE_CLASS_TEXT) return lastExplicitMode
     return when (inputType and InputType.TYPE_MASK_VARIATION) {

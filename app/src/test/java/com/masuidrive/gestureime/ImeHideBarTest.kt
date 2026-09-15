@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
@@ -167,6 +168,7 @@ class ImeHideBarTest {
         val publicPicker = root.getChildAt(1) as EmojiPickerView
         val privatePicker = root.getChildAt(2) as EmojiPickerView
         val mask = root.getChildAt(3)
+        val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
@@ -188,7 +190,15 @@ class ImeHideBarTest {
         }, false)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
+        assertEquals(KeyboardMode.QWERTY, keyboard.mode())
         assertEquals(View.GONE, publicPicker.visibility)
+        assertEquals(View.GONE, privatePicker.visibility)
+        assertEquals(View.GONE, mask.visibility)
+        assertEquals(KeyboardMode.EMOJI, ImePreferences.getLastKeyboardMode(service))
+
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
         assertEquals(View.VISIBLE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
         assertEquals((50 * service.resources.displayMetrics.density).toInt() + 120,
@@ -676,6 +686,11 @@ class ImeHideBarTest {
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+
+    private fun KeyboardView.mode(): KeyboardMode {
+        val field = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
+        return (field.get(this) as KeyboardUiState).mode
+    }
 
     private fun View.descendants(): List<View> {
         val result = mutableListOf<View>()

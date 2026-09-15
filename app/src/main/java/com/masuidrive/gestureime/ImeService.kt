@@ -793,7 +793,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         updateEmojiPickerVisibility()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
-        selectKeyboardModeForEditor(attribute)
+        if (!restarting || editorKeyboardMode == null) {
+            selectKeyboardModeForEditor(attribute)
+        } else {
+            keyboardMode = requireNotNull(editorKeyboardMode)
+            keyboardView?.setMode(keyboardMode)
+        }
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
