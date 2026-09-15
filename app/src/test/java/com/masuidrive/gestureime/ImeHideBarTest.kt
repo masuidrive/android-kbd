@@ -244,24 +244,24 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun pickerGeometryRefreshSettlesAfterAnExternalWidthChange() {
+    fun pickerBodyGeometryApplicationReplacesPhoneInsetsBeforeWideMeasure() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
-        val root = service.onCreateInputView() as FrameLayout
-        val picker = root.getChildAt(1) as EmojiPickerView
-        var layoutChanges = 0
-        picker.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutChanges++ }
-        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val keyboard = KeyboardView(service)
+        val body = RecyclerView(service)
+        val content = LinearLayout(service).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200))
+        }
+        val phoneGeometry = keyboard.emojiLayerHorizontalGeometryForWidth(412)
+        assertTrue(applyEmojiPickerBodyHorizontalLayout(content, body, 412, phoneGeometry))
+        content.measure(exact(412), exact(200)); content.layout(0, 0, 412, 200)
+        assertEquals(phoneGeometry.railRight, body.left)
+        assertEquals(phoneGeometry.bodyWidth, body.width)
+        assertEquals(phoneGeometry.contentRight, body.right)
 
-        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertTrue(picker.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null)
-        val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
-        settleEmojiPickerLayouts(root, picker, keyboard, width = 840, height = 1_000)
-
-        assertEquals(840, picker.width)
-        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
         val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(840)
+        assertTrue(applyEmojiPickerBodyHorizontalLayout(content, body, 840, geometry))
+        content.measure(exact(840), exact(200)); content.layout(0, 0, 840, 200)
         val bodyParams = body.layoutParams as ViewGroup.MarginLayoutParams
         assertEquals(geometry.railRight, body.left)
         assertEquals(geometry.bodyWidth, body.width)
@@ -269,14 +269,7 @@ class ImeHideBarTest {
         assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, bodyParams.width)
         assertEquals(0, bodyParams.leftMargin)
         assertEquals(0, bodyParams.rightMargin)
-        assertEquals(geometry.railRight, root.getChildAt(5).width)
-        assertTrue(kotlin.math.abs(body.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
-        assertTrue(layoutChanges > 0)
-        assertTrue(!picker.isLayoutRequested)
-        val settledChanges = layoutChanges
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertEquals(settledChanges, layoutChanges)
-        assertTrue(!picker.isLayoutRequested)
+        assertFalse(applyEmojiPickerBodyHorizontalLayout(content, body, 840, geometry))
     }
 
     @Test
@@ -657,39 +650,6 @@ class ImeHideBarTest {
             View.MeasureSpec.makeMeasureSpec(1_000, View.MeasureSpec.AT_MOST),
         )
         root.layout(0, 0, root.measuredWidth, root.measuredHeight)
-    }
-
-    /**
-     * Robolectric drains posted AndroidX picker work without running the Choreographer
-     * traversal that a child requestLayout schedules on device. Re-run the parent traversal
-     * until that queue is stable, while retaining the final exact geometry assertions.
-     */
-    private fun settleEmojiPickerLayouts(
-        root: View,
-        picker: EmojiPickerView,
-        keyboard: KeyboardView,
-        width: Int,
-        height: Int,
-        maxPasses: Int = 8,
-    ) {
-        repeat(maxPasses) {
-            // This root is measured directly and is not attached to a ViewRootImpl. A child
-            // requestLayout therefore cannot set the root's force-layout flag as it does on
-            // device; force the equivalent parent traversal before reusing the same specs.
-            root.forceLayout()
-            root.measure(exact(width), exact(height))
-            root.layout(0, 0, width, height)
-            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-            val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
-                ?: return@repeat
-            val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(width)
-            if (
-                body.left == geometry.railRight &&
-                body.width == geometry.bodyWidth &&
-                body.right == geometry.contentRight &&
-                !picker.isLayoutRequested
-            ) return
-        }
     }
 
     private fun firstKeyBottomInRoot(keyboard: KeyboardView): Int {

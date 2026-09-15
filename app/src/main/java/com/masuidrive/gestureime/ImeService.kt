@@ -27,6 +27,7 @@ import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionEngine
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.MozcConversionEngine
+import com.masuidrive.gestureime.keyboard.EmojiLayerHorizontalGeometry
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
@@ -487,22 +488,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val pickerWidth = pendingPickerWidth ?: pickerDesiredWidths[picker] ?: picker.width
         if (pickerWidth <= 0) return
         val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(pickerWidth) ?: return
-        val rightMargin = pickerWidth - geometry.contentRight
         val content = body.parent as? ViewGroup ?: return
-        var changed = false
-        if (content.paddingLeft != geometry.railRight || content.paddingRight != rightMargin) {
-            content.setPadding(geometry.railRight, content.paddingTop, rightMargin, content.paddingBottom)
-            changed = true
-        }
-        val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-        if (params.width != ViewGroup.LayoutParams.MATCH_PARENT || params.leftMargin != 0 || params.rightMargin != 0) {
-            params.width = ViewGroup.LayoutParams.MATCH_PARENT
-            params.leftMargin = 0
-            params.rightMargin = 0
-            body.layoutParams = params
-            changed = true
-        }
-        if (changed) content.requestLayout()
+        applyEmojiPickerBodyHorizontalLayout(content, body, pickerWidth, geometry)
     }
 
     /**
@@ -1743,6 +1730,31 @@ private const val EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE = 0
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
     val spacer = body.resources.getDimensionPixelSize(androidx.emoji2.emojipicker.R.dimen.emoji_picker_category_name_height)
     return thirdEmojiRowBottomAtCategoryStart(emojiPickerRowBounds(body), spacer)
+}
+
+/** Applies the latest keyboard content bounds without depending on AndroidX layout callbacks. */
+internal fun applyEmojiPickerBodyHorizontalLayout(
+    content: ViewGroup,
+    body: View,
+    pickerWidth: Int,
+    geometry: EmojiLayerHorizontalGeometry,
+): Boolean {
+    val rightPadding = (pickerWidth - geometry.contentRight).coerceAtLeast(0)
+    var changed = false
+    if (content.paddingLeft != geometry.railRight || content.paddingRight != rightPadding) {
+        content.setPadding(geometry.railRight, content.paddingTop, rightPadding, content.paddingBottom)
+        changed = true
+    }
+    val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return changed
+    if (params.width != ViewGroup.LayoutParams.MATCH_PARENT || params.leftMargin != 0 || params.rightMargin != 0) {
+        params.width = ViewGroup.LayoutParams.MATCH_PARENT
+        params.leftMargin = 0
+        params.rightMargin = 0
+        body.layoutParams = params
+        changed = true
+    }
+    if (changed) content.requestLayout()
+    return changed
 }
 
 private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
