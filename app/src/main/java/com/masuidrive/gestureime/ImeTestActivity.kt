@@ -34,9 +34,33 @@ class ImeTestActivity : AppCompatActivity() {
                 setTextColor(getColor(R.color.setup_heading))
             }, matchWidth())
             addView(EditText(context).apply {
+                id = R.id.ime_test_normal_field
                 hint = getString(R.string.test_hint)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 minLines = 4
+            }, matchWidth())
+            addView(TextView(context).apply {
+                text = getString(R.string.ime_test_number_input)
+                setTextColor(getColor(R.color.setup_heading))
+                val top = (16 * density).toInt()
+                setPadding(0, top, 0, 0)
+            }, matchWidth())
+            addView(EditText(context).apply {
+                id = R.id.ime_test_number_field
+                hint = getString(R.string.ime_test_number_hint)
+                inputType = InputType.TYPE_CLASS_NUMBER or
+                    InputType.TYPE_NUMBER_FLAG_SIGNED or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            }, matchWidth())
+            addView(TextView(context).apply {
+                text = getString(R.string.ime_test_email_input)
+                setTextColor(getColor(R.color.setup_heading))
+                val top = (16 * density).toInt()
+                setPadding(0, top, 0, 0)
+            }, matchWidth())
+            addView(EditText(context).apply {
+                id = R.id.ime_test_email_field
+                hint = getString(R.string.ime_test_email_hint)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
             }, matchWidth())
             addView(TextView(context).apply {
                 text = getString(R.string.ime_test_private_input)
@@ -45,7 +69,8 @@ class ImeTestActivity : AppCompatActivity() {
                 setPadding(0, top, 0, 0)
             }, matchWidth())
             addView(EditText(context).apply {
-                hint = "password"
+                id = R.id.ime_test_password_field
+                hint = getString(R.string.ime_test_password_hint)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             }, matchWidth())
         }

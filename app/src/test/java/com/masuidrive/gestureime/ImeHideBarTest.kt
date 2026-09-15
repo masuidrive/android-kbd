@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
@@ -167,6 +168,7 @@ class ImeHideBarTest {
         val publicPicker = root.getChildAt(1) as EmojiPickerView
         val privatePicker = root.getChildAt(2) as EmojiPickerView
         val mask = root.getChildAt(3)
+        val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
 
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
@@ -188,7 +190,15 @@ class ImeHideBarTest {
         }, false)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
+        assertEquals(KeyboardMode.QWERTY, keyboard.mode())
         assertEquals(View.GONE, publicPicker.visibility)
+        assertEquals(View.GONE, privatePicker.visibility)
+        assertEquals(View.GONE, mask.visibility)
+        assertEquals(KeyboardMode.EMOJI, ImePreferences.getLastKeyboardMode(service))
+
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
         assertEquals(View.VISIBLE, privatePicker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
         assertEquals((50 * service.resources.displayMetrics.density).toInt() + 120,
@@ -234,26 +244,24 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun pickerGeometryRefreshSettlesAfterAnExternalWidthChange() {
+    fun pickerBodyGeometryApplicationReplacesPhoneInsetsBeforeWideMeasure() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
-        val root = service.onCreateInputView() as FrameLayout
-        val picker = root.getChildAt(1) as EmojiPickerView
-        var layoutChanges = 0
-        picker.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> layoutChanges++ }
-        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val keyboard = KeyboardView(service)
+        val body = RecyclerView(service)
+        val content = LinearLayout(service).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200))
+        }
+        val phoneGeometry = keyboard.emojiLayerHorizontalGeometryForWidth(412)
+        assertTrue(applyEmojiPickerBodyHorizontalLayout(content, body, 412, phoneGeometry))
+        content.measure(exact(412), exact(200)); content.layout(0, 0, 412, 200)
+        assertEquals(phoneGeometry.railRight, body.left)
+        assertEquals(phoneGeometry.bodyWidth, body.width)
+        assertEquals(phoneGeometry.contentRight, body.right)
 
-        root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertTrue(picker.findViewById<View>(androidx.emoji2.emojipicker.R.id.emoji_picker_body) != null)
-        root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        root.measure(exact(840), exact(1_000)); root.layout(0, 0, 840, 1_000)
-
-        assertEquals(840, picker.width)
-        val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
-        val keyboard = (root.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView
         val geometry = keyboard.emojiLayerHorizontalGeometryForWidth(840)
+        assertTrue(applyEmojiPickerBodyHorizontalLayout(content, body, 840, geometry))
+        content.measure(exact(840), exact(200)); content.layout(0, 0, 840, 200)
         val bodyParams = body.layoutParams as ViewGroup.MarginLayoutParams
         assertEquals(geometry.railRight, body.left)
         assertEquals(geometry.bodyWidth, body.width)
@@ -261,14 +269,7 @@ class ImeHideBarTest {
         assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, bodyParams.width)
         assertEquals(0, bodyParams.leftMargin)
         assertEquals(0, bodyParams.rightMargin)
-        assertEquals(geometry.railRight, root.getChildAt(5).width)
-        assertTrue(kotlin.math.abs(body.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
-        assertTrue(layoutChanges > 0)
-        assertTrue(!picker.isLayoutRequested)
-        val settledChanges = layoutChanges
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertEquals(settledChanges, layoutChanges)
-        assertTrue(!picker.isLayoutRequested)
+        assertFalse(applyEmojiPickerBodyHorizontalLayout(content, body, 840, geometry))
     }
 
     @Test
@@ -676,6 +677,11 @@ class ImeHideBarTest {
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+
+    private fun KeyboardView.mode(): KeyboardMode {
+        val field = KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }
+        return (field.get(this) as KeyboardUiState).mode
+    }
 
     private fun View.descendants(): List<View> {
         val result = mutableListOf<View>()

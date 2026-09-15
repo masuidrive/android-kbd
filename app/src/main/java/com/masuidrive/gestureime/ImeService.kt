@@ -27,6 +27,7 @@ import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionEngine
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.MozcConversionEngine
+import com.masuidrive.gestureime.keyboard.EmojiLayerHorizontalGeometry
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
@@ -105,6 +106,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var pendingPredictionSelection: ExpectedSelectionTransition? = null
     private var predictionRequestInFlight = false
     private var keyboardMode = KeyboardMode.QWERTY
+    private var editorKeyboardMode: KeyboardMode? = null
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
@@ -157,7 +159,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             // later positive system-bar inset replaces it.
             it.setSystemBottomInsetFallback(initialBottomInset)
             it.updateBottomInset(initialBottomInset)
-            keyboardMode = ImePreferences.getLastKeyboardMode(this)
+            keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
             it.setMode(keyboardMode)
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
@@ -486,22 +488,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val pickerWidth = pendingPickerWidth ?: pickerDesiredWidths[picker] ?: picker.width
         if (pickerWidth <= 0) return
         val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(pickerWidth) ?: return
-        val rightMargin = pickerWidth - geometry.contentRight
         val content = body.parent as? ViewGroup ?: return
-        var changed = false
-        if (content.paddingLeft != geometry.railRight || content.paddingRight != rightMargin) {
-            content.setPadding(geometry.railRight, content.paddingTop, rightMargin, content.paddingBottom)
-            changed = true
-        }
-        val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-        if (params.width != ViewGroup.LayoutParams.MATCH_PARENT || params.leftMargin != 0 || params.rightMargin != 0) {
-            params.width = ViewGroup.LayoutParams.MATCH_PARENT
-            params.leftMargin = 0
-            params.rightMargin = 0
-            body.layoutParams = params
-            changed = true
-        }
-        if (changed) content.requestLayout()
+        applyEmojiPickerBodyHorizontalLayout(content, body, pickerWidth, geometry)
     }
 
     /**
@@ -771,6 +759,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
+        if (editorKeyboardMode == null) selectKeyboardModeForEditor(info)
+        keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
+        keyboardView?.setMode(keyboardMode)
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         keyboardView?.refreshIntrinsicLayout()
@@ -789,8 +780,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         textController.terminalCursorEnabled = ImePreferences.isTerminalCursorEnabled(this)
         updateEmojiPickerVisibility()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
-        keyboardMode = ImePreferences.getLastKeyboardMode(this)
-        keyboardView?.setMode(keyboardMode)
+        if (!restarting || editorKeyboardMode == null) {
+            selectKeyboardModeForEditor(attribute)
+        } else {
+            keyboardMode = requireNotNull(editorKeyboardMode)
+            keyboardView?.setMode(keyboardMode)
+        }
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
@@ -806,6 +801,18 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardView?.cancelActiveGestures()
         textController.finishComposition()
         super.onFinishInput()
+        editorKeyboardMode = null
+    }
+
+    private fun selectKeyboardModeForEditor(info: EditorInfo) {
+        val selected = selectInitialKeyboardMode(
+            inputType = info.inputType,
+            imeOptions = info.imeOptions,
+            lastExplicitMode = ImePreferences.getLastKeyboardMode(this),
+        )
+        editorKeyboardMode = selected
+        keyboardMode = selected
+        keyboardView?.setMode(selected)
     }
 
     override fun onUpdateSelection(
@@ -1081,6 +1088,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 finishEnglishRaw()
                 if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession()
                 ImePreferences.setLastKeyboardMode(this, action.target)
+                editorKeyboardMode = action.target
                 keyboardMode = action.target
                 keyboardView?.setMode(action.target)
                 updateEmojiPickerVisibility()
@@ -1182,6 +1190,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         showCandidateStrip(emptyList(), -1)
         if (keyboardMode == KeyboardMode.VOICE) {
             keyboardMode = voiceReturnMode
+            editorKeyboardMode = voiceReturnMode
             keyboardView?.setMode(voiceReturnMode)
             updateEmojiPickerVisibility()
         }
@@ -1721,6 +1730,31 @@ private const val EMOJI_PICKER_CATEGORY_TITLE_VIEW_TYPE = 0
 internal fun emojiThreeRowViewport(body: RecyclerView): Int? {
     val spacer = body.resources.getDimensionPixelSize(androidx.emoji2.emojipicker.R.dimen.emoji_picker_category_name_height)
     return thirdEmojiRowBottomAtCategoryStart(emojiPickerRowBounds(body), spacer)
+}
+
+/** Applies the latest keyboard content bounds without depending on AndroidX layout callbacks. */
+internal fun applyEmojiPickerBodyHorizontalLayout(
+    content: ViewGroup,
+    body: View,
+    pickerWidth: Int,
+    geometry: EmojiLayerHorizontalGeometry,
+): Boolean {
+    val rightPadding = (pickerWidth - geometry.contentRight).coerceAtLeast(0)
+    var changed = false
+    if (content.paddingLeft != geometry.railRight || content.paddingRight != rightPadding) {
+        content.setPadding(geometry.railRight, content.paddingTop, rightPadding, content.paddingBottom)
+        changed = true
+    }
+    val params = body.layoutParams as? ViewGroup.MarginLayoutParams ?: return changed
+    if (params.width != ViewGroup.LayoutParams.MATCH_PARENT || params.leftMargin != 0 || params.rightMargin != 0) {
+        params.width = ViewGroup.LayoutParams.MATCH_PARENT
+        params.leftMargin = 0
+        params.rightMargin = 0
+        body.layoutParams = params
+        changed = true
+    }
+    if (changed) content.requestLayout()
+    return changed
 }
 
 private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
