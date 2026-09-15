@@ -20,8 +20,20 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
 import kotlin.math.abs
+import kotlin.math.atan
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+
+private const val VOICE_INPUT_LEVEL_STEPS = 24
+private const val VOICE_INPUT_LEVEL_SCALE_DB = 20.0
+
+/** Maps any finite provider-specific RMS value monotonically into a bounded display level. */
+internal fun normalizeVoiceInputLevel(rmsDb: Float): Float {
+    require(rmsDb.isFinite()) { "RMS input level must be finite" }
+    val bounded = atan(rmsDb.toDouble() / VOICE_INPUT_LEVEL_SCALE_DB) / Math.PI + 0.5
+    return (bounded * VOICE_INPUT_LEVEL_STEPS).roundToInt().toFloat() / VOICE_INPUT_LEVEL_STEPS
+}
 
 class KeyboardView @JvmOverloads constructor(
     context: Context,
@@ -179,9 +191,25 @@ class KeyboardView @JvmOverloads constructor(
     fun setVoiceSessionActive(active: Boolean) {
         if (state.voiceSessionActive == active) return
         if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
-        state = state.copy(voiceSessionActive = active)
+        state = state.copy(voiceSessionActive = active, voiceInputLevel = if (active) state.voiceInputLevel else null)
         accessibilityHelper.invalidateRoot()
         if (active) accessibilityHelper.announceVoiceSessionStarted()
+        invalidate()
+    }
+
+    /** SpeechRecognizer RMS has no documented range, so the renderer owns bounded quantization. */
+    fun setVoiceInputLevel(rmsDb: Float?): Boolean {
+        if (rmsDb != null && !rmsDb.isFinite()) return false
+        val normalized = rmsDb?.takeIf { state.voiceSessionActive }?.let(::normalizeVoiceInputLevel)
+        if (state.voiceInputLevel == normalized) return false
+        state = state.copy(voiceInputLevel = normalized)
+        invalidate()
+        return true
+    }
+
+    fun showVoiceInputLevelBaseline() {
+        if (!state.voiceSessionActive || state.voiceInputLevel == 0f) return
+        state = state.copy(voiceInputLevel = 0f)
         invalidate()
     }
 
@@ -356,9 +384,33 @@ class KeyboardView @JvmOverloads constructor(
         textPaint.alpha = 255
         textPaint.textSize = sp(13f)
         textPaint.textAlign = Paint.Align.CENTER
-        val x = status.bounds.centerX()
+        val labelWidth = textPaint.measureText("認識中")
+        val amplitude = state.voiceInputLevel
+        val barWidth = dp(1.5f)
+        val barGap = dp(1.5f)
+        val barCount = 4
+        val waveWidth = barWidth * barCount + barGap * (barCount - 1)
+        val groupWidth = if (amplitude == null) labelWidth else labelWidth + dp(4f) + waveWidth
+        val x = status.bounds.centerX() - groupWidth / 2f + labelWidth / 2f
         val y = status.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
         canvas.drawText("認識中", x, y, textPaint)
+        if (amplitude == null) return
+
+        keyPaint.color = context.getColor(R.color.keyboard_muted_text)
+        keyPaint.alpha = 255
+        val waveLeft = x + labelWidth / 2f + dp(4f)
+        val waveCenterY = status.bounds.centerY()
+        val shape = floatArrayOf(0.55f, 1f, 0.72f, 0.42f)
+        shape.forEachIndexed { index, multiplier ->
+            val height = dp(2f) + dp(12f) * amplitude * multiplier
+            val left = waveLeft + index * (barWidth + barGap)
+            canvas.drawRoundRect(
+                RectF(left, waveCenterY - height / 2f, left + barWidth, waveCenterY + height / 2f),
+                barWidth / 2f,
+                barWidth / 2f,
+                keyPaint,
+            )
+        }
     }
 
     private fun voiceSessionStatusBounds(): android.graphics.Rect? {

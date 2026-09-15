@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "音声入力中のマイク音量を小さなリアルタイム波形で表示する"
 created_at: "2026-09-14T13:38:49Z"
 started_at: 2026-09-14T13:42:15Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-15T05:24:20Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -15,9 +15,9 @@ canceled_at: null # Do not modify manually
 
 ### What / Acceptance Criteria
 この ticket が終わると、音声入力を使う人が、認識結果を待ちながらマイクの入力レベルを目で確認できるようになる。
-- [ ] 音声レイヤーで認識中に、`認識中`表示の横へ小さな波形が表示され、マイク入力が大きいほど波形も大きくなる。
-- [ ] 無音待機から発話しても波形が追従し、無音による認識の自動再開後も新しい入力レベルを表示する。
-- [ ] 候補選択待ち、取消、レイヤー切替、認識エラーでは波形が停止・消去され、音声候補やキーボードの高さと操作は従来どおり使える。
+- [x] 音声レイヤーで認識中に、`認識中`表示の横へ小さな波形が表示され、マイク入力が大きいほど波形も大きくなる。
+- [x] 無音待機から発話しても波形が追従し、無音による認識の自動再開後も新しい入力レベルを表示する。
+- [x] 候補選択待ち、取消、レイヤー切替、認識エラーでは波形が停止・消去され、音声候補やキーボードの高さと操作は従来どおり使える。
 
 ### Architectural Invariants check
 音声を端末外へ送らず、API 31以降の端末内認識だけを使い、private欄で音声レイヤーを無効にする既存invariantと矛盾しない。

@@ -91,4 +91,6 @@ data class KeyboardUiState(
     val emojiRecents: List<String> = emptyList(),
     /** True only while the dedicated voice layer owns a live recognition session. */
     val voiceSessionActive: Boolean = false,
+    /** Normalized input amplitude while recognition is accepting RMS callbacks; null hides the waveform. */
+    val voiceInputLevel: Float? = null,
 )
