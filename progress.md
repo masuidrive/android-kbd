@@ -311,3 +311,5 @@
 [2026/09/15 20:01] RecyclerViewのheader attach中にはカテゴリclickをせず、identityを確認したpostへ移す回帰修正を追加した。絵文字rail最下段AZのtapと左・上・右・下、threshold、center復帰、cancelを412dp・840dpの実MotionEventで確認し、API 36.1 AVDのfocused class 6件を通過した。
 [2026/09/15 20:15] 絵文字レイヤーをAPI 36.1の実InputMethodServiceで撮影し、左列「あ・#!・19・Az」、右側4行一覧、Backspaceなしを目視した。独立reviewのRecyclerView layout中clickとAZ全方向test不足を解消し、再reviewはCritical/Majorなし、AC 1〜7 VERIFIEDとなった。マニュアル画像の欠落も実画面asset追加で解消した。
 [2026/09/15 20:19] v0.15.15（versionCode 31）の公開候補でscripts/test-all.sh --parallel --connectedを実行し、fast-checks・全unit/lint/APK・API 36.1実Mozc connectedが3/3 PASSした。APKは38,634,832 bytes、SHA-256 94c30778949021294dbd0f2977142af3550a8f36551ffc5641fa2284ca108d0c、arm64-v8a、RECORD_AUDIOあり、INTERNETなし、zipalign成功を確認した。
+[2026/09/15 20:26] v0.15.15 APKをGitHub ReleaseへZIPなしの単体で公開し、再取得した38,634,832 bytes、SHA-256 94c30778949021294dbd0f2977142af3550a8f36551ffc5641fa2284ca108d0cがlocal APKと完全一致した。絵文字4行・Recent初期表示・左railと記号⌫をmain cd570a6へ統合した。
+[2026/09/15 20:26] masuidrive.jp main 4e80bd6へv0.15.15製品ページ・操作mock・マニュアル・API 36.1実画面をpushし、Pages run 34963076447成功、公開5ファイルのbyte一致を確認した。公開browserは412px・840pxで横overflow 0、絵文字rail4キー、4行7列、Backspaceなし、記号]右⌫を確認した。
