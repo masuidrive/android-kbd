@@ -62,6 +62,10 @@
 - 2026-09-15 review focused: 変更経路だけの8件は`--rerun-tasks`で`BUILD SUCCESSFUL in 5s`, `29 actionable tasks: 29 executed`。`ImeHideBarTest`・selector・lifecycle全47件の初回は変更外の`pickerGeometryRefreshSettlesAfterAnExternalWidthChange`が`expected 717 but was 783`で1件失敗し、同じ全47件の再実行は`BUILD SUCCESSFUL in 6s`, `29 actionable tasks: 29 executed`となった。この1件はretry-passとしてrootの最終full suiteで再確認する。
 - 2026-09-15 壊していない側の前後記録: 通常text＋保存済み`SYMBOLS`は変更前focused 22件と修正後focused 47件の両方で`SYMBOLS`、email address＋保存済み`KANA`も両方で`QWERTY`。数値初回`NUMBERS`→手動`SYMBOLS`→同一editor restart後`SYMBOLS`→finish後の新規数値editor`NUMBERS`を新しいlifecycle testで固定した。
 - 2026-09-15 review fix commit: `fbb1f0c`（numeric class優先、restart時の手動mode維持、private picker testの新初期mode対応、technical-reference整合）。
+- 2026-09-15 AC verifier再現調査: selector/lifecycle/activityと同時実行した`ImeHideBarTest.pickerGeometryRefreshSettlesAfterAnExternalWidthChange`で、412px用paddingを保持したbodyが840pxへ広がり`expected 717 but was 783`になる失敗が2回報告された。こちらの同一4 class再現は修正前に51件成功1回だったが、AndroidXがpostしたpicker再構築をRobolectric main looperでdrainしても、端末のChoreographerが行う次の親measure/layout traversalは自動実行されないため、callback順で最終assert前のtraversal回数が変わることを確認した。
+- 2026-09-15 test同期修正: 幅変更testはAndroidXのposted処理をdrainした後、pickerの厳密な`railRight..contentRight`境界と`isLayoutRequested=false`が成立するまで親のexact measure/layoutを最大8 traversal進める。bodyのleft/width/right、7列cell幅、rail proxy、settled後に追加layoutがないという既存assertは維持した。全descendantの`isLayoutRequested`を見る初案はRecyclerView内部の継続要求で8回後も停止判定できず失敗したため不採用とした。
+- 2026-09-15 回帰確認: `ImeHideBarTest`、`EditorKeyboardModeSelectorTest`、`ImeServiceVoiceLifecycleTest`、`ImeTestActivitySafeAreaTest`の51件を同じ4 class構成で`--rerun-tasks`実行し、修正後2回連続で`BUILD SUCCESSFUL in 7s`、各`29 actionable tasks: 29 executed`。変更外のcategory遷移、空Recent、scroll、mask/rail、private picker、通常textの保存mode、numeric初回・restart lifecycleを含む全件が両方で成功した。
+- 2026-09-15 layout test stabilization commit: `97024da`（Robolectricで端末相当の要求済み親traversalを明示し、厳密な最終geometry assertionを維持）。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -79,7 +83,7 @@
 | 1 | 回帰test | Major | password editor開始直後もEMOJI表示を期待する既存private picker testがAC 2のQWERTY自動選択と衝突 | 採用・修正済み | password開始直後のQWERTYとpicker非表示を確認後、手動EMOJI切替でprivate picker分離を検証するよう変更 |
 | 2 | lifecycle | Major | 同一editorの`restarting=true`で手動選択modeが自動modeへ戻る | 採用・修正済み | `editorKeyboardMode`があるrestartは現在値を維持し、finish後の新規editorだけ再分類するtestを追加 |
 | 3 | 分類優先度 | Major | NUMBER等と`IME_FLAG_FORCE_ASCII`併用時にQWERTYとなり、数字用途のテンキー要求を外す | 採用・修正済み | 数字・電話・日時classを先に`NUMBERS`へ分類し、非numericだけFORCE_ASCIIをQWERTYへ反映 |
-| 4 | test安定性 | Minor | picker幅変更testが実装担当の初回だけ失敗し、再実行で成功した | 採用・最終suite監視 | reviewerが同testを独立に2回成功。変更対象外だが最終full suiteでも再確認する |
+| 4 | test安定性 | Minor | picker幅変更testが複合実行で2回失敗する一方、単独reviewでは2回成功し、callback順で結果が変わる | 採用・修正済み | RobolectricがAndroidXの`requestLayout`後のChoreographer traversalを自動実行しない差をtest helperで補い、最終geometry assertionを弱めず複合51件を2回連続成功 |
 
 ### Findings (PDH-review-2)
 
