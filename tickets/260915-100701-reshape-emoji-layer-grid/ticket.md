@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "絵文字レイヤーをRecent起点の4行一覧と固定レイヤー切替列へ整える"
 created_at: "2026-09-15T10:07:01Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-15T10:09:12Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
