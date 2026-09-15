@@ -97,9 +97,12 @@
   #ios-keyboard-demo .kana .key.side { flex:1; }
   #ios-keyboard-demo .kana .key-slot { flex:1; min-width:0; }
   #ios-keyboard-demo .kana .key-row { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
-  #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(8,minmax(0,1fr)); }
-  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:165px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
+  #ios-keyboard-demo .kana.emoji-layer .key-row { grid-template-columns:repeat(7,minmax(0,1fr)); }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport { height:165px; margin-left:12.5%; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:none; touch-action:pan-y; }
   #ios-keyboard-demo .kana.emoji-layer .emoji-scroll-viewport::-webkit-scrollbar { display:none; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-controls { margin-left:12.5%; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-rail { position:absolute; inset:0 auto auto 0; z-index:1; width:12.5%; }
+  #ios-keyboard-demo .kana.emoji-layer .emoji-rail .key { width:100%; height:45px; margin-bottom:10px; }
   #ios-keyboard-demo .kana .key-row { position:relative; }
   #ios-keyboard-demo .kana .key.return { position:absolute; top:0; right:0; width:20%; height:calc(200% + 10px); z-index:1; }
   #ios-keyboard-demo .kana .key, #ios-keyboard-demo .kana .key-slot { width:auto; }
@@ -735,8 +738,17 @@
     const values=emojiCategory==='recent'?emojiRecents:category[2];
     const entries=values.map((emoji,index)=>makeKey('emoji-'+index,emoji,{text:emoji,emoji:true,preview:'press'}));
     const content=[];
-    for(let index=0;index<entries.length;index+=8)content.push([...entries.slice(index,index+8),...Array(Math.max(0,8-entries.slice(index,index+8).length)).fill(null).map(()=>makeKey(null,''))]);
-    return {content,controls:[makeKey('english','ABC',{special:true,navigation:layerNavigation,gridSpan:2}),makeKey(null,'',{gridSpan:4}),makeKey('backspace','⌫',{special:true,gridSpan:2})]};
+    for(let index=0;index<entries.length;index+=7)content.push([...entries.slice(index,index+7),...Array(Math.max(0,7-entries.slice(index,index+7).length)).fill(null).map(()=>makeKey(null,''))]);
+    return {
+      content,
+      rail:[
+        makeKey('emoji','☺',{special:true}),
+        makeKey('symbol-layer','#',{special:true,ghost:'!'}),
+        makeKey('kana-numbers','19',{special:true}),
+        makeKey('english','A',{special:true,ghost:'Z',navigation:layerNavigation}),
+      ],
+      controls:[makeKey(null,'',{gridSpan:6}),makeKey('backspace','⌫',{special:true})]
+    };
   }
   function createKanaKey([id,value,options={}],index) {
     if(id===null)return makeKey(null,'');
@@ -955,8 +967,9 @@
       for(const row of emoji.content) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));viewport.append(line);}
       viewport.scrollTop=emojiScrollTop;
       viewport.addEventListener('scroll',()=>{emojiScrollTop=viewport.scrollTop;persistState();},{passive:true});
-      const controls=document.createElement('div');controls.className='key-row';controls.append(...emoji.controls.map(createKeyElement));
-      keys.append(viewport,controls);
+      const rail=document.createElement('div');rail.className='emoji-rail';rail.append(...emoji.rail.map(createKeyElement));
+      const controls=document.createElement('div');controls.className='key-row emoji-controls';controls.append(...emoji.controls.map(createKeyElement));
+      keys.append(viewport,rail,controls);
       return;
     }
     for(const row of keyboardRows()) {const line=document.createElement('div');line.className='key-row';line.append(...row.map(createKeyElement));keys.append(line);}

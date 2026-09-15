@@ -60,20 +60,24 @@ object KeyboardLayouts {
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
     ))
 
-    /** Emoji content is rendered by AndroidX EmojiPickerView above this fixed control row. */
+    /** Emoji content is rendered by AndroidX EmojiPickerView beside the fixed layer rail. */
     private fun emoji(recents: List<String>): KeyboardLayout = KeyboardLayout(
         KeyboardMode.EMOJI,
         emojiContentRows(recents) + emojiControlRow(),
     )
 
-    /** Three occupied rows are reserved for the AndroidX picker overlay. */
+    /** The first column stays fixed while AndroidX owns the remaining seven columns. */
     fun emojiContentRows(recents: List<String>): List<KeyboardRow> =
-        List(3) { KeyboardRow(listOf(empty(8f))) }
+        listOf(
+            KeyboardRow(listOf(emojiPad(), empty(7f))),
+            KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), empty(7f))),
+            KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), empty(7f))),
+        )
 
     fun emojiControlRow(): KeyboardRow = KeyboardRow(listOf(
-        layerKey("AZ", KeyboardMode.QWERTY, 1.6f),
-        empty(4.8f),
-        backspace(1.6f),
+        layerKey("AZ", KeyboardMode.QWERTY),
+        empty(6f),
+        backspace(1f),
     ))
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(

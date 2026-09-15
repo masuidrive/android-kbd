@@ -805,27 +805,96 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `emoji picker overlay leaves only fixed controls touchable and accessible`() {
+    @Test fun `emoji picker overlay leaves the fixed rail and controls touchable and accessible`() {
         view.setMode(KeyboardMode.EMOJI)
         val provider = view.accessibilityNodeProvider
-        assertEquals(2, provider.createAccessibilityNodeInfo(-1)!!.childCount)
+        assertEquals(5, provider.createAccessibilityNodeInfo(-1)!!.childCount)
         touch(MotionEvent.ACTION_DOWN, 200f, 25f)
         touch(MotionEvent.ACTION_UP, 200f, 25f, 10)
         assertTrue(actions.isEmpty())
-        val control = keyCenter(3)
+        val control = keyCenter(6)
         touch(MotionEvent.ACTION_DOWN, control.first, control.second, 20)
         touch(MotionEvent.ACTION_UP, control.first, control.second, 30)
         assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
     }
 
-    @Test fun `emoji control row reaches both keyboard edges`() {
+    @Test fun `emoji rail and control row reach both keyboard edges`() {
         view.setMode(KeyboardMode.EMOJI)
         view.measure(exact(400), exact(228))
         view.layout(0, 0, 400, 228)
-        val left = keyBounds(3)
-        val right = keyBounds(5)
+        val first = keyBounds(0)
+        val second = keyBounds(2)
+        val third = keyBounds(4)
+        val left = keyBounds(6)
+        val right = keyBounds(8)
+        assertEquals(first.left, second.left)
+        assertEquals(second.left, third.left)
+        assertEquals(third.left, left.left)
         assertEquals(left.top, right.top)
+        assertEquals(first.width(), left.width())
+        assertTrue(kotlin.math.abs(left.width() - right.width()) <= 1)
         assertTrue(right.right > 390)
+    }
+
+    @Test fun `emoji overlay geometry follows the keyboard content insets at phone and wide widths`() {
+        val phone = view.emojiLayerHorizontalGeometryForWidth(412)
+        assertEquals(3, phone.contentLeft)
+        assertEquals(54, phone.railRight)
+        assertEquals(409, phone.contentRight)
+        assertEquals(355, phone.bodyWidth)
+
+        val wide = view.emojiLayerHorizontalGeometryForWidth(840)
+        assertEquals(10, wide.contentLeft)
+        assertEquals(113, wide.railRight)
+        assertEquals(830, wide.contentRight)
+        assertEquals(717, wide.bodyWidth)
+    }
+
+    @Test fun `emoji rail routes taps and rejects unassigned flicks through production motion events`() {
+        val rail = listOf(
+            0 to KeyboardMode.EMOJI,
+            2 to KeyboardMode.SYMBOLS,
+            4 to KeyboardMode.NUMBERS,
+        )
+        rail.forEachIndexed { index, (virtualId, mode) ->
+            actions.clear()
+            view.setMode(KeyboardMode.EMOJI)
+            val key = keyBounds(virtualId)
+            val x = key.exactCenterX()
+            val y = key.exactCenterY()
+            touch(MotionEvent.ACTION_DOWN, x, y, index * 100L)
+            touch(MotionEvent.ACTION_UP, x, y, index * 100L + 10)
+            assertEquals(listOf(KeyAction.SwitchLayer(mode)), actions)
+        }
+
+        view.setMode(KeyboardMode.EMOJI)
+        val symbol = keyBounds(2)
+        listOf(-30f to 0f, 0f to -30f, 30f to 0f, 0f to 30f).forEachIndexed { index, (dx, dy) ->
+            actions.clear()
+            view.setMode(KeyboardMode.EMOJI)
+            val x = symbol.exactCenterX()
+            val y = symbol.exactCenterY()
+            val start = 400L + index * 100L
+            touch(MotionEvent.ACTION_DOWN, x, y, start)
+            touch(MotionEvent.ACTION_MOVE, x + dx, y + dy, start + 10)
+            touch(MotionEvent.ACTION_UP, x + dx, y + dy, start + 20)
+            assertTrue(actions.isEmpty())
+        }
+
+        actions.clear()
+        val x = symbol.exactCenterX()
+        val y = symbol.exactCenterY()
+        touch(MotionEvent.ACTION_DOWN, x, y, 900)
+        touch(MotionEvent.ACTION_MOVE, x + 30f, y, 910)
+        touch(MotionEvent.ACTION_MOVE, x + 5f, y, 920)
+        touch(MotionEvent.ACTION_UP, x + 5f, y, 930)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)), actions)
+
+        actions.clear()
+        view.setMode(KeyboardMode.EMOJI)
+        touch(MotionEvent.ACTION_DOWN, x, y, 1_000)
+        touch(MotionEvent.ACTION_CANCEL, x, y, 1_010)
+        assertTrue(actions.isEmpty())
     }
 
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
@@ -998,9 +1067,10 @@ class KeyboardViewTest {
 
         view.setMode(KeyboardMode.EMOJI)
         val emojiMode = keyBounds(0)
-        assertEquals(-1, view.hitTargetIndexAt(emojiMode.exactCenterX(), emojiMode.top - 1f))
-        touch(MotionEvent.ACTION_DOWN, emojiMode.exactCenterX(), emojiMode.top - 1f, 1)
-        touch(MotionEvent.ACTION_UP, emojiMode.exactCenterX(), emojiMode.top - 1f, 2)
+        val bodyX = emojiMode.right + emojiMode.width() * 2f
+        assertEquals(-1, view.hitTargetIndexAt(bodyX, emojiMode.exactCenterY()))
+        touch(MotionEvent.ACTION_DOWN, bodyX, emojiMode.exactCenterY(), 1)
+        touch(MotionEvent.ACTION_UP, bodyX, emojiMode.exactCenterY(), 2)
         assertTrue(actions.isEmpty())
     }
 

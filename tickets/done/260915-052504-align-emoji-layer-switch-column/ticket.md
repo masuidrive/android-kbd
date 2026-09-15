@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "絵文字レイヤー左端へ日本語レイヤーと同じ縦並びのレイヤー切替列を追加する"
 created_at: "2026-09-15T05:25:04Z"
 started_at: 2026-09-15T05:28:47Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-15T06:46:03Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -15,9 +15,9 @@ canceled_at: null # Do not modify manually
 
 ### What / Acceptance Criteria
 この ticket が終わると、絵文字を選ぶ人が、日本語レイヤーと同じ左端の位置関係から他レイヤーへ直接移動できる。
-- [ ] 絵文字レイヤー左端に上から`☺`、`#!`、`19`、`AZ`が縦に並び、`#!`で記号、`19`でテンキー、`AZ`でQWERTYへ切り替わる。
-- [ ] 絵文字カテゴリ行、Recentを含む絵文字選択、縦スクロール、バックスペースが従来どおり使える。
-- [ ] スマホとtablet/dual幅で4行のキーボード高さ、キー間隔、最下部safe areaが他レイヤーから切り替えても変わらず、絵文字と切替列が重ならない。
+- [x] 絵文字レイヤー左端に上から`☺`、`#!`、`19`、`AZ`が縦に並び、`#!`で記号、`19`でテンキー、`AZ`でQWERTYへ切り替わる。
+- [x] 絵文字カテゴリ行、Recentを含む絵文字選択、縦スクロール、バックスペースが従来どおり使える。
+- [x] スマホとtablet/dual幅で4行のキーボード高さ、キー間隔、最下部safe areaが他レイヤーから切り替えても変わらず、絵文字と切替列が重ならない。
 
 ### Architectural Invariants check
 入力データを端末外へ送らず、custom Viewの座標と入力sessionを一元管理する既存invariantと矛盾しない。

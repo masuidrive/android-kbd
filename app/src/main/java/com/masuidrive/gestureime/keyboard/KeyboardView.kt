@@ -21,6 +21,7 @@ import androidx.customview.widget.ExploreByTouchHelper
 import com.masuidrive.gestureime.R
 import kotlin.math.abs
 import kotlin.math.atan
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -33,6 +34,49 @@ internal fun normalizeVoiceInputLevel(rmsDb: Float): Float {
     require(rmsDb.isFinite()) { "RMS input level must be finite" }
     val bounded = atan(rmsDb.toDouble() / VOICE_INPUT_LEVEL_SCALE_DB) / Math.PI + 0.5
     return (bounded * VOICE_INPUT_LEVEL_STEPS).roundToInt().toFloat() / VOICE_INPUT_LEVEL_STEPS
+}
+
+internal data class EmojiLayerHorizontalGeometry(
+    val contentLeft: Int,
+    val railRight: Int,
+    val contentRight: Int,
+) {
+    val bodyWidth: Int get() = (contentRight - railRight).coerceAtLeast(0)
+}
+
+internal data class KeyboardContentHorizontalGeometry(val left: Float, val right: Float) {
+    val width: Float get() = (right - left).coerceAtLeast(0f)
+}
+
+/** The one source of horizontal keyboard content insets for every native layer and overlay. */
+internal fun keyboardContentHorizontalGeometry(
+    totalWidth: Int,
+    density: Float,
+    paddingLeft: Int = 0,
+    paddingRight: Int = 0,
+): KeyboardContentHorizontalGeometry {
+    val safeDensity = density.takeIf { it.isFinite() && it > 0f } ?: 1f
+    val inset = (if (totalWidth / safeDensity >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP) 10f else 3f) * safeDensity
+    return KeyboardContentHorizontalGeometry(
+        left = (paddingLeft + inset).coerceIn(0f, totalWidth.toFloat()),
+        right = (totalWidth - paddingRight - inset).coerceIn(0f, totalWidth.toFloat()),
+    )
+}
+
+/** Pixel-snapped bounds shared by KeyboardView and the overlaid AndroidX emoji picker. */
+internal fun emojiLayerHorizontalGeometry(
+    totalWidth: Int,
+    density: Float,
+    paddingLeft: Int = 0,
+    paddingRight: Int = 0,
+): EmojiLayerHorizontalGeometry {
+    val content = keyboardContentHorizontalGeometry(totalWidth, density, paddingLeft, paddingRight)
+    val railRight = content.left + content.width / 8f
+    return EmojiLayerHorizontalGeometry(
+        contentLeft = ceil(content.left).toInt().coerceIn(0, totalWidth),
+        railRight = ceil(railRight).toInt().coerceIn(0, totalWidth),
+        contentRight = content.right.toInt().coerceIn(0, totalWidth),
+    )
 }
 
 class KeyboardView @JvmOverloads constructor(
@@ -139,6 +183,12 @@ class KeyboardView @JvmOverloads constructor(
     /** Uses the pending parent width before this view has received its first layout. */
     internal fun emojiPickerOverlayHeightForWidth(measuredWidth: Int): Float =
         dp(8f) + rowPitch(measuredWidth) * 3f
+
+    internal fun emojiLayerHorizontalGeometryForWidth(measuredWidth: Int): EmojiLayerHorizontalGeometry =
+        emojiLayerHorizontalGeometry(measuredWidth, density, paddingLeft, paddingRight)
+
+    private fun keyboardContentHorizontalGeometryForWidth(measuredWidth: Int): KeyboardContentHorizontalGeometry =
+        keyboardContentHorizontalGeometry(measuredWidth, density, paddingLeft, paddingRight)
 
     fun setModifier(modifier: Modifier?) {
         state = state.copy(pendingModifier = modifier)
@@ -429,11 +479,9 @@ class KeyboardView @JvmOverloads constructor(
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
         val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
         val rowGap = dp(10f)
-        val keyboardInset = dp(if (width / density >= DUAL_FLICK_MIN_WIDTH_DP) 10f else 3f)
-        val contentLeft = paddingLeft + keyboardInset
-        val contentWidth = width - paddingLeft - paddingRight - keyboardInset * 2
+        val horizontal = keyboardContentHorizontalGeometryForWidth(width)
         if (state.mode == KeyboardMode.EMOJI) {
-            buildEmojiHitTargets(keyboardTop, rowPitch, rowGap, contentLeft, contentWidth)
+            buildEmojiHitTargets(keyboardTop, rowPitch, rowGap, emojiLayerHorizontalGeometryForWidth(width))
             return
         }
         emojiViewport.setEmpty()
@@ -443,8 +491,8 @@ class KeyboardView @JvmOverloads constructor(
             val layoutUnits = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
                 row.keys.sumOf { it.widthUnits.toDouble() }.toFloat()
             } else sharedUnits
-            val unit = contentWidth / layoutUnits
-            var x = contentLeft
+            val unit = horizontal.width / layoutUnits
+            var x = horizontal.left
             row.keys.forEach { key ->
                 val right = x + unit * key.widthUnits
                 val keyTop = keyboardTop + rowPitch * rowIndex
@@ -470,16 +518,26 @@ class KeyboardView @JvmOverloads constructor(
         keyboardTop: Float,
         rowPitch: Float,
         rowGap: Float,
-        contentLeft: Float,
-        contentWidth: Float,
+        geometry: EmojiLayerHorizontalGeometry,
     ) {
         emojiScrollOffset = emojiScrollOffset.coerceIn(0f, emojiScrollRange(rowPitch))
-        emojiViewport.set(0f, keyboardTop, width.toFloat(), keyboardTop + rowPitch * 3f - rowGap)
-        val unit = contentWidth / 8f
+        emojiViewport.set(
+            geometry.railRight.toFloat(),
+            keyboardTop,
+            geometry.contentRight.toFloat(),
+            keyboardTop + rowPitch * 3f - rowGap,
+        )
         fun addRow(row: KeyboardRow, top: Float, scrollable: Boolean) {
-            var x = contentLeft
-            row.keys.forEach { key ->
-                val right = x + unit * key.widthUnits
+            var x = geometry.contentLeft.toFloat()
+            var consumedUnits = 0f
+            row.keys.forEachIndexed { index, key ->
+                val nextUnits = consumedUnits + key.widthUnits
+                val right = when {
+                    nextUnits <= 1f -> geometry.contentLeft +
+                        (geometry.railRight - geometry.contentLeft) * nextUnits
+                    index == row.keys.lastIndex -> geometry.contentRight.toFloat()
+                    else -> geometry.railRight + geometry.bodyWidth * ((nextUnits - 1f) / 7f)
+                }
                 val bottom = min(height - paddingBottom.toFloat(), top + rowPitch - rowGap)
                 hitTargets += HitTarget(
                     key,
@@ -488,10 +546,13 @@ class KeyboardView @JvmOverloads constructor(
                     scrollable = scrollable,
                 )
                 x = right
+                consumedUnits = nextUnits
             }
         }
         KeyboardLayouts.emojiContentRows(state.emojiRecents).forEachIndexed { index, row ->
-            addRow(row, keyboardTop + rowPitch * index - emojiScrollOffset, scrollable = true)
+            // AndroidX scrolls the seven-column body above these rows. The first-column
+            // layer rail is part of KeyboardView and must remain fixed and touchable.
+            addRow(row, keyboardTop + rowPitch * index, scrollable = false)
         }
         addRow(KeyboardLayouts.emojiControlRow(), keyboardTop + rowPitch * 3f, scrollable = false)
     }
