@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "wide画面で絵文字7列を一覧領域の中央へ揃える"
 created_at: "2026-09-15T11:43:00Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-15T11:43:56Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
