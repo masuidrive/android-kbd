@@ -4,7 +4,7 @@ base_branch: default
 description: "呼び出し元の入力種別に合う初期レイヤーを選ぶ"
 created_at: "2026-09-15T06:46:28Z"
 started_at: 2026-09-15T06:51:02Z
-closed_at: null
+closed_at: 2026-09-15T07:49:40Z
 canceled_at: null
 ---
 
