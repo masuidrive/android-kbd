@@ -66,6 +66,8 @@
 - 2026-09-15 test同期修正: 幅変更testはAndroidXのposted処理をdrainした後、pickerの厳密な`railRight..contentRight`境界と`isLayoutRequested=false`が成立するまで親のexact measure/layoutを最大8 traversal進める。bodyのleft/width/right、7列cell幅、rail proxy、settled後に追加layoutがないという既存assertは維持した。全descendantの`isLayoutRequested`を見る初案はRecyclerView内部の継続要求で8回後も停止判定できず失敗したため不採用とした。
 - 2026-09-15 回帰確認: `ImeHideBarTest`、`EditorKeyboardModeSelectorTest`、`ImeServiceVoiceLifecycleTest`、`ImeTestActivitySafeAreaTest`の51件を同じ4 class構成で`--rerun-tasks`実行し、修正後2回連続で`BUILD SUCCESSFUL in 7s`、各`29 actionable tasks: 29 executed`。変更外のcategory遷移、空Recent、scroll、mask/rail、private picker、通常textの保存mode、numeric初回・restart lifecycleを含む全件が両方で成功した。
 - 2026-09-15 layout test stabilization commit: `97024da`（Robolectricで端末相当の要求済み親traversalを明示し、厳密な最終geometry assertionを維持）。
+- 2026-09-15 全unit再発とstate調査: `./gradlew testDebugUnitTest --rerun-tasks`の269件で幅変更testが再び`expected bodyWidth 717 but was 783`となった。8 traversal各回を計測すると、picker/親は840px、親paddingは最新geometryのleft 113/right 10、body位置left 113まで更新済みなのに、body measured widthだけ旧783pxでright 896だった。各回のlayout requestはroot/picker=`false`、body親/body=`true`で、`pickerDesiredWidths`やlayout signatureが412pxへ戻ったのではなく、ViewRootImplへattachしていない直接measureのRobolectric rootで子の`requestLayout()`が祖先へ伝播せず、同じexact measure specがrootのmeasure cacheに短絡されていた。
+- 2026-09-15 最終同期修正: helperの各親traversal前にunattached rootへ`forceLayout()`を行い、実AndroidでViewRootImpl/Choreographerが要求済み次frameを測り直す条件を再現した。productionのpadding更新・observer・幅世代には不整合がなく、製品コードは変更していない。失敗時と同じ全unit 269件を`--rerun-tasks`で2回連続実行し、`BUILD SUCCESSFUL in 14s`と`BUILD SUCCESSFUL in 13s`、各`29 actionable tasks: 29 executed`。commit `89cddd7`。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -83,7 +85,7 @@
 | 1 | 回帰test | Major | password editor開始直後もEMOJI表示を期待する既存private picker testがAC 2のQWERTY自動選択と衝突 | 採用・修正済み | password開始直後のQWERTYとpicker非表示を確認後、手動EMOJI切替でprivate picker分離を検証するよう変更 |
 | 2 | lifecycle | Major | 同一editorの`restarting=true`で手動選択modeが自動modeへ戻る | 採用・修正済み | `editorKeyboardMode`があるrestartは現在値を維持し、finish後の新規editorだけ再分類するtestを追加 |
 | 3 | 分類優先度 | Major | NUMBER等と`IME_FLAG_FORCE_ASCII`併用時にQWERTYとなり、数字用途のテンキー要求を外す | 採用・修正済み | 数字・電話・日時classを先に`NUMBERS`へ分類し、非numericだけFORCE_ASCIIをQWERTYへ反映 |
-| 4 | test安定性 | Minor | picker幅変更testが複合実行で2回失敗する一方、単独reviewでは2回成功し、callback順で結果が変わる | 採用・修正済み | RobolectricがAndroidXの`requestLayout`後のChoreographer traversalを自動実行しない差をtest helperで補い、最終geometry assertionを弱めず複合51件を2回連続成功 |
+| 4 | test安定性 | Minor | picker幅変更testが複合/全unit実行で再発し、旧body measured widthを保持する | 採用・修正済み | unattached Robolectric rootでは子のlayout要求が祖先へ伝播せずmeasure cacheが使われることをstate計測で特定。root `forceLayout()`で端末の次frame traversalを再現し、最終geometry assertionを弱めず全269件を2回連続成功 |
 
 ### Findings (PDH-review-2)
 
