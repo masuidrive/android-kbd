@@ -16,6 +16,7 @@ import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.KeyAction
+import com.masuidrive.gestureime.keyboard.KeyboardLayouts
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
@@ -403,7 +404,10 @@ class ImeServiceEnglishSuggestionTest {
         assertNotSame(providerBeforeCommit, providerAfterCommit)
         assertEquals(listOf("❤️"), runBlocking { providerAfterCommit.getRecentEmojiList() })
         val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
-        assertEquals("タップ AZ、上 日本語、右 QWERTY、下 テンキー", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(3)?.contentDescription)
+        val emojiAzVirtualId = KeyboardLayouts.layout(KeyboardMode.EMOJI).rows
+            .flatMap { it.keys }
+            .indexOfFirst { it.center?.label == "AZ" }
+        assertEquals("タップ AZ、上 日本語、右 QWERTY、下 テンキー", keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(emojiAzVirtualId)?.contentDescription)
 
         val slash = Harness(english = { _, _ -> emptyList() })
         slash.clearEmojiRecents()
