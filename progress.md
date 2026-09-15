@@ -301,3 +301,4 @@
 [2026/09/15 05:25] リアルタイム波形ticketをmainへ統合した。絵文字レイヤー左端へ日本語レイヤーと同じ`☺`・`#!`・`19`・`AZ`の縦並び切替列を追加し、絵文字bodyをその右へ配置するticket 260915-052504を開始する。
 [2026/09/15 15:24] 呼び出し元の`EditorInfo.inputType`を現行IMEが参照せず前回レイヤーだけを復元していることを確認した。数字・電話・日時はテンキー、メール・URL・文字/数字パスワードと`IME_FLAG_FORCE_ASCII`はQWERTY、通常文と未指定型は前回レイヤーを維持し、自動選択では保存設定を書き換えない別ticketとして同じ公開版へ含める。
 [2026/09/15 15:40] 絵文字レイヤーの左4段へ`☺`・`#!`・`19`・`AZ`を固定し、右7列のAndroidX pickerと共有座標へ揃えた。独立reviewはCritical/Major/Minorなし、最終suiteは3/3 PASS。412dp相当とwide実Androidでempty Recent往復、カテゴリ切替、縦scroll、絵文字入力・BS、3レイヤー遷移、4行高とsafe area不変を確認した。
+[2026/09/15 16:16] 入力種別による初期レイヤー選択を実装した。数字・電話・日時はテンキーを優先し、URL・メール・各種文字password・非numericのASCII強制はQWERTY、通常欄は最後の手動選択を維持する。同一editor restartで手動レイヤーが戻るreview指摘とprivate絵文字testの旧期待を修正し、再reviewはCritical・Majorなしとなった。

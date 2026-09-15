@@ -16,9 +16,9 @@
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Android標準のローカル`EditorInfo`だけを読む変更で、外部provider経路がない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
@@ -79,6 +79,12 @@
 | 1 | 回帰test | Major | password editor開始直後もEMOJI表示を期待する既存private picker testがAC 2のQWERTY自動選択と衝突 | 採用・修正済み | password開始直後のQWERTYとpicker非表示を確認後、手動EMOJI切替でprivate picker分離を検証するよう変更 |
 | 2 | lifecycle | Major | 同一editorの`restarting=true`で手動選択modeが自動modeへ戻る | 採用・修正済み | `editorKeyboardMode`があるrestartは現在値を維持し、finish後の新規editorだけ再分類するtestを追加 |
 | 3 | 分類優先度 | Major | NUMBER等と`IME_FLAG_FORCE_ASCII`併用時にQWERTYとなり、数字用途のテンキー要求を外す | 採用・修正済み | 数字・電話・日時classを先に`NUMBERS`へ分類し、非numericだけFORCE_ASCIIをQWERTYへ反映 |
+| 4 | test安定性 | Minor | picker幅変更testが実装担当の初回だけ失敗し、再実行で成功した | 採用・最終suite監視 | reviewerが同testを独立に2回成功。変更対象外だが最終full suiteでも再確認する |
+
+### Findings (PDH-review-2)
+
+- reviewerは修正後HEAD `d0c9b3d`でCritical/Majorなしと判定した。前回Major 3件はproduction/test/technical-referenceへ反映済み。
+- selector・lifecycle・入力テスト・private pickerのfocused suiteは成功し、picker幅変更testも独立2回成功した。Minorのretry-passは最終full suiteで再確認する。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
