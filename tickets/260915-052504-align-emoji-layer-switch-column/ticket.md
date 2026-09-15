@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "絵文字レイヤー左端へ日本語レイヤーと同じ縦並びのレイヤー切替列を追加する"
 created_at: "2026-09-15T05:25:04Z"
 started_at: 2026-09-15T05:28:47Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-15T06:46:03Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
