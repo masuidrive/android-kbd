@@ -58,6 +58,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 29. `SetupActivity`はedge-to-edgeで描画し、`systemBars`と`displayCutout`の各辺の大きい方を使う。top insetと56dp app barは固定し、48dpのripple付き戻るiconは`finish()`する。設定用`ScrollView`だけをその下で動かし、左右とbottom insetはcontent paddingへ毎回基準値から反映する。Light/Darkのstatus/navigation bar icon appearanceとtransparent system barを明示する。（2026-09-12 / 260912-021714-fix-setup-safe-area-and-app-bar）
 30. Setupの入力設定には48dp以上の「キーボードの高さ」RadioGroupを置き、小・標準・大を端末内SharedPreferencesへ保存する。文字列以外または未知の値は標準へ安全にfallbackする。（2026-09-12 / 260912-014943-fixed-keyboard-height）
 31. 日本語候補tapは表示snapshotのindexからMozc `CandidateWord.id`を引き、`SUBMIT_CANDIDATE`でその候補を直接確定する。outputにpreeditが残る複数文節だけ`SUBMIT`で残りを確定して後ろへ連結する。候補を確定するために`SELECT_CANDIDATE`と`SUBMIT`を続けて送らない。（2026-09-13 / 260913-112709-select-exact-tapped-conversion-candidate）
+32. `EditorInfo.inputType`のclassが数字・電話・日時なら初期`NUMBERS`、text variationがURI・メールアドレス・Webメールアドレス・文字password・可視password・Web password、または`IME_FLAG_FORCE_ASCII`なら初期`QWERTY`とする。通常text、未指定、未知class/variationは`ImePreferences`の最後に明示選択したmodeを使う。自動選択は保存値を書き換えず、現在editor用modeとして`onStartInput`からinput view生成へ保持する。手動`SwitchLayer`だけが保存値と現在editor用modeを更新する。（2026-09-15 / 260915-064628-select-layer-from-editor-input-type）
 
 ## 実装の注意・地雷
 

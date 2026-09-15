@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime
 
 import android.view.View
+import android.text.InputType
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -84,6 +85,28 @@ class ImeTestActivitySafeAreaTest {
                 android.content.ComponentName(activity, ImeService::class.java),
                 0,
             ).loadLabel(packageManager),
+        )
+    }
+
+    @Test
+    fun inputTestScreenExposesNormalNumberEmailAndPasswordEditorTypes() {
+        val activity = createActivity()
+
+        assertEquals(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_normal_field).inputType,
+        )
+        assertEquals(
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED or InputType.TYPE_NUMBER_FLAG_DECIMAL,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_number_field).inputType,
+        )
+        assertEquals(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_email_field).inputType,
+        )
+        assertEquals(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_password_field).inputType,
         )
     }
 

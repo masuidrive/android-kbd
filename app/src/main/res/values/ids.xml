@@ -12,6 +12,10 @@
     <item name="ime_test_app_bar_title" type="id" />
     <item name="ime_test_scroll" type="id" />
     <item name="ime_test_content" type="id" />
+    <item name="ime_test_normal_field" type="id" />
+    <item name="ime_test_number_field" type="id" />
+    <item name="ime_test_email_field" type="id" />
+    <item name="ime_test_password_field" type="id" />
     <item name="ime_input_root" type="id" />
     <item name="voice_panel" type="id" />
     <item name="emoji_picker_bottom_mask" type="id" />

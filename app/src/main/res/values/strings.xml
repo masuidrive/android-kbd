@@ -28,5 +28,10 @@
     <string name="test_hint">ここをタップして masuidrive-kbd を試す</string>
     <string name="ime_test_app_bar_title">masuidrive-kbd 入力テスト</string>
     <string name="ime_test_normal_input">通常入力</string>
+    <string name="ime_test_number_input">数字入力（テンキーを表示）</string>
+    <string name="ime_test_number_hint">-12.34</string>
+    <string name="ime_test_email_input">メールアドレス（QWERTYを表示）</string>
+    <string name="ime_test_email_hint">name@example.com</string>
     <string name="ime_test_private_input">機密入力（候補・Paste無効）</string>
+    <string name="ime_test_password_hint">password</string>
 </resources>
