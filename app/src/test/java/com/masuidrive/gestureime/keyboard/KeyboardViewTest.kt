@@ -805,10 +805,10 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `emoji picker overlay leaves the fixed rail and controls touchable and accessible`() {
+    @Test fun `emoji picker overlay leaves the fixed four-row rail touchable and accessible`() {
         view.setMode(KeyboardMode.EMOJI)
         val provider = view.accessibilityNodeProvider
-        assertEquals(5, provider.createAccessibilityNodeInfo(-1)!!.childCount)
+        assertEquals(4, provider.createAccessibilityNodeInfo(-1)!!.childCount)
         touch(MotionEvent.ACTION_DOWN, 200f, 25f)
         touch(MotionEvent.ACTION_UP, 200f, 25f, 10)
         assertTrue(actions.isEmpty())
@@ -818,7 +818,7 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
     }
 
-    @Test fun `emoji rail and control row reach both keyboard edges`() {
+    @Test fun `emoji rail reaches the same left edge in every row`() {
         view.setMode(KeyboardMode.EMOJI)
         view.measure(exact(400), exact(228))
         view.layout(0, 0, 400, 228)
@@ -826,23 +826,20 @@ class KeyboardViewTest {
         val second = keyBounds(2)
         val third = keyBounds(4)
         val left = keyBounds(6)
-        val right = keyBounds(8)
         assertEquals(first.left, second.left)
         assertEquals(second.left, third.left)
         assertEquals(third.left, left.left)
-        assertEquals(left.top, right.top)
         assertEquals(first.width(), left.width())
-        assertTrue(kotlin.math.abs(left.width() - right.width()) <= 1)
-        assertTrue(right.right > 390)
     }
 
     @Test fun `emoji overlay geometry follows the keyboard content insets at phone and wide widths`() {
         val phone = view.emojiLayerHorizontalGeometryForWidth(412)
         assertEquals(3, phone.contentLeft)
-        assertEquals(54, phone.railRight)
+        assertEquals(85, phone.railRight)
         assertEquals(409, phone.contentRight)
-        assertEquals(355, phone.bodyWidth)
+        assertEquals(324, phone.bodyWidth)
 
+        view.setDualFlickEnabled(true)
         val wide = view.emojiLayerHorizontalGeometryForWidth(840)
         assertEquals(10, wide.contentLeft)
         assertEquals(113, wide.railRight)
@@ -852,9 +849,10 @@ class KeyboardViewTest {
 
     @Test fun `emoji rail routes taps and rejects unassigned flicks through production motion events`() {
         val rail = listOf(
-            0 to KeyboardMode.EMOJI,
+            0 to KeyboardMode.KANA,
             2 to KeyboardMode.SYMBOLS,
             4 to KeyboardMode.NUMBERS,
+            6 to KeyboardMode.QWERTY,
         )
         rail.forEachIndexed { index, (virtualId, mode) ->
             actions.clear()

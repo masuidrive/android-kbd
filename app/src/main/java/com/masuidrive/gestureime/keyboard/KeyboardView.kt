@@ -67,11 +67,12 @@ internal fun keyboardContentHorizontalGeometry(
 internal fun emojiLayerHorizontalGeometry(
     totalWidth: Int,
     density: Float,
+    dualKana: Boolean = false,
     paddingLeft: Int = 0,
     paddingRight: Int = 0,
 ): EmojiLayerHorizontalGeometry {
     val content = keyboardContentHorizontalGeometry(totalWidth, density, paddingLeft, paddingRight)
-    val railRight = content.left + content.width / 8f
+    val railRight = content.left + content.width / if (dualKana) 8f else 5f
     return EmojiLayerHorizontalGeometry(
         contentLeft = ceil(content.left).toInt().coerceIn(0, totalWidth),
         railRight = ceil(railRight).toInt().coerceIn(0, totalWidth),
@@ -177,15 +178,21 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
-    /** Height covered by the picker below its 50dp category header: top inset plus three rows. */
-    internal fun emojiPickerOverlayHeight(): Float = dp(8f) + currentEmojiRowPitch() * 3f
+    /** Height covered by the picker below its 50dp category header: top inset plus four rows. */
+    internal fun emojiPickerOverlayHeight(): Float = dp(8f) + currentEmojiRowPitch() * 4f
 
     /** Uses the pending parent width before this view has received its first layout. */
     internal fun emojiPickerOverlayHeightForWidth(measuredWidth: Int): Float =
-        dp(8f) + rowPitch(measuredWidth) * 3f
+        dp(8f) + rowPitch(measuredWidth) * 4f
 
     internal fun emojiLayerHorizontalGeometryForWidth(measuredWidth: Int): EmojiLayerHorizontalGeometry =
-        emojiLayerHorizontalGeometry(measuredWidth, density, paddingLeft, paddingRight)
+        emojiLayerHorizontalGeometry(
+            totalWidth = measuredWidth,
+            density = density,
+            dualKana = state.dualFlickEnabled && measuredWidth / density >= DUAL_FLICK_MIN_WIDTH_DP,
+            paddingLeft = paddingLeft,
+            paddingRight = paddingRight,
+        )
 
     private fun keyboardContentHorizontalGeometryForWidth(measuredWidth: Int): KeyboardContentHorizontalGeometry =
         keyboardContentHorizontalGeometry(measuredWidth, density, paddingLeft, paddingRight)
@@ -525,7 +532,7 @@ class KeyboardView @JvmOverloads constructor(
             geometry.railRight.toFloat(),
             keyboardTop,
             geometry.contentRight.toFloat(),
-            keyboardTop + rowPitch * 3f - rowGap,
+            keyboardTop + rowPitch * 4f - rowGap,
         )
         fun addRow(row: KeyboardRow, top: Float, scrollable: Boolean) {
             var x = geometry.contentLeft.toFloat()
@@ -554,11 +561,10 @@ class KeyboardView @JvmOverloads constructor(
             // layer rail is part of KeyboardView and must remain fixed and touchable.
             addRow(row, keyboardTop + rowPitch * index, scrollable = false)
         }
-        addRow(KeyboardLayouts.emojiControlRow(), keyboardTop + rowPitch * 3f, scrollable = false)
     }
 
     private fun emojiScrollRange(rowPitch: Float = currentEmojiRowPitch()): Float =
-        ((KeyboardLayouts.emojiContentRows(state.emojiRecents).size - 3).coerceAtLeast(0) * rowPitch)
+        ((KeyboardLayouts.emojiContentRows(state.emojiRecents).size - 4).coerceAtLeast(0) * rowPitch)
 
     private fun currentEmojiRowPitch(): Float {
         if (height <= 0) return rowPitch()

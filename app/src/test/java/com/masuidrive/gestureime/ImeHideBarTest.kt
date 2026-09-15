@@ -54,7 +54,7 @@ class ImeHideBarTest {
         assertEquals(View.VISIBLE, picker.visibility)
         assertEquals(View.VISIBLE, mask.visibility)
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, mask.importantForAccessibility)
-        assertEquals(5, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
+        assertEquals(4, keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(-1)!!.childCount)
         assertEquals(View.VISIBLE, railProxy.visibility)
 
         KeyboardHeightPreset.entries.forEach { preset ->
@@ -66,7 +66,7 @@ class ImeHideBarTest {
             root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
             val expectedControlTop = (50 * service.resources.displayMetrics.density).toInt() +
                 (8 * service.resources.displayMetrics.density).toInt() +
-                (preset.rowPitchDp * service.resources.displayMetrics.density * 3).toInt()
+                (preset.rowPitchDp * service.resources.displayMetrics.density * 4).toInt()
             assertEquals(0, mask.height)
             assertEquals(expectedControlTop, mask.top)
             assertEquals(expectedControlTop, picker.layoutParams.height)
@@ -122,7 +122,7 @@ class ImeHideBarTest {
                 root.measure(exact(412), exact(1_000)); root.layout(0, 0, 412, 1_000)
 
                 val density = service.resources.displayMetrics.density
-                val overlayHeight = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+                val overlayHeight = (8 * density).toInt() + (preset.rowPitchDp * density * 4).toInt()
                 val controlTop = keyboard.top + overlayHeight
                 assertEquals(controlTop, picker.bottom)
                 assertEquals(controlTop, mask.top + mask.height)
@@ -329,7 +329,7 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun pickerBodyShowsOnlyThreeFullTouchRowsAndHeaderKeepsTen48dpCategories() {
+    fun pickerBodyShowsOnlyFourFullTouchRowsAndHeaderKeepsTen48dpCategories() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
         val root = service.onCreateInputView() as FrameLayout
         val content = root.getChildAt(0) as LinearLayout
@@ -350,7 +350,7 @@ class ImeHideBarTest {
             val header = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_header)
             val body = picker.findViewById<RecyclerView>(androidx.emoji2.emojipicker.R.id.emoji_picker_body)
             val density = service.resources.displayMetrics.density
-            val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 3).toInt()
+            val expectedViewport = (8 * density).toInt() + (preset.rowPitchDp * density * 4).toInt()
             assertEquals(10, header.adapter!!.itemCount)
             assertEquals(7, picker.emojiGridColumns)
             val expectedHeaderWidth = (48 * density).toInt()
@@ -374,12 +374,12 @@ class ImeHideBarTest {
             assertEquals(geometry.railRight, body.left)
             assertEquals(geometry.bodyWidth, body.width)
             assertEquals(geometry.contentRight, body.right)
-            assertTrue(kotlin.math.abs(body.width / 7f - (geometry.contentRight - geometry.contentLeft) / 8f) < 1f)
+            assertTrue(kotlin.math.abs(body.width / 7f - geometry.bodyWidth / 7f) < 1f)
             assertEquals(keyboard.top + expectedViewport, picker.bottom)
-            // Three full attached rows use the preset pitch; the separate bounds regression
-            // below fixes their exact lower edge and excludes a fourth row from accessibility.
+            // Four full attached rows use the preset pitch; the separate bounds regression
+            // below fixes their exact lower edge and excludes a fifth row from accessibility.
             val rowPitch = (preset.rowPitchDp * density).toInt()
-            assertEquals(3, (expectedViewport - (8 * density).toInt()) / rowPitch)
+            assertEquals(4, (expectedViewport - (8 * density).toInt()) / rowPitch)
             assertTrue(rowPitch >= (48 * density).toInt())
             assertTrue(body.clipChildren && body.clipToPadding)
             assertTrue(body.adapter != null)
@@ -387,15 +387,15 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun attachedEmojiRowsDefineTheExactThreeRowViewport() {
+    fun attachedEmojiRowsDefineTheExactFourRowViewport() {
         val bounds = listOf(
             Rect(0, 8, 50, 58), Rect(50, 8, 100, 58),
             Rect(0, 58, 50, 108), Rect(50, 58, 100, 108),
             Rect(0, 108, 50, 158), Rect(50, 108, 100, 158),
             Rect(0, 158, 50, 208),
         )
-        assertEquals(158, thirdEmojiRowBottom(bounds))
-        assertEquals(158, resolveEmojiViewport(158, 150))
+        assertEquals(208, fourthEmojiRowBottom(bounds))
+        assertEquals(208, resolveEmojiViewport(208, 150))
     }
 
     @Test
@@ -404,12 +404,13 @@ class ImeHideBarTest {
             Rect(0, firstTop, 50, firstTop + 50),
             Rect(0, firstTop + 50, 50, firstTop + 100),
             Rect(0, firstTop + 100, 50, firstTop + 150),
+            Rect(0, firstTop + 150, 50, firstTop + 200),
         )
 
         // An 8px spacer can round to 9px at the start of a normal category.
-        assertEquals(159, thirdEmojiRowBottomAtCategoryStart(rowsAt(9), 8))
+        assertEquals(209, fourthEmojiRowBottomAtCategoryStart(rowsAt(9), 8))
         // The empty-Recent placeholder puts the next category far below that tolerance.
-        assertNull(thirdEmojiRowBottomAtCategoryStart(rowsAt(71), 8))
+        assertNull(fourthEmojiRowBottomAtCategoryStart(rowsAt(71), 8))
     }
 
     @Test
@@ -421,25 +422,25 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun emptyRecentViewportEndsAfterItsPlaceholderAndTwoCompleteFollowingRows() {
+    fun emptyRecentViewportEndsAfterItsPlaceholderAndThreeCompleteFollowingRows() {
         fun row(top: Int) = List(7) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
         val placeholder = Rect(0, 21, 412, 165)
         val first = row(186)
         val second = row(316)
-        val fourth = row(446)
+        val third = row(446)
 
-        assertEquals(446, emptyRecentViewportFromBounds(placeholder, first + second + fourth))
+        assertEquals(576, emptyRecentViewportFromBounds(placeholder, first + second + third))
         assertNull(emptyRecentViewportFromBounds(placeholder, first))
         assertNull(emptyRecentViewportFromBounds(placeholder, first + second.take(6)))
     }
 
     @Test
-    fun returningFromAnotherCategoryLocksEmptyRecentAfterTwoCompleteSevenColumnRows() {
+    fun returningFromAnotherCategoryLocksEmptyRecentAfterThreeCompleteSevenColumnRows() {
         fun row(top: Int) = List(7) { column -> Rect(column * 50, top, column * 50 + 50, top + 130) }
         val placeholder = Rect(0, 21, 355, 165)
-        val observedViewport = emptyRecentViewportFromBounds(placeholder, row(186) + row(316))
+        val observedViewport = emptyRecentViewportFromBounds(placeholder, row(186) + row(316) + row(446))
 
-        assertEquals(446, observedViewport)
+        assertEquals(576, observedViewport)
         assertTrue(isEmojiCategoryContentReady(0, observedViewport, true))
         assertFalse(isEmojiCategoryContentReady(1, observedViewport, true))
     }
@@ -464,7 +465,7 @@ class ImeHideBarTest {
     fun visibleEmptyRecentDoesNotExpandAnExistingCategoryViewportLock() {
         assertEquals(155, resolveEmojiViewportWithPlaceholder(155, 453, 446, true))
         assertEquals(446, resolveEmojiViewportWithPlaceholder(null, 453, 446, true))
-        // Before the two rows attach, maximum is a temporary clip rather than a lock.
+        // Before the three rows attach, maximum is a temporary clip rather than a lock.
         assertEquals(453, resolveEmojiViewportWithPlaceholder(null, 453, null, true))
     }
 
@@ -488,8 +489,121 @@ class ImeHideBarTest {
     }
 
     @Test
+    fun emojiRecentResetsOnlyWhenTheLayerBecomesVisible() {
+        assertTrue(shouldResetEmojiPickerOnVisibilityTransition(false, true))
+        assertFalse(shouldResetEmojiPickerOnVisibilityTransition(true, true))
+        assertFalse(shouldResetEmojiPickerOnVisibilityTransition(true, false))
+        assertFalse(shouldResetEmojiPickerOnVisibilityTransition(false, false))
+    }
+
+    @Test
+    fun recreatedInputViewInEmojiModeQueuesRecentResetForItsNewPickerOnly() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val firstRoot = service.onCreateInputView() as FrameLayout
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        measureAndLayout(firstRoot, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val firstPicker = firstRoot.getChildAt(1) as EmojiPickerView
+
+        val recreatedRoot = service.onCreateInputView() as FrameLayout
+        val recreatedPicker = recreatedRoot.getChildAt(1) as EmojiPickerView
+        @Suppress("UNCHECKED_CAST")
+        val pending = ImeService::class.java.getDeclaredField("pickersAwaitingRecentReset").apply { isAccessible = true }
+            .get(service) as MutableSet<EmojiPickerView>
+        assertFalse(firstPicker in pending)
+        assertTrue(recreatedPicker in pending)
+
+        // AndroidX can create its header after the first layout; the fresh picker keeps this
+        // request until its Recent holder is attached, instead of inheriting the old view's
+        // already-visible flag and silently skipping AC1.
+        measureAndLayout(recreatedRoot, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val headerAttached = (recreatedPicker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_header,
+        )?.childCount ?: 0) > 0
+        assertTrue(recreatedPicker in pending || headerAttached)
+        assertEquals(KeyboardMode.EMOJI, ((recreatedRoot.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView).mode())
+    }
+
+    @Test
+    fun emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        repeat(3) {
+            measureAndLayout(root, 412)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        }
+        val picker = root.getChildAt(1) as EmojiPickerView
+        val header = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_header,
+        ))
+        val body = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_body,
+        ))
+        val lastCategory = requireNotNull(header.adapter).itemCount - 1
+        assertTrue(lastCategory > 0)
+        header.scrollToPosition(lastCategory)
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertTrue("header should have a non-Recent attached holder before re-entry", (0 until header.childCount)
+            .any { header.getChildAdapterPosition(header.getChildAt(it)) > 0 })
+
+        @Suppress("UNCHECKED_CAST")
+        val pending = ImeService::class.java.getDeclaredField("pickersAwaitingRecentReset").apply { isAccessible = true }
+            .get(service) as MutableSet<EmojiPickerView>
+        pending += picker
+        val reset = ImeService::class.java.getDeclaredMethod(
+            "resetEmojiPickerToRecentIfNeeded",
+            EmojiPickerView::class.java,
+            RecyclerView::class.java,
+            RecyclerView::class.java,
+            Boolean::class.javaPrimitiveType,
+        ).apply { isAccessible = true }
+        reset.invoke(service, picker, header, body, true)
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        // The first call can run before RecyclerView has attached position zero; retrying
+        // after layout mirrors the production child-attachment callback.
+        reset.invoke(service, picker, header, body, true)
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val attachedPositions = (0 until header.childCount)
+            .map { header.getChildAdapterPosition(header.getChildAt(it)) }
+        assertTrue("Recent holder is adapter position zero; attached=$attachedPositions", 0 in attachedPositions)
+        assertEquals(0, (body.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
+            .findFirstVisibleItemPosition())
+    }
+
+    @Test
+    fun reusedEmojiInputViewTreatsHideShowAndEditorFinishAsNewVisibilityTransitions() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val root = service.onCreateInputView() as FrameLayout
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        measureAndLayout(root, 412)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val visible = ImeService::class.java.getDeclaredField("emojiPickerVisible").apply { isAccessible = true }
+
+        assertTrue(visible.getBoolean(service))
+        service.onFinishInputView(false)
+        assertFalse(visible.getBoolean(service))
+        // No new root is created here. Reusing the picker must still make the visible emoji
+        // layer an entry, while an ordinary category selection remains in the same session.
+        service.onStartInputView(EditorInfo(), true)
+        assertTrue(visible.getBoolean(service))
+
+        service.onFinishInput()
+        assertFalse(visible.getBoolean(service))
+        service.onStartInput(EditorInfo(), false)
+        assertTrue(visible.getBoolean(service))
+    }
+
+    @Test
     fun categoryRelockUsesThePresetMaximumInsteadOfThePreviousCategoryViewport() {
-        // Faces can fit three rows in 155px; returning to Recent needs the full 173px.
+        // Faces can fit four rows in 155px; returning to Recent needs the full 173px.
         // The latter must not be clamped by Faces' previous actual viewport.
         assertEquals(155, boundedEmojiViewport(173, 155))
         assertEquals(173, boundedEmojiViewport(173, 173))
@@ -670,10 +784,10 @@ class ImeHideBarTest {
             preset == KeyboardHeightPreset.LARGE &&
             keyboard.width / density >= KeyboardView.DUAL_FLICK_MIN_WIDTH_DP
         ) 62f else preset.rowPitchDp
-        val viewport = (8 * density).toInt() + (rowPitchDp * density * 3).toInt()
+        val viewport = (8 * density).toInt() + (rowPitchDp * density * 4).toInt()
         assertTrue("picker clips AndroidX children at the fixed control row", picker.clipChildren && picker.clipToPadding)
         assertEquals(Rect(0, 0, picker.width, picker.height), picker.clipBounds)
-        assertEquals("picker ends before AZ and Backspace controls", keyboard.top + viewport, picker.bottom)
+        assertEquals("picker ends after the four-row emoji body", keyboard.top + viewport, picker.bottom)
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)

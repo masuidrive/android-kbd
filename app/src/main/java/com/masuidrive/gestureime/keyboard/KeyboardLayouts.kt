@@ -31,7 +31,7 @@ object KeyboardLayouts {
 
     private fun symbols(): KeyboardLayout = KeyboardLayout(KeyboardMode.SYMBOLS, listOf(
         KeyboardRow("1234567890".map { text(it.toString()) }),
-        KeyboardRow(listOf(modifier(), text("^"), text("_"), text("\\"), text("|"), text("~"), text("{"), text("}"), text("["), text("]"), backspace())),
+        KeyboardRow(listOf(modifier(), text("^"), text("_"), text("\\"), text("|"), text("~"), text("{"), text("}"), text("["), text("]"), backspace(tapDelete = true, escapeOnDown = true, deleteSymbol = true))),
         KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), escape(), text("`"), text("!"), text("?"), text(";"), tab(), text("<"), text(">"), text("-"))),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
@@ -63,22 +63,17 @@ object KeyboardLayouts {
     /** Emoji content is rendered by AndroidX EmojiPickerView beside the fixed layer rail. */
     private fun emoji(recents: List<String>): KeyboardLayout = KeyboardLayout(
         KeyboardMode.EMOJI,
-        emojiContentRows(recents) + emojiControlRow(),
+        emojiContentRows(recents),
     )
 
     /** The first column stays fixed while AndroidX owns the remaining seven columns. */
     fun emojiContentRows(recents: List<String>): List<KeyboardRow> =
         listOf(
-            KeyboardRow(listOf(emojiPad(), empty(7f))),
+            KeyboardRow(listOf(modeKey("あ", KeyboardMode.KANA), empty(7f))),
             KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), empty(7f))),
             KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), empty(7f))),
+            KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(7f))),
         )
-
-    fun emojiControlRow(): KeyboardRow = KeyboardRow(listOf(
-        layerKey("AZ", KeyboardMode.QWERTY),
-        empty(6f),
-        backspace(1f),
-    ))
 
     private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
         KeyboardRow(listOf(empty(6f))),

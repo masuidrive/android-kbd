@@ -12,7 +12,7 @@
         android:paddingEnd="@dimen/emoji_picker_header_padding" />
 
     <!-- This wrapper and the body end at the fixed control row. ImeService clips drawing,
-         touch, and accessibility to the current three-row category viewport. -->
+         touch, and accessibility to the current four-row category viewport. -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"

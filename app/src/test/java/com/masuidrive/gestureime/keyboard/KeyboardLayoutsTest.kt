@@ -136,6 +136,10 @@ class KeyboardLayoutsTest {
         assertFalse(symbols.any { it.center?.label == ":" })
         assertEquals(KeyAction.CommitText("`"), symbols.single { it.center?.label == "`" }.center?.action)
         assertEquals(KeyAction.CommitText("-"), symbols.single { it.center?.label == "-" }.center?.action)
+        val backspace = symbols.single { it.kind == KeyKind.BACKSPACE }
+        assertEquals("⌫", backspace.center?.label)
+        assertEquals(KeyAction.Backspace(), backspace.center?.action)
+        assertEquals(KeyAction.Escape, backspace.down?.action)
         symbols.filter { it.kind == KeyKind.CHARACTER }.forEach { key ->
             assertNull(key.left); assertNull(key.up); assertNull(key.right); assertNull(key.down)
         }
@@ -153,20 +157,16 @@ class KeyboardLayoutsTest {
         val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", "❤️", "😀"))
         val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", "❤️", "😀")).rows
         assertEquals(4, rows.size)
-        assertEquals(3, contentRows.size)
+        assertEquals(4, contentRows.size)
         assertTrue(contentRows.all { row ->
             row.keys.size == 2 && row.keys[0].widthUnits == 1f && row.keys[1].widthUnits == 7f
         })
-        assertEquals(listOf("☺", "#!", "19"), contentRows.map { it.keys.first().center?.label })
+        assertEquals(listOf("あ", "#!", "19", "AZ"), contentRows.map { it.keys.first().center?.label })
         assertEquals(
-            listOf(KeyboardMode.EMOJI, KeyboardMode.SYMBOLS, KeyboardMode.NUMBERS),
+            listOf(KeyboardMode.KANA, KeyboardMode.SYMBOLS, KeyboardMode.NUMBERS, KeyboardMode.QWERTY),
             contentRows.map { (it.keys.first().center?.action as KeyAction.SwitchLayer).target },
         )
-        assertEquals(contentRows.take(3), rows.take(3))
-        assertEquals(3, rows[3].keys.size)
-        assertEquals(listOf(1f, 6f, 1f), rows[3].keys.map { it.widthUnits })
-        assertEquals(KeyKind.EMPTY, rows[3].keys[1].kind)
-        assertEquals(KeyAction.Backspace(), rows[3].keys[2].center?.action)
+        assertEquals(contentRows, rows)
         assertEquals(KeyboardMode.QWERTY, (rows[3].keys[0].center?.action as KeyAction.SwitchLayer).target)
         assertEquals(KeyAction.VoiceHold, rows[3].keys[0].left?.action)
         assertEquals(KeyAction.SwitchLayer(KeyboardMode.KANA), rows[3].keys[0].up?.action)
