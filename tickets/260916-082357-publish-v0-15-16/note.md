@@ -100,6 +100,8 @@
 
 2026-09-16: 機能ticketの差分・検証結果提示後にユーザが「push deploy」と明示したため、v0.15.16のGitHub Release、製品ページ公開、このrelease ticketのclose・main pushまでを承認済みとして実行した。未対応findingと未確認ACはない。mainへの最終統合・pushをclose処理として続ける。
 
+main `5127b94`をGitHubへpushし、public repositoryのdefault branchにv0.15.16のsource・release docs・機能修正が揃った。AC 1〜4をすべて達成したため、ticketをno-merge finalizeする。
+
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
