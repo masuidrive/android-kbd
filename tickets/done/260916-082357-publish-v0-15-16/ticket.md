@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "wide絵文字配置と音声・カーソル修正をv0.15.16としてAPK・GitHub・製品ページへ公開する"
 created_at: "2026-09-16T08:23:57Z"
 started_at: 2026-09-16T08:25:22Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-16T08:45:02Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
