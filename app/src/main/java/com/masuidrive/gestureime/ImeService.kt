@@ -470,6 +470,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             body.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> onEmojiPickerBodyChanged(picker, body) }
             body.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
                 override fun onChildViewAttachedToWindow(view: View) {
+                    centerEmojiPickerViewsInSlots(body)
                     body.post {
                         finishEmojiPickerBodyOverscan(picker, body)
                         onEmojiPickerBodyChanged(picker, body)
@@ -540,7 +541,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (pickerWidth <= 0) return
         val geometry = keyboardView?.emojiLayerHorizontalGeometryForWidth(pickerWidth) ?: return
         val content = body.parent as? ViewGroup ?: return
-        applyEmojiPickerBodyHorizontalLayout(content, body, pickerWidth, geometry)
+        applyEmojiPickerBodyHorizontalLayout(
+            content = content,
+            body = body,
+            pickerWidth = pickerWidth,
+            geometry = geometry,
+        )
+        centerEmojiPickerViewsInSlots(body)
     }
 
     /**
@@ -674,8 +681,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun onEmojiPickerBodyChanged(picker: EmojiPickerView, body: RecyclerView) {
         if (!shouldApplyEmojiPickerViewport(pickerBodies[picker], body)) return
-        // AndroidX reapplies MATCH_PARENT width while moving between categories. Restore the
-        // shared rail/content bounds before observing or clipping the replacement geometry.
+        // AndroidX reapplies MATCH_PARENT width while moving between categories. Restore its
+        // shared body bounds, then center each attached cell in its unchanged grid slot.
         applyEmojiPickerBodyRail(picker, body)
         pickerViewportHeights[picker]?.let { updateEmojiPickerCellAccessibility(body, it) }
         val transition = pickerViewportCategoryTransitions[picker]
@@ -1839,16 +1846,55 @@ internal fun applyEmojiPickerBodyHorizontalLayout(
     return changed
 }
 
+/** Centers AndroidX's square EmojiView inside its unchanged seven-column grid slot. */
+internal fun emojiPickerCellTranslationX(
+    bodyWidth: Int,
+    bodyPaddingLeft: Int,
+    bodyPaddingRight: Int,
+    emojiViewWidth: Int,
+): Float {
+    if (emojiViewWidth <= 0) return 0f
+    val slotWidth = (bodyWidth - bodyPaddingLeft - bodyPaddingRight).coerceAtLeast(0).toFloat() /
+        EMOJI_PICKER_BODY_COLUMNS
+    return ((slotWidth - emojiViewWidth).coerceAtLeast(0f)) / 2f
+}
+
+private fun centerEmojiPickerViewsInSlots(body: RecyclerView) {
+    applyEmojiPickerCellTranslations(body, emojiPickerViews(body))
+}
+
+internal fun applyEmojiPickerCellTranslations(body: View, emojiViews: List<View>) {
+    emojiViews.forEach { emojiView ->
+        val translation = emojiPickerCellTranslationX(
+            bodyWidth = body.width,
+            bodyPaddingLeft = body.paddingLeft,
+            bodyPaddingRight = body.paddingRight,
+            emojiViewWidth = emojiView.width,
+        )
+        // A view transform keeps Android's hit testing, accessibility bounds, and popup anchor
+        // coordinates aligned with the displayed emoji without changing RecyclerView slots.
+        if (kotlin.math.abs(emojiView.translationX - translation) > 0.01f) {
+            emojiView.translationX = translation
+        }
+    }
+}
+
 private fun emojiPickerRowBounds(body: RecyclerView): List<Rect> {
-    val bounds = mutableListOf<Rect>()
+    return emojiPickerViews(body).map { view ->
+        Rect(0, 0, view.width, view.height).also { body.offsetDescendantRectToMyCoords(view, it) }
+    }
+}
+
+private fun emojiPickerViews(body: RecyclerView): List<View> {
+    val views = mutableListOf<View>()
     fun collect(view: View) {
         if (view.javaClass.name == "androidx.emoji2.emojipicker.EmojiView") {
-            bounds += Rect(0, 0, view.width, view.height).also { body.offsetDescendantRectToMyCoords(view, it) }
+            views += view
         }
         if (view is ViewGroup) repeat(view.childCount) { collect(view.getChildAt(it)) }
     }
     collect(body)
-    return bounds
+    return views
 }
 
 private fun hasVisibleEmojiEmptyCategoryPlaceholder(body: RecyclerView): Boolean {

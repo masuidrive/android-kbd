@@ -18,6 +18,7 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.keyboard.emojiLayerHorizontalGeometry
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import org.junit.Assert.assertEquals
@@ -270,6 +271,39 @@ class ImeHideBarTest {
         assertEquals(0, bodyParams.leftMargin)
         assertEquals(0, bodyParams.rightMargin)
         assertFalse(applyEmojiPickerBodyHorizontalLayout(content, body, 840, geometry))
+    }
+
+    @Test
+    fun centeredEmojiCellsKeepWideBodyAndHeaderGeometryUnchanged() {
+        val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        val body = RecyclerView(service)
+        val content = LinearLayout(service).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(body, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 200))
+        }
+        val width = 1_499
+        val geometry = emojiLayerHorizontalGeometry(
+            totalWidth = width,
+            density = service.resources.displayMetrics.density,
+            dualKana = true,
+        )
+        assertTrue(applyEmojiPickerBodyHorizontalLayout(content, body, width, geometry))
+        content.measure(exact(width), exact(200)); content.layout(0, 0, width, 200)
+
+        val emojiViewWidth = 99
+        val translation = emojiPickerCellTranslationX(
+            bodyWidth = body.width,
+            bodyPaddingLeft = body.paddingLeft,
+            bodyPaddingRight = body.paddingRight,
+            emojiViewWidth = emojiViewWidth,
+        )
+        assertEquals((geometry.bodyWidth / 7f - emojiViewWidth) / 2f, translation, 0.001f)
+        assertEquals(geometry.railRight, body.left)
+        assertEquals(geometry.contentRight, body.right)
+        assertEquals(geometry.bodyWidth, body.width)
+        assertFalse(
+            applyEmojiPickerBodyHorizontalLayout(content, body, width, geometry),
+        )
     }
 
     @Test

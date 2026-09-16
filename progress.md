@@ -313,3 +313,7 @@
 [2026/09/15 20:19] v0.15.15（versionCode 31）の公開候補でscripts/test-all.sh --parallel --connectedを実行し、fast-checks・全unit/lint/APK・API 36.1実Mozc connectedが3/3 PASSした。APKは38,634,832 bytes、SHA-256 94c30778949021294dbd0f2977142af3550a8f36551ffc5641fa2284ca108d0c、arm64-v8a、RECORD_AUDIOあり、INTERNETなし、zipalign成功を確認した。
 [2026/09/15 20:26] v0.15.15 APKをGitHub ReleaseへZIPなしの単体で公開し、再取得した38,634,832 bytes、SHA-256 94c30778949021294dbd0f2977142af3550a8f36551ffc5641fa2284ca108d0cがlocal APKと完全一致した。絵文字4行・Recent初期表示・左railと記号⌫をmain cd570a6へ統合した。
 [2026/09/15 20:26] masuidrive.jp main 4e80bd6へv0.15.15製品ページ・操作mock・マニュアル・API 36.1実画面をpushし、Pages run 34963076447成功、公開5ファイルのbyte一致を確認した。公開browserは412px・840pxで横overflow 0、絵文字rail4キー、4行7列、Backspaceなし、記号]右⌫を確認した。
+[2026/09/15 20:49] v0.15.15のwide実機画像で、AndroidX Emoji Pickerが行高に合わせて正方形化した絵文字セルを7分割slotの左端へ置き、右側余白だけ大きくなる原因を確認した。公開は行わず、左railと7列を維持したまま一覧領域内の左右余白を実測補正するticket 260915-114300を開始した。
+[2026/09/15 22:32] wide絵文字一覧はbody・left rail・7列slotを維持し、各AndroidX EmojiViewをslot中央へ配置する方式に修正した。API 36.1でwide/phoneの画面座標tap、accessibility確定、variation長押し、scroll/recycle、body再生成を確認し、独立reviewはCritical/Major/Minorなし、final candidate ee20edcの全suiteは3/3 PASSした。ユーザ指示どおり公開は行っていない。
+[2026/09/15 22:44] phoneでのvariation選択を推論ではなく直接確認するため、412dp再layout後にも画面座標long-press、実AndroidX popup、exact variant確定を回帰testへ追加した。最終code c93236bは独立reviewでCritical/Major/Minorなし、全suiteはfast-checks・unit/lint/APK・API 36.1 connected real Mozcの3/3 PASS。公開は行っていない。
+[2026/09/16 17:19] ユーザのpush・deploy承認を受け、未統合のwide絵文字中央揃えと音声レイヤー・カーソルfallbackを順にmainへ統合し、次版APKへまとめて公開する作業を開始した。

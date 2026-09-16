@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "wide画面で絵文字7列を一覧領域の中央へ揃える"
 created_at: "2026-09-15T11:43:00Z"
 started_at: 2026-09-15T11:43:56Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-16T08:20:19Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -32,10 +32,10 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 この ticket が終わると、wide画面で絵文字を探す利用者が、左railを除いた一覧領域の中央へ均等に並ぶ7列を見られるようになる。
 
-- [ ] AC 1: 840dp相当のwide画面で、各行の7個の絵文字セルが右側一覧領域へ均等に配分され、先頭側と末尾側の外側余白が視覚上同じになる。
-- [ ] AC 2: 412dp相当のphone画面でも7列、4行、縦scroll、絵文字選択とvariation選択を従来どおり利用できる。
-- [ ] AC 3: 左railの幅・touch境界・`あ`・`#!`・`19`・`AZ`、Recent初期表示、カテゴリ行、private欄、記号Backspaceの挙動は変わらない。
-- [ ] AC 4: API 36.1の実AndroidX Emoji Pickerを含むInputMethodService画面で、wide時の中央揃えを観察できる。
+- [x] AC 1: 840dp相当のwide画面で、各行の7個の絵文字セルが右側一覧領域へ均等に配分され、先頭側と末尾側の外側余白が視覚上同じになる。
+- [x] AC 2: 412dp相当のphone画面でも7列、4行、縦scroll、絵文字選択とvariation選択を従来どおり利用できる。
+- [x] AC 3: 左railの幅・touch境界・`あ`・`#!`・`19`・`AZ`、Recent初期表示、カテゴリ行、private欄、記号Backspaceの挙動は変わらない。
+- [x] AC 4: API 36.1の実AndroidX Emoji Pickerを含むInputMethodService画面で、wide時の中央揃えを観察できる。
 
 ### Architectural Invariants check
 端末内完結、入力文字列非送信、小さな変換境界、大文字をモード化しないAI-1〜AI-4と矛盾しない。
