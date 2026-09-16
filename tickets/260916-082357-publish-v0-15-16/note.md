@@ -1,6 +1,6 @@
 # Work Notes: 260916-082357-publish-v0-15-16
 
-## Status: PDH-ticket-review (Approved)
+## Status: PDH-implement (Implementing)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,11 +11,11 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部providerを使わないAPK・GitHub・静的Pages公開
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -48,6 +48,18 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+### 実装前の仮定と測定
+
+- 次版はv0.15.16: GitHub Release一覧でv0.15.15がLatest、公開日時2026-09-15T11:22:52Zであることを確認した。versionCodeは現行31のため32とする。
+- repositoryは公開済み: `gh repo view`でvisibility `PUBLIC`、default branch `main`を確認した。
+- 製品サイト公開元は同期可能: `../masuidrive.jp`はmainがorigin/mainと一致しclean。変更前の`mock.html`と`styles.css`は正本とbyte一致し、`index.html`と`manual.html`だけをv0.15.16へ更新する。
+- Release assetは1個: `gesture-ime-v0.15.16.apk`だけを添付し、ZIPは作らない。
+
+### Release準備
+
+- `app/build.gradle.kts`をversionCode 32・versionName 0.15.16へ更新した。
+- README、製品ページ、マニュアル、`docs/v0.15.16-release-notes.md`へwide絵文字中央揃え、音声最下段操作、カーソルfallbackを記録した。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -66,6 +78,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- 配布だけのticketでruntime設計判断は変えない。元機能の契約は統合済みの`technical-reference.md` decision 7・18とwide絵文字配置記録に存在するため、追加更新不要。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
