@@ -319,3 +319,5 @@
 [2026/09/16 16:33] 音声候補パネルが最下段操作行まで覆う不具合と、通常編集不能な入力先だけDPAD矢印へフォールバックするカーソル操作の修正を独立チケットで開始。
 [2026/09/16 17:05] 音声panel下端を最下段6 slotのtap境界へ揃え、空・権限未許可でもCancel等の操作行を露出した。通常欄は直接selection、抽出不能・selection拒否の非private欄だけDPADへfallbackし、privateと手動terminal設定の契約を回帰test化した。Sol再reviewはCritical・Major・Minorなし、最終suiteは3/3 PASS、API 36.1 emulatorで空状態からCancel復帰を確認した。
 [2026/09/16 17:19] ユーザのpush・deploy承認を受け、wide絵文字中央揃えと音声レイヤー・カーソルfallbackを順にmainへ統合し、GitHub pushと次版APK公開へ進むことを記録した。
+[2026/09/16 17:27] 公開版をv0.15.16（versionCode 32）とし、APK単体のGitHub Release、製品ページ・マニュアルの直リンク更新を行うticket 260916-082357を開始した。GitHub repositoryがPUBLIC、default branchがmain、直前Releaseがv0.15.15であることを確認した。
+[2026/09/16 17:41] v0.15.16 APKをGitHub Releaseへ単体公開し、再取得した38,634,828 bytes、SHA-256 `92568d409ea73c435c2de8bbd81ff5c71d13bf706fcc13d36e159a9eb1cfcc55`がlocal artifactと完全一致した。release SHAの最終suiteは3/3 PASS、Sol最終reviewはCritical・Major・Minorなし。masuidrive.jp `3c0bd4c`のPages run `35075035104`成功、公開4fileのbyte一致、412px・840pxの横overflowなし、v0.15.16直リンクと操作demoを確認した。
