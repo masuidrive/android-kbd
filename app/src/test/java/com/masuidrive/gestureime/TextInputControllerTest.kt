@@ -168,6 +168,79 @@ class TextInputControllerTest {
         controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD })
         controller.terminalCursorEnabled = true
         controller.moveCursor(Direction.RIGHT, 1)
+        controller.moveToBoundary(CursorBoundary.END)
+        assertTrue(input.keyEvents.isEmpty())
+    }
+
+    @Test
+    fun unavailableExtractedTextFallsBackToTheCorrespondingCursorKeyPairs() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
+        input.extracted = null
+
+        listOf(
+            Direction.LEFT to KeyEvent.KEYCODE_DPAD_LEFT,
+            Direction.UP to KeyEvent.KEYCODE_DPAD_UP,
+            Direction.RIGHT to KeyEvent.KEYCODE_DPAD_RIGHT,
+            Direction.DOWN to KeyEvent.KEYCODE_DPAD_DOWN,
+        ).forEach { (direction, keyCode) ->
+            controller.moveCursor(direction, 1)
+            assertEquals(listOf(keyCode, keyCode), input.keyEvents.takeLast(2))
+        }
+    }
+
+    @Test
+    fun regularEditorMovesEveryCursorDirectionAndBoundaryBySelectionWithoutDpad() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
+        input.extracted = ExtractedText().apply {
+            text = "first\nsecond"
+            selectionStart = 2
+            selectionEnd = 2
+        }
+
+        listOf(Direction.LEFT, Direction.UP, Direction.RIGHT, Direction.DOWN).forEach {
+            controller.moveCursor(it, 1)
+            assertTrue(input.selection != null)
+        }
+        controller.moveToBoundary(CursorBoundary.START)
+        controller.moveToBoundary(CursorBoundary.END)
+
+        assertTrue(input.keyEvents.isEmpty())
+    }
+
+    @Test
+    fun rejectedSelectionFallsBackToCursorAndBoundaryKeyPairs() {
+        controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
+        input.selectionSucceeds = false
+
+        controller.moveCursor(Direction.LEFT, 2)
+        controller.moveToBoundary(CursorBoundary.START)
+        controller.moveToBoundary(CursorBoundary.END)
+
+        assertEquals(
+            listOf(
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_MOVE_HOME,
+                KeyEvent.KEYCODE_MOVE_END, KeyEvent.KEYCODE_MOVE_END,
+            ),
+            input.keyEvents,
+        )
+    }
+
+    @Test
+    fun privateFieldDoesNotFallBackWhenExtractionOrSelectionIsUnavailable() {
+        controller.beginInput(EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        })
+        input.extracted = null
+        controller.moveCursor(Direction.LEFT, 1)
+        controller.moveToBoundary(CursorBoundary.START)
+
+        input.extracted = ExtractedText().apply { text = "text" }
+        input.selectionSucceeds = false
+        controller.moveCursor(Direction.RIGHT, 1)
+        controller.moveToBoundary(CursorBoundary.END)
+
         assertTrue(input.keyEvents.isEmpty())
     }
 
@@ -281,8 +354,9 @@ class TextInputControllerTest {
     }
 
     private class RecordingInputConnection(view: View) : BaseInputConnection(view, true) {
-        var extracted = ExtractedText().apply { text = ""; startOffset = 0; selectionStart = 0; selectionEnd = 0 }
+        var extracted: ExtractedText? = ExtractedText().apply { text = ""; startOffset = 0; selectionStart = 0; selectionEnd = 0 }
         var selection: Pair<Int, Int>? = null
+        var selectionSucceeds = true
         var contextAction: Int? = null
         val keyEvents = mutableListOf<Int>()
         val operations = mutableListOf<String>()
@@ -301,11 +375,11 @@ class TextInputControllerTest {
             return afterCursor
         }
 
-        override fun getExtractedText(request: ExtractedTextRequest?, flags: Int): ExtractedText = extracted
+        override fun getExtractedText(request: ExtractedTextRequest?, flags: Int): ExtractedText? = extracted
 
         override fun setSelection(start: Int, end: Int): Boolean {
             selection = start to end
-            return true
+            return selectionSucceeds
         }
 
         override fun performContextMenuAction(id: Int): Boolean {

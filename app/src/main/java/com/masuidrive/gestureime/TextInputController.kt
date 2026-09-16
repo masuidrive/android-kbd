@@ -135,13 +135,22 @@ class TextInputController(
             repeat(units.coerceAtLeast(1)) { sendKeyPair(input, code) }
             return
         }
+        if (direction == Direction.CENTER) return
         if (direction == Direction.UP || direction == Direction.DOWN) {
-            val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
+            val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: run {
+                sendCursorFallback(input, direction, units)
+                return
+            }
             val target = verticalCursorPosition(extracted, direction, units.coerceAtLeast(1))
-            input.setSelection(extracted.startOffset + target, extracted.startOffset + target)
+            if (!input.setSelection(extracted.startOffset + target, extracted.startOffset + target)) {
+                sendCursorFallback(input, direction, units)
+            }
             return
         }
-        val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
+        val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: run {
+            sendCursorFallback(input, direction, units)
+            return
+        }
         val text = extracted.text?.toString().orEmpty()
         var cursor = extracted.selectionEnd.coerceIn(0, text.length)
         val iterator = BreakIterator.getCharacterInstance().apply { setText(text) }
@@ -153,7 +162,7 @@ class TextInputController(
             }
         }
         val absoluteCursor = extracted.startOffset + cursor
-        input.setSelection(absoluteCursor, absoluteCursor)
+        if (!input.setSelection(absoluteCursor, absoluteCursor)) sendCursorFallback(input, direction, units)
     }
 
     private fun verticalCursorPosition(extracted: ExtractedText, direction: Direction, requested: Int): Int {
@@ -184,12 +193,32 @@ class TextInputController(
             sendKeyPair(input, if (boundary == CursorBoundary.START) KeyEvent.KEYCODE_MOVE_HOME else KeyEvent.KEYCODE_MOVE_END)
             return
         }
-        val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: return
+        val extracted = input.getExtractedText(ExtractedTextRequest(), 0) ?: run {
+            sendBoundaryFallback(input, boundary)
+            return
+        }
         val position = when (boundary) {
             CursorBoundary.START -> 0
             CursorBoundary.END -> extracted.startOffset + (extracted.text?.length ?: 0)
         }
-        input.setSelection(position, position)
+        if (!input.setSelection(position, position)) sendBoundaryFallback(input, boundary)
+    }
+
+    private fun sendCursorFallback(input: InputConnection, direction: Direction, units: Int) {
+        if (isPrivateField) return
+        val code = when (direction) {
+            Direction.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
+            Direction.UP -> KeyEvent.KEYCODE_DPAD_UP
+            Direction.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
+            Direction.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
+            Direction.CENTER -> return
+        }
+        repeat(units.coerceAtLeast(1)) { sendKeyPair(input, code) }
+    }
+
+    private fun sendBoundaryFallback(input: InputConnection, boundary: CursorBoundary) {
+        if (isPrivateField) return
+        sendKeyPair(input, if (boundary == CursorBoundary.START) KeyEvent.KEYCODE_MOVE_HOME else KeyEvent.KEYCODE_MOVE_END)
     }
 
     private fun sendKeyPair(input: InputConnection, keyCode: Int) {

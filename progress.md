@@ -316,4 +316,6 @@
 [2026/09/15 20:49] v0.15.15のwide実機画像で、AndroidX Emoji Pickerが行高に合わせて正方形化した絵文字セルを7分割slotの左端へ置き、右側余白だけ大きくなる原因を確認した。公開は行わず、左railと7列を維持したまま一覧領域内の左右余白を実測補正するticket 260915-114300を開始した。
 [2026/09/15 22:32] wide絵文字一覧はbody・left rail・7列slotを維持し、各AndroidX EmojiViewをslot中央へ配置する方式に修正した。API 36.1でwide/phoneの画面座標tap、accessibility確定、variation長押し、scroll/recycle、body再生成を確認し、独立reviewはCritical/Major/Minorなし、final candidate ee20edcの全suiteは3/3 PASSした。ユーザ指示どおり公開は行っていない。
 [2026/09/15 22:44] phoneでのvariation選択を推論ではなく直接確認するため、412dp再layout後にも画面座標long-press、実AndroidX popup、exact variant確定を回帰testへ追加した。最終code c93236bは独立reviewでCritical/Major/Minorなし、全suiteはfast-checks・unit/lint/APK・API 36.1 connected real Mozcの3/3 PASS。公開は行っていない。
-[2026/09/16 17:19] ユーザのpush・deploy承認を受け、未統合のwide絵文字中央揃えと音声レイヤー・カーソルfallbackを順にmainへ統合し、次版APKへまとめて公開する作業を開始した。
+[2026/09/16 16:33] 音声候補パネルが最下段操作行まで覆う不具合と、通常編集不能な入力先だけDPAD矢印へフォールバックするカーソル操作の修正を独立チケットで開始。
+[2026/09/16 17:05] 音声panel下端を最下段6 slotのtap境界へ揃え、空・権限未許可でもCancel等の操作行を露出した。通常欄は直接selection、抽出不能・selection拒否の非private欄だけDPADへfallbackし、privateと手動terminal設定の契約を回帰test化した。Sol再reviewはCritical・Major・Minorなし、最終suiteは3/3 PASS、API 36.1 emulatorで空状態からCancel復帰を確認した。
+[2026/09/16 17:19] ユーザのpush・deploy承認を受け、wide絵文字中央揃えと音声レイヤー・カーソルfallbackを順にmainへ統合し、GitHub pushと次版APK公開へ進むことを記録した。

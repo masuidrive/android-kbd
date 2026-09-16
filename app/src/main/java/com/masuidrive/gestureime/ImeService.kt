@@ -181,6 +181,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         emojiPickerControlTop = candidateHeight + initialPickerViewportHeight
         // The picker root and its RecyclerView body end exactly at the fixed control row.
         val initialPickerHeight = candidateHeight + initialPickerViewportHeight
+        val initialVoicePanelHeight = candidateHeight + keyboard.voicePanelOverlayHeight().toInt()
         val publicPicker = createEmojiPicker(publicRecentProvider()).also { publicEmojiPicker = it }
         val privatePicker = createEmojiPicker(privateRecentProvider()).also { privateEmojiPicker = it }
         pickerViewportHeights[publicPicker] = initialPickerViewportHeight
@@ -248,7 +249,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 gravity = android.view.Gravity.TOP
                 topMargin = candidateHeight + initialPickerViewportHeight
             })
-            addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialPickerHeight).apply {
+            addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, initialVoicePanelHeight).apply {
                 gravity = android.view.Gravity.TOP
             })
             addView(layerRailProxy, FrameLayout.LayoutParams(0, initialPickerViewportHeight).apply {
@@ -317,7 +318,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             listOfNotNull(publicEmojiPicker, privateEmojiPicker).any { it.layoutParams.height != overlayHeight }
         if (pickerNeedsSync) updateEmojiPickerLayout(candidateHeight, measuredWidth)
         updateEmojiLayerRailProxyLayout(candidateHeight, measuredWidth, viewportHeight)
-        if (voicePanel?.layoutParams?.height != overlayHeight) updateVoicePanelLayout(candidateHeight, measuredWidth)
+        val voicePanelHeight = candidateHeight + keyboard.voicePanelOverlayHeightForWidth(measuredWidth).toInt()
+        if (voicePanel?.layoutParams?.height != voicePanelHeight) updateVoicePanelLayout(candidateHeight, measuredWidth)
     }
 
     private fun updateEmojiLayerRailProxyLayout(candidateHeight: Int, measuredWidth: Int, viewportHeight: Int) {
@@ -334,10 +336,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun updateVoicePanelLayout(candidateHeight: Int, measuredWidth: Int? = null) {
         val panel = voicePanel ?: return
         val keyboard = keyboardView ?: return
-        panel.layoutParams = (panel.layoutParams as? FrameLayout.LayoutParams ?: return).apply {
-            height = candidateHeight + (measuredWidth?.let(keyboard::emojiPickerOverlayHeightForWidth)
-                ?: keyboard.emojiPickerOverlayHeight()).toInt()
-        }
+        val desiredHeight = candidateHeight + (measuredWidth?.let(keyboard::voicePanelOverlayHeightForWidth)
+            ?: keyboard.voicePanelOverlayHeight()).toInt()
+        val params = panel.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.height == desiredHeight) return
+        params.height = desiredHeight
+        panel.layoutParams = params
         panel.requestLayout()
     }
 

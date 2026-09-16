@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "音声レイヤーの操作行を常時露出し、通常編集不能な入力先だけカーソル操作を矢印キーへフォールバックする"
 created_at: "2026-09-16T07:30:31Z"
 started_at: 2026-09-16T07:33:17Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-16T08:21:47Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -17,11 +17,11 @@ canceled_at: null # Do not modify manually
 ### What / Acceptance Criteria
 音声入力とカーソル操作を使う人が、空の音声レイヤーから戻れ、入力先に合った方法でカーソルを動かせるようになる。
 
-- [ ] 音声レイヤーでは認識結果が空でも最下段のキャンセル・状態・句読点・Space・削除・Enterが表示され、キャンセルで元のレイヤーへ戻れる。
-- [ ] 通常の編集欄ではSpaceフリックが選択位置を直接変更し、DPAD矢印キーを送信しない。
-- [ ] 抽出テキストを提供しない、または選択位置変更を拒否する非private入力先では、Spaceフリックが対応するDPAD矢印キーを送信する。
-- [ ] private入力欄では自動フォールバックでDPAD矢印キーを送信しない。
-- [ ] 既存のターミナル向けカーソル設定を有効にした場合は、従来どおり非private入力先へDPAD矢印キーを送信する。
+- [x] 音声レイヤーでは認識結果が空でも最下段のキャンセル・状態・句読点・Space・削除・Enterが表示され、キャンセルで元のレイヤーへ戻れる。
+- [x] 通常の編集欄ではSpaceフリックが選択位置を直接変更し、DPAD矢印キーを送信しない。
+- [x] 抽出テキストを提供しない、または選択位置変更を拒否する非private入力先では、Spaceフリックが対応するDPAD矢印キーを送信する。
+- [x] private入力欄では自動フォールバックでDPAD矢印キーを送信しない。
+- [x] 既存のターミナル向けカーソル設定を有効にした場合は、従来どおり非private入力先へDPAD矢印キーを送信する。
 
 ### Architectural Invariants check
 AI-1〜AI-4と矛盾しない。InputConnectionの端末内操作だけを変更し、入力内容を保存・送信しない。

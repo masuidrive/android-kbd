@@ -2,11 +2,14 @@ package com.masuidrive.gestureime
 
 import android.graphics.Rect
 import android.text.InputType
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.view.inputmethod.EditorInfo
 import com.masuidrive.gestureime.keyboard.KeyAction
+import com.masuidrive.gestureime.keyboard.KEY_ROW_GAP_DP
+import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
@@ -155,6 +158,57 @@ class ImeServiceVoiceLifecycleTest {
         panel.setVoiceState(VoiceUiSnapshot(4L, VoiceUiState.PermissionRequired))
         assertEquals(emptyHeight, measuredHeight())
         controller.destroy()
+    }
+
+    @Test
+    fun voicePanelEndsAtBottomControlTapBoundsAndRoutesTheirUpperEdges() {
+        val controller = Robolectric.buildService(ImeService::class.java).create()
+        val service = controller.get()
+        val preferences = service.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+        ImePreferences.setKeyboardHeightPreset(service, KeyboardHeightPreset.LARGE)
+        try {
+            val root = service.onCreateInputView() as ViewGroup
+            val keyboard = root.keyboardView()
+            val panel = root.voicePanelView()
+            val actions = mutableListOf<KeyAction>()
+
+            service.setModeForLifecycleTest(KeyboardMode.VOICE, returnMode = KeyboardMode.KANA)
+            keyboard.setMode(KeyboardMode.VOICE)
+            keyboard.actionSink = KeyboardActionSink { actions += it }
+            panel.visibility = View.VISIBLE
+            listOf(840, 412, 840).forEach { width ->
+                measureAndLayout(root, width, View.MeasureSpec.AT_MOST, 1_000)
+                val controls = (3..8).map { keyBounds(keyboard, it) }
+                val expectedPanelBottom = keyboard.top + controls.first().top - halfRowGap(keyboard)
+                assertEquals("$width panel ends at the fourth-row tap boundary", expectedPanelBottom, panel.bottom)
+                assertEquals(expectedPanelBottom, keyboard.top + controls[1].top - halfRowGap(keyboard))
+                assertEquals("$width panel layout height", expectedPanelBottom, panel.layoutParams.height)
+                invokeVoicePanelLayout(service, candidateHeight(service), width)
+                assertFalse("$width unchanged panel layout is not requested", panel.isLayoutRequested)
+            }
+
+            val expectedActions = mapOf(
+                3 to KeyAction.CancelVoice,
+                5 to KeyAction.CommitText("、"),
+                6 to KeyAction.CommitText(" "),
+                7 to KeyAction.Backspace(),
+                8 to KeyAction.Enter,
+            )
+            (3..8).forEachIndexed { index, virtualId ->
+                val bounds = keyBounds(keyboard, virtualId)
+                val actionCount = actions.size
+                val touchY = keyboard.top + bounds.top - halfRowGap(keyboard) + 1
+                dispatchTouch(root, MotionEvent.ACTION_DOWN, bounds.exactCenterX().toFloat(), touchY.toFloat(), index * 2L)
+                dispatchTouch(root, MotionEvent.ACTION_UP, bounds.exactCenterX().toFloat(), touchY.toFloat(), index * 2L + 1)
+                expectedActions[virtualId]?.let { expected ->
+                    assertEquals(listOf(expected), actions.drop(actionCount))
+                } ?: assertEquals("voice status has no action", actionCount, actions.size)
+            }
+        } finally {
+            preferences.edit().clear().commit()
+            controller.destroy()
+        }
     }
 
     @Test
@@ -523,6 +577,29 @@ class ImeServiceVoiceLifecycleTest {
             .asSequence()
             .mapNotNull { runCatching { group.getChildAt(it).voicePanelView() }.getOrNull() }
             .first()
+    }
+
+    private fun keyBounds(keyboard: KeyboardView, virtualId: Int) = Rect().also {
+        requireNotNull(keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(virtualId)).getBoundsInParent(it)
+    }
+
+    private fun halfRowGap(keyboard: KeyboardView): Int =
+        (KEY_ROW_GAP_DP * keyboard.resources.displayMetrics.density / 2f).toInt()
+
+    private fun invokeVoicePanelLayout(service: ImeService, candidateHeight: Int, width: Int) {
+        ImeService::class.java.declaredMethods
+            .single { it.name == "updateVoicePanelLayout" && it.parameterCount == 2 }
+            .apply { isAccessible = true }
+            .invoke(service, candidateHeight, width)
+    }
+
+    private fun dispatchTouch(root: View, action: Int, x: Float, y: Float, time: Long = 0) {
+        val event = MotionEvent.obtain(0, time, action, x, y, 0)
+        try {
+            assertTrue(root.dispatchTouchEvent(event))
+        } finally {
+            event.recycle()
+        }
     }
 
     private fun KeyboardView.mode(): KeyboardMode {

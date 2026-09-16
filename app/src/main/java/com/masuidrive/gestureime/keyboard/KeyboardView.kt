@@ -28,6 +28,7 @@ import kotlin.math.roundToInt
 
 private const val VOICE_INPUT_LEVEL_STEPS = 24
 private const val VOICE_INPUT_LEVEL_SCALE_DB = 20.0
+internal const val KEY_ROW_GAP_DP = 10f
 
 /** Maps any finite provider-specific RMS value monotonically into a bounded display level. */
 internal fun normalizeVoiceInputLevel(rmsDb: Float): Float {
@@ -184,6 +185,14 @@ class KeyboardView @JvmOverloads constructor(
     /** Uses the pending parent width before this view has received its first layout. */
     internal fun emojiPickerOverlayHeightForWidth(measuredWidth: Int): Float =
         dp(8f) + rowPitch(measuredWidth) * 4f
+
+    /** Height covered by the voice panel through the end of the third row's touch region. */
+    internal fun voicePanelOverlayHeight(): Float =
+        paddingTop + dp(8f) + currentEmojiRowPitch() * 3f - dp(KEY_ROW_GAP_DP / 2f)
+
+    /** Uses the pending parent width before this view has received its first layout. */
+    internal fun voicePanelOverlayHeightForWidth(measuredWidth: Int): Float =
+        paddingTop + dp(8f) + rowPitch(measuredWidth) * 3f - dp(KEY_ROW_GAP_DP / 2f)
 
     internal fun emojiLayerHorizontalGeometryForWidth(measuredWidth: Int): EmojiLayerHorizontalGeometry =
         emojiLayerHorizontalGeometry(
@@ -485,7 +494,7 @@ class KeyboardView @JvmOverloads constructor(
         val keyboardTop = top + dp(8f)
         val dualKana = state.dualFlickEnabled && width / density >= DUAL_FLICK_MIN_WIDTH_DP
         val rowPitch = min((height - keyboardTop - paddingBottom) / 4f, rowPitch())
-        val rowGap = dp(10f)
+        val rowGap = dp(KEY_ROW_GAP_DP)
         val horizontal = keyboardContentHorizontalGeometryForWidth(width)
         if (state.mode == KeyboardMode.EMOJI) {
             buildEmojiHitTargets(keyboardTop, rowPitch, rowGap, emojiLayerHorizontalGeometryForWidth(width))
