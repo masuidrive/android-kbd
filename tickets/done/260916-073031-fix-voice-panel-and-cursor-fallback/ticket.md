@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "音声レイヤーの操作行を常時露出し、通常編集不能な入力先だけカーソル操作を矢印キーへフォールバックする"
 created_at: "2026-09-16T07:30:31Z"
 started_at: 2026-09-16T07:33:17Z # Do not modify manually
-closed_at: 2026-09-16T08:21:47Z # Do not modify manually
+closed_at: 2026-09-16T08:23:08Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
