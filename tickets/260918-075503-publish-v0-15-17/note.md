@@ -1,6 +1,6 @@
 # Work Notes: 260918-075503-publish-v0-15-17
 
-## Status: PDH-ticket-human-review (Approved by publication instruction)
+## Status: PDH-close (Approved and published)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -19,10 +19,10 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: 独立reviewの指摘は0件で修正なし
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -93,6 +93,18 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+2026-09-18: QWERTY差分と実機相当・browser検証、APK pathを提示した後、ユーザが「公開」と明示したため、本releaseのmain統合・push・GitHub Release・製品ページ公開・ticket closeを承認済みと判断した。
+
+## PDH-verify. 公開後検証
+
+2026-09-18: `masuidrive/android-kbd`はPUBLIC、default branchはmainで、公開main `b9307278877ac5a25143470b467811454a326214`がv0.15.17 release prepとQWERTY変更を含む。GitHub Release `v0.15.17`はdraft/prereleaseではなく、assetは未圧縮`gesture-ime-v0.15.17.apk` 1個だけである。
+
+2026-09-18: 公開assetを`/tmp/md-kbd-v0.15.17-public/gesture-ime-v0.15.17.apk`へ再取得し、ローカル最終成果物と`cmp`でbyte一致を確認した。size 38,634,832 bytes、SHA-256 `d491d0ce357ae1e3bf8d569cd2f52a728d773e497fd6740f7f9a7102c0ee1fab`。公開前のaapt検証どおりpackage `com.masuidrive.gestureime`、versionCode 33、versionName 0.15.17、ARM64、RECORD_AUDIOあり、INTERNETなしである。
+
+2026-09-18: 製品サイトcommit `844c8eb0e1a6129046d40aa96d05848c77994fdc`のPages run `35323344579`はsuccess。公開URLからindex/mock/manual/stylesを再取得して同commitと4件すべてbyte一致した。実browser 412pxでpage/mockとも横overflowなし、QWERTYでperiod tap `.`、下flick `?`、`q`入力後Backspace tapで`q`だけ削除されることを確認した。840pxでもpage/mockとも横overflowなし、Tablet・Dual Flickが有効であることを確認した。
+
+2026-09-18: documentationはREADME、release notes、製品ページ、manualをv0.15.17へ更新済み。technical-reference.mdは版番号・配布導線の変更で実装構造に差分がないため更新不要。未承認pseudo-spectrumは公開mainとAPKに含まれない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。

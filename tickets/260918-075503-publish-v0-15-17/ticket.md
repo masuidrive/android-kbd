@@ -33,10 +33,10 @@ Product Briefの配布可能なAndroid IMEと、端末内完結の公開導線�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者がQWERTY右端キーを入れ替えた最新版APKをGitHub Releaseと製品ページから直接取得できる。
 
-- [ ] AC 1: GitHubのpublicな`masuidrive/android-kbd` mainにv0.15.17のソースと公開記録があり、Releaseには未圧縮APKが1個だけ添付される。
-- [ ] AC 2: 公開APKがローカル最終成果物とbyte一致し、package、versionCode 33、versionName 0.15.17、ARM64 ABI、RECORD_AUDIOあり、INTERNETなしを確認できる。
-- [ ] AC 3: 公開APKと操作モックで、QWERTY 2行目右端が0.5wの`.`／下フリック`?`、3行目右端が1w Backspace／下フリックEscとなり、未割当方向がno-opである。
-- [ ] AC 4: `https://masuidrive.jp/products/md-kbd/`とマニュアルがv0.15.17のAPK直リンクと変更点を表示し、スマホ・wide幅で横overflowを起こさない。
+- [x] AC 1: GitHubのpublicな`masuidrive/android-kbd` mainにv0.15.17のソースと公開記録があり、Releaseには未圧縮APKが1個だけ添付される。
+- [x] AC 2: 公開APKがローカル最終成果物とbyte一致し、package、versionCode 33、versionName 0.15.17、ARM64 ABI、RECORD_AUDIOあり、INTERNETなしを確認できる。
+- [x] AC 3: 公開APKと操作モックで、QWERTY 2行目右端が0.5wの`.`／下フリック`?`、3行目右端が1w Backspace／下フリックEscとなり、未割当方向がno-opである。
+- [x] AC 4: `https://masuidrive.jp/products/md-kbd/`とマニュアルがv0.15.17のAPK直リンクと変更点を表示し、スマホ・wide幅で横overflowを起こさない。
 
 ### Architectural Invariants check
 端末内完結、入力内容を送信しないAI-1〜AI-4を維持する。APKにはINTERNET permissionを追加しない。
