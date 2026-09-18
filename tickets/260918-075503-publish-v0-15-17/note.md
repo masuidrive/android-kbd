@@ -70,9 +70,16 @@
 <!-- 記録・分類・提示の運用は pdh-dev `_review.md`
      「スコープ外問題と過剰実装の扱い」に従う。 -->
 
-| # | 観点 | Sev | 要旨 | 判定 | 理由 |
-|---|---|---|---|---|---|
-|   |      |     |      |      |      |
+対象SHA: `a9cf761732933253966ddd6d45c7b419a3dff5de`。Criticalなし、Majorなし、Minorなし。
+
+- AC 1: release prepとして`fc8a30b`にversion・docs・site、`a9cf761`にartifact検証証拠を分けて収録し、asset名を`gesture-ime-v0.15.17.apk`へ統一している。公開mainへの反映、Release作成、assetが1個だけであることは本reviewでは未実施で、承認済みの公開工程と公開後検証で確認する。
+- AC 2 / Architectural Invariant: `app/build.gradle.kts:11-17`はpackage `com.masuidrive.gestureime`、versionCode 33、versionName 0.15.17、arm64-v8aを指定する。`aapt dump badging/permissions`で同じpackage・版・ABI、minSdk 28、targetSdk 36、RECORD_AUDIOあり、INTERNETなしを独立確認した。`app-debug.apk`と`gesture-ime-v0.15.17.apk`は38,634,832 bytes、SHA-256 `d491d0ce357ae1e3bf8d569cd2f52a728d773e497fd6740f7f9a7102c0ee1fab`でbyte一致する。公開assetの再取得byte比較は公開後工程で行う。
+- AC 3: main統合済み`2600382`をancestorに含む。`KeyboardLayouts.kt:25-35,99-108`と`KeyboardLayoutsTest.kt:41-67`がQWERTY 0.5w period／1w BackspaceとSymbols不変を固定し、`KeyboardViewTest.kt:82-156`がattached production `MotionEvent`でtap、down、未割当方向、threshold、center復帰、cancel、repeat、412/840幅を検証する。mockは18px選択・10px復帰と未割当方向no-opを実装し、412/840ブラウザで横overflowなし、840pxでperiod 41px／Backspace 82pxを確認した。
+- Out-of-scope: pseudo-spectrum branchの先頭実装`eaf70b3`はHEADのancestorではない。固有の`voiceInputPhase`、`VOICE_SPECTRUM_BAR_COUNT`、6本bar生成は現sourceに存在せず、native/mock/specは承認済みの4本波形のままである。未承認機能の混入なし。
+- Docs / links: `README.md:5,62`、`site/index.html:19,28,37,46,52`、`site/manual.html:6,12-18,36,45,47`、`docs/v0.15.17-release-notes.md:1-10`はv0.15.17と今回のQWERTY 3点（period、Backspace、Symbols不変）を一致して説明する。対象4文書にv0.15.16残存なし。index 2本・manual 2本のURLはすべて`releases/download/v0.15.17/gesture-ime-v0.15.17.apk`への直接リンクで、ZIP参照なし。release notesは直前版と同じ本文＋検証形式を保つ。
+- Site / parity: local HTTPでindex、manual、埋込mockを412px・840px表示し、各documentの`scrollWidth == clientWidth`を確認した。参照assetはすべて200（未指定faviconの自動要求だけ404）。`site/mock.html`と`docs/reference/mock-source.html`はbyte-identical。
+- Review検証: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk scripts/test-all.sh --parallel`はfast-checksとAndroid unit/lint/APKの2/2 PASS。実装ログの既存unit単発failureは最終SHAで再現しなかった。再build後もversioned APKのsize・SHA・byte一致は変わらない。
+- Design Decisions / contract: versionCode 32→33、versionName 0.15.16→0.15.17、未圧縮APK 1個、site正本と公開先の4主要file byte比較という判断を変更していない。public push、Release作成、製品サイト同期はこのreviewでは行っていない。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
