@@ -327,3 +327,4 @@
 [2026/09/18 15:06] QWERTY句点とBackspaceのmock strict flick開始をnativeと同じ18px、center復帰を10pxへ揃えた。412px実browserで17px tap、18px選択、選択維持、center復帰と通常letters・Space・Symbols不変を確認した。
 [2026/09/18 15:13] QWERTY右端入替のAC 1〜4を独立verifyし、API 36.1実IME画像、attached production MotionEvent、412px・840px実browserで配置・gesture・横収まり・Symbols不変を確認した。最終suiteは3/3 PASSで、Critical・Major・Minorの未解消はない。
 [2026/09/18 16:54] ユーザの公開承認をQWERTY右端入替ticketのclose承認と、main統合・push・次版APKおよび製品ページ公開指示として受領した。
+[2026/09/18 16:55] QWERTY右端キー入替をv0.15.17（versionCode 33）としてAPK単体のGitHub Releaseと製品ページへ公開するticket 260918-075503を開始する。

@@ -49,6 +49,8 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+2026-09-18: 実装前に確認した。HEADはQWERTY変更`2600382`を含み、pseudo-spectrum実装`eaf70b3`はancestorではない。version metadataは`app/build.gradle.kts`、公開URLと利用者向け説明はREADME・site/index.html・site/manual.html、release notesは`docs/v0.15.16-release-notes.md`の形式に従う。v0.15.17 APKはdebug artifactを指定名へコピーして用意し、GitHub Release作成・push・製品サイト同期はroot担当のため実行しない。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
