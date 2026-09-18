@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "Backspaceの下フリックEscを補助ラベルと選択アニメーションで表示する"
 created_at: "2026-09-18T08:54:46Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-18T08:55:44Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
