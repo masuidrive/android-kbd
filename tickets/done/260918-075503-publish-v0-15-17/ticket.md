@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "QWERTY右端キー入替をv0.15.17としてAPK・GitHub・製品ページへ公開する"
 created_at: "2026-09-18T07:55:03Z"
 started_at: 2026-09-18T07:55:51Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-18T08:18:20Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
