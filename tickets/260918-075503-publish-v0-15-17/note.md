@@ -51,6 +51,14 @@
 
 2026-09-18: 実装前に確認した。HEADはQWERTY変更`2600382`を含み、pseudo-spectrum実装`eaf70b3`はancestorではない。version metadataは`app/build.gradle.kts`、公開URLと利用者向け説明はREADME・site/index.html・site/manual.html、release notesは`docs/v0.15.16-release-notes.md`の形式に従う。v0.15.17 APKはdebug artifactを指定名へコピーして用意し、GitHub Release作成・push・製品サイト同期はroot担当のため実行しない。
 
+2026-09-18: `fc8a30b`でversionCode 33/versionName 0.15.17、README、site index/manualのv0.15.17 direct APK URL、右端`.`/Backspace操作説明、`docs/v0.15.17-release-notes.md`を準備した。QWERTYの2行目右端は0.5wの`.`（tap `.`、down `?`）、3行目右端は1w Backspace（tap削除、down Esc、left/up/right no-op）と記載し、Symbols不変も明記した。
+
+2026-09-18: `similarity-ts -t 0.70 --extensions html site/index.html site/manual.html`はduplicateなしでPASS。`similarity-generic`はPATHになくskipした。`scripts/fast-checks.sh`は5 checks PASS、QWERTYの`KeyboardLayoutsTest`と`KeyboardViewTest`はBUILD SUCCESSFUL、`lintDebug assembleDebug`はBUILD SUCCESSFUL。version/APK link static checkはversionCode/versionName、4つのv0.15.17 direct URL、旧v0.15.16参照なし、mock正本byte一致、APKにINTERNETなしをPASSした。
+
+2026-09-18: 全unitを含む`./gradlew testDebugUnitTest lintDebug assembleDebug`は282 tests中1件、既存`ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker`（`ImeHideBarTest.kt:203`）のAssertionErrorでFAILした。release変更はversion/documentationのみで、QWERTY focused、lint、APK buildは個別にPASSした。この全unit failureの再検証と公開後のGitHub Release asset再取得・site同期/Pages確認はroot担当へ引き継ぐ。
+
+2026-09-18: artifactは`app/build/outputs/apk/debug/gesture-ime-v0.15.17.apk`。`app-debug.apk`とbyte一致、size 38,634,832 bytes、SHA-256 `d491d0ce357ae1e3bf8d569cd2f52a728d773e497fd6740f7f9a7102c0ee1fab`。aaptでpackage `com.masuidrive.gestureime`、versionCode 33、versionName 0.15.17、minSdk 28、targetSdk 36、native-code arm64-v8a、RECORD_AUDIOあり、INTERNETなしを確認した。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -69,6 +77,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+2026-09-18: 該当なし。版番号、配布リンク、利用者向け操作説明、release notesのみを更新し、実装構造は変えていない。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
