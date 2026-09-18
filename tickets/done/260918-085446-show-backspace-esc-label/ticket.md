@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "Backspaceの下フリックEscを補助ラベルと選択アニメーションで表示する"
 created_at: "2026-09-18T08:54:46Z"
 started_at: 2026-09-18T08:55:44Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-18T09:25:37Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -33,9 +33,9 @@ Product Briefの同じジェスチャー体系で編集操作を素早く使え�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者がBackspaceの下フリックにEscがあることをキートップで確認し、選択中もEscを見失わず操作できる。
 
-- [ ] AC 1: QWERTYと記号レイヤーのBackspaceに、下フリックの補助ラベル`Esc`が表示される。
-- [ ] AC 2: Backspaceを下へフリックすると、他の下フリックキーと同じ位置・拡大アニメーションで`Esc`が表示され、指を離すとEscapeが送られる。
-- [ ] AC 3: native、browser mock、正本仕様でラベル表記と動きが一致する。
+- [x] AC 1: QWERTYと記号レイヤーのBackspaceに、下フリックの補助ラベル`Esc`が表示される。
+- [x] AC 2: Backspaceを下へフリックすると、他の下フリックキーと同じ位置・拡大アニメーションで`Esc`が表示され、指を離すとEscapeが送られる。
+- [x] AC 3: native、browser mock、正本仕様でラベル表記と動きが一致する。
 
 ### Architectural Invariants check
 表示だけを既存のEscape actionへ接続し、AI-1〜AI-4と矛盾しない。

@@ -331,3 +331,6 @@
 [2026/09/18 17:01] v0.15.17公開候補のversion、APK直リンク、右端キー操作説明、release notesを準備し、ARM64 debug APKを生成した。QWERTY focused、fast-checks、lint、APK buildとstatic link/permission checksはPASSし、全unitは既存ImeHideBarTest 1件の失敗をrootへ引き継ぐ。
 [2026/09/18 17:10] v0.15.17公開候補を独立reviewしCritical・Major・Minor 0件、最終suite再実行は接続試験を含む3/3 PASSとなり、単発unit failureが再現しないことを確認した。
 [2026/09/18 17:18] v0.15.17をpublic mainとGitHub ReleaseへAPK単体で公開し、再取得APKのbyte一致、Pages commit 844c8ebの成功、公開4主要fileのbyte一致、412px・840pxの横収まりとQWERTY操作を確認した。
+[2026/09/18 17:55] Backspaceの下フリックEscを通常時の補助ラベルと選択中の拡大ラベルで表示するticket 260918-085446を開始し、native・mock・正本仕様を`Esc`表記へ揃えた。
+[2026/09/18 18:08] Backspace Escラベルを11spと下フリック1.7倍表示へ揃え、reviewで見つかったmockの未割当方向削除と中心復帰undefinedを修正した。最終suiteは2/2 PASS、再reviewはCritical・Major・Minor 0件となった。
+[2026/09/18 18:13] ユーザのpush指示をBackspace Escラベルticketのclose・main統合・GitHub push承認として受領した。

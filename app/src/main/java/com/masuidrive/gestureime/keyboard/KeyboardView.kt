@@ -644,12 +644,16 @@ class KeyboardView @JvmOverloads constructor(
             spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
             spec.kind == KeyKind.CHARACTER && spec.id != "voice-punct" -> spec.down?.label
+            spec.kind == KeyKind.BACKSPACE -> spec.down?.label
             else -> null
         }
         val downLike = direction == Direction.DOWN || frame.secondaryScale > 1.001f || frame.mainDy > 0.001f
         val upLike = direction == Direction.UP || frame.mainDy < -0.001f || frame.secondaryAlpha < .999f
-        val animatedEnglish = selected && state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER &&
-            secondary != null && (downLike || upLike)
+        val animatedEnglish = selected && secondary != null && when {
+            state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER -> downLike || upLike
+            spec.kind == KeyKind.BACKSPACE -> downLike
+            else -> false
+        }
         val animatedEnterPaste = selected && spec.kind == KeyKind.ENTER &&
             downLike && secondary != null
         val selectedEnterControlJ = selected && !state.conversionActive && spec.kind == KeyKind.ENTER &&
@@ -658,7 +662,7 @@ class KeyboardView @JvmOverloads constructor(
             spec.kind in setOf(KeyKind.SPACE, KeyKind.MODIFIER)
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
         val idleMainBaseline = when {
-            state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER && secondary != null ->
+            usesDownLabelAnimation(spec) && secondary != null ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(5f))
             spec.kind == KeyKind.ENTER && !state.conversionActive ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
@@ -791,7 +795,12 @@ class KeyboardView @JvmOverloads constructor(
         else -> 25f
     }
 
-    private fun secondaryTextSize(spec: KeySpec) = if (spec.kind == KeyKind.CHARACTER) 11f else 10f
+    private fun secondaryTextSize(spec: KeySpec) =
+        if (spec.kind == KeyKind.CHARACTER || spec.kind == KeyKind.BACKSPACE) 11f else 10f
+
+    private fun usesDownLabelAnimation(spec: KeySpec): Boolean =
+        (state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER) ||
+            (spec.kind == KeyKind.BACKSPACE && spec.down != null)
 
     private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "C/A" else ""
 
@@ -1218,7 +1227,7 @@ class KeyboardView @JvmOverloads constructor(
         val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
         val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
         val downSecondaryDy = active[id]?.takeIf { target ->
-            state.mode == KeyboardMode.QWERTY && target.spec.kind == KeyKind.CHARACTER
+            usesDownLabelAnimation(target.spec)
         }?.let { target ->
             target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
         } ?: 13f

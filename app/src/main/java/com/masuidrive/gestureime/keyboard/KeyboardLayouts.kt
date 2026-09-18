@@ -100,7 +100,7 @@ object KeyboardLayouts {
         "backspace", KeyKind.BACKSPACE,
         center = if (tapDelete) FlickValue(if (deleteSymbol || width >= 1f) "⌫" else "BS", KeyAction.Backspace()) else null,
         down = when {
-            escapeOnDown -> FlickValue("ESC", KeyAction.Escape)
+            escapeOnDown -> FlickValue("Esc", KeyAction.Escape)
             width < 1f -> FlickValue("BS", KeyAction.Backspace())
             else -> null
         },
