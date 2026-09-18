@@ -322,3 +322,8 @@
 [2026/09/16 17:27] 公開版をv0.15.16（versionCode 32）とし、APK単体のGitHub Release、製品ページ・マニュアルの直リンク更新を行うticket 260916-082357を開始した。GitHub repositoryがPUBLIC、default branchがmain、直前Releaseがv0.15.15であることを確認した。
 [2026/09/16 17:41] v0.15.16 APKをGitHub Releaseへ単体公開し、再取得した38,634,828 bytes、SHA-256 `92568d409ea73c435c2de8bbd81ff5c71d13bf706fcc13d36e159a9eb1cfcc55`がlocal artifactと完全一致した。release SHAの最終suiteは3/3 PASS、Sol最終reviewはCritical・Major・Minorなし。masuidrive.jp `3c0bd4c`のPages run `35075035104`成功、公開4fileのbyte一致、412px・840pxの横overflowなし、v0.15.16直リンクと操作demoを確認した。
 [2026/09/16 17:45] wide絵文字中央揃え、音声空状態の操作行復旧、非private入力先のカーソルfallback、v0.15.16公開記録をAndroid repository main `5127b94`へ統合し、GitHubへpushした。Release assetはAPK1個、repositoryはPUBLIC、default branchはmainであることを維持した。
+[2026/09/18 14:33] QWERTYの右端キーを入れ替え、2行目の半幅`.`へtap `.`・下フリック`?`、3行目の全幅Backspaceへtap削除・下フリックEscを配置した。記号レイヤーを変更せず、native MotionEvent、mock phone/tablet操作、focused Robolectricで確認した。
+[2026/09/18 14:53] reviewで判明したQWERTY句点の未割当横方向がtapへ戻る経路とbrowser mock Backspaceの未割当方向が削除へfallthroughする経路を修正した。attached MotionEventと412px実browserでleft/up/right no-op、center復帰、cancel、Backspace repeat/releaseを確認した。
+[2026/09/18 15:06] QWERTY句点とBackspaceのmock strict flick開始をnativeと同じ18px、center復帰を10pxへ揃えた。412px実browserで17px tap、18px選択、選択維持、center復帰と通常letters・Space・Symbols不変を確認した。
+[2026/09/18 15:13] QWERTY右端入替のAC 1〜4を独立verifyし、API 36.1実IME画像、attached production MotionEvent、412px・840px実browserで配置・gesture・横収まり・Symbols不変を確認した。最終suiteは3/3 PASSで、Critical・Major・Minorの未解消はない。
+[2026/09/18 16:54] ユーザの公開承認をQWERTY右端入替ticketのclose承認と、main統合・push・次版APKおよび製品ページ公開指示として受領した。

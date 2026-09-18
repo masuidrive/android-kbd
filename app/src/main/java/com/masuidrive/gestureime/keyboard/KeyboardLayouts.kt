@@ -17,15 +17,15 @@ object KeyboardLayouts {
         KeyboardMode.VOICE -> voice()
     }
 
-    private fun text(label: String, secondary: String? = null, kind: KeyKind = KeyKind.CHARACTER) =
+    private fun text(label: String, secondary: String? = null, kind: KeyKind = KeyKind.CHARACTER, width: Float = 1f) =
         KeySpec("key-$label", kind, FlickValue(label, KeyAction.CommitText(label)),
             up = if (label.length == 1 && label[0].isLetter()) FlickValue(label.uppercase(), KeyAction.CommitText(label.uppercase())) else null,
-            down = secondary?.let { FlickValue(it, KeyAction.CommitText(it)) })
+            down = secondary?.let { FlickValue(it, KeyAction.CommitText(it)) }, widthUnits = width)
 
     private fun qwerty(): KeyboardLayout = KeyboardLayout(KeyboardMode.QWERTY, listOf(
         KeyboardRow("qwertyuiop".mapIndexed { i, c -> text(c.toString(), "1234567890"[i].toString()) }),
-        KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + backspace(tapDelete = true, escapeOnDown = true, deleteSymbol = true)),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), text(".", "?"))),
+        KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + text(".", "?", width = .5f)),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), backspace(width = 1f, tapDelete = true, escapeOnDown = true, deleteSymbol = true))),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
 

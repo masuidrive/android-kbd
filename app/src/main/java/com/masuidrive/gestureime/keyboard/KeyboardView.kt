@@ -1017,7 +1017,7 @@ class KeyboardView @JvmOverloads constructor(
         labelFrames[id] = LabelFrame()
         val verticalOnly = hit.spec.kind == KeyKind.MODIFIER ||
             (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center == null) ||
-            (hit.spec.kind == KeyKind.CHARACTER && (hit.spec.up != null || hit.spec.down != null) &&
+            (hit.spec.kind == KeyKind.CHARACTER && hit.spec.up != null && hit.spec.down != null &&
                 hit.spec.left == null && hit.spec.right == null)
         interpreter.start(id, event.getX(index) / density, event.getY(index) / density,
             trackpad = hit.spec.kind == KeyKind.SPACE, verticalOnly = verticalOnly)

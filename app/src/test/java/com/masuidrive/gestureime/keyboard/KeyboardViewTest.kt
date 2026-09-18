@@ -79,16 +79,81 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null)), actions)
     }
 
-    @Test fun `backspace tap deletes down escapes and other directions are inert`() {
-        touch(MotionEvent.ACTION_DOWN, 390f, 67f)
-        touch(MotionEvent.ACTION_UP, 390f, 67f, 5)
-        touch(MotionEvent.ACTION_DOWN, 390f, 67f, 10)
-        touch(MotionEvent.ACTION_MOVE, 390f, 40f, 20)
-        touch(MotionEvent.ACTION_UP, 390f, 40f, 25)
-        touch(MotionEvent.ACTION_DOWN, 390f, 67f, 30)
-        touch(MotionEvent.ACTION_MOVE, 390f, 90f, 40)
-        touch(MotionEvent.ACTION_UP, 390f, 90f, 45)
+    @Test fun `qwerty period and backspace use their swapped production touch targets`() {
+        val period = keyBounds(20)
+        val backspace = keyBounds(30)
+        assertTrue(period.width() < backspace.width())
+
+        performGesture(period, time = 0)
+        performGesture(period, listOf(0f to 28f), time = 10)
+        assertEquals(listOf(KeyAction.CommitText("."), KeyAction.CommitText("?")), actions)
+
+        actions.clear()
+        performGesture(backspace, time = 20)
+        performGesture(backspace, listOf(0f to 28f), time = 30)
+        performGesture(backspace, listOf(-28f to 0f), time = 40)
+        performGesture(backspace, listOf(0f to -28f), time = 50)
+        performGesture(backspace, listOf(28f to 0f), time = 60)
         assertEquals(listOf(KeyAction.Backspace(), KeyAction.Escape), actions)
+    }
+
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty swapped targets retain full production gesture lifecycle`() {
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
+        val period = keyBounds(20)
+        val backspace = keyBounds(30)
+        val centerReturn = listOf(0f to 24f, 0f to 0f)
+
+        listOf(
+            Triple(period, listOf(0f to 17f), KeyAction.CommitText(".")),
+            Triple(backspace, listOf(0f to 17f), KeyAction.Backspace()),
+            Triple(period, centerReturn, KeyAction.CommitText(".")),
+            Triple(backspace, centerReturn, KeyAction.Backspace()),
+        ).forEachIndexed { index, (bounds, moves, expected) ->
+            actions.clear()
+            performGesture(bounds, moves, time = index * 10L)
+            assertEquals("case $index", listOf(expected), actions)
+        }
+
+        listOf(-24f to 0f, 0f to -24f, 24f to 0f).forEachIndexed { index, move ->
+            actions.clear()
+            performGesture(period, listOf(move), time = 100L + index * 10L)
+            assertTrue("period unassigned direction $move", actions.isEmpty())
+        }
+
+        listOf(period to KeyAction.CommitText("."), backspace to KeyAction.Backspace()).forEachIndexed { index, (bounds, expected) ->
+            actions.clear()
+            performGesture(bounds, listOf(0f to 24f), MotionEvent.ACTION_CANCEL, 140L + index * 10L)
+            assertTrue("cancel $index", actions.isEmpty())
+            performGesture(bounds, time = 160L + index * 10L)
+            assertEquals("post-cancel $index", listOf(expected), actions)
+        }
+
+        actions.clear()
+        val x = backspace.exactCenterX(); val y = backspace.exactCenterY()
+        touch(MotionEvent.ACTION_DOWN, x, y, 200)
+        looper.idleFor(KeyboardView.DELETE_REPEAT_DELAY_MS + KeyboardView.DELETE_REPEAT_INTERVAL_MS, TimeUnit.MILLISECONDS)
+        val repeatsBeforeRelease = actions.toList()
+        assertTrue(repeatsBeforeRelease.size >= 2)
+        assertTrue(repeatsBeforeRelease.all { it == KeyAction.Backspace(repeat = true) })
+        touch(MotionEvent.ACTION_UP, x, y, 300)
+        assertEquals(repeatsBeforeRelease, actions)
+        looper.idleFor(KeyboardView.DELETE_REPEAT_INTERVAL_MS * 2, TimeUnit.MILLISECONDS)
+        assertEquals(repeatsBeforeRelease, actions)
+    }
+
+    @Test fun `qwerty swapped right edge stays within phone and tablet widths`() {
+        listOf(412, 840).forEach { width ->
+            view.measure(exact(width), exact(228))
+            view.layout(0, 0, width, 228)
+            val secondRow = (10..20).map(::keyBounds)
+            val thirdRow = (21..30).map(::keyBounds)
+
+            assertTrue("$width second row left", secondRow.first().left >= 0)
+            assertTrue("$width second row right", secondRow.last().right <= width)
+            assertTrue("$width third row left", thirdRow.first().left >= 0)
+            assertTrue("$width third row right", thirdRow.last().right <= width)
+            assertTrue("$width period is half target", secondRow.last().width() < thirdRow.last().width())
+        }
     }
 
     @Test fun `accessibility exposes individual keys and activates focused key`() {
@@ -1243,6 +1308,19 @@ class KeyboardViewTest {
         val event = MotionEvent.obtain(0, time, action, x, y, 0)
         view.onTouchEvent(event)
         event.recycle()
+    }
+
+    private fun performGesture(
+        bounds: Rect,
+        moves: List<Pair<Float, Float>> = emptyList(),
+        endAction: Int = MotionEvent.ACTION_UP,
+        time: Long = 0,
+    ) {
+        val startX = bounds.exactCenterX(); val startY = bounds.exactCenterY()
+        touch(MotionEvent.ACTION_DOWN, startX, startY, time)
+        moves.forEachIndexed { index, (dx, dy) -> touch(MotionEvent.ACTION_MOVE, startX + dx, startY + dy, time + index + 1) }
+        val (endDx, endDy) = moves.lastOrNull() ?: (0f to 0f)
+        touch(endAction, startX + endDx, startY + endDy, time + moves.size + 1)
     }
 
     private fun keyCenter(virtualId: Int): Pair<Float, Float> {

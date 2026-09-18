@@ -38,6 +38,35 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.Escape, backspace.down?.action)
     }
 
+    @Test fun `qwerty swaps the half width period and full width backspace without changing symbols`() {
+        val qwerty = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows
+        val second = qwerty[1].keys
+        val third = qwerty[2].keys
+        val period = second.last()
+        val backspace = third.last()
+
+        assertEquals(10f, second.sumOf { it.widthUnits.toDouble() }.toFloat(), 0f)
+        assertEquals(10f, third.sumOf { it.widthUnits.toDouble() }.toFloat(), 0f)
+        assertEquals("key-.", period.id)
+        assertEquals(.5f, period.widthUnits, 0f)
+        assertEquals(KeyAction.CommitText("."), period.center?.action)
+        assertEquals(KeyAction.CommitText("?"), period.down?.action)
+        assertEquals("backspace", backspace.id)
+        assertEquals(1f, backspace.widthUnits, 0f)
+        assertEquals(KeyAction.Backspace(), backspace.center?.action)
+        assertEquals(KeyAction.Escape, backspace.down?.action)
+        assertNull(backspace.left); assertNull(backspace.up); assertNull(backspace.right)
+
+        val symbols = KeyboardLayouts.layout(KeyboardMode.SYMBOLS).rows
+        assertEquals(10f, symbols[1].keys.sumOf { it.widthUnits.toDouble() }.toFloat(), 0f)
+        assertEquals(.5f, symbols[1].keys.last().widthUnits, 0f)
+        assertEquals("backspace", symbols[1].keys.last().id)
+        assertEquals(
+            listOf("mode-AZ", "escape", "key-`", "key-!", "key-?", "key-;", "tab", "key-<", "key->", "key--"),
+            symbols[2].keys.map { it.id },
+        )
+    }
+
     @Test fun `kana directions cover every specified kana input`() {
         val kana = keys(KeyboardMode.KANA).filter { it.kind == KeyKind.KANA }
         val actual = kana.flatMap { Direction.entries.mapNotNull(it::value) }.map { it.label }.toSet()

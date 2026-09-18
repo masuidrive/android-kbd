@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "QWERTYの.?キーと0.5w Backspaceの位置と幅を入れ替える"
 created_at: "2026-09-18T05:22:56Z"
 started_at: 2026-09-18T05:25:38Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-18T07:54:46Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -17,10 +17,10 @@ Product Brief の「英字はタップ・上スワイプ・下フリック」と
 ### What / Acceptance Criteria
 この ticket が終わると、QWERTYを使う人が、右上端の半幅キーで句点・疑問符を入力し、右下端の全幅キーで削除・Escを操作できる。
 
-- [ ] AC 1: QWERTYの2行目右端に0.5wの「.」キーが表示され、タップで`.`、下フリックで`?`を入力できる。
-- [ ] AC 2: QWERTYの3行目右端に1wのBackspaceキーが表示され、タップで1文字削除、下フリックでEscを送信でき、左・上・右フリックには動作が割り当てられない。
-- [ ] AC 3: QWERTYの上3行は各10wを保ち、4行の高さ・キー間隔は変更されない。記号レイヤーの配置と操作は変更されない。
-- [ ] AC 4: Android native、ブラウザモック、操作仕様のQWERTY配置が一致し、スマホ幅とタブレット幅の両方で横にはみ出さない。
+- [x] AC 1: QWERTYの2行目右端に0.5wの「.」キーが表示され、タップで`.`、下フリックで`?`を入力できる。
+- [x] AC 2: QWERTYの3行目右端に1wのBackspaceキーが表示され、タップで1文字削除、下フリックでEscを送信でき、左・上・右フリックには動作が割り当てられない。
+- [x] AC 3: QWERTYの上3行は各10wを保ち、4行の高さ・キー間隔は変更されない。記号レイヤーの配置と操作は変更されない。
+- [x] AC 4: Android native、ブラウザモック、操作仕様のQWERTY配置が一致し、スマホ幅とタブレット幅の両方で横にはみ出さない。
 
 ### Architectural Invariants check
 AI-1〜AI-4と矛盾しない。既存の端末内キー入力とジェスチャー割り当ての配置だけを変更する。
