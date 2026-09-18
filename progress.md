@@ -329,3 +329,4 @@
 [2026/09/18 16:54] ユーザの公開承認をQWERTY右端入替ticketのclose承認と、main統合・push・次版APKおよび製品ページ公開指示として受領した。
 [2026/09/18 16:55] QWERTY右端キー入替をv0.15.17（versionCode 33）としてAPK単体のGitHub Releaseと製品ページへ公開するticket 260918-075503を開始する。
 [2026/09/18 17:01] v0.15.17公開候補のversion、APK直リンク、右端キー操作説明、release notesを準備し、ARM64 debug APKを生成した。QWERTY focused、fast-checks、lint、APK buildとstatic link/permission checksはPASSし、全unitは既存ImeHideBarTest 1件の失敗をrootへ引き継ぐ。
+[2026/09/18 17:10] v0.15.17公開候補を独立reviewしCritical・Major・Minor 0件、最終suite再実行は接続試験を含む3/3 PASSとなり、単発unit failureが再現しないことを確認した。
