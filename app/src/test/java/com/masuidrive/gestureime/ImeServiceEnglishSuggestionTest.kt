@@ -573,16 +573,27 @@ class ImeServiceEnglishSuggestionTest {
         )
         val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
 
+        harness.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.KANA))
         harness.service.onKeyAction(KeyAction.KanaInput("か"))
         harness.idle()
-        val history = harness.root.findView { it.contentDescription?.toString() == "候補 1: 履歴候補" }!!
         val dictionary = harness.root.findView { it.contentDescription?.toString() == "候補 2: 個人辞書候補" }!!
 
         assertEquals(false, dictionary.performLongClick())
         assertEquals(emptyList<Int>(), conversion.deletedIndexes)
-        assertEquals(true, history.performLongClick())
+        harness.service.onKeyAction(KeyAction.CycleCandidate)
+        harness.idle()
+        val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
+        val enterId = KeyboardLayouts.layout(KeyboardMode.KANA).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ENTER }
+        fun enterDescription() = keyboard.accessibilityNodeProvider
+            .createAccessibilityNodeInfo(enterId)?.contentDescription?.toString()
+        assertTrue(enterDescription()!!.startsWith("タップ 確定"))
+
+        val selectedHistory = harness.root.findView { it.contentDescription?.toString() == "候補 1: 履歴候補" }!!
+        assertEquals(true, selectedHistory.performLongClick())
         harness.idle()
         assertEquals(listOf(0), conversion.deletedIndexes)
+        assertTrue(enterDescription()!!.startsWith("タップ 無変換"))
 
         harness.service.onKeyAction(KeyAction.KanaInput("き"))
         harness.idle()

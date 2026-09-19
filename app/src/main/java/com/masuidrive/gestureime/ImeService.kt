@@ -983,7 +983,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 ) return@withLock
                 val state = conversionEngine.deleteCandidateFromHistory(event.index) ?: return@withLock
                 if (event.token != candidateUiToken || !editorSession.isCurrent(editorToken)) return@withLock
-                if (source == CandidateSource.PREDICTION) applyPrediction(state) else applyConversion(state)
+                if (source == CandidateSource.PREDICTION) {
+                    applyPrediction(state)
+                } else {
+                    conversionCandidateSelected = false
+                    applyConversion(state)
+                }
             }
         }
         return true
