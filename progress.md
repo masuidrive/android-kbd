@@ -337,3 +337,4 @@
 [2026/09/19 14:22] Backspace Esc補助ラベル修正版をv0.15.18（versionCode 34）としてAPK単体と製品ページへ公開するticket 260919-052029を開始し、version、APK直リンク、変更履歴、release notesを準備した。
 [2026/09/19 14:29] v0.15.18公開候補の全suiteは2/2 PASS。38,634,832 bytesのARM64 APKでversionCode 34、RECORD_AUDIOあり、INTERNETなしを確認し、独立reviewはCritical・Major・Minor 0件、412px・840px製品ページも横overflowなしとなった。
 [2026/09/19 14:34] v0.15.18をpublic mainとGitHub Releaseへ未圧縮APK 1個で公開し、再取得byte一致を確認した。製品サイトcommit 76a7d27のPages成功、公開4主要fileのbyte一致、412px・840pxの横収まり、公開mockのBackspace Esc表示と下フリック1.7倍アニメーションを確認した。
+[2026/09/19 19:38] 日本語変換中のSpaceを候補選択、候補選択後のEnterを確定表示と動作へ揃え、v0.15.19のAPKと製品ページまで公開するticket 260919-103821を作成した。
