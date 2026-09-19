@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "日本語変換中のSpaceを候補選択、選択後のEnterを確定としてv0.15.19へ公開する"
 created_at: "2026-09-19T10:38:21Z"
 started_at: 2026-09-19T10:39:22Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-19T11:22:47Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
