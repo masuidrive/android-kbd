@@ -338,3 +338,5 @@
 [2026/09/19 14:29] v0.15.18公開候補の全suiteは2/2 PASS。38,634,832 bytesのARM64 APKでversionCode 34、RECORD_AUDIOあり、INTERNETなしを確認し、独立reviewはCritical・Major・Minor 0件、412px・840px製品ページも横overflowなしとなった。
 [2026/09/19 14:34] v0.15.18をpublic mainとGitHub Releaseへ未圧縮APK 1個で公開し、再取得byte一致を確認した。製品サイトcommit 76a7d27のPages成功、公開4主要fileのbyte一致、412px・840pxの横収まり、公開mockのBackspace Esc表示と下フリック1.7倍アニメーションを確認した。
 [2026/09/19 19:38] 日本語変換中のSpaceを候補選択、候補選択後のEnterを確定表示と動作へ揃え、v0.15.19のAPKと製品ページまで公開するticket 260919-103821を作成した。
+[2026/09/19 20:01] 変換中Spaceを候補、Space選択後のEnterを確定へ切り替え、読み編集時は無変換へ戻すnative・mock・仕様・manualの同期実装を完了した。focused unit testとAndroid testコンパイルは成功し、接続端末0台を確認した。
+[2026/09/19 20:14] API 36.1 emulatorで今回追加したproduction KeyboardViewの候補・無変換・確定MotionEvent testを実行しPASSした。公開候補の全通常suiteは2/2 PASS、APKは38,651,216 bytes、SHA-256 c9669fb7fac87df5e2ed20c28d88bd3acab2d830de9c9e0541cb2e2bce785bc5と確認した。
