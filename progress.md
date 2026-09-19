@@ -340,3 +340,4 @@
 [2026/09/19 19:38] 日本語変換中のSpaceを候補選択、候補選択後のEnterを確定表示と動作へ揃え、v0.15.19のAPKと製品ページまで公開するticket 260919-103821を作成した。
 [2026/09/19 20:01] 変換中Spaceを候補、Space選択後のEnterを確定へ切り替え、読み編集時は無変換へ戻すnative・mock・仕様・manualの同期実装を完了した。focused unit testとAndroid testコンパイルは成功し、接続端末0台を確認した。
 [2026/09/19 20:14] API 36.1 emulatorで今回追加したproduction KeyboardViewの候補・無変換・確定MotionEvent testを実行しPASSした。公開候補の全通常suiteは2/2 PASS、APKは38,651,216 bytes、SHA-256 c9669fb7fac87df5e2ed20c28d88bd3acab2d830de9c9e0541cb2e2bce785bc5と確認した。
+[2026/09/19 20:20] v0.15.19をpublic mainとGitHub Releaseへ未圧縮APK 1個で公開し、再取得APKのbyte一致を確認した。masuidrive.jp b7883d8のPages run 35439825151成功、公開4ファイルのbyte一致、412px・840pxの横収まり、公開mockの候補・無変換・確定遷移を確認した。

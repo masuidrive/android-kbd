@@ -86,6 +86,13 @@
 - `technical-reference.md`、`docs/reference/sites-native-spec.txt`、`docs/reference/mock-source.html`を、候補未選択時のEnter=`無変換`、Space=`候補`、Space選択後のEnter=`確定`という同一契約へ更新し突合した。
 - `site/manual.html`と`site/mock.html`も同じ状態遷移へ更新した。PDH配布物の変更はなく、pdh-updateは不要。
 
+## 公開検証
+
+- Android repositoryはPUBLIC、default branchは`main`。main `98a950c4fde45eb88ed19bae8aa3477e6f19f205`をpushし、そのcommitをtargetにGitHub Release `v0.15.19`を公開した。
+- Release assetは未圧縮`gesture-ime-v0.15.19.apk` 1個。公開先から再取得したAPKはlocalとbyte一致し、38,651,216 bytes、SHA-256 `c9669fb7fac87df5e2ed20c28d88bd3acab2d830de9c9e0541cb2e2bce785bc5`だった。
+- masuidrive.jp `b7883d839c1d8e487c807a2ba49db588763adbde`をpushし、Pages run `35439825151`は成功。公開index、mock、manual、stylesを再取得し、local正本とのbyte一致を確認した。
+- 公開browserは412px・840pxで横overflow 0。412pxの公開mockで「あ」入力後Space=`候補`・Enter=`無変換`、Space tap後Enter=`確定`、Enter tap後の候補消去を確認した。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
