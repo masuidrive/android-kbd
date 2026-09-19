@@ -1,6 +1,6 @@
 # Work Notes: 260919-052029-publish-v0-15-18
 
-## Status: PDH-implement
+## Status: PDH-human-review
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -17,14 +17,14 @@
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部provider経由pathがないrelease ticket
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: review findingがなく修正を行っていない
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -54,6 +54,9 @@
 - commit `ac5def6e664a0d4a521675fe6e3d9bcf39be03f4`: v0.15.18公開候補を準備した。
 - `scripts/test-all.sh --parallel`は2/2 PASS。APKは38,634,832 bytes、SHA-256 `ed5aae06a261207c18ffec0e62f54cb9fa4a02f291ff7d5cb9bd57124a51ad9a`、package `com.masuidrive.gestureime`、versionCode 34、versionName 0.15.18、arm64-v8a、RECORD_AUDIOあり、INTERNETなし。
 - 412px・840pxのローカル製品ページは横overflowなし。操作mockのBackspaceは待機時`Esc`、下フリック中`matrix(1.7, 0, 0, 1.7, 0, 13)`、release後に通常表示へ復帰した。
+- public main `c42c704750b3969666b51bf0292df5694ae0aaab`へpushし、public Release v0.15.18へ`gesture-ime-v0.15.18.apk` 1個だけを添付した。再取得成果物はlocal APKとbyte一致した。
+- 製品サイトcommit `76a7d27d4f76d910b7d31398c762a42ce372683d`のPages deployはsuccess。公開4主要fileは正本とbyte一致した。
+- 公開ページを412px・840pxで観察し、外側とiframe内のscrollWidthがclientWidthと一致した。840pxではTablet・Dual Flickが選択され、412pxのQWERTY Backspaceは待機時`Esc`、下フリック中1.7倍・13px移動、release後復帰を確認した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -79,6 +82,8 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+- ユーザの「apk公開、ページ更新」を本release ticketの公開とclose承認として記録した。
+- 確認先: `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.18`、`https://masuidrive.jp/products/md-kbd/`。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
