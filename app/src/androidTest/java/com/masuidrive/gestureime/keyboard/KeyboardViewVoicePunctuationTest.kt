@@ -255,7 +255,7 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
-    @Test fun conversionEnterDispatchesRawTapAndKatakanaFlicksOnAndroidViewAtPhoneAndTabletWidths() {
+    @Test fun conversionCandidateAndConfirmButtonsUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val actions = mutableListOf<KeyAction>()
@@ -263,37 +263,109 @@ class KeyboardViewVoicePunctuationTest {
                 val view = KeyboardView(activity).apply {
                     actionSink = KeyboardActionSink { actions += it }
                     setMode(KeyboardMode.KANA)
-                    setConversionActive(true)
+                    setConversionState(active = true, candidateSelected = false)
                 }
                 activity.setContentView(view)
                 val enterId = KeyboardLayouts.layout(KeyboardMode.KANA, false, true).rows
                     .flatMap { it.keys }
                     .indexOfFirst { it.kind == KeyKind.ENTER }
+                val spaceId = KeyboardLayouts.layout(KeyboardMode.KANA, false, true).rows
+                    .flatMap { it.keys }
+                    .indexOfFirst { it.kind == KeyKind.SPACE }
                 check(enterId >= 0) { "Kana conversion layout has no Enter key" }
+                check(spaceId >= 0) { "Kana conversion layout has no Space key" }
 
                 val distance = 30f * density
-                val gestures = listOf(
-                    "tap" to Triple(0f, 0f, KeyAction.CommitWithoutConversion),
-                    "up" to Triple(0f, -distance, KeyAction.ConvertToKatakana),
-                    "left" to Triple(-distance, 0f, KeyAction.ConvertToKatakana),
-                )
                 listOf(412f, 840f).forEach { widthDp ->
                     val width = (widthDp * density).toInt()
                     val height = (228f * density).toInt()
                     view.measure(exact(width), exact(height))
                     view.layout(0, 0, width, height)
-                    val enter = bounds(view, enterId)
+                    var enter = bounds(view, enterId)
+                    val space = bounds(view, spaceId)
+                    assertTrue(
+                        "$widthDp dp unselected Enter label",
+                        view.accessibilityNodeProvider.createAccessibilityNodeInfo(enterId)
+                            ?.contentDescription?.toString()?.startsWith("タップ 無変換") == true,
+                    )
+
+                    actions.clear()
+                    var downTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 1, enter.exactCenterX(), enter.exactCenterY())
+                    assertEquals("$widthDp dp unselected Enter tap", listOf(KeyAction.CommitWithoutConversion), actions)
+
+                    actions.clear()
+                    downTime += 10
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, space.exactCenterX(), space.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 1, space.exactCenterX(), space.exactCenterY())
+                    assertEquals("$widthDp dp candidate tap", listOf(KeyAction.CycleCandidate), actions)
+
+                    view.setConversionState(active = true, candidateSelected = true)
+                    view.measure(exact(width), exact(height))
+                    view.layout(0, 0, width, height)
+                    enter = bounds(view, enterId)
+                    assertTrue(
+                        "$widthDp dp selected Enter label",
+                        view.accessibilityNodeProvider.createAccessibilityNodeInfo(enterId)
+                            ?.contentDescription?.toString()?.startsWith("タップ 確定") == true,
+                    )
+
+                    val gestures = listOf(
+                        "tap" to Triple(0f, 0f, KeyAction.CommitConversion),
+                        "up" to Triple(0f, -distance, KeyAction.ConvertToKatakana),
+                        "left" to Triple(-distance, 0f, KeyAction.ConvertToKatakana),
+                    )
                     gestures.forEachIndexed { index, (name, gesture) ->
                         val (dx, dy, expected) = gesture
-                        val downTime = SystemClock.uptimeMillis() + index * 10L
+                        downTime = SystemClock.uptimeMillis() + index * 10L
                         actions.clear()
                         dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
                         if (dx != 0f || dy != 0f) {
                             dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + dx, enter.exactCenterY() + dy)
                         }
                         dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + dx, enter.exactCenterY() + dy)
-                        assertEquals("$widthDp dp conversion Enter $name", listOf(expected), actions)
+                        assertEquals("$widthDp dp selected Enter $name", listOf(expected), actions)
                     }
+
+                    listOf("right" to (distance to 0f), "down" to (0f to distance)).forEachIndexed { index, (name, delta) ->
+                        actions.clear()
+                        downTime = SystemClock.uptimeMillis() + index * 10L
+                        dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                        dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + delta.first, enter.exactCenterY() + delta.second)
+                        dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + delta.first, enter.exactCenterY() + delta.second)
+                        assertTrue("$widthDp dp selected Enter ignores $name", actions.isEmpty())
+                    }
+
+                    actions.clear()
+                    downTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + 17f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + 17f * density, enter.exactCenterY())
+                    assertEquals("$widthDp dp selected Enter stays tap below threshold", listOf(KeyAction.CommitConversion), actions)
+
+                    actions.clear()
+                    downTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() - distance, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 2, enter.exactCenterX() - 10f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 3, enter.exactCenterX() - 10f * density, enter.exactCenterY())
+                    assertEquals("$widthDp dp selected Enter returns to confirm", listOf(KeyAction.CommitConversion), actions)
+
+                    actions.clear()
+                    downTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX(), enter.exactCenterY() - distance)
+                    dispatch(view, MotionEvent.ACTION_CANCEL, downTime, downTime + 2, enter.exactCenterX(), enter.exactCenterY() - distance)
+                    assertTrue("$widthDp dp selected Enter cancel", actions.isEmpty())
+
+                    actions.clear()
+                    downTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, space.exactCenterX(), space.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 1, space.exactCenterX(), space.exactCenterY())
+                    assertEquals("$widthDp dp selected candidate advances", listOf(KeyAction.CycleCandidate), actions)
+
+                    view.setConversionState(active = true, candidateSelected = false)
                 }
             }
         }

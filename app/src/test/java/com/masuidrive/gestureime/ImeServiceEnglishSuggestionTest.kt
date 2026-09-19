@@ -16,6 +16,7 @@ import com.masuidrive.gestureime.conversion.ConversionCandidateSource
 import com.masuidrive.gestureime.conversion.ConversionState
 import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.KeyAction
+import com.masuidrive.gestureime.keyboard.KeyKind
 import com.masuidrive.gestureime.keyboard.KeyboardLayouts
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardView
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -141,6 +143,56 @@ class ImeServiceEnglishSuggestionTest {
 
         assertEquals(listOf("ニホンゴ"), harness.input.committedValues)
         assertEquals("ニホンゴ", harness.input.committed)
+    }
+
+    @Test
+    fun spaceSelectionAloneChangesEnterToConfirmAndReadingEditsClearThatSelection() {
+        val conversion = FakeConversion(
+            candidateValues = listOf(
+                ConversionCandidate(1, "漢字"),
+                ConversionCandidate(2, "感じ"),
+            ),
+            initialSelectedIndex = 0,
+        )
+        val harness = Harness(conversion = conversion) { _, _ -> emptyList() }
+        harness.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.KANA))
+        harness.service.onKeyAction(KeyAction.KanaInput("かんじ"))
+        harness.idle()
+        val keyboard = harness.root.findView { it is KeyboardView } as KeyboardView
+        val enterId = KeyboardLayouts.layout(KeyboardMode.KANA).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.ENTER }
+        val spaceId = KeyboardLayouts.layout(KeyboardMode.KANA).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.SPACE }
+        fun description(id: Int) = keyboard.accessibilityNodeProvider
+            .createAccessibilityNodeInfo(id)?.contentDescription?.toString()
+
+        assertTrue(description(spaceId)!!.startsWith("タップ 候補"))
+        assertTrue(description(enterId)!!.startsWith("タップ 無変換"))
+
+        harness.service.onKeyAction(KeyAction.CycleCandidate)
+        harness.idle()
+        assertTrue(description(enterId)!!.startsWith("タップ 確定"))
+        harness.service.onKeyAction(KeyAction.CycleCandidate)
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.CommitConversion)
+        harness.idle()
+        assertEquals(listOf(1), conversion.committedIndexes)
+        assertEquals("感じ", harness.input.committed)
+
+        harness.service.onKeyAction(KeyAction.KanaInput("か"))
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.CycleCandidate)
+        harness.idle()
+        assertTrue(description(enterId)!!.startsWith("タップ 確定"))
+        harness.service.onKeyAction(KeyAction.KanaInput("な"))
+        harness.idle()
+        assertTrue(description(enterId)!!.startsWith("タップ 無変換"))
+
+        harness.service.onKeyAction(KeyAction.CycleCandidate)
+        harness.idle()
+        harness.service.onKeyAction(KeyAction.Backspace())
+        harness.idle()
+        assertTrue(description(enterId)!!.startsWith("タップ 無変換"))
     }
 
     @Test
@@ -669,27 +721,39 @@ class ImeServiceEnglishSuggestionTest {
         private val candidateValues: List<ConversionCandidate> = emptyList(),
         private val startGate: CompletableDeferred<Unit>? = null,
         private val resetGate: CompletableDeferred<Unit>? = null,
+        private val initialSelectedIndex: Int = -1,
         private val prediction: suspend (PredictionContext) -> List<ConversionCandidate> = { emptyList() },
     ) : ConversionEngine {
         val deletedIndexes = mutableListOf<Int>()
+        val committedIndexes = mutableListOf<Int>()
         val predictionContexts = mutableListOf<PredictionContext>()
         private var predictionActive = false
+        private var reading = ""
+        private var nextIndex = -1
         override suspend fun start(reading: String): ConversionState {
             startGate?.await()
             predictionActive = false
-            return ConversionState(reading, candidateValues, -1)
+            this.reading = reading
+            nextIndex = -1
+            return ConversionState(reading, candidateValues, initialSelectedIndex)
         }
         override suspend fun update(reading: String) = start(reading)
-        override suspend fun nextCandidate() = start("")
+        override suspend fun nextCandidate(): ConversionState {
+            predictionActive = false
+            nextIndex = if (candidateValues.isEmpty()) -1 else (nextIndex + 1) % candidateValues.size
+            return ConversionState(reading, candidateValues, nextIndex)
+        }
         override suspend fun predict(context: PredictionContext): ConversionState {
             predictionActive = true
             predictionContexts += context
             return ConversionState("", prediction(context), -1)
         }
-        override suspend fun commit(index: Int): ConversionCommit? =
-            (if (predictionActive) prediction(predictionContexts.last()) else candidateValues)
+        override suspend fun commit(index: Int): ConversionCommit? {
+            if (!predictionActive) committedIndexes += index
+            return (if (predictionActive) prediction(predictionContexts.last()) else candidateValues)
                 .getOrNull(index)
                 ?.let { ConversionCommit(it.value) }
+        }
         override suspend fun deleteCandidateFromHistory(index: Int): ConversionState? {
             deletedIndexes += index
             return ConversionState("か", candidateValues, -1)

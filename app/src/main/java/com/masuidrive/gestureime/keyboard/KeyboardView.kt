@@ -217,10 +217,13 @@ class KeyboardView @JvmOverloads constructor(
         invalidate()
     }
 
-    fun setConversionActive(active: Boolean) {
-        if (state.conversionActive == active) return
+    fun setConversionActive(active: Boolean) = setConversionState(active, candidateSelected = false)
+
+    fun setConversionState(active: Boolean, candidateSelected: Boolean) {
+        val selected = active && candidateSelected
+        if (state.conversionActive == active && state.conversionCandidateSelected == selected) return
         this.active.filterValues { it.spec.kind == KeyKind.ENTER }.keys.toList().forEach(::discardPointer)
-        state = state.copy(conversionActive = active)
+        state = state.copy(conversionActive = active, conversionCandidateSelected = selected)
         rebuildLayout()
     }
 
@@ -501,7 +504,13 @@ class KeyboardView @JvmOverloads constructor(
             return
         }
         emojiViewport.setEmpty()
-        val rows = KeyboardLayouts.layout(state.mode, dualKana, state.conversionActive, state.emojiRecents).rows
+        val rows = KeyboardLayouts.layout(
+            state.mode,
+            dualKana,
+            state.conversionActive,
+            state.conversionCandidateSelected,
+            state.emojiRecents,
+        ).rows
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         rows.forEachIndexed { rowIndex, row ->
             val layoutUnits = if (state.mode in setOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {

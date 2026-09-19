@@ -86,6 +86,7 @@ data class KeyboardUiState(
     val candidates: List<String> = emptyList(),
     val selectedCandidateIndex: Int = -1,
     val conversionActive: Boolean = false,
+    val conversionCandidateSelected: Boolean = false,
     val dualFlickEnabled: Boolean = false,
     val heightPreset: KeyboardHeightPreset = KeyboardHeightPreset.STANDARD,
     val emojiRecents: List<String> = emptyList(),

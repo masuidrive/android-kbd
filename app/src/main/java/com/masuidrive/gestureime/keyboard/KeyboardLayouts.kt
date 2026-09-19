@@ -7,11 +7,12 @@ object KeyboardLayouts {
         mode: KeyboardMode,
         dualKana: Boolean = false,
         conversionActive: Boolean = false,
+        conversionCandidateSelected: Boolean = false,
         emojiRecents: List<String> = emptyList(),
     ): KeyboardLayout = when (mode) {
         KeyboardMode.QWERTY -> qwerty()
         KeyboardMode.SYMBOLS -> symbols()
-        KeyboardMode.KANA -> kana(dualKana, conversionActive)
+        KeyboardMode.KANA -> kana(dualKana, conversionActive, conversionCandidateSelected)
         KeyboardMode.NUMBERS -> numbers()
         KeyboardMode.EMOJI -> emoji(emojiRecents)
         KeyboardMode.VOICE -> voice()
@@ -36,11 +37,11 @@ object KeyboardLayouts {
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
 
-    private fun kana(dual: Boolean, conversionActive: Boolean): KeyboardLayout {
+    private fun kana(dual: Boolean, conversionActive: Boolean, conversionCandidateSelected: Boolean): KeyboardLayout {
         val rows = listOf(
         KeyboardRow(listOf(emojiPad(), kana("あ", "い", "う", "え", "お"), kana("か", "き", "く", "け", "こ"), kana("さ", "し", "す", "せ", "そ"), backspace(1f))),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space())),
-        KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), kana("ま", "み", "む", "め", "も"), kana("や", "（", "ゆ", "）", "よ"), kana("ら", "り", "る", "れ", "ろ"), enter(rowSpan = 2, conversionActive = conversionActive))),
+        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space(conversionActive = conversionActive))),
+        KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), kana("ま", "み", "む", "め", "も"), kana("や", "（", "ゆ", "）", "よ"), kana("ら", "り", "る", "れ", "ろ"), enter(rowSpan = 2, conversionActive = conversionActive, conversionCandidateSelected = conversionCandidateSelected))),
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), accent(), kana("わ", "を", "ん", "ー", "〜"), punct()))
         )
         return KeyboardLayout(KeyboardMode.KANA, if (dual) rows.map(::duplicateKanaCenter) else rows)
@@ -137,13 +138,26 @@ object KeyboardLayouts {
         id, KeyKind.CHARACTER, FlickValue(emoji, KeyAction.CommitEmoji(emoji)),
     )
 
-    private fun space(width: Float = 1f) = KeySpec("space", KeyKind.SPACE,
-        FlickValue("Space", KeyAction.CommitText(" ")),
+    private fun space(width: Float = 1f, conversionActive: Boolean = false) = KeySpec("space", KeyKind.SPACE,
+        FlickValue(
+            if (conversionActive) "候補" else "Space",
+            if (conversionActive) KeyAction.CycleCandidate else KeyAction.CommitText(" "),
+        ),
         left = FlickValue("←", KeyAction.MoveCursor(Direction.LEFT)), up = FlickValue("↑", KeyAction.MoveCursor(Direction.UP)),
         right = FlickValue("→", KeyAction.MoveCursor(Direction.RIGHT)), down = FlickValue("↓", KeyAction.MoveCursor(Direction.DOWN)), widthUnits = width)
 
-    private fun enter(rowSpan: Int = 1, width: Float = 1f, conversionActive: Boolean = false) = if (conversionActive) {
-        KeySpec("enter", KeyKind.ENTER, FlickValue("無変換", KeyAction.CommitWithoutConversion),
+    private fun enter(
+        rowSpan: Int = 1,
+        width: Float = 1f,
+        conversionActive: Boolean = false,
+        conversionCandidateSelected: Boolean = false,
+    ) = if (conversionActive) {
+        val center = if (conversionCandidateSelected) {
+            FlickValue("確定", KeyAction.CommitConversion)
+        } else {
+            FlickValue("無変換", KeyAction.CommitWithoutConversion)
+        }
+        KeySpec("enter", KeyKind.ENTER, center,
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
             up = FlickValue("カタカナ", KeyAction.ConvertToKatakana), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),

@@ -229,13 +229,28 @@ class KeyboardLayoutsTest {
         }
     }
 
-    @Test fun `active conversion enter has only explicit conversion choices`() {
-        val enter = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true).rows[2].keys.last()
-        assertEquals("無変換", enter.center?.label)
-        assertEquals(KeyAction.CommitWithoutConversion, enter.center?.action)
-        assertEquals(KeyAction.ConvertToKatakana, enter.up?.action)
-        assertEquals(KeyAction.ConvertToKatakana, enter.left?.action)
-        assertNull(enter.right); assertNull(enter.down)
+    @Test fun `active conversion labels candidate and changes enter only after space selection`() {
+        val unselected = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true)
+        val unselectedSpace = unselected.rows[1].keys.last()
+        val unselectedEnter = unselected.rows[2].keys.last()
+        assertEquals("候補", unselectedSpace.center?.label)
+        assertEquals(KeyAction.CycleCandidate, unselectedSpace.center?.action)
+        assertEquals("無変換", unselectedEnter.center?.label)
+        assertEquals(KeyAction.CommitWithoutConversion, unselectedEnter.center?.action)
+
+        val selectedEnter = KeyboardLayouts.layout(
+            KeyboardMode.KANA,
+            conversionActive = true,
+            conversionCandidateSelected = true,
+        ).rows[2].keys.last()
+        assertEquals("確定", selectedEnter.center?.label)
+        assertEquals(KeyAction.CommitConversion, selectedEnter.center?.action)
+        listOf(unselectedEnter, selectedEnter).forEach { enter ->
+            assertEquals(KeyAction.ConvertToKatakana, enter.up?.action)
+            assertEquals(KeyAction.ConvertToKatakana, enter.left?.action)
+            assertNull(enter.right)
+            assertNull(enter.down)
+        }
     }
 
     @Test fun `nonconverting enter exposes control j only on up`() {

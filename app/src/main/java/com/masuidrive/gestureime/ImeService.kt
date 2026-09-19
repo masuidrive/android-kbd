@@ -98,6 +98,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var candidates = emptyList<String>()
     private var conversionCandidates = emptyList<ConversionCandidate>()
     private var selectedCandidate = -1
+    private var conversionCandidateSelected = false
     private var conversionPreview: String? = null
     private var candidateSource = CandidateSource.NONE
     private var englishBuffer = ""
@@ -1424,7 +1425,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
         val wasEmpty = reading.isEmpty()
         reading = newReading
-        keyboardView?.setConversionActive(true)
+        conversionCandidateSelected = false
+        keyboardView?.setConversionState(active = true, candidateSelected = false)
         val generation = ++conversionGeneration
         val state = if (wasEmpty) conversionEngine.start(newReading) else conversionEngine.update(newReading)
         if (generation == conversionGeneration && reading == newReading) applyConversion(state)
@@ -1439,7 +1441,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         textController.replaceComposing(reading)
         val generation = ++conversionGeneration
         val state = conversionEngine.nextCandidate()
-        if (generation == conversionGeneration) applyConversion(state)
+        if (generation == conversionGeneration) {
+            conversionCandidateSelected = state.selectedIndex in state.candidates.indices
+            applyConversion(state)
+        }
     }
 
     private suspend fun commitJapaneseCandidate(index: Int, editorToken: Long) {
@@ -1576,10 +1581,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         candidateSource = CandidateSource.JAPANESE
         conversionCandidates = state.candidates
         candidates = state.candidates.map { it.value }
-        selectedCandidate = state.selectedIndex
+        selectedCandidate = state.selectedIndex.takeIf { conversionCandidateSelected } ?: -1
         showCandidateStrip(candidates, selectedCandidate)
         keyboardView?.setCandidates(candidates, selectedCandidate)
-        keyboardView?.setConversionActive(reading.isNotEmpty())
+        keyboardView?.setConversionState(
+            active = reading.isNotEmpty(),
+            candidateSelected = conversionCandidateSelected,
+        )
     }
 
     private fun invalidateConversion(clearComposing: Boolean) {
@@ -1610,11 +1618,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         candidates = emptyList()
         conversionCandidates = emptyList()
         selectedCandidate = -1
+        conversionCandidateSelected = false
         conversionPreview = null
         candidateSource = CandidateSource.NONE
         showCandidateStrip(emptyList(), -1)
         keyboardView?.setCandidates(emptyList(), -1)
-        keyboardView?.setConversionActive(false)
+        keyboardView?.setConversionState(active = false, candidateSelected = false)
     }
 
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
