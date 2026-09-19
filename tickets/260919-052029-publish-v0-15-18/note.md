@@ -1,6 +1,6 @@
 # Work Notes: 260919-052029-publish-v0-15-18
 
-## Status: PDH-ticket-human-review (Approved by explicit publication request)
+## Status: PDH-implement
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -11,7 +11,7 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
@@ -48,6 +48,9 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+- 未確認の外部状態は、GitHub Release tagの未作成、Pages公開成功、公開APK再取得byte一致である。公開前にlocal成果物を検証し、公開後に各状態を測る。
+- v0.15.18 / versionCode 34、APK直リンク、manual変更履歴、release notesを同じ版へ更新した。
+- 外部provider経由pathはないため、実API 200確認は対象外とする。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
