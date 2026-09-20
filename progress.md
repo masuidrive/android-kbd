@@ -347,3 +347,4 @@
 [2026/09/20 16:58] ユーザの公開指示をテンキー小数点・`?}`記号切替ticketのclose、main統合、pushとv0.15.20公開の承認として記録した。
 [2026/09/20 16:59] v0.15.20（versionCode 36）をGitHub ReleaseへAPK単体で公開し、製品ページ・操作mock・マニュアルを更新するticket 260920-075912を作成した。
 [2026/09/20 16:34] テンキー`.`のtap/左右/未割当上下と4面の`?}`切替をnative・mock・正本・利用文書へ同期し、focused unitとinstrumentation compile、mock byte一致、similarity、diff checkをPASSした。接続端末0台のためMotionEvent test実行は公開前connected suiteへdeferredした。
+[2026/09/20 17:03] v0.15.20のversionCode 36、APK直リンク、製品ページ、マニュアル、release notesを公開候補へ更新した。次に全suiteとAPK metadataを確認する。
