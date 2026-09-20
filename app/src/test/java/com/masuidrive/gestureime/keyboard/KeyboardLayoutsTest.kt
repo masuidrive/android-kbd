@@ -182,6 +182,23 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
+    @Test fun `number period exposes comma left and equals right with vertical directions unassigned`() {
+        val period = keys(KeyboardMode.NUMBERS).single { it.id == "number-period" }
+
+        assertEquals(KeyAction.CommitText("."), period.center?.action)
+        assertEquals(KeyAction.CommitText(","), period.left?.action)
+        assertNull(period.up)
+        assertEquals(KeyAction.CommitText("="), period.right?.action)
+        assertNull(period.down)
+    }
+
+    @Test fun `every character surface uses the composite question brace key to open symbols`() {
+        listOf(KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.QWERTY, KeyboardMode.EMOJI).forEach { mode ->
+            val key = keys(mode).single { it.center?.action == KeyAction.SwitchLayer(KeyboardMode.SYMBOLS) }
+            assertEquals("$mode label", "?}", key.center?.label)
+        }
+    }
+
     @Test fun `emoji layer keeps the kana layer switch rail beside seven picker columns`() {
         val contentRows = KeyboardLayouts.emojiContentRows(listOf("😀", "❤️", "😀"))
         val rows = KeyboardLayouts.layout(KeyboardMode.EMOJI, emojiRecents = listOf("😀", "❤️", "😀")).rows
@@ -190,7 +207,7 @@ class KeyboardLayoutsTest {
         assertTrue(contentRows.all { row ->
             row.keys.size == 2 && row.keys[0].widthUnits == 1f && row.keys[1].widthUnits == 7f
         })
-        assertEquals(listOf("あ", "#!", "19", "AZ"), contentRows.map { it.keys.first().center?.label })
+        assertEquals(listOf("あ", "?}", "19", "AZ"), contentRows.map { it.keys.first().center?.label })
         assertEquals(
             listOf(KeyboardMode.KANA, KeyboardMode.SYMBOLS, KeyboardMode.NUMBERS, KeyboardMode.QWERTY),
             contentRows.map { (it.keys.first().center?.action as KeyAction.SwitchLayer).target },

@@ -818,7 +818,7 @@ class KeyboardView @JvmOverloads constructor(
         xOffsetDp: Float = 0f, edgePaddingDp: Float = 4f,
     ) {
         val x = bounds.centerX() + dp(xOffsetDp)
-        if (!allowComposite || label !in setOf("#!", "あん", "AZ", "19")) {
+        if (!allowComposite || label !in setOf("?}", "あん", "AZ", "19")) {
             val maxWidth = (bounds.width() - dp(edgePaddingDp * 2f) - 2f * kotlin.math.abs(dp(xOffsetDp)))
                 .coerceAtLeast(dp(4f))
             drawFittedText(canvas, label, x, y, maxWidth)

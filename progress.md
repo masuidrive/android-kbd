@@ -342,3 +342,7 @@
 [2026/09/19 20:14] API 36.1 emulatorで今回追加したproduction KeyboardViewの候補・無変換・確定MotionEvent testを実行しPASSした。公開候補の全通常suiteは2/2 PASS、APKは38,651,216 bytes、SHA-256 c9669fb7fac87df5e2ed20c28d88bd3acab2d830de9c9e0541cb2e2bce785bc5と確認した。
 [2026/09/19 20:20] v0.15.19をpublic mainとGitHub Releaseへ未圧縮APK 1個で公開し、再取得APKのbyte一致を確認した。masuidrive.jp b7883d8のPages run 35439825151成功、公開4ファイルのbyte一致、412px・840pxの横収まり、公開mockの候補・無変換・確定遷移を確認した。
 [2026/09/20 16:22] テンキー`.`の左フリック`,`・右フリック`=`と、全レイヤーの記号切替表示`?}`をnative・mock・仕様へ揃えるticket 260920-072153を作成した。
+[2026/09/20 16:23] 260920-072153-adjust-number-period-and-symbol-labelの実装を開始し、テンキー小数点の左右フリックと`?}`記号レイヤー表示の影響面を調査する。
+[2026/09/20 16:40] テンキー`.`をtap`.`・左`,`・右`=`・上下未割当へ変更し、4面の記号切替を`?}`へ統一した。全通常suite 2/2、API 36.1 production MotionEvent、412px・840px実browser mockがPASSし、独立reviewはCritical・Major・Minorなしだった。
+[2026/09/20 16:58] ユーザの公開指示をテンキー小数点・`?}`記号切替ticketのclose、main統合、pushとv0.15.20公開の承認として記録した。
+[2026/09/20 16:34] テンキー`.`のtap/左右/未割当上下と4面の`?}`切替をnative・mock・正本・利用文書へ同期し、focused unitとinstrumentation compile、mock byte一致、similarity、diff checkをPASSした。接続端末0台のためMotionEvent test実行は公開前connected suiteへdeferredした。

@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "テンキーの小数点へ左右フリックを追加し、記号レイヤー表示を実際の記号に合わせる"
 created_at: "2026-09-20T07:21:53Z"
 started_at: 2026-09-20T07:22:54Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-20T07:58:58Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -33,9 +33,9 @@ Product Briefの「フリックを使ってタップ回数を減らす」と、�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、テンキー利用者が小数点キーの左右フリックで`,`と`=`を入力でき、利用者が`?}`表示から記号レイヤーへ移動できる。
 
-- [ ] AC 1: テンキーの`.`は中央tapで`.`、左フリックで`,`、右フリックで`=`を入力し、上・下フリックには何も割り当てない。
-- [ ] AC 2: 日本語、テンキー、QWERTY、絵文字railにある記号レイヤー切替キーを`?}`表示へ統一し、tapすると従来どおり記号レイヤーを開く。
-- [ ] AC 3: native、操作mock、正本仕様、使い方ページが同じ割当と表示を示す。
+- [x] AC 1: テンキーの`.`は中央tapで`.`、左フリックで`,`、右フリックで`=`を入力し、上・下フリックには何も割り当てない。
+- [x] AC 2: 日本語、テンキー、QWERTY、絵文字railにある記号レイヤー切替キーを`?}`表示へ統一し、tapすると従来どおり記号レイヤーを開く。
+- [x] AC 3: native、操作mock、正本仕様、使い方ページが同じ割当と表示を示す。
 
 ### Architectural Invariants check
 端末内処理と共通KeySpec/KeyAction境界を維持し、AI-1〜AI-4と矛盾しない。通信権限は追加しない。

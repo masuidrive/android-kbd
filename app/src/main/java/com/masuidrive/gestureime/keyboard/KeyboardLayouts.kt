@@ -26,7 +26,7 @@ object KeyboardLayouts {
     private fun qwerty(): KeyboardLayout = KeyboardLayout(KeyboardMode.QWERTY, listOf(
         KeyboardRow("qwertyuiop".mapIndexed { i, c -> text(c.toString(), "1234567890"[i].toString()) }),
         KeyboardRow(listOf(modifier()) + "asdfghjkl".mapIndexed { i, c -> text(c.toString(), listOf("@", "#", "\$", "&", "*", "(", ")", "'", "\"")[i]) } + text(".", "?", width = .5f)),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), backspace(width = 1f, tapDelete = true, escapeOnDown = true, deleteSymbol = true))),
+        KeyboardRow(listOf(modeKey("?}", KeyboardMode.SYMBOLS)) + "zxcvbnm".mapIndexed { i, c -> text(c.toString(), listOf("%", "-", "+", "=", "/", ";", ":")[i]) } + listOf(text(",", "!"), backspace(width = 1f, tapDelete = true, escapeOnDown = true, deleteSymbol = true))),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
 
@@ -40,7 +40,7 @@ object KeyboardLayouts {
     private fun kana(dual: Boolean, conversionActive: Boolean, conversionCandidateSelected: Boolean): KeyboardLayout {
         val rows = listOf(
         KeyboardRow(listOf(emojiPad(), kana("あ", "い", "う", "え", "お"), kana("か", "き", "く", "け", "こ"), kana("さ", "し", "す", "せ", "そ"), backspace(1f))),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space(conversionActive = conversionActive))),
+        KeyboardRow(listOf(modeKey("?}", KeyboardMode.SYMBOLS), kana("た", "ち", "つ", "て", "と"), kana("な", "に", "ぬ", "ね", "の"), kana("は", "ひ", "ふ", "へ", "ほ"), space(conversionActive = conversionActive))),
         KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), kana("ま", "み", "む", "め", "も"), kana("や", "（", "ゆ", "）", "よ"), kana("ら", "り", "る", "れ", "ろ"), enter(rowSpan = 2, conversionActive = conversionActive, conversionCandidateSelected = conversionCandidateSelected))),
         KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), accent(), kana("わ", "を", "ん", "ー", "〜"), punct()))
         )
@@ -56,9 +56,9 @@ object KeyboardLayouts {
 
     private fun numbers(): KeyboardLayout = KeyboardLayout(KeyboardMode.NUMBERS, listOf(
         KeyboardRow(listOf(emojiPad(), text("1"), text("2"), text("3"), backspace(1f))),
-        KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), text("4"), text("5"), text("6"), space())),
+        KeyboardRow(listOf(modeKey("?}", KeyboardMode.SYMBOLS), text("4"), text("5"), text("6"), space())),
         KeyboardRow(listOf(modeKey("あん", KeyboardMode.KANA), text("7"), text("8"), text("9"), enter(rowSpan = 2))),
-        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), text(".")))
+        KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), fiveWay("-", "+", "/", "*", ","), text("0"), numberPeriod()))
     ))
 
     /** Emoji content is rendered by AndroidX EmojiPickerView beside the fixed layer rail. */
@@ -71,7 +71,7 @@ object KeyboardLayouts {
     fun emojiContentRows(recents: List<String>): List<KeyboardRow> =
         listOf(
             KeyboardRow(listOf(modeKey("あ", KeyboardMode.KANA), empty(7f))),
-            KeyboardRow(listOf(modeKey("#!", KeyboardMode.SYMBOLS), empty(7f))),
+            KeyboardRow(listOf(modeKey("?}", KeyboardMode.SYMBOLS), empty(7f))),
             KeyboardRow(listOf(modeKey("19", KeyboardMode.NUMBERS), empty(7f))),
             KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(7f))),
         )
@@ -90,6 +90,10 @@ object KeyboardLayouts {
     private fun kanaValue(label: String) = FlickValue(label, KeyAction.KanaInput(label))
     private fun fiveWay(center: String, left: String, up: String, right: String, down: String) = KeySpec(
         "five-$center", KeyKind.CHARACTER, value(center), value(left), value(up), value(right), value(down)
+    )
+    private fun numberPeriod() = KeySpec(
+        "number-period", KeyKind.CHARACTER,
+        center = value("."), left = value(","), right = value("="),
     )
     private fun value(label: String) = FlickValue(label, KeyAction.CommitText(label))
 

@@ -255,6 +255,96 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun numberPeriodAndSymbolSwitchesUseProductionMotionEventsAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                }
+                activity.setContentView(view)
+                val distance = 30f * density
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    view.setMode(KeyboardMode.NUMBERS)
+                    view.measure(exact(width), exact(height))
+                    view.layout(0, 0, width, height)
+                    val periodId = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
+                        .indexOfFirst { it.id == "number-period" }
+                    check(periodId >= 0) { "Numbers layout has no period key" }
+                    val period = bounds(view, periodId)
+                    val gestures: List<Pair<String, Triple<Float, Float, KeyAction?>>> = listOf(
+                        "tap" to Triple(0f, 0f, KeyAction.CommitText(".")),
+                        "left" to Triple(-distance, 0f, KeyAction.CommitText(",")),
+                        "up" to Triple(0f, -distance, null),
+                        "right" to Triple(distance, 0f, KeyAction.CommitText("=")),
+                        "down" to Triple(0f, distance, null),
+                    )
+                    gestures.forEachIndexed { index, (name, gesture) ->
+                        val (dx, dy, expected) = gesture
+                        actions.clear()
+                        val time = SystemClock.uptimeMillis() + index * 10L
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
+                        if (dx != 0f || dy != 0f) {
+                            dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + dx, period.exactCenterY() + dy)
+                        }
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 2, period.exactCenterX() + dx, period.exactCenterY() + dy)
+                        if (expected == null) {
+                            assertTrue("$widthDp dp number period ignores $name", actions.isEmpty())
+                        } else {
+                            assertEquals("$widthDp dp number period $name", listOf(expected), actions)
+                        }
+                    }
+
+                    actions.clear()
+                    var time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + 17f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2, period.exactCenterX() + 17f * density, period.exactCenterY())
+                    assertEquals("$widthDp dp number period stays tap below threshold", listOf(KeyAction.CommitText(".")), actions)
+
+                    actions.clear()
+                    time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + distance, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 2, period.exactCenterX() + 10f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 3, period.exactCenterX() + 10f * density, period.exactCenterY())
+                    assertEquals("$widthDp dp number period returns to center", listOf(KeyAction.CommitText(".")), actions)
+
+                    actions.clear()
+                    time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() - distance, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_CANCEL, time, time + 2, period.exactCenterX() - distance, period.exactCenterY())
+                    assertTrue("$widthDp dp number period cancel", actions.isEmpty())
+
+                    listOf(KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.QWERTY, KeyboardMode.EMOJI).forEach { mode ->
+                        view.setMode(mode)
+                        view.measure(exact(width), exact(height))
+                        view.layout(0, 0, width, height)
+                        val symbolId = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                            .indexOfFirst { it.center?.action == KeyAction.SwitchLayer(KeyboardMode.SYMBOLS) }
+                        check(symbolId >= 0) { "$mode layout has no symbol switch" }
+                        val symbol = bounds(view, symbolId)
+                        assertTrue(
+                            "$widthDp dp $mode symbol label",
+                            view.accessibilityNodeProvider.createAccessibilityNodeInfo(symbolId)
+                                ?.contentDescription?.toString()?.startsWith("タップ ?}") == true,
+                        )
+                        actions.clear()
+                        time = SystemClock.uptimeMillis()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, symbol.exactCenterX(), symbol.exactCenterY())
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 1, symbol.exactCenterX(), symbol.exactCenterY())
+                        assertEquals("$widthDp dp $mode symbol tap", listOf(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)), actions)
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun conversionCandidateAndConfirmButtonsUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
