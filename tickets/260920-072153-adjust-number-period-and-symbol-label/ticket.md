@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "テンキーの小数点へ左右フリックを追加し、記号レイヤー表示を実際の記号に合わせる"
 created_at: "2026-09-20T07:21:53Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-20T07:22:54Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
