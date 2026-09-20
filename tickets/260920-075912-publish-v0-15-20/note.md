@@ -12,10 +12,10 @@
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部providerを使わないAndroid APKと静的サイトの公開ticket
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
@@ -52,6 +52,10 @@
 - 公開直前のv0.15.19がversionCode 35、GitHub Release assetがAPK 1個であることを確認した。v0.15.20 tag/releaseは未作成だった。
 - `app/build.gradle.kts`をversionCode 36 / versionName 0.15.20へ更新し、README、製品ページ、マニュアル、release notesの版とAPK直リンクを同期した。
 - 未確認事項は、生成APKのmetadata・ABI・権限・zipalign、公開Releaseのbyte一致、Pagesの反映、412px/840pxの公開表示。buildと公開後に実測する。
+- commit `1d7d1e0`: v0.15.20のversion、配布リンク、manual、release notesを公開候補として固定した。
+- `scripts/test-all.sh --parallel`: fast-checks / android unit, lint, apk の2/2 PASS。
+- 生成APKは38,651,216 bytes、SHA-256 `7799b6c8b1c9b5942fa78faca344f76071c49ee70aa5278f65c247f835d9b17c`。aapt2でversionCode 36 / versionName 0.15.20 / minSdk 28 / targetSdk 36 / RECORD_AUDIOあり / INTERNETなし、zipalign成功、収録ABIはarm64-v8aのみを確認した。
+- local siteは412px・840pxとも`scrollWidth == innerWidth`。v0.15.20 APK直リンク、mockの`?}`表示、テンキー`.`のtap`.`・左`,`・右`=`・上下no-opを確認した。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -71,6 +75,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- 該当なし。キー割当の正本更新は前段ticket 260920-072153で完了しており、本ticketは公開版・配布文書だけを更新する。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。

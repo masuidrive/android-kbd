@@ -348,3 +348,4 @@
 [2026/09/20 16:59] v0.15.20（versionCode 36）をGitHub ReleaseへAPK単体で公開し、製品ページ・操作mock・マニュアルを更新するticket 260920-075912を作成した。
 [2026/09/20 16:34] テンキー`.`のtap/左右/未割当上下と4面の`?}`切替をnative・mock・正本・利用文書へ同期し、focused unitとinstrumentation compile、mock byte一致、similarity、diff checkをPASSした。接続端末0台のためMotionEvent test実行は公開前connected suiteへdeferredした。
 [2026/09/20 17:03] v0.15.20のversionCode 36、APK直リンク、製品ページ、マニュアル、release notesを公開候補へ更新した。次に全suiteとAPK metadataを確認する。
+[2026/09/20 17:08] v0.15.20公開候補の全suiteは2/2 PASS。APKは38,651,216 bytes、versionCode 36、ARM64、RECORD_AUDIOあり・INTERNETなし、zipalign正常。local製品ページとmockは412px・840pxで横overflowなし、テンキー`.`のtap/左右/上下と`?}`表示を確認した。
