@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "テンキー小数点と記号切替表示の修正版をv0.15.20として公開する"
 created_at: "2026-09-20T07:59:12Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-20T08:00:04Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
