@@ -345,4 +345,5 @@
 [2026/09/20 16:23] 260920-072153-adjust-number-period-and-symbol-labelの実装を開始し、テンキー小数点の左右フリックと`?}`記号レイヤー表示の影響面を調査する。
 [2026/09/20 16:40] テンキー`.`をtap`.`・左`,`・右`=`・上下未割当へ変更し、4面の記号切替を`?}`へ統一した。全通常suite 2/2、API 36.1 production MotionEvent、412px・840px実browser mockがPASSし、独立reviewはCritical・Major・Minorなしだった。
 [2026/09/20 16:58] ユーザの公開指示をテンキー小数点・`?}`記号切替ticketのclose、main統合、pushとv0.15.20公開の承認として記録した。
+[2026/09/20 16:59] v0.15.20（versionCode 36）をGitHub ReleaseへAPK単体で公開し、製品ページ・操作mock・マニュアルを更新するticket 260920-075912を作成した。
 [2026/09/20 16:34] テンキー`.`のtap/左右/未割当上下と4面の`?}`切替をnative・mock・正本・利用文書へ同期し、focused unitとinstrumentation compile、mock byte一致、similarity、diff checkをPASSした。接続端末0台のためMotionEvent test実行は公開前connected suiteへdeferredした。
