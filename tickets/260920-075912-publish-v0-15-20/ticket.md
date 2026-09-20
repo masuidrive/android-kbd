@@ -32,9 +32,9 @@ canceled_at: null # Do not modify manually
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者がv0.15.20 APKを直接取得でき、製品ページと操作モックで同じ変更を確認できる。
 
-- [ ] AC 1: GitHub public mainにv0.15.20の実装と公開記録があり、GitHub ReleaseからZIPでないAPK 1個を直接取得できる。
-- [ ] AC 2: 公開APKがlocal成果物とbyte一致し、versionCode 36、versionName 0.15.20、arm64-v8a、RECORD_AUDIOあり、INTERNETなしである。
-- [ ] AC 3: 製品ページ、操作mock、マニュアルがv0.15.20と今回の割当を示し、412px・840pxで横にはみ出さない。
+- [x] AC 1: GitHub public mainにv0.15.20の実装と公開記録があり、GitHub ReleaseからZIPでないAPK 1個を直接取得できる。
+- [x] AC 2: 公開APKがlocal成果物とbyte一致し、versionCode 36、versionName 0.15.20、arm64-v8a、RECORD_AUDIOあり、INTERNETなしである。
+- [x] AC 3: 製品ページ、操作mock、マニュアルがv0.15.20と今回の割当を示し、412px・840pxで横にはみ出さない。
 
 ### Architectural Invariants check
 公開物だけを更新し、端末内処理とAI-1〜AI-4を維持する。INTERNET permissionを追加しない。

@@ -19,12 +19,12 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -85,6 +85,12 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- ユーザの「公開」は、前段の割当変更と検証内容を受けたmain push、APK Release、製品ページ公開、および公開ticket closeの明示承認として扱った。
+- public repo `masuidrive/android-kbd` はvisibility PUBLIC / default branch main。main `8f88b34`をpushし、v0.15.20 ReleaseへAPK 1個だけを公開した。
+- 公開APKを再取得し、local APKと`cmp`一致。38,651,216 bytes、SHA-256 `7799b6c8b1c9b5942fa78faca344f76071c49ee70aa5278f65c247f835d9b17c`。
+- 製品サイトcommit `c9ee8b8`のPages run `35498955916`はsuccess。公開index/mock/manual/stylesはcommit内容とbyte一致した。
+- 公開ブラウザ観察は412px・840pxとも横overflowなし、v0.15.20直リンクあり。公開mockを実ポインター操作し、テンキー`.`左フリック`,`・右フリック`=`と`?}`表示を確認。ブラウザerrorなし。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
