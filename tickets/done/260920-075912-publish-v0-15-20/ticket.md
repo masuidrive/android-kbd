@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "テンキー小数点と記号切替表示の修正版をv0.15.20として公開する"
 created_at: "2026-09-20T07:59:12Z"
 started_at: 2026-09-20T08:00:04Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-20T08:16:51Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
