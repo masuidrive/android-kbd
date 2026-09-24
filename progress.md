@@ -350,3 +350,4 @@
 [2026/09/20 17:03] v0.15.20のversionCode 36、APK直リンク、製品ページ、マニュアル、release notesを公開候補へ更新した。次に全suiteとAPK metadataを確認する。
 [2026/09/20 17:08] v0.15.20公開候補の全suiteは2/2 PASS。APKは38,651,216 bytes、versionCode 36、ARM64、RECORD_AUDIOあり・INTERNETなし、zipalign正常。local製品ページとmockは412px・840pxで横overflowなし、テンキー`.`のtap/左右/上下と`?}`表示を確認した。
 [2026/09/20 17:15] v0.15.20をpublic mainとGitHub ReleaseへAPK 1個で公開し、再取得byte一致を確認した。masuidrive.jp c9ee8b8のPages成功、公開4ファイルのbyte一致、412px・840pxの横収まり、公開mockの左`,`・右`=`と`?}`表示を確認した。
+[2026/09/24 11:13] Enterの変換中でない上下フリックを上Paste・下Ctrl+Jへ入れ替え、native・mock・正本・manualを同期するticket 260924-021245を作成した。
