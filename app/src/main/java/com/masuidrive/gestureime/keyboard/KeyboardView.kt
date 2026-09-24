@@ -650,7 +650,10 @@ class KeyboardView @JvmOverloads constructor(
         } ?: ""
         val centerY = target.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2
         val secondary = when {
-            spec.kind == KeyKind.ENTER && !state.conversionActive -> "paste"
+            spec.kind == KeyKind.ENTER && !state.conversionActive ->
+                Direction.entries.firstNotNullOfOrNull { direction ->
+                    spec.value(direction)?.takeIf { it.action == KeyAction.Paste }?.label
+                }
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
             spec.kind == KeyKind.CHARACTER && spec.id != "voice-punct" -> spec.down?.label
             spec.kind == KeyKind.BACKSPACE -> spec.down?.label
@@ -663,10 +666,11 @@ class KeyboardView @JvmOverloads constructor(
             spec.kind == KeyKind.BACKSPACE -> downLike
             else -> false
         }
-        val animatedEnterPaste = selected && spec.kind == KeyKind.ENTER &&
-            downLike && secondary != null
+        val selectedEnterAction = if (selected) spec.value(direction)?.action else null
+        val animatedEnterPaste = selected && spec.kind == KeyKind.ENTER && secondary != null &&
+            selectedEnterAction == KeyAction.Paste
         val selectedEnterControlJ = selected && !state.conversionActive && spec.kind == KeyKind.ENTER &&
-            direction == Direction.UP && spec.up?.action == KeyAction.ModifiedKey("j", Modifier.CTRL)
+            selectedEnterAction == KeyAction.ModifiedKey("j", Modifier.CTRL)
         val animatedSpecial = selected && direction != Direction.CENTER &&
             spec.kind in setOf(KeyKind.SPACE, KeyKind.MODIFIER)
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
@@ -674,7 +678,7 @@ class KeyboardView @JvmOverloads constructor(
             usesDownLabelAnimation(spec) && secondary != null ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(5f))
             spec.kind == KeyKind.ENTER && !state.conversionActive ->
-                baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
+                visualCenterBaseline(target.bounds)
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY ->
                 baselineAtVisualCenter(target.bounds.centerY() + dp(6.5f))
             else -> centerY
@@ -702,13 +706,13 @@ class KeyboardView @JvmOverloads constructor(
             val main = if (direction == Direction.UP) spec.up?.label ?: label else spec.center?.label.orEmpty()
             drawFittedText(canvas, main, target.bounds.centerX(), mainBaseline, availableWidth(target.bounds, 0f))
         } else if (animatedEnterPaste) {
-            drawDownLabelTransition(canvas, target.bounds, spec.center?.label.orEmpty(), secondary, frame)
+            drawSecondaryLabelTransition(canvas, target.bounds, spec.center?.label.orEmpty(), secondary, frame)
         } else if (selectedEnterControlJ) {
             textPaint.textSize = sp(17f)
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
             drawFittedText(
                 canvas,
-                requireNotNull(spec.up).label,
+                requireNotNull(spec.value(direction)).label,
                 target.bounds.centerX(),
                 safeBaseline(target.bounds, visualCenterBaseline(target.bounds)),
                 availableWidth(target.bounds, 0f),
@@ -718,7 +722,7 @@ class KeyboardView @JvmOverloads constructor(
             val centered = visualCenterBaseline(target.bounds)
             textPaint.color = context.getColor(R.color.keyboard_selected_text)
             drawFittedText(canvas, label, target.bounds.centerX(), safeBaseline(target.bounds, centered), availableWidth(target.bounds, 0f))
-        } else if (secondary != null) {
+        } else if (secondary != null && spec.kind != KeyKind.ENTER) {
             textPaint.textSize = sp(secondaryTextSize(spec))
             val isStackHint = spec.kind in setOf(KeyKind.ENTER, KeyKind.SPACE)
             textPaint.color = when {
@@ -740,10 +744,23 @@ class KeyboardView @JvmOverloads constructor(
             textPaint.letterSpacing = 0f
             textPaint.alpha = 255
         }
+        if (spec.kind == KeyKind.ENTER && !state.conversionActive && direction == Direction.CENTER) {
+            textPaint.textSize = sp(10f)
+            textPaint.color = if (selected) context.getColor(R.color.keyboard_selected_text)
+                else context.getColor(R.color.keyboard_text)
+            textPaint.alpha = (255 * .7f).toInt()
+            textPaint.letterSpacing = dp(.7f) / textPaint.textSize
+            listOf("C-j" to target.bounds.top + dp(8f), "paste" to target.bounds.bottom - dp(8f)).forEach { (hint, center) ->
+                drawFittedText(canvas, hint, target.bounds.centerX(),
+                    safeBaseline(target.bounds, baselineAtVisualCenter(center)), availableWidth(target.bounds, 0f))
+            }
+            textPaint.letterSpacing = 0f
+            textPaint.alpha = 255
+        }
         canvas.restoreToCount(textSave)
     }
 
-    private fun drawDownLabelTransition(
+    private fun drawSecondaryLabelTransition(
         canvas: Canvas,
         bounds: RectF,
         main: String,
@@ -754,12 +771,12 @@ class KeyboardView @JvmOverloads constructor(
         textPaint.color = context.getColor(R.color.keyboard_selected_text)
         textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
         textPaint.letterSpacing = dp(.7f * frame.secondaryScale) / textPaint.textSize
-        val secondaryBaseline = baselineAtVisualCenter(bounds.centerY() + dp(-10f + frame.secondaryDy))
+        val secondaryBaseline = baselineAtVisualCenter(bounds.bottom - dp(8f - frame.secondaryDy))
         drawFittedText(canvas, secondary, bounds.centerX(), secondaryBaseline, availableWidth(bounds, 0f))
         textPaint.letterSpacing = 0f
         textPaint.textSize = sp(15f)
         textPaint.alpha = (255 * frame.mainAlpha).toInt()
-        val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(6.5f + frame.mainDy))
+        val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(frame.mainDy))
         drawFittedText(canvas, main, bounds.centerX(), mainBaseline, availableWidth(bounds, 0f))
         textPaint.alpha = 255
     }
@@ -1233,16 +1250,21 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun animateLabels(id: Int, direction: Direction) {
         labelAnimators.remove(id)?.cancel()
-        val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
+        val target = active[id]
+        val action = target?.spec?.value(direction)?.action
+        val enterPaste = target?.spec?.kind == KeyKind.ENTER && action == KeyAction.Paste
+        val immediateSecondaryAlpha = if (direction == Direction.UP && !enterPaste) 0f else 1f
         val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
         val downSecondaryDy = active[id]?.takeIf { target ->
             usesDownLabelAnimation(target.spec)
         }?.let { target ->
             target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
         } ?: 13f
-        val end = when (direction) {
-            Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
-            Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = downSecondaryDy, secondaryScale = 1.7f)
+        val enterPasteDy = target?.bounds?.height()?.div(2f * density)?.let { 8f - it } ?: 0f
+        val end = when {
+            enterPaste -> LabelFrame(mainAlpha = 0f, secondaryDy = enterPasteDy, secondaryScale = 1.7f)
+            direction == Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
+            direction == Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = downSecondaryDy, secondaryScale = 1.7f)
             else -> LabelFrame()
         }
         if (Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f) {

@@ -774,7 +774,7 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_CANCEL, freshQ.first, freshQ.second, 130)
     }
 
-    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter down animates paste and dispatches paste only on release`() {
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter up animates paste and dispatches paste only on release`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
         fun frame() = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
@@ -783,21 +783,23 @@ class KeyboardViewTest {
         val idle = frame()
         val idleMain = idle.draws.last { it.text == "Enter" }
         val idleHint = idle.draws.last { it.text == "paste" }
-        assertEquals(enter.top + 29f, center(idleMain), .6f)
-        assertEquals(enter.top + 12.5f, center(idleHint), .6f)
+        val idleControlJ = idle.draws.last { it.text == "C-j" }
+        assertEquals(enter.exactCenterY(), center(idleMain), .6f)
+        assertEquals(enter.top + 8f, center(idleControlJ), .6f)
+        assertEquals(enter.bottom - 8f, center(idleHint), .6f)
         assertEquals((255 * .7f).toInt(), idleHint.alpha)
         assertEquals(.7f / idleHint.textSize, idleHint.letterSpacing, .001f)
         assertEquals(android.graphics.Color.rgb(25, 25, 27), idleHint.color)
         touch(MotionEvent.ACTION_DOWN, enter.centerX().toFloat(), enter.centerY().toFloat())
-        touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() + 24f, 10)
+        touch(MotionEvent.ACTION_MOVE, enter.centerX().toFloat(), enter.centerY() - 24f, 10)
         assertTrue(actions.isEmpty())
         looper.idleFor(100, TimeUnit.MILLISECONDS)
         val selected = frame()
         val paste = selected.draws.last { it.text == "paste" }
-        assertEquals(center(idleHint) + 13f, center(paste), .6f)
+        assertEquals(enter.exactCenterY(), center(paste), .6f)
         assertEquals(10f * 1.7f, paste.textSize, .2f)
         assertEquals(0, selected.draws.last { it.text == "Enter" }.alpha)
-        touch(MotionEvent.ACTION_UP, enter.centerX().toFloat(), enter.centerY() + 24f, 120)
+        touch(MotionEvent.ACTION_UP, enter.centerX().toFloat(), enter.centerY() - 24f, 120)
         assertEquals(listOf(KeyAction.Paste), actions)
     }
 
@@ -962,7 +964,7 @@ class KeyboardViewTest {
 
     @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
-        listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS).forEach { mode ->
+        listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.VOICE).forEach { mode ->
             val modeActions = mutableListOf<KeyAction>()
             val modeView = KeyboardView(Robolectric.buildActivity(Activity::class.java).setup().get()).apply {
                 actionSink = KeyboardActionSink { modeActions += it }
@@ -984,22 +986,23 @@ class KeyboardViewTest {
                 modeView.onTouchEvent(it); it.recycle()
             }
             modeTouch(MotionEvent.ACTION_DOWN, startY, 0)
-            modeTouch(MotionEvent.ACTION_MOVE, startY + 24f * modeView.resources.displayMetrics.density, 10)
+            modeTouch(MotionEvent.ACTION_MOVE, startY - 24f * modeView.resources.displayMetrics.density, 10)
             val selectedDirections = KeyboardView::class.java.getDeclaredField("directions").also { it.isAccessible = true }
                 .get(modeView) as Map<*, *>
-            assertEquals("$mode selected direction", Direction.DOWN, selectedDirections[0])
+            assertEquals("$mode selected direction", Direction.UP, selectedDirections[0])
             val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(modeView::draw)
             val paste = canvas.draws.lastOrNull { it.text == "paste" } ?: error("$mode did not draw paste")
             val main = canvas.draws.lastOrNull { it.text == "Enter" } ?: error("$mode did not draw Enter")
             assertEquals("$mode paste size", 17f, paste.textSize, .2f)
-            assertEquals("$mode paste offset", idlePasteCenter + 13f, center(paste), .6f)
+            assertTrue("$mode paste starts below center", idlePasteCenter > enter.exactCenterY())
+            assertEquals("$mode paste selected center", enter.exactCenterY(), center(paste), .6f)
             assertEquals("$mode Enter hidden", 0, main.alpha)
-            modeTouch(MotionEvent.ACTION_UP, startY + 24f * modeView.resources.displayMetrics.density, 20)
+            modeTouch(MotionEvent.ACTION_UP, startY - 24f * modeView.resources.displayMetrics.density, 20)
             assertEquals("$mode action", listOf(KeyAction.Paste), modeActions)
         }
     }
 
-    @Test fun `enter up reveals enlarged control j and dispatches it without an idle hint`() {
+    @Test fun `enter down centers the upper control j hint and dispatches it`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         val provider = view.accessibilityNodeProvider
         val enterId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
@@ -1009,17 +1012,19 @@ class KeyboardViewTest {
         val y = enter.centerY().toFloat()
 
         val idle = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
-        assertTrue(idle.draws.none { it.text == "C-j" })
+        val idleControlJ = idle.draws.single { it.text == "C-j" }
+        assertEquals(enter.top + 8f, idleControlJ.y + (idleControlJ.ascent + idleControlJ.descent) / 2f, .6f)
+        assertTrue(idle.draws.single { it.text == "paste" }.y > idleControlJ.y)
 
         touch(MotionEvent.ACTION_DOWN, x, y, 0)
-        touch(MotionEvent.ACTION_MOVE, x, y - 24f * view.resources.displayMetrics.density, 10)
+        touch(MotionEvent.ACTION_MOVE, x, y + 24f * view.resources.displayMetrics.density, 10)
         val selected = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
         val controlJ = selected.draws.single { it.text == "C-j" }
         assertEquals(17f, controlJ.textSize, .2f)
         assertEquals(enter.centerY().toFloat(), controlJ.y + (controlJ.ascent + controlJ.descent) / 2f, .6f)
         assertTrue(actions.isEmpty())
 
-        touch(MotionEvent.ACTION_UP, x, y - 24f * view.resources.displayMetrics.density, 20)
+        touch(MotionEvent.ACTION_UP, x, y + 24f * view.resources.displayMetrics.density, 20)
         assertEquals(listOf(KeyAction.ModifiedKey("j", Modifier.CTRL)), actions)
     }
 

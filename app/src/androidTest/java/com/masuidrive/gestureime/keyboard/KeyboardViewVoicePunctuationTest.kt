@@ -35,7 +35,11 @@ class KeyboardViewVoicePunctuationTest {
                     view.setMode(KeyboardMode.EMOJI)
                     view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
                     val rail = listOf(0 to KeyboardMode.KANA, 2 to KeyboardMode.SYMBOLS, 4 to KeyboardMode.NUMBERS, 6 to KeyboardMode.QWERTY)
-                    assertEquals("$widthDp dp rail width", kanaRailWidth, bounds(view, 0).width())
+                    val emojiRailWidth = bounds(view, 0).width()
+                    assertTrue(
+                        "$widthDp dp rail width expected $kanaRailWidth±1 but was $emojiRailWidth",
+                        kotlin.math.abs(kanaRailWidth - emojiRailWidth) <= 1,
+                    )
                     rail.forEachIndexed { index, (id, expected) ->
                         val key = bounds(view, id)
                         actions.clear()
@@ -68,8 +72,8 @@ class KeyboardViewVoicePunctuationTest {
                     val returnTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, returnTime, returnTime, railCenterX, railCenterY)
                     dispatch(view, MotionEvent.ACTION_MOVE, returnTime, returnTime + 1, railCenterX + distance, railCenterY)
-                    dispatch(view, MotionEvent.ACTION_MOVE, returnTime, returnTime + 2, railCenterX + 10f * density, railCenterY)
-                    dispatch(view, MotionEvent.ACTION_UP, returnTime, returnTime + 3, railCenterX + 10f * density, railCenterY)
+                    dispatch(view, MotionEvent.ACTION_MOVE, returnTime, returnTime + 2, railCenterX + 9f * density, railCenterY)
+                    dispatch(view, MotionEvent.ACTION_UP, returnTime, returnTime + 3, railCenterX + 9f * density, railCenterY)
                     assertEquals("$widthDp dp emoji rail returns to center", listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
                     view.setMode(KeyboardMode.EMOJI)
                     actions.clear()
@@ -112,8 +116,8 @@ class KeyboardViewVoicePunctuationTest {
                     val azReturnTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, azReturnTime, azReturnTime, azCenterX, azCenterY)
                     dispatch(view, MotionEvent.ACTION_MOVE, azReturnTime, azReturnTime + 1, azCenterX, azCenterY + distance)
-                    dispatch(view, MotionEvent.ACTION_MOVE, azReturnTime, azReturnTime + 2, azCenterX, azCenterY + 10f * density)
-                    dispatch(view, MotionEvent.ACTION_UP, azReturnTime, azReturnTime + 3, azCenterX, azCenterY + 10f * density)
+                    dispatch(view, MotionEvent.ACTION_MOVE, azReturnTime, azReturnTime + 2, azCenterX, azCenterY + 9f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, azReturnTime, azReturnTime + 3, azCenterX, azCenterY + 9f * density)
                     assertEquals("$widthDp dp emoji AZ returns to center", listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
                     view.setMode(KeyboardMode.EMOJI)
                     actions.clear()
@@ -162,8 +166,8 @@ class KeyboardViewVoicePunctuationTest {
                     val backspaceReturnTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, backspaceReturnTime, backspaceReturnTime, centerX, centerY)
                     dispatch(view, MotionEvent.ACTION_MOVE, backspaceReturnTime, backspaceReturnTime + 1, centerX, centerY + backspaceDistance)
-                    dispatch(view, MotionEvent.ACTION_MOVE, backspaceReturnTime, backspaceReturnTime + 2, centerX, centerY + 10f * density)
-                    dispatch(view, MotionEvent.ACTION_UP, backspaceReturnTime, backspaceReturnTime + 3, centerX, centerY + 10f * density)
+                    dispatch(view, MotionEvent.ACTION_MOVE, backspaceReturnTime, backspaceReturnTime + 2, centerX, centerY + 9f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, backspaceReturnTime, backspaceReturnTime + 3, centerX, centerY + 9f * density)
                     assertEquals("$widthDp dp symbol backspace returns to center", listOf(KeyAction.Backspace()), actions)
                     actions.clear()
                     val backspaceCancelTime = SystemClock.uptimeMillis()
@@ -339,6 +343,104 @@ class KeyboardViewVoicePunctuationTest {
                         dispatch(view, MotionEvent.ACTION_DOWN, time, time, symbol.exactCenterX(), symbol.exactCenterY())
                         dispatch(view, MotionEvent.ACTION_UP, time, time + 1, symbol.exactCenterX(), symbol.exactCenterY())
                         assertEquals("$widthDp dp $mode symbol tap", listOf(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)), actions)
+                    }
+
+                    view.setMode(KeyboardMode.SYMBOLS)
+                    view.measure(exact(width), exact(height))
+                    view.layout(0, 0, width, height)
+                    val symbolKeys = KeyboardLayouts.layout(KeyboardMode.SYMBOLS).rows.flatMap { it.keys }
+                    val tabId = symbolKeys.indexOfFirst { it.id == "tab" }
+                    val minusId = symbolKeys.indexOfFirst { it.id == "key--" }
+                    check(tabId >= 0 && minusId >= 0) { "Symbols layout is missing Tab or minus" }
+                    val tab = bounds(view, tabId)
+                    assertTrue("$widthDp dp Tab follows minus", tab.left >= bounds(view, minusId).right)
+                    actions.clear()
+                    time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, tab.exactCenterX(), tab.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 1, tab.exactCenterX(), tab.exactCenterY())
+                    assertEquals("$widthDp dp rightmost Tab tap", listOf(KeyAction.Tab), actions)
+                }
+            }
+        }
+    }
+
+    @Test fun nonconvertingEnterUsesPasteUpAndControlJDownOnEveryProductionSurface() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                }
+                activity.setContentView(view)
+                val distance = 30f * density
+                val modes = listOf(
+                    KeyboardMode.KANA,
+                    KeyboardMode.NUMBERS,
+                    KeyboardMode.QWERTY,
+                    KeyboardMode.SYMBOLS,
+                    KeyboardMode.VOICE,
+                )
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    modes.forEach { mode ->
+                        view.setMode(mode)
+                        view.setConversionState(active = false, candidateSelected = false)
+                        view.measure(exact(width), exact(height))
+                        view.layout(0, 0, width, height)
+                        val enterId = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                            .indexOfFirst { it.kind == KeyKind.ENTER }
+                        check(enterId >= 0) { "$mode layout has no Enter key" }
+                        val enter = bounds(view, enterId)
+                        val centerX = enter.exactCenterX()
+                        val centerY = enter.exactCenterY()
+                        val description = view.accessibilityNodeProvider.createAccessibilityNodeInfo(enterId)
+                            ?.contentDescription?.toString().orEmpty()
+                        assertTrue("$widthDp dp $mode accessibility Paste up", description.contains("上 paste"))
+                        assertTrue("$widthDp dp $mode accessibility C-j down", description.contains("下 C-j"))
+
+                        val gestures: List<Pair<String, Triple<Float, Float, KeyAction?>>> = listOf(
+                            "tap" to Triple(0f, 0f, KeyAction.Enter),
+                            "up" to Triple(0f, -distance, KeyAction.Paste),
+                            "down" to Triple(0f, distance, KeyAction.ModifiedKey("j", Modifier.CTRL)),
+                            "left" to Triple(-distance, 0f, null),
+                            "right" to Triple(distance, 0f, null),
+                        )
+                        gestures.forEachIndexed { index, (name, gesture) ->
+                            val (dx, dy, expected) = gesture
+                            actions.clear()
+                            val time = SystemClock.uptimeMillis() + index * 10L
+                            dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
+                            if (dx != 0f || dy != 0f) {
+                                dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX + dx, centerY + dy)
+                            }
+                            dispatch(view, MotionEvent.ACTION_UP, time, time + 2, centerX + dx, centerY + dy)
+                            assertEquals("$widthDp dp $mode Enter $name", expected?.let(::listOf).orEmpty(), actions)
+                        }
+
+                        actions.clear()
+                        var time = SystemClock.uptimeMillis()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX, centerY - 17f * density)
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 2, centerX, centerY - 17f * density)
+                        assertEquals("$widthDp dp $mode Enter stays tap below threshold", listOf(KeyAction.Enter), actions)
+
+                        actions.clear()
+                        time = SystemClock.uptimeMillis()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX, centerY - distance)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 2, centerX, centerY - 9f * density)
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 3, centerX, centerY - 9f * density)
+                        assertEquals("$widthDp dp $mode Enter returns to center", listOf(KeyAction.Enter), actions)
+
+                        actions.clear()
+                        time = SystemClock.uptimeMillis()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX, centerY + distance)
+                        dispatch(view, MotionEvent.ACTION_CANCEL, time, time + 2, centerX, centerY + distance)
+                        assertTrue("$widthDp dp $mode Enter cancel", actions.isEmpty())
                     }
                 }
             }

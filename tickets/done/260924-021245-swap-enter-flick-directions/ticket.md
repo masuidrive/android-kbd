@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "EnterのPasteとCtrl+Jのフリック方向を入れ替える"
 created_at: "2026-09-24T02:12:45Z"
 started_at: 2026-09-24T02:13:46Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-24T13:58:53Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -32,10 +32,11 @@ Product Briefの「同じジェスチャー体系で素早く操作したい」�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、利用者が変換中でないEnterを上フリックしてPaste、下フリックしてCtrl+Jを実行できる。
 
-- [ ] AC 1: 日本語、テンキー、QWERTY、記号、音声入力の変換中でないEnterで、上フリックはPaste、下フリックはCtrl+Jになり、選択中のラベルも実行内容と一致する。
-- [ ] AC 2: Enterの中央タップは従来どおりEnterで、未割当の左右フリック、中心復帰、cancelはPasteもCtrl+Jも実行しない。
-- [ ] AC 3: 日本語変換中のEnterは、中央の無変換・確定と左または上フリックのカタカナ確定を維持する。
-- [ ] AC 4: 操作モック、正本仕様、技術仕様、利用者向けマニュアルが上Paste・下C-jへ揃う。
+- [x] AC 1: 日本語、テンキー、QWERTY、記号、音声入力の変換中でないEnterで、上フリックはPaste、下フリックはCtrl+Jになり、待機中のキーは上にC-j、中央にEnter、下にpasteを離して表示し、選択中のラベルも実行内容と一致する。
+- [x] AC 2: Enterの中央タップは従来どおりEnterで、未割当の左右フリック、中心復帰、cancelはPasteもCtrl+Jも実行しない。
+- [x] AC 3: 日本語変換中のEnterは、中央の無変換・確定と左または上フリックのカタカナ確定を維持する。
+- [x] AC 4: 操作モック、正本仕様、技術仕様、利用者向けマニュアルが上Paste・下C-jの操作と、待機中の上C-j・下paste表示へ揃う。
+- [x] AC 5: 記号レイヤー3行目のTabが右端にあり、タップで従来どおりTabを送る。ほかの記号キーの割当は維持する。
 
 ### Architectural Invariants check
 キー割当と表示だけを変更し、AI-1〜AI-4の端末内処理、ログ禁止、小さな変換境界、一回修飾状態と矛盾しない。
@@ -45,13 +46,14 @@ Product Briefの「同じジェスチャー体系で素早く操作したい」�
      例: - データ保存形式: data URI (Files API は将来 ticket、本 ticket では不要)
      例: - 423 reject ではなく 422: validation error として扱う -->
 - 変更対象は変換中でないEnterの上下だけとし、上=Paste、下=Ctrl+Jへ入れ替える。
+- ユーザ追加指示によりEnterの待機中表示は上C-j・中央Enter・下paste、記号3行目のTabは右端とする。
 - Pasteはprivate入力欄で無効のまま、Ctrl+Jは既存の同一gesture内key eventを維持する。
 - 日本語変換中のEnter方向は既存契約を維持する。
 
 ### Out-of-scope
 <!-- やらないこと (scope creep 防止)。
      「ついでにやりそう」「次の ticket でやる」を明記する。 -->
-- Enter以外のキー割当、Paste/Ctrl+Jの実装方式、変換候補挙動、レイヤー構成の変更。
+- Tabの記号3行目内の位置以外のキー割当、Paste/Ctrl+Jの実装方式、変換候補挙動、レイヤー構成の変更。
 
 ▼ 以下は該当する情報がある場合のみ ▼
 
@@ -62,6 +64,8 @@ Product Briefの「同じジェスチャー体系で素早く操作したい」�
      PM が自主的に実装詳細を書いてはならない (下流の自由度を奪う)。 -->
 
 - ユーザ指示: 「enterのフリックの上下逆にして。pasteとC-jの方向逆」。
+- ユーザ追加指示: 「ルール的には上にC-j、下にpasteじゃない？今は中央寄りだけど、上下に離して」。操作の上下は維持し、待機中のラベル配置を更新する。
+- ユーザ追加指示: 「記号レイヤーのtabは一番右にずらして」。
 
 ### Dependencies
 <!-- この ticket に着手するために完了が必要な他の ticket。

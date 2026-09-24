@@ -61,7 +61,7 @@ The native rebuild must retain the later QWERTY BS `⌫` label. Fidelity default
 | Transition | main transform/opacity and secondary transform/color use `.09s ease`; reduced motion disables transitions | lines 214, 220, 232 |
 | Press feedback | pointerdown adds `pressed`; pointerup/cancel removes all gesture classes | lines 763–780, 834–849 |
 
-The Enter→Paste path uses the navigation system (`pasteNavigation.down`) rather than the QWERTY secondary-label system: the row creates Return with a `paste` hint and navigation at lines 571–576; pointer movement replaces the main label with the navigation choice at lines 792–797; finish dispatches the navigation action at line 839. This is the HTML-side cause of the mismatch: it does not receive the `.flick-selected .key-alt/.key-main` transforms at lines 226–227. The native implementation must correct that source bug by giving Enter/Paste the same visible transition relationship as the intended down-swipe secondary animation, while keeping normal Enter behavior.
+Enter uses the navigation system rather than the QWERTY secondary-label direction: `pasteNavigation.up` is Paste and `pasteNavigation.down` is Ctrl+J at line 207. When the selected navigation action is Paste, pointer movement applies `paste-selected`. The idle Enter face places `C-j` near the top, `Enter` at center, and `paste` near the bottom. Paste moves upward from the lower hint to the center and grows to 1.7 scale while Enter fades. Down selects `C-j` and centers that label. Finish dispatches the selected navigation action at lines 1155–1166. Native must select these presentations by action as well, while preserving tap Enter and the conversion-specific Enter layout.
 
 ## Popup geometry
 

@@ -62,7 +62,7 @@ class KeyboardLayoutsTest {
         assertEquals(.5f, symbols[1].keys.last().widthUnits, 0f)
         assertEquals("backspace", symbols[1].keys.last().id)
         assertEquals(
-            listOf("mode-AZ", "escape", "key-`", "key-!", "key-?", "key-;", "tab", "key-<", "key->", "key--"),
+            listOf("mode-AZ", "escape", "key-`", "key-!", "key-?", "key-;", "key-<", "key->", "key--", "tab"),
             symbols[2].keys.map { it.id },
         )
     }
@@ -133,8 +133,8 @@ class KeyboardLayoutsTest {
         assertEquals(KeyAction.Backspace(), backspace.center?.action)
         assertNull(backspace.left); assertNull(backspace.up); assertNull(backspace.right); assertNull(backspace.down)
         assertEquals(KeyAction.Enter, bottom[5].center?.action)
-        assertEquals(KeyAction.Paste, bottom[5].down?.action)
-        assertEquals(KeyAction.ModifiedKey("j", Modifier.CTRL), bottom[5].up?.action)
+        assertEquals(KeyAction.Paste, bottom[5].up?.action)
+        assertEquals(KeyAction.ModifiedKey("j", Modifier.CTRL), bottom[5].down?.action)
     }
 
     @Test fun `symbol layer contains ASCII only`() {
@@ -270,11 +270,13 @@ class KeyboardLayoutsTest {
         }
     }
 
-    @Test fun `nonconverting enter exposes control j only on up`() {
+    @Test fun `nonconverting enter exposes paste up and control j down`() {
         KeyboardMode.entries.filter { it !in setOf(KeyboardMode.VOICE, KeyboardMode.EMOJI) }.forEach { mode ->
             val enter = keys(mode).single { it.kind == KeyKind.ENTER }
-            assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.up)
-            assertEquals(KeyAction.Paste, enter.down?.action)
+            assertEquals(FlickValue("paste", KeyAction.Paste), enter.up)
+            assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.down)
+            assertNull(enter.left)
+            assertNull(enter.right)
         }
 
         val converting = KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true)

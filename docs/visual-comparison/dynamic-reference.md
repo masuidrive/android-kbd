@@ -25,13 +25,13 @@ The reference secondary endpoint can exceed a narrow face horizontally (58.81px 
 
 frame-fixture.html freezes logical progress at 0, .25, .5, .75, and 1 for up, down, and corrected Enter→Paste states. It leaves the reference file unchanged.
 
-## Enter → Paste source defect and correction
+## Enter → Paste direction and transition
 
-The live source changes the Enter main text to paste through navigationChoice, adds mode-on, and never adds flick-selected. Consequently neither the main fade/translation nor the secondary grow/translation CSS runs. This is the source defect, not an alternative animation design.
+The live source routes Enter through `navigationChoice`: up selects Paste and applies `paste-selected`, while down selects Ctrl+J and applies `control-j-selected`. Idle Enter shows `C-j` above, `Enter` in the middle, and `paste` below; selection centers the chosen action label.
 
-The corrected native contract keeps two stable visual roles: Enter is the main label and paste is the top secondary. During a down selection, Enter follows the QWERTY main exit (+22px, opacity 1 → 0) while paste follows the QWERTY secondary entrance (+13px, scale toward 1.7, bounded to the face). The action remains Paste. The correction does not copy the source’s text-replacement bug.
+The current native contract keeps the same two stable visual roles. During the upward Paste selection, the direction and dispatched action remain Up/Paste. The lower paste hint moves upward to the center and scales toward 1.7 while Enter fades. During the downward Ctrl+J selection, the selected `C-j` label is centered and the dispatched action remains Ctrl+J.
 
-The live Enter hit target is 107.438 × 45px and its face is 101.438 × 45px. The face has a computed 15px normal-line-height font. The Enter main line box is 36.141 × 18px at face top +20px. The paste hint is 30.172 × 11px at face top +7px, computed 10px/11px with opacity .7. These are the correction’s fixed progress-zero anchors; runtime label adjustment was removed on 2026-09-12.
+The live Enter hit target is 107.438 × 45px and its face is 101.438 × 45px. The face has a computed 15px normal-line-height font. The idle Enter face now anchors `C-j` 3px from the top and `paste` 3px from the bottom at 10px/10px with opacity .7; `Enter` stays at the vertical center. These anchors were updated on 2026-09-24 after the user requested greater separation.
 
 ## Live five-way popup
 
@@ -58,7 +58,7 @@ The live ordinary-letter preview is 58 × 66px, placed at key top -62px and hori
 | QWERTY idle labels | Canvas baselines derived separately; no face top padding model | face top padding 10px, main and secondary line boxes above | one label-composition function with explicit main/secondary anchor points |
 | Up selection | selected glyph starts at 13sp and scales to 22.1sp | existing 22px uppercase translated only -3px | keep main size; animate translation/color and hide secondary |
 | Down selection | secondary size grows and baseline moves toward generic visual center | top legend transforms as one object by +13px, scale 1.7 | animate from the idle secondary anchor using shared progress, with glyph-bound scale cap |
-| Enter/Paste | special path draws only selected label | two-label transition equivalent to down QWERTY | route Enter through the same main/secondary composition |
+| Enter/Paste | action-based Enter composition | up dispatches Paste and lifts the lower paste hint to center; down dispatches Ctrl+J with centered `C-j` | show idle C-j/Enter/paste at top/center/bottom and center the selected action |
 | Popup | one large backing plate plus selected cell | five separate bordered 50px tiles forming a cross | replace backing plate with five tile primitives and silhouette shadow |
 | Popup surroundings | normal opacity | source .42, overridden by user | retain normal opacity |
 

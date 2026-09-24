@@ -33,7 +33,7 @@ object KeyboardLayouts {
     private fun symbols(): KeyboardLayout = KeyboardLayout(KeyboardMode.SYMBOLS, listOf(
         KeyboardRow("1234567890".map { text(it.toString()) }),
         KeyboardRow(listOf(modifier(), text("^"), text("_"), text("\\"), text("|"), text("~"), text("{"), text("}"), text("["), text("]"), backspace(tapDelete = true, escapeOnDown = true, deleteSymbol = true))),
-        KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), escape(), text("`"), text("!"), text("?"), text(";"), tab(), text("<"), text(">"), text("-"))),
+        KeyboardRow(listOf(modeKey("AZ", KeyboardMode.QWERTY), escape(), text("`"), text("!"), text("?"), text(";"), text("<"), text(">"), text("-"), tab())),
         KeyboardRow(listOf(layerKey("あん", KeyboardMode.KANA, 1.45f), space(width = 4.2f), enter(width = 2f)))
     ))
 
@@ -165,8 +165,8 @@ object KeyboardLayouts {
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
             up = FlickValue("カタカナ", KeyAction.ConvertToKatakana), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),
-        up = FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)),
-        down = FlickValue("paste", KeyAction.Paste), widthUnits = width, rowSpan = rowSpan)
+        up = FlickValue("paste", KeyAction.Paste),
+        down = FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), widthUnits = width, rowSpan = rowSpan)
 
     private fun modeKey(label: String, tap: KeyboardMode) = KeySpec("mode-$label", KeyKind.MODE,
         FlickValue(label, KeyAction.SwitchLayer(tap)), dark = true)

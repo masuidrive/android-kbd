@@ -351,3 +351,12 @@
 [2026/09/20 17:08] v0.15.20公開候補の全suiteは2/2 PASS。APKは38,651,216 bytes、versionCode 36、ARM64、RECORD_AUDIOあり・INTERNETなし、zipalign正常。local製品ページとmockは412px・840pxで横overflowなし、テンキー`.`のtap/左右/上下と`?}`表示を確認した。
 [2026/09/20 17:15] v0.15.20をpublic mainとGitHub ReleaseへAPK 1個で公開し、再取得byte一致を確認した。masuidrive.jp c9ee8b8のPages成功、公開4ファイルのbyte一致、412px・840pxの横収まり、公開mockの左`,`・右`=`と`?}`表示を確認した。
 [2026/09/24 11:13] Enterの変換中でない上下フリックを上Paste・下Ctrl+Jへ入れ替え、native・mock・正本・manualを同期するticket 260924-021245を作成した。
+[2026/09/24 11:28] 非変換中Enterを全5レイヤーで上Paste・下Ctrl+Jへ入れ替え、native・mock・正本・manualを同期した。API 36.1 emulatorのproduction KeyboardViewへ412dp・840dpで実MotionEventを送り、tap・上下・未割当左右・threshold・中心復帰・cancelを1/1 PASSした。
+[2026/09/24 11:36] API 36.1 emulatorで顕在化した既存connected testの1px丸め差と10dp境界の浮動小数誤差を安定化し、最終候補181bfa9でfast-checks・unit/lint/APK・connected real Mozcの全3スイートをPASSした。browser mockも412px・840pxの実ポインタ操作で上Paste・下C-j表示を確認した。
+[2026/09/24 11:46] 独立reviewで見つかった現行visual reference 2文書の旧down-Paste記述を上Paste・下C-jへ修正し、再reviewはCritical・Major・Minor 0件、AC1〜4は全件VERIFIEDとなった。ユーザへ確認手順を提示してclose承認を待つ。
+[2026/09/24 11:52] Enter上下フリックのクローズ判断用に、412px幅の操作モックで上Paste・下C-jの選択表示を同条件で撮影した。
+[2026/09/24 20:16] ユーザ追加指示でEnter待機中の補助ラベルを上C-j・下pasteへ離す。操作方向は上Paste・下C-jを維持し、native・mock・仕様の再調整を開始した。
+[2026/09/24 20:18] 記号レイヤー3行目のTabを一番右へ移す追加指示をticketに取り込んだ。
+[2026/09/24 20:36] 記号レイヤーTabを3行目の右端へ移し、Enterの上C-j・中央Enter・下pasteをnative/mock/仕様へ反映した。412/840幅の実MotionEventテストは通過し、全テストの未通過はAVD容量と新規AVDの音声モデル欠落など環境要因として記録した。
+[2026/09/24 20:39] 最終候補SHAでfast-checks、Android単体・lint・APK、接続テストの3区分がすべて通過した。独立reviewの指摘3件は解消し、Tab最右端の実MotionEvent確認も通過した。
+[2026/09/24 22:57] レビュー済みEnter・記号Tab修正について、APKの新バージョン作成、GitHub Release公開、製品サイト更新、レビュー後の公開手順をAGENTS.mdへ追加する作業を開始した。
