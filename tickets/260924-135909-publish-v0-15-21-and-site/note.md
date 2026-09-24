@@ -47,6 +47,13 @@
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+- 2026-09-24: 実装前に、`app/build.gradle.kts` の現行値がversionCode 36/versionName 0.15.20であること、現行サイトのAPK URLがtagとファイル名の両方へ同じ版を使うこと、前段ticketでEnterとTabの実装・正本仕様がmainへ統合済みであることを測定した。v0.15.21ではversionCode 37/versionName 0.15.21と同じURL規約を使う。
+- 2026-09-24: `d10607b` `[260924-135909-publish-v0-15-21-and-site] chore(release): prepare v0.15.21 package metadata` — app versionを37/0.15.21へ更新し、Enter上Paste・下Ctrl+J、待機表示、右端Tabを記したリリースノートを追加した。
+- 2026-09-24: `2e73f9b` `[260924-135909-publish-v0-15-21-and-site] docs(release): update v0.15.21 product surfaces` — README、公開URL、製品ページ、マニュアルをv0.15.21へ揃え、製品ページにもEnterの操作・待機ラベル・記号Tab右端を明記した。AGENTS.mdへ、release-worthy変更のhuman review後は明示的なlocal-only/non-public指定がない限りAPKとsite/manual/mockの公開まで進める既定手順を追加し、PDH-human-reviewのticket close承認を置換しないことを明記した。
+- `site/mock.html`は前段ticketの時点で上Paste・下Ctrl+J、待機中の上C-j・中央Enter・下paste、記号3行目右端Tabを実装済みで、`docs/reference/mock-source.html`とbyte一致していたため、正本との同期を壊さないよう非変更とした。
+- 構造的重複検出は`similarity-generic -t 0.7`を各変更HTML/Gradleファイルへ試行したが、インストール済みCLIがHTML/Kotlinを対応言語に含めないためskipした（対応言語はGo/Java/C/C++/C#/Ruby）。JS/TS/Python変更はない。
+- focused checks: `scripts/fast-checks.sh`（5 checks passed）、`git diff --check`、旧v0.15.20参照なし、両product pageのv0.15.21直リンク、`site/mock.html`と`docs/reference/mock-source.html`のbyte一致を確認した。`scripts/test-all.sh`はDirectorがfinal SHAで実行する指定のため未実行。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -65,6 +72,8 @@
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+- 該当なし。`technical-reference.md`のDesign decision 19と22が、今回公開する記号Tab右端とEnter上Paste・下Ctrl+J・待機ラベルを既に現在形で記録している。本担当のversion metadataと公開面の同期はアーキテクチャを変更しない。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
