@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "EnterのPasteとCtrl+Jのフリック方向を入れ替える"
 created_at: "2026-09-24T02:12:45Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-24T02:13:46Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
