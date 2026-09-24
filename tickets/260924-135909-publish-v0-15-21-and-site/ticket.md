@@ -13,6 +13,7 @@ canceled_at: null # Do not modify manually
 ### Why
 <!-- ユーザ価値・解きたい問題を 1〜3 行で書く。
      Product Brief の Problem / Solution のどの部分を担うか明記する。 -->
+Product Briefの同じジェスチャー体系で素早く入力する目的に沿い、レビュー済みのEnter表示・操作と記号Tab位置を、利用者がAPKと製品ページから入手・確認できる状態にする。
 
 ### What / Acceptance Criteria
 <!-- 完了を判定できる条件。プロダクトの観察可能な振る舞いだけを書く。
@@ -40,6 +41,7 @@ canceled_at: null # Do not modify manually
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
      矛盾しない場合: 「Hub stateless / Process immutable と矛盾しない」等。
      新規 Invariant を要求する場合: 実装を止めて Product Brief 更新から始める。 -->
+版と配布面の更新のみで、AI-1〜AI-4の端末内入力・非記録・小さなMozc境界・一回修飾状態を変えない。
 
 ### Design Decisions
 <!-- 既知の設計判断と理由を箇条書きで明示。
@@ -72,7 +74,5 @@ canceled_at: null # Do not modify manually
 
 ---
 Work notes: `note.md`
-Product Briefの同じジェスチャー体系で素早く入力する目的に沿い、レビュー済みのEnter表示・操作と記号Tab位置を、利用者がAPKと製品ページから入手・確認できる状態にする。
-版と配布面の更新のみで、AI-1〜AI-4の端末内入力・非記録・小さなMozc境界・一回修飾状態を変えない。
 - ユーザ指示: 「バイナリつくってサイトも更新してね。これはレビュー終了後に常にやるようにagent.mdかなにかに書いておいて」。
 - `260924-021245-swap-enter-flick-directions`がレビュー済みでmainに統合されていること。

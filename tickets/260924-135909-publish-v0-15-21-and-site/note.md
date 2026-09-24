@@ -67,7 +67,11 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | ticket contract | Minor | WhyとArchitectural Invariants checkの内容がWork notes以下にずれていた | 採用・修正 | 同じ文面を正式な節へ移した。ACと設計判断は変更していない。 |
+
+- 独立review `8cd6e1f`：Critical/Major 0。版、直リンク、Enter/Tabのnative・mock・仕様・マニュアル整合、`AGENTS.md`公開規則、ticketのAC不可侵を確認した。
+- `scripts/test-all.sh --parallel --connected`：fast-checks PASS、API 36.1エミュレーターの接続24 tests PASS。unit/lint/APK区分は285件中`ImeHideBarTest.emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway`の一時的nullで1件FAIL。変更していない絵文字再入場経路のテストであり、同じテストの単独再実行PASS、単体全件再実行285/285 PASS、`lintDebug`・`assembleDebug` PASS。判定はretry-pass 1件（初回1失敗、再実行1成功）として記録する。
+- ローカル製品ページは412px/840pxで横はみ出し・画像欠落なし。操作モックで記号レイヤー最右端Tabと`-`キーの入力欄反映を確認した。公開サイトでは再確認する。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
