@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-implement (user-authorized gesture and release scope)
+## Status: PDH-human-review (release published; close approval pending)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -19,15 +19,15 @@
 - [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
 - [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
-- [ ] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
-- [ ] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
-- [ ] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
+- [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
+- [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
+- [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -66,6 +66,11 @@
 - 公開直後のAC裏取りでQWERTY英字の未割当左右へ18dp超移動すると`GestureInterpreter.move()`のverticalOnly horizontal経路がnullを返し、`KeyboardView.pointerMove()`のSelection側の`cancelTimer`を通らないと判明。保持するとアクセントpopupとLONG_PRESS hapticが出るためAC1未達。v0.15.22は既発行のまま残し、修正版をv0.15.23/code39として公開し直す。QWERTY英字の実MotionEventと中心長押し非退行を追加検証する。
 - Surface Observerはv0.15.22 APKをAPI36エミュレーター412dpの実IMEへ入れ、QWERTY `e`を未割当左へ約80px動かして1秒保持するとアクセントpopupが出る反例を撮影した。`tmp/android-emulator-release-412dp-qwerty-e-left-hold.png`。同じAPKでテンキー`.`の未割当上下はそれぞれ`.`一文字だった。触覚の物理回数とFold実機は未観測。
 - `8496338`: `GestureInterpreter`のverticalOnly水平18dp到達をraw Selectionとして一度だけ通知し、方向stateはCENTERを維持して`KeyboardView`の未割当timer取消分岐に到達させた。修正前は新規unit反例がFAIL、修正後focused unit PASS。attached production `MotionEvent`の新規ケースを含む接続テストはAPI36.1 emulatorで10 tests PASS（412/840dp、`a`左右24dpを450ms超保持してもaccentなし・`a`一回、中央保持はaccent維持）。Robolectricはhapticの最後の種類しか計測できず、実機振動履歴は別途Surface Observerへ依頼する。
+- `b8b3a72`: v0.15.23/code39の版番号・release notes・サイトリンクを用意した最終APK SHA。`scripts/test-all.sh --parallel --connected`をJava17/SDK36で実行し、fast-checks、Android unit/lint/APK、Android connected (real Mozc)が3/3 PASS。connectedは26 tests、失敗・skip・retry-passはなし。ローカルAPK `app/build/outputs/apk/debug/gesture-ime-v0.15.23.apk` は38,651,216 bytes、SHA-256 `a99efd491c2069f0d30014dcb55aa8e761b8209f066c0b9ecbe6208b873f7dcf`。GitHub Release v0.15.23 の直接APKを再取得し、ローカル成果物とbyte一致した。package `com.masuidrive.gestureime`、versionCode 39、arm64-v8a、RECORD_AUDIO と生成された DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION、INTERNET権限なし。
+- サイト側 commit `ada7884fe382a654c7045097b101b7dacd301bb1`を `masuidrive/masuidrive.jp` main にpush。Pagesは正確にそのcommitをbuiltと報告し、公開中の `index.html`・`mock.html`・`manual.html`・`styles.css` の4ファイルをbyte一致で照合した。公開Chromeの412px/840pxで数値`-`上`/`・左`+`、`.`上未割当で`.`確定を実操作した。両幅でページ/iframeの横はみ出し0、missing assets 0。公開画面記録は `/tmp/md-kbd-v01523-public-phone-mobile.png` と `/tmp/md-kbd-v01523-public-tablet.png`。
+- AC裏取りworkerは正確なrelease SHAと公開site commitを確認して AC1〜AC3 を VERIFIED と判定した。物理端末の振動回数およびFold実機は未観測であり、触覚については未割当時に追加haptic分岐へ入らないコード・attached-view MotionEvent証拠を用いた。
+- Surface Observerは公開v0.15.23とSHA一致のAPKをAPI36エミュレーター412dpに導入した。QWERTY `e`を未割当の左へ80px動かして1.2秒保持してもaccent候補が出ず、release後は通常の`e`を1文字だけ確定した。`tmp/android-emulator-v0.15.23-412dp-qwerty-e-left-hold.png`。`vibrator_manager`の前後差分はDOWN時のIME CLICK 1件のみで、移動時の追加振動を記録しなかった。`tmp/android-emulator-v0.15.23-412dp-e-left-hold-vibrator-{before,after}.txt`。
+- Surface Observer最終結果: 同一APKをAPI36エミュレーター840dpにも導入し、QWERTY `e`左80px移動・1.2秒保持でもaccent候補なし、離すと通常`e`一文字、振動はDOWN時のIME CLICK一件だけ。中央保持の対照では412/840dpともaccent候補が表示され、`è`を確定した。テンキー`-`と`.`の方向ラベルは両幅で正しく、`.`の未割当下(412dp)・上(840dp)は一文字`.`を確定した。native画面のはみ出し・切れを観測しなかった。証拠: `tmp/android-emulator-v0.15.23-{412dp,840dp}-{qwerty-e-center-hold,numbers}.png`、`tmp/android-emulator-v0.15.23-840dp-qwerty-e-left-hold.png`。これらは物理Fold実機ではなくエミュレーターの観察である。
 - `3085eee`で全suiteを再実行し、fast-checks、Android unit/lint/APK、Android connected (real Mozc)の3区分すべてPASS。接続25 tests。物理端末の触覚回数は検証できず、追加haptic分岐が未割当で走らないことはコードとattached-view MotionEventで確認した。文書更新後の最終SHAでも再実行する。
 - AC裏取りで旧版のBS/音声削除挙動がREADME、manual、reference/specに残ると判明した。実際の未割当=中央tap動作へ記述を修正した。
 - `ace7f3d`時点の全suite結果（後続mock修正により最終SHAの証拠ではない）: `env ANDROID_HOME=/Users/masuidrive/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home bash scripts/test-all.sh --parallel --connected`。出力:
