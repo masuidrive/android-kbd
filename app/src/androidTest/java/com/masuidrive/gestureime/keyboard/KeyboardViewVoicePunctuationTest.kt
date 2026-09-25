@@ -54,13 +54,15 @@ class KeyboardViewVoicePunctuationTest {
                     val railCenterY = emojiRailKey.exactCenterY()
                     val distance = 30f * density
                     listOf(-distance to 0f, 0f to -distance, distance to 0f, 0f to distance).forEachIndexed { index, (dx, dy) ->
+                        view.setMode(KeyboardMode.EMOJI)
                         actions.clear()
                         val time = SystemClock.uptimeMillis() + index * 10L
                         dispatch(view, MotionEvent.ACTION_DOWN, time, time, railCenterX, railCenterY)
                         dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, railCenterX + dx, railCenterY + dy)
                         dispatch(view, MotionEvent.ACTION_UP, time, time + 2, railCenterX + dx, railCenterY + dy)
-                        assertTrue("$widthDp dp emoji rail ignores ${index} direction", actions.isEmpty())
+                        assertEquals("$widthDp dp emoji rail falls back to its tap for ${index} direction", listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
                     }
+                    view.setMode(KeyboardMode.EMOJI)
                     actions.clear()
                     val thresholdTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, thresholdTime, thresholdTime, railCenterX, railCenterY)
@@ -154,7 +156,7 @@ class KeyboardViewVoicePunctuationTest {
                         dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
                         dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX + dx, centerY + dy)
                         dispatch(view, MotionEvent.ACTION_UP, time, time + 2, centerX + dx, centerY + dy)
-                        assertTrue("$widthDp dp symbol backspace ignores direction $index", actions.isEmpty())
+                        assertEquals("$widthDp dp symbol backspace falls back to its tap for direction $index", listOf(KeyAction.Backspace()), actions)
                     }
                     actions.clear()
                     val backspaceThresholdTime = SystemClock.uptimeMillis()
@@ -283,9 +285,9 @@ class KeyboardViewVoicePunctuationTest {
                     val gestures: List<Pair<String, Triple<Float, Float, KeyAction?>>> = listOf(
                         "tap" to Triple(0f, 0f, KeyAction.CommitText(".")),
                         "left" to Triple(-distance, 0f, KeyAction.CommitText(",")),
-                        "up" to Triple(0f, -distance, null),
+                        "up" to Triple(0f, -distance, KeyAction.CommitText(".")),
                         "right" to Triple(distance, 0f, KeyAction.CommitText("=")),
-                        "down" to Triple(0f, distance, null),
+                        "down" to Triple(0f, distance, KeyAction.CommitText(".")),
                     )
                     gestures.forEachIndexed { index, (name, gesture) ->
                         val (dx, dy, expected) = gesture
@@ -296,11 +298,7 @@ class KeyboardViewVoicePunctuationTest {
                             dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + dx, period.exactCenterY() + dy)
                         }
                         dispatch(view, MotionEvent.ACTION_UP, time, time + 2, period.exactCenterX() + dx, period.exactCenterY() + dy)
-                        if (expected == null) {
-                            assertTrue("$widthDp dp number period ignores $name", actions.isEmpty())
-                        } else {
-                            assertEquals("$widthDp dp number period $name", listOf(expected), actions)
-                        }
+                        assertEquals("$widthDp dp number period $name", listOf(requireNotNull(expected)), actions)
                     }
 
                     actions.clear()
@@ -324,6 +322,28 @@ class KeyboardViewVoicePunctuationTest {
                     dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() - distance, period.exactCenterY())
                     dispatch(view, MotionEvent.ACTION_CANCEL, time, time + 2, period.exactCenterX() - distance, period.exactCenterY())
                     assertTrue("$widthDp dp number period cancel", actions.isEmpty())
+
+                    val numberMinusId = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
+                        .indexOfFirst { it.id == "five--" }
+                    check(numberMinusId >= 0) { "Numbers layout has no minus key" }
+                    val minus = bounds(view, numberMinusId)
+                    listOf(
+                        "tap" to Triple(0f, 0f, KeyAction.CommitText("-")),
+                        "left" to Triple(-distance, 0f, KeyAction.CommitText("+")),
+                        "up" to Triple(0f, -distance, KeyAction.CommitText("/")),
+                        "right" to Triple(distance, 0f, KeyAction.CommitText("*")),
+                        "down" to Triple(0f, distance, KeyAction.CommitText(",")),
+                    ).forEachIndexed { index, (name, gesture) ->
+                        val (dx, dy, expected) = gesture
+                        actions.clear()
+                        time = SystemClock.uptimeMillis() + index * 10L
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, minus.exactCenterX(), minus.exactCenterY())
+                        if (dx != 0f || dy != 0f) {
+                            dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, minus.exactCenterX() + dx, minus.exactCenterY() + dy)
+                        }
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 2, minus.exactCenterX() + dx, minus.exactCenterY() + dy)
+                        assertEquals("$widthDp dp number minus $name", listOf(expected), actions)
+                    }
 
                     listOf(KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.QWERTY, KeyboardMode.EMOJI).forEach { mode ->
                         view.setMode(mode)
@@ -405,8 +425,8 @@ class KeyboardViewVoicePunctuationTest {
                             "tap" to Triple(0f, 0f, KeyAction.Enter),
                             "up" to Triple(0f, -distance, KeyAction.Paste),
                             "down" to Triple(0f, distance, KeyAction.ModifiedKey("j", Modifier.CTRL)),
-                            "left" to Triple(-distance, 0f, null),
-                            "right" to Triple(distance, 0f, null),
+                            "left" to Triple(-distance, 0f, KeyAction.Enter),
+                            "right" to Triple(distance, 0f, KeyAction.Enter),
                         )
                         gestures.forEachIndexed { index, (name, gesture) ->
                             val (dx, dy, expected) = gesture
@@ -526,7 +546,7 @@ class KeyboardViewVoicePunctuationTest {
                         dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
                         dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + delta.first, enter.exactCenterY() + delta.second)
                         dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + delta.first, enter.exactCenterY() + delta.second)
-                        assertTrue("$widthDp dp selected Enter ignores $name", actions.isEmpty())
+                        assertEquals("$widthDp dp selected Enter falls back to confirm for $name", listOf(KeyAction.CommitConversion), actions)
                     }
 
                     actions.clear()
@@ -583,7 +603,7 @@ class KeyboardViewVoicePunctuationTest {
                     "up" to Triple(0f, -distance, KeyAction.TransformKana(KanaTransform.DAKUTEN)),
                     "left" to Triple(-distance, 0f, KeyAction.TransformKana(KanaTransform.DAKUTEN)),
                     "right" to Triple(distance, 0f, KeyAction.TransformKana(KanaTransform.HANDAKUTEN)),
-                    "down" to Triple(0f, distance, null),
+                    "down" to Triple(0f, distance, KeyAction.TransformKana(KanaTransform.CYCLE)),
                 )
 
                 listOf(412f, 840f).forEach { widthDp ->
@@ -651,7 +671,7 @@ class KeyboardViewVoicePunctuationTest {
                             dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, centerX, centerY)
                             dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, centerX + dx, centerY + dy)
                             dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, centerX + dx, centerY + dy)
-                            assertTrue("$widthDp dp voice backspace drag $index", actions.isEmpty())
+                            assertEquals("$widthDp dp voice backspace drag $index falls back to tap", listOf(KeyAction.Backspace()), actions)
                         }
 
                     actions.clear()

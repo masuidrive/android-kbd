@@ -94,7 +94,13 @@ class KeyboardViewTest {
         performGesture(backspace, listOf(-28f to 0f), time = 40)
         performGesture(backspace, listOf(0f to -28f), time = 50)
         performGesture(backspace, listOf(28f to 0f), time = 60)
-        assertEquals(listOf(KeyAction.Backspace(), KeyAction.Escape), actions)
+        assertEquals(
+            listOf(
+                KeyAction.Backspace(), KeyAction.Escape,
+                KeyAction.Backspace(), KeyAction.Backspace(), KeyAction.Backspace(),
+            ),
+            actions,
+        )
     }
 
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty swapped targets retain full production gesture lifecycle`() {
@@ -117,7 +123,7 @@ class KeyboardViewTest {
         listOf(-24f to 0f, 0f to -24f, 24f to 0f).forEachIndexed { index, move ->
             actions.clear()
             performGesture(period, listOf(move), time = 100L + index * 10L)
-            assertTrue("period unassigned direction $move", actions.isEmpty())
+            assertEquals("period unassigned direction $move", listOf(KeyAction.CommitText(".")), actions)
         }
 
         listOf(period to KeyAction.CommitText("."), backspace to KeyAction.Backspace()).forEachIndexed { index, (bounds, expected) ->
@@ -581,7 +587,7 @@ class KeyboardViewTest {
             touch(MotionEvent.ACTION_DOWN, backspace.exactCenterX(), backspace.exactCenterY(), 20)
             touch(MotionEvent.ACTION_MOVE, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 21)
             touch(MotionEvent.ACTION_UP, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 22)
-            assertTrue(actions.isEmpty())
+            assertEquals(listOf(KeyAction.Backspace()), actions)
         }
     }
 
@@ -863,6 +869,53 @@ class KeyboardViewTest {
         }.color)
     }
 
+    @Test fun `number symbol keys show only assigned directional hints and select them through the production view`() {
+        view.setMode(KeyboardMode.NUMBERS)
+        val keys = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
+        val minusId = keys.indexOfFirst { it.id == "five--" }
+        val periodId = keys.indexOfFirst { it.id == "number-period" }
+        val minus = keyBounds(minusId)
+        val period = keyBounds(periodId)
+        val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+
+        fun hintsIn(key: Rect) = canvas.draws.filter { draw ->
+            draw.x in key.left.toFloat()..key.right.toFloat() && draw.y in key.top.toFloat()..key.bottom.toFloat()
+        }
+        val minusHints = hintsIn(minus)
+        assertTrue(minusHints.any { it.text == "+" && it.x < minus.exactCenterX() })
+        assertTrue(minusHints.any { it.text == "/" && it.y < minus.exactCenterY() })
+        assertTrue(minusHints.any { it.text == "*" && it.x > minus.exactCenterX() })
+        assertTrue(minusHints.any { it.text == "," && it.y > minus.exactCenterY() })
+        val periodHints = hintsIn(period)
+        assertTrue(periodHints.any { it.text == "," && it.x < period.exactCenterX() })
+        assertTrue(periodHints.any { it.text == "=" && it.x > period.exactCenterX() })
+        assertEquals(listOf(",", ".", "="), periodHints.map { it.text }.filter { it in setOf(",", ".", "=") }.sorted())
+
+        touch(MotionEvent.ACTION_DOWN, minus.exactCenterX(), minus.exactCenterY(), 0)
+        touch(MotionEvent.ACTION_MOVE, minus.exactCenterX(), minus.exactCenterY() - 24f, 10)
+        val selected = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val slash = selected.draws.last { it.text == "/" }
+        assertEquals(minus.exactCenterY(), slash.y + (slash.ascent + slash.descent) / 2f, .6f)
+        touch(MotionEvent.ACTION_UP, minus.exactCenterX(), minus.exactCenterY() - 24f, 20)
+        assertEquals(listOf(KeyAction.CommitText("/")), actions)
+    }
+
+    @Test fun `unassigned production move keeps the center selection and center tap haptic`() {
+        view.setMode(KeyboardMode.NUMBERS)
+        val periodId = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
+            .indexOfFirst { it.id == "number-period" }
+        val period = keyBounds(periodId)
+        touch(MotionEvent.ACTION_DOWN, period.exactCenterX(), period.exactCenterY(), 0)
+        assertEquals(android.view.HapticFeedbackConstants.KEYBOARD_TAP, shadowOf(view).lastHapticFeedbackPerformed())
+        touch(MotionEvent.ACTION_MOVE, period.exactCenterX(), period.exactCenterY() - 24f, 10)
+        val directions = KeyboardView::class.java.getDeclaredField("directions").also { it.isAccessible = true }
+            .get(view) as Map<*, *>
+        assertEquals(Direction.CENTER, directions[0])
+        assertEquals(android.view.HapticFeedbackConstants.KEYBOARD_TAP, shadowOf(view).lastHapticFeedbackPerformed())
+        touch(MotionEvent.ACTION_UP, period.exactCenterX(), period.exactCenterY() - 24f, 20)
+        assertEquals(listOf(KeyAction.CommitText(".")), actions)
+    }
+
     @Test fun `emoji layer reserves picker rows and keeps the fixed four row geometry`() {
         view.setEmojiRecents(listOf("❤️", "😀"))
         view.setMode(KeyboardMode.EMOJI)
@@ -914,7 +967,7 @@ class KeyboardViewTest {
         assertEquals(717, wide.bodyWidth)
     }
 
-    @Test fun `emoji rail routes taps and rejects unassigned flicks through production motion events`() {
+    @Test fun `emoji rail routes taps and treats unassigned flicks as center taps through production motion events`() {
         val rail = listOf(
             0 to KeyboardMode.KANA,
             2 to KeyboardMode.SYMBOLS,
@@ -943,12 +996,14 @@ class KeyboardViewTest {
             touch(MotionEvent.ACTION_DOWN, x, y, start)
             touch(MotionEvent.ACTION_MOVE, x + dx, y + dy, start + 10)
             touch(MotionEvent.ACTION_UP, x + dx, y + dy, start + 20)
-            assertTrue(actions.isEmpty())
+            assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS)), actions)
         }
 
+        view.setMode(KeyboardMode.EMOJI)
+        val returnedSymbol = keyBounds(2)
         actions.clear()
-        val x = symbol.exactCenterX()
-        val y = symbol.exactCenterY()
+        val x = returnedSymbol.exactCenterX()
+        val y = returnedSymbol.exactCenterY()
         touch(MotionEvent.ACTION_DOWN, x, y, 900)
         touch(MotionEvent.ACTION_MOVE, x + 30f, y, 910)
         touch(MotionEvent.ACTION_MOVE, x + 5f, y, 920)

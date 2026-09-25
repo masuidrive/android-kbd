@@ -757,7 +757,42 @@ class KeyboardView @JvmOverloads constructor(
             textPaint.letterSpacing = 0f
             textPaint.alpha = 255
         }
+        if ((spec.id == "five--" || spec.id == "number-period") && direction == Direction.CENTER) {
+            drawNumberFlickHints(canvas, target.bounds, spec, selected)
+        }
         canvas.restoreToCount(textSave)
+    }
+
+    private fun drawNumberFlickHints(canvas: Canvas, bounds: RectF, spec: KeySpec, selected: Boolean) {
+        textPaint.textSize = sp(10f)
+        textPaint.color = if (selected) context.getColor(R.color.keyboard_selected_text)
+            else context.getColor(R.color.keyboard_text)
+        textPaint.alpha = (255 * .7f).toInt()
+        textPaint.letterSpacing = dp(.7f) / textPaint.textSize
+        listOf(
+            Direction.LEFT to bounds.left + dp(9f),
+            Direction.RIGHT to bounds.right - dp(9f),
+        ).forEach { (direction, x) ->
+            spec.value(direction)?.label?.let { hint ->
+                drawFittedText(canvas, hint, x, safeBaseline(bounds, visualCenterBaseline(bounds)), availableWidth(bounds, 0f))
+            }
+        }
+        listOf(
+            Direction.UP to bounds.top + dp(8f),
+            Direction.DOWN to bounds.bottom - dp(8f),
+        ).forEach { (direction, centerY) ->
+            spec.value(direction)?.label?.let { hint ->
+                drawFittedText(
+                    canvas,
+                    hint,
+                    bounds.centerX(),
+                    safeBaseline(bounds, baselineAtVisualCenter(centerY)),
+                    availableWidth(bounds, 0f),
+                )
+            }
+        }
+        textPaint.letterSpacing = 0f
+        textPaint.alpha = 255
     }
 
     private fun drawSecondaryLabelTransition(
@@ -1089,16 +1124,21 @@ class KeyboardView @JvmOverloads constructor(
         }
         when (val update = interpreter.move(id, event.getX(index) / density, event.getY(index) / density)) {
             is GestureUpdate.Selection -> {
-                if (directions[id] != update.direction) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                directions[id] = update.direction
-                cancelTimer(id)
                 val activeHit = active[id]
-                if (active[id]?.spec?.down?.action is KeyAction.Backspace && update.direction == Direction.DOWN) {
-                    active[id]?.let { scheduleTimer(id, it, Direction.DOWN) }
-                }
-                animateLabels(id, update.direction)
-                if (activeHit != null && activeHit.spec.value(update.direction)?.action == KeyAction.VoiceHold) {
-                    beginVoiceGesture(id, activeHit)
+                val direction = update.direction.takeIf { activeHit?.spec?.value(it) != null } ?: Direction.CENTER
+                if (directions[id] != direction) {
+                    if (direction == update.direction) {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                    directions[id] = direction
+                    cancelTimer(id)
+                    if (activeHit?.spec?.down?.action is KeyAction.Backspace && direction == Direction.DOWN) {
+                        scheduleTimer(id, activeHit, Direction.DOWN)
+                    }
+                    animateLabels(id, direction)
+                    if (activeHit != null && activeHit.spec.value(direction)?.action == KeyAction.VoiceHold) {
+                        beginVoiceGesture(id, activeHit)
+                    }
                 }
             }
             is GestureUpdate.CursorDelta -> {
