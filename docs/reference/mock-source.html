@@ -245,18 +245,28 @@
     ...[...'asdfghjkl'].map((key,i)=>[key, '@#$&*()\'"'[i]]),
     ...[...'zxcvbnm,.'].map((key,i)=>[key, '%-+=/;:!?'[i]])
   ]);
+  function updateRawSelection(p,dx,dy,verticalOnly=false) {
+    const distance=Math.hypot(dx,dy);
+    if(verticalOnly) {
+      if(distance<=10) {
+        p.rawAxis=null;
+        p.rawDirection=0;
+      }
+      if(!p.rawAxis&&distance>=12)p.rawAxis=Math.abs(dx)>=Math.abs(dy)?'horizontal':'vertical';
+      if(p.rawAxis==='horizontal'||Math.abs(dy)<18)return p.rawDirection;
+      p.rawDirection=dy<0?2:4;
+      return p.rawDirection;
+    }
+    if(p.rawDirection&&distance<=10)p.rawDirection=0;
+    else if(distance>=18)p.rawDirection=Math.abs(dx)>=Math.abs(dy)?(dx<0?1:3):(dy<0?2:4);
+    return p.rawDirection;
+  }
   function updateKeyFlick(p,dx,dy) {
     if(!p.flickKey)return false;
-    if(p.key.strictFlickDirections) {
-      const selected=Math.abs(dy)>Math.abs(dx)&&dy>=(p.altSelected?10:18);
-      p.strictFlickSelected=selected;
-      p.altSelected=selected;
-      p.upperSelected=false;
-      return true;
-    }
-    const canUppercase=/^[a-z]$/.test(p.flickKey);
-    p.altSelected=Math.abs(dy)>Math.abs(dx)&&dy>=(p.altSelected?10:18);
-    p.upperSelected=canUppercase&&Math.abs(dy)>Math.abs(dx)&&dy<=-(p.upperSelected?10:18);
+    const rawDirection=updateRawSelection(p,dx,dy,true);
+    p.strictFlickSelected=rawDirection===4;
+    p.altSelected=rawDirection===4;
+    p.upperSelected=/^[a-z]$/.test(p.flickKey)&&rawDirection===2;
     return true;
   }
   function keyOutput(p) {
@@ -266,19 +276,14 @@
   }
   function updateModifierFlick(p,dx,dy) {
     if(!p.modifierFlick)return false;
-    if(!p.modifierAxis&&Math.hypot(dx,dy)>=12)p.modifierAxis=Math.abs(dy)>Math.abs(dx)?'vertical':'slide';
-    if(p.modifierAxis==='slide')return false;
-    const ctrl=dy>=(p.modifierChoice==='Control'?10:18);
-    const alt=dy<=-(p.modifierChoice==='Alt'?10:18);
-    p.modifierChoice=p.modifierAxis==='vertical'?(ctrl?'Control':alt?'Alt':null):null;
+    const rawDirection=updateRawSelection(p,dx,dy,true);
+    p.modifierChoice=rawDirection===4?'Control':rawDirection===2?'Alt':null;
     return true;
   }
   function updateNavigationFlick(p,dx,dy) {
     if(!p.key.navigation)return false;
-    const threshold=p.navigationChoice?10:18;
-    const choice=Math.abs(dx)>Math.abs(dy)
-      ?(dx<=-threshold?'left':dx>=threshold?'right':null)
-      :(dy<=-threshold?'up':dy>=threshold?'down':null);
+    const rawDirection=updateRawSelection(p,dx,dy);
+    const choice=[null,'left','up','right','down'][rawDirection];
     p.navigationChoice=choice&&p.key.navigation[choice]?choice:null;
     return true;
   }
@@ -1039,10 +1044,6 @@
   function postDemoHeight() {
     requestAnimationFrame(()=>parent.postMessage({type:'gesture-ime-demo-height',height:Math.ceil(root.getBoundingClientRect().height)},location.origin));
   }
-  function direction(dx,dy) {
-    if(Math.hypot(dx,dy)<18)return 0;
-    return Math.abs(dx)>Math.abs(dy)?(dx<0?1:3):(dy<0?2:4);
-  }
   function setFlickDirectionSelection(p,dir) {
     if(!p.key.flickHints)return;
     const name=[null,'left','up','right','down'][dir];
@@ -1099,7 +1100,7 @@
     if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
     e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false};
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,rawDirection:0,rawAxis:null,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -1156,7 +1157,7 @@
       p.accentIndex=Math.max(0,Math.min(p.variants.length-1,Math.floor((e.clientX-p.accentLeft-3)/34)));
       [...popup.children].forEach((s,i)=>s.classList.toggle('chosen',i===p.accentIndex));return;
     }
-    if(p.key.flick) {const nextDirection=direction(dx,dy);p.dir=p.key.flick[nextDirection]?nextDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
+    if(p.key.flick) {p.rawDirection=updateRawSelection(p,dx,dy);p.dir=p.key.flick[p.rawDirection]?p.rawDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
     if(Math.hypot(dx,dy)>12)clearTimeout(p.timer);
     if(updateKeyFlick(p,dx,dy)) {
       p.element.classList.toggle('flick-selected',p.altSelected);
