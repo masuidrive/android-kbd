@@ -48,10 +48,11 @@ class GestureInterpreterTest {
         assertEquals(GestureUpdate.CursorDelta(Direction.DOWN, 1), subject.move(3, 99f, 48f))
     }
 
-    @Test fun `vertical-only letter gesture cannot change after horizontal axis lock`() {
+    @Test fun `vertical-only horizontal gesture reports an unassigned selection without changing its direction`() {
         val subject = GestureInterpreter()
         subject.start(5, 0f, 0f, verticalOnly = true)
         assertNull(subject.move(5, 12f, 2f))
+        assertEquals(GestureUpdate.Selection(Direction.RIGHT), subject.move(5, 18f, 2f))
         assertNull(subject.move(5, 1f, 30f))
         assertEquals(Direction.CENTER, subject.finish(5))
     }

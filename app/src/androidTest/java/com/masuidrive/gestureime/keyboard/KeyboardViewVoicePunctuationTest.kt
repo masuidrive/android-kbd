@@ -7,6 +7,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.masuidrive.gestureime.ImeTestActivity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,6 +16,63 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class KeyboardViewVoicePunctuationTest {
+    @Test fun qwertyAccentHorizontalFlickCancelsTheHoldTimerOnAndroidViewAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            val actions = mutableListOf<KeyAction>()
+            lateinit var view: KeyboardView
+            lateinit var a: Rect
+            var density = 0f
+            val activeAccents = KeyboardView::class.java.getDeclaredField("accentActive").also { it.isAccessible = true }
+
+            scenario.onActivity { activity ->
+                density = activity.resources.displayMetrics.density
+                view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                    setMode(KeyboardMode.QWERTY)
+                }
+                activity.setContentView(view)
+            }
+
+            listOf(412f, 840f).forEachIndexed { widthIndex, widthDp ->
+                scenario.onActivity {
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                    val aId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+                        .indexOfFirst { it.id == "key-a" }
+                    a = bounds(view, aId)
+                }
+
+                listOf(-24f, 24f).forEachIndexed { directionIndex, dxDp ->
+                    val downTime = SystemClock.uptimeMillis() + (widthIndex * 10L + directionIndex) * 10L
+                    scenario.onActivity {
+                        actions.clear()
+                        dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, a.exactCenterX(), a.exactCenterY())
+                        dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, a.exactCenterX() + dxDp * density, a.exactCenterY())
+                    }
+                    Thread.sleep(KeyboardView.ACCENT_DELAY_MS + 100)
+                    scenario.onActivity {
+                        assertFalse("$widthDp dp $dxDp dp horizontal move opens accent choices", (activeAccents.get(view) as Set<*>).isNotEmpty())
+                        dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, a.exactCenterX() + dxDp * density, a.exactCenterY())
+                        assertEquals("$widthDp dp $dxDp dp horizontal move commits center once", listOf(KeyAction.CommitText("a")), actions)
+                    }
+                }
+
+                val downTime = SystemClock.uptimeMillis() + 100L
+                scenario.onActivity {
+                    actions.clear()
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, a.exactCenterX(), a.exactCenterY())
+                }
+                Thread.sleep(KeyboardView.ACCENT_DELAY_MS + 100)
+                scenario.onActivity {
+                    assertTrue("$widthDp dp center hold opens accent choices", (activeAccents.get(view) as Set<*>).isNotEmpty())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 1, a.exactCenterX(), a.exactCenterY())
+                    assertEquals("$widthDp dp center hold commits the first accent", listOf(KeyAction.CommitText("à")), actions)
+                }
+            }
+        }
+    }
+
     @Test fun emojiRailAndSymbolBackspaceUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

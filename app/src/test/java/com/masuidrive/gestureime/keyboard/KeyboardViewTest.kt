@@ -929,6 +929,37 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.CommitText(".")), actions)
     }
 
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty accent keys cancel their timer only after an unassigned horizontal selection`() {
+        val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
+        val aId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+            .indexOfFirst { it.id == "key-a" }
+        val a = keyBounds(aId)
+        val activeAccents = KeyboardView::class.java.getDeclaredField("accentActive").also { it.isAccessible = true }
+
+        listOf(-24f, 24f).forEachIndexed { index, dx ->
+            actions.clear()
+            touch(MotionEvent.ACTION_DOWN, a.exactCenterX(), a.exactCenterY(), index * 100L)
+            touch(MotionEvent.ACTION_MOVE, a.exactCenterX() + dx, a.exactCenterY(), index * 100L + 1)
+            looper.idleFor(KeyboardView.ACCENT_DELAY_MS + 1, TimeUnit.MILLISECONDS)
+            assertTrue("$dx dp horizontal move must not open accent choices", (activeAccents.get(view) as Set<*>).isEmpty())
+            assertEquals(android.view.HapticFeedbackConstants.KEYBOARD_TAP, shadowOf(view).lastHapticFeedbackPerformed())
+            touch(MotionEvent.ACTION_UP, a.exactCenterX() + dx, a.exactCenterY(), index * 100L + 2)
+            assertEquals("$dx dp horizontal move commits the center once", listOf(KeyAction.CommitText("a")), actions)
+        }
+
+        listOf(0f, 17f).forEachIndexed { index, dx ->
+            actions.clear()
+            val time = 300L + index * 100L
+            touch(MotionEvent.ACTION_DOWN, a.exactCenterX(), a.exactCenterY(), time)
+            if (dx != 0f) touch(MotionEvent.ACTION_MOVE, a.exactCenterX() + dx, a.exactCenterY(), time + 1)
+            looper.idleFor(KeyboardView.ACCENT_DELAY_MS + 1, TimeUnit.MILLISECONDS)
+            assertTrue("$dx dp horizontal move must retain accent choices", (activeAccents.get(view) as Set<*>).isNotEmpty())
+            assertEquals(android.view.HapticFeedbackConstants.LONG_PRESS, shadowOf(view).lastHapticFeedbackPerformed())
+            touch(MotionEvent.ACTION_UP, a.exactCenterX() + dx, a.exactCenterY(), time + 2)
+            assertEquals("$dx dp horizontal move commits the first accent", listOf(KeyAction.CommitText("à")), actions)
+        }
+    }
+
     @Test fun `emoji layer reserves picker rows and keeps the fixed four row geometry`() {
         view.setEmojiRecents(listOf("❤️", "😀"))
         view.setMode(KeyboardMode.EMOJI)

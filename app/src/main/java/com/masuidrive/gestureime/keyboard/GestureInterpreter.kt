@@ -29,6 +29,7 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
         val verticalOnly: Boolean,
         var direction: Direction = Direction.CENTER,
         var axis: GestureAxis? = null,
+        var reportedHorizontalSelection: Boolean = false,
         var emittedUnits: Int = 0,
     )
 
@@ -48,6 +49,7 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
         if (state.verticalOnly) {
             if (distance <= thresholds.returnHysteresisDp) {
                 state.axis = null
+                state.reportedHorizontalSelection = false
                 if (state.direction != Direction.CENTER) {
                     state.direction = Direction.CENTER
                     return GestureUpdate.Selection(Direction.CENTER)
@@ -56,7 +58,12 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
             if (state.axis == null && distance >= thresholds.axisLockDp) {
                 state.axis = if (abs(dx) >= abs(dy)) GestureAxis.HORIZONTAL else GestureAxis.VERTICAL
             }
-            if (state.axis == GestureAxis.HORIZONTAL || abs(dy) < thresholds.selectionDp) return null
+            if (state.axis == GestureAxis.HORIZONTAL) {
+                if (distance < thresholds.selectionDp || state.reportedHorizontalSelection) return null
+                state.reportedHorizontalSelection = true
+                return GestureUpdate.Selection(if (dx < 0) Direction.LEFT else Direction.RIGHT)
+            }
+            if (abs(dy) < thresholds.selectionDp) return null
             val next = if (dy < 0) Direction.UP else Direction.DOWN
             if (next == state.direction) return null
             state.direction = next
