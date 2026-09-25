@@ -16,9 +16,9 @@
 - [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 入力のローカル gesture と静的サイトだけの変更で、外部 provider 経路はない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
@@ -62,6 +62,10 @@
 - `ace7f3d`: review finding #3の配列以外のstrict/text/navigation/voice Backspace経路を中央tapへ修正。実ブラウザで元キー保持、割当方向、中心復帰、取消、backspaceを確認。ただし再reviewで18dp選択・10dp中心復帰のnative hysteresisとの差が見つかり、続けて修正中。
 - `f685d87`: review finding #4を修正。mockのraw方向を保持し、native同等の18dp選択・10dp中心復帰とverticalOnly軸固定にした。
 - `3085eee`: review finding #5を修正。QWERTY/記号BSとQWERTY`.`の上下だけに制限する誤判定を外した。独立reviewerが採用Critical #1〜#5の解消と新たなCritical/Majorなしを確認した。
+- `59d9f87`: v0.15.22/code38のAPKとサイトを公開。GitHub Releaseから再取得した38,848,786 bytesがSHA-256 `5a4d23d75396fe00ec26108c1db2cffe3c8e3680f39536c539c2b227211253aa`でbyte一致。Pages commit `c886285a6204a35bf622b0a84e69b73c2ae86f69`がbuiltとなり、公開4 core filesがbyte一致。公開Chromeの412/840pxで`-`上/左、`.`上未割当を実操作し、overflowとmissing画像は0だった。
+- 公開直後のAC裏取りでQWERTY英字の未割当左右へ18dp超移動すると`GestureInterpreter.move()`のverticalOnly horizontal経路がnullを返し、`KeyboardView.pointerMove()`のSelection側の`cancelTimer`を通らないと判明。保持するとアクセントpopupとLONG_PRESS hapticが出るためAC1未達。v0.15.22は既発行のまま残し、修正版をv0.15.23/code39として公開し直す。QWERTY英字の実MotionEventと中心長押し非退行を追加検証する。
+- Surface Observerはv0.15.22 APKをAPI36エミュレーター412dpの実IMEへ入れ、QWERTY `e`を未割当左へ約80px動かして1秒保持するとアクセントpopupが出る反例を撮影した。`tmp/android-emulator-release-412dp-qwerty-e-left-hold.png`。同じAPKでテンキー`.`の未割当上下はそれぞれ`.`一文字だった。触覚の物理回数とFold実機は未観測。
+- `8496338`: `GestureInterpreter`のverticalOnly水平18dp到達をraw Selectionとして一度だけ通知し、方向stateはCENTERを維持して`KeyboardView`の未割当timer取消分岐に到達させた。修正前は新規unit反例がFAIL、修正後focused unit PASS。attached production `MotionEvent`の新規ケースを含む接続テストはAPI36.1 emulatorで10 tests PASS（412/840dp、`a`左右24dpを450ms超保持してもaccentなし・`a`一回、中央保持はaccent維持）。Robolectricはhapticの最後の種類しか計測できず、実機振動履歴は別途Surface Observerへ依頼する。
 - `3085eee`で全suiteを再実行し、fast-checks、Android unit/lint/APK、Android connected (real Mozc)の3区分すべてPASS。接続25 tests。物理端末の触覚回数は検証できず、追加haptic分岐が未割当で走らないことはコードとattached-view MotionEventで確認した。文書更新後の最終SHAでも再実行する。
 - AC裏取りで旧版のBS/音声削除挙動がREADME、manual、reference/specに残ると判明した。実際の未割当=中央tap動作へ記述を修正した。
 - `ace7f3d`時点の全suite結果（後続mock修正により最終SHAの証拠ではない）: `env ANDROID_HOME=/Users/masuidrive/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home bash scripts/test-all.sh --parallel --connected`。出力:
@@ -102,6 +106,19 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 5 | mockのstrictキー判定 | Critical | QWERTY/記号のBSとQWERTY`.`を誤ってverticalOnly扱いし、下選択→右24dpまたは右24dp→下選択でnativeと逆の動作になる | fix now | AC3のnative/mock一致に反する |
+
+### Findings (PDH-verify-1)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 6 | 英字アクセント長押し | Critical | QWERTY英字の未割当左右ではverticalOnly水平pathがnullを返し、長押しtimerが残る | fix now | AC1の選択表示・追加振動抑止に反する。native修正とattached-view反例テスト後に再公開する |
+
+### PDH-review-4（8496338）
+
+- 独立reviewerは新しいCritical/Majorなし、finding #6は解消と判定。verticalOnly水平18dp到達時にraw LEFT/RIGHTを一度だけ通知し、状態CENTERを維持する。`KeyboardView`は未割当分岐でtimerを止め、選択方向がCENTERのままなので追加hapticとlabel animationを出さない。
+- 確定判断の対応: 未割当中央tap・追加振動抑止=`GestureInterpreter` raw通知+`KeyboardView` assigned guard。既存割当維持=`KeyboardLayouts`を変更せず新旧GestureInterpreterテストで確認。native/mock/manual一致=`site/mock.html`と保存正本のbyte一致、`site/manual.html`の表・文、公開実ブラウザとnative実MotionEventで確認。
+- 非退行の前後入力: QWERTY `a`を中央で450ms超保持すると旧版・修正版ともaccentが開き先頭`à`を確定する。テンキー`-`上フリックは旧版・修正版とも`/`を一度確定する。変更対象の`a`左24dp保持だけ旧版はaccentが開いたが、修正版は開かず`a`を一度確定する。修正版のfocused unitとattached-viewテストで前後契約を固定した。
+- 採用したCritical #1〜#6はすべてこのticketでfix nowとして修正した。非採用・先送り・record onlyのfindingは0件。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
