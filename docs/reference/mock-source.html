@@ -247,24 +247,16 @@
   ]);
   function updateKeyFlick(p,dx,dy) {
     if(!p.flickKey)return false;
-    const distance=Math.hypot(dx,dy);
     if(p.key.strictFlickDirections) {
-      if(distance<=10) {p.strictFlickSelected=false;p.flickAxis=null;p.altSelected=false;p.upperSelected=false;return true;}
-      if(!p.strictFlickSelected&&distance>=18) {
-        p.strictFlickSelected=true;
-        p.flickAxis=Math.abs(dy)>Math.abs(dx)?'vertical':'strict-unassigned';
-      }
-      if(!p.strictFlickSelected)return true;
-      p.altSelected=p.flickAxis==='vertical'&&dy>=(p.altSelected?10:18);
+      const selected=Math.abs(dy)>Math.abs(dx)&&dy>=(p.altSelected?10:18);
+      p.strictFlickSelected=selected;
+      p.altSelected=selected;
+      p.upperSelected=false;
       return true;
     }
     const canUppercase=/^[a-z]$/.test(p.flickKey);
-    if(!p.flickAxis && distance>=12) {
-      p.flickAxis=Math.abs(dy)>Math.abs(dx)&&(dy>0||canUppercase)?'vertical':'slide';
-    }
-    if(p.flickAxis==='slide')return false;
-    p.altSelected=p.flickAxis==='vertical' && dy>=(p.altSelected?10:18);
-    p.upperSelected=canUppercase && p.flickAxis==='vertical' && dy<=-(p.upperSelected?10:18);
+    p.altSelected=Math.abs(dy)>Math.abs(dx)&&dy>=(p.altSelected?10:18);
+    p.upperSelected=canUppercase&&Math.abs(dy)>Math.abs(dx)&&dy<=-(p.upperSelected?10:18);
     return true;
   }
   function keyOutput(p) {
@@ -283,17 +275,11 @@
   }
   function updateNavigationFlick(p,dx,dy) {
     if(!p.key.navigation)return false;
-    const horizontal=Boolean(p.key.navigation.left||p.key.navigation.right);
-    const vertical=Boolean(p.key.navigation.up||p.key.navigation.down);
-    if(!p.navigationAxis&&Math.hypot(dx,dy)>=12)p.navigationAxis=horizontal&&Math.abs(dx)>Math.abs(dy)?'horizontal':vertical&&Math.abs(dy)>Math.abs(dx)?'vertical':'slide';
-    if(p.navigationAxis==='slide')return false;
-    if(p.navigationAxis==='horizontal') {
-      const left=dx<=-(p.navigationChoice==='left'?10:18),right=dx>=(p.navigationChoice==='right'?10:18);
-      p.navigationChoice=left?'left':right?'right':null;
-    } else if(vertical) {
-      const up=dy<=-(p.navigationChoice==='up'?10:18),down=dy>=(p.navigationChoice==='down'?10:18);
-      p.navigationChoice=up?'up':down?'down':null;
-    } else p.navigationChoice=null;
+    const threshold=p.navigationChoice?10:18;
+    const choice=Math.abs(dx)>Math.abs(dy)
+      ?(dx<=-threshold?'left':dx>=threshold?'right':null)
+      :(dy<=-threshold?'up':dy>=threshold?'down':null);
+    p.navigationChoice=choice&&p.key.navigation[choice]?choice:null;
     return true;
   }
   function lockSwipeAxis(currentAxis,dx,dy) {
@@ -1105,12 +1091,6 @@
     active.clear();popup.hidden=true;keyboard.classList.remove('trackpad','popup-active');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';render();
   }
-  function updateVoiceBackspaceSelection(p,x,y) {
-    if(p.origin!=='voice-backspace')return;
-    const distance=Math.hypot(x-p.x,y-p.y);
-    if(p.voiceBackspaceNonCenter&&distance<=10)p.voiceBackspaceNonCenter=false;
-    else if(!p.voiceBackspaceNonCenter&&distance>=18)p.voiceBackspaceNonCenter=true;
-  }
   keyboard.addEventListener('contextmenu',e=>e.preventDefault());
   keyboard.addEventListener('pointerdown',e=>{
     const element=e.target.closest('.key');if(!element||e.button!==0)return;
@@ -1119,7 +1099,7 @@
     if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
     e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false,voiceBackspaceNonCenter:false};
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -1142,7 +1122,6 @@
     }
     const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
-    updateVoiceBackspaceSelection(p,e.clientX,e.clientY);
     if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
     if(updateModifierFlick(p,dx,dy)) {
       p.element.classList.toggle('choice-active',Boolean(p.modifierChoice));
@@ -1157,7 +1136,6 @@
       p.element.classList.toggle('paste-selected',p.key.id==='return'&&selection?.action==='paste');
       p.element.classList.toggle('control-j-selected',p.key.id==='return'&&selection?.action==='ctrl-j');
       p.element.querySelector('.key-main').textContent=p.key.id==='return'&&p.key.hint&&selection?.action==='paste'?p.key.label:selection?.label||p.key.label;
-      if(selection?.action==='voice')beginVoiceDemo(p);
       if(selection)announce(selection.label);
       return;
     }
@@ -1189,29 +1167,24 @@
       else showPopup(p);
       return;
     }
-    if(p.key.text) {
-      const over=document.elementFromPoint(e.clientX,e.clientY)?.closest('.key');
-      const next=over&&keyMap.get(over.dataset.key);
-      if(next?.text) {p.element.classList.remove('pressed');p.key=next;p.element=over;over.classList.add('pressed');p.outside=false;showPopup(p);}
-      else {p.outside=true;popup.hidden=true;keyboard.classList.remove('popup-active');}
-    }
+    if(p.key.text)return;
   });
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
-    updateVoiceBackspaceSelection(p,e.clientX,e.clientY);
     clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','paste-selected','control-j-selected');
     const remaining=[...active.values()].at(-1);
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
     if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
-    if(p.voiceTriggered) { /* The dedicated voice layer owns completion. */ }
-    else if(!canceled&&!p.trackpad&&!p.voiceBackspaceNonCenter) {
-      if(p.navigationChoice&&p.key.navigation[p.navigationChoice])action(p.key.navigation[p.navigationChoice].action,p.keyModifier);
+    if(!canceled&&!p.trackpad) {
+      if(p.navigationChoice&&p.key.navigation[p.navigationChoice]) {
+        const navigationAction=p.key.navigation[p.navigationChoice].action;
+        if(navigationAction==='voice')beginVoiceDemo(p);else action(navigationAction,p.keyModifier);
+      }
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
       else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'');lastSpace=-Infinity;}
       else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
-      else if(p.key.strictFlickDirections&&p.strictFlickSelected&&!p.altSelected) { /* selected but unassigned direction */ }
       else if(p.key.text&&!p.outside) {
         if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) {
           if(p.key.emoji)insertEmoji(keyOutput(p));else insert(keyOutput(p));
