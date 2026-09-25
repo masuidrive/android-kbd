@@ -59,7 +59,7 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 30. Setupの入力設定には48dp以上の「キーボードの高さ」RadioGroupを置き、小・標準・大を端末内SharedPreferencesへ保存する。文字列以外または未知の値は標準へ安全にfallbackする。（2026-09-12 / 260912-014943-fixed-keyboard-height）
 31. 日本語候補tapは表示snapshotのindexからMozc `CandidateWord.id`を引き、`SUBMIT_CANDIDATE`でその候補を直接確定する。outputにpreeditが残る複数文節だけ`SUBMIT`で残りを確定して後ろへ連結する。候補を確定するために`SELECT_CANDIDATE`と`SUBMIT`を続けて送らない。（2026-09-13 / 260913-112709-select-exact-tapped-conversion-candidate）
 32. `EditorInfo.inputType`のclassが数字・電話・日時なら、`IME_FLAG_FORCE_ASCII`との併用時も初期`NUMBERS`とする。それ以外でtext variationがURI・メールアドレス・Webメールアドレス・文字password・可視password・Web password、または`IME_FLAG_FORCE_ASCII`なら初期`QWERTY`とする。通常text、未指定、未知class/variationは`ImePreferences`の最後に明示選択したmodeを使う。自動選択は保存値を書き換えず、新規editorの`onStartInput`からinput view生成へ現在modeを保持する。同一editorの`restarting=true`では現在modeを維持し、手動`SwitchLayer`だけが保存値と現在editor用modeを更新する。（2026-09-15 / 260915-064628-select-layer-from-editor-input-type）
-33. 未割当方向への移動は選択表示・追加触覚なしで中央tapとして1回確定する。割当済み方向、中心復帰、cancel、長押しは既存gesture契約を維持する。テンキー`-`は左`+`・上`/`・右`*`・下`,`を、`.`は左`,`・右`=`だけをキー内の対応方向へ補助表示する。`.`はtapで`.`、左右フリックで対応する記号を直接確定し、上・下は中央tapへ戻る。18dpの選択閾値と10dpの中心復帰を使う。（2026-09-20 / 260920-072153-adjust-number-period-and-symbol-label; 2026-09-25 / 260925-094954-unassigned-flick-tap-and-number-key-hints）
+33. 未割当方向への移動は選択表示・追加触覚なしで中央tapとして1回確定し、閾値を越えた時点で長押しtimerを止める。割当済み方向、中心復帰、cancel、中央での長押しは既存gesture契約を維持する。テンキー`-`は左`+`・上`/`・右`*`・下`,`を、`.`は左`,`・右`=`だけをキー内の対応方向へ補助表示する。`.`はtapで`.`、左右フリックで対応する記号を直接確定し、上・下は中央tapへ戻る。18dpの選択閾値と10dpの中心復帰を使う。（2026-09-20 / 260920-072153-adjust-number-period-and-symbol-label; 2026-09-25 / 260925-094954-unassigned-flick-tap-and-number-key-hints）
 
 ## 実装の注意・地雷
 

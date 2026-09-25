@@ -886,6 +886,7 @@ class KeyboardViewTest {
         assertTrue(minusHints.any { it.text == "/" && it.y < minus.exactCenterY() })
         assertTrue(minusHints.any { it.text == "*" && it.x > minus.exactCenterX() })
         assertTrue(minusHints.any { it.text == "," && it.y > minus.exactCenterY() })
+        assertEquals(1, minusHints.count { it.text == "," })
         val periodHints = hintsIn(period)
         assertTrue(periodHints.any { it.text == "," && it.x < period.exactCenterX() })
         assertTrue(periodHints.any { it.text == "=" && it.x > period.exactCenterX() })
@@ -898,6 +899,18 @@ class KeyboardViewTest {
         assertEquals(minus.exactCenterY(), slash.y + (slash.ascent + slash.descent) / 2f, .6f)
         touch(MotionEvent.ACTION_UP, minus.exactCenterX(), minus.exactCenterY() - 24f, 20)
         assertEquals(listOf(KeyAction.CommitText("/")), actions)
+
+        actions.clear()
+        touch(MotionEvent.ACTION_DOWN, period.exactCenterX(), period.exactCenterY(), 30)
+        touch(MotionEvent.ACTION_MOVE, period.exactCenterX() - 24f, period.exactCenterY(), 40)
+        val periodSelected = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+        val selectedPeriodLabels = periodSelected.draws.filter { draw ->
+            draw.x in period.left.toFloat()..period.right.toFloat() && draw.y in period.top.toFloat()..period.bottom.toFloat()
+        }
+        assertEquals(1, selectedPeriodLabels.count { it.text == "," })
+        assertEquals(period.exactCenterX(), selectedPeriodLabels.single { it.text == "," }.x, .6f)
+        touch(MotionEvent.ACTION_UP, period.exactCenterX() - 24f, period.exactCenterY(), 50)
+        assertEquals(listOf(KeyAction.CommitText(",")), actions)
     }
 
     @Test fun `unassigned production move keeps the center selection and center tap haptic`() {

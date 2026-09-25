@@ -220,6 +220,40 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun unassignedBackspaceFlickCancelsRepeatAndReleasesAsOneTapThroughTheAttachedProductionView() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            val actions = mutableListOf<KeyAction>()
+            lateinit var view: KeyboardView
+            lateinit var backspace: Rect
+            scenario.onActivity { activity ->
+                view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                    setMode(KeyboardMode.QWERTY)
+                }
+                activity.setContentView(view)
+            }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                val density = activity.resources.displayMetrics.density
+                view.measure(exact((412f * density).toInt()), exact((228f * density).toInt()))
+                view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+                val backspaceId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+                    .indexOfFirst { it.kind == KeyKind.BACKSPACE }
+                backspace = bounds(view, backspaceId)
+                val time = SystemClock.uptimeMillis()
+                dispatch(view, MotionEvent.ACTION_DOWN, time, time, backspace.exactCenterX(), backspace.exactCenterY())
+                dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, backspace.exactCenterX() - 30f * density, backspace.exactCenterY())
+            }
+            Thread.sleep(KeyboardView.DELETE_REPEAT_DELAY_MS + KeyboardView.DELETE_REPEAT_INTERVAL_MS * 2)
+            scenario.onActivity {
+                val time = SystemClock.uptimeMillis()
+                val dragX = backspace.exactCenterX() - 30f * view.resources.displayMetrics.density
+                dispatch(view, MotionEvent.ACTION_UP, time - 1, time, dragX, backspace.exactCenterY())
+                assertEquals(listOf(KeyAction.Backspace()), actions)
+            }
+        }
+    }
+
     @Test fun voicePunctuationDispatchesEveryDirectionOnceOnAndroidView() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

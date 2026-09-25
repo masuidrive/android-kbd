@@ -655,7 +655,8 @@ class KeyboardView @JvmOverloads constructor(
                     spec.value(direction)?.takeIf { it.action == KeyAction.Paste }?.label
                 }
             spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.QWERTY -> "←↓↑→"
-            spec.kind == KeyKind.CHARACTER && spec.id != "voice-punct" -> spec.down?.label
+            spec.kind == KeyKind.CHARACTER && spec.id != "voice-punct" &&
+                spec.id != "five--" && spec.id != "number-period" -> spec.down?.label
             spec.kind == KeyKind.BACKSPACE -> spec.down?.label
             else -> null
         }
@@ -1125,7 +1126,9 @@ class KeyboardView @JvmOverloads constructor(
         when (val update = interpreter.move(id, event.getX(index) / density, event.getY(index) / density)) {
             is GestureUpdate.Selection -> {
                 val activeHit = active[id]
-                val direction = update.direction.takeIf { activeHit?.spec?.value(it) != null } ?: Direction.CENTER
+                val assigned = activeHit?.spec?.value(update.direction) != null
+                val direction = update.direction.takeIf { assigned } ?: Direction.CENTER
+                if (!assigned && update.direction != Direction.CENTER) cancelTimer(id)
                 if (directions[id] != direction) {
                     if (direction == update.direction) {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
