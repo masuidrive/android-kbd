@@ -24,7 +24,7 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 - [x] ユーザ依頼: v0.15.21のAPKをビルドしてGitHub Releaseへ直接公開する
 - [x] ユーザ依頼: masuidrive.jpの製品ページ・操作モック・マニュアルを更新して公開する
 - [x] ユーザ依頼: レビュー後のAPK・サイト更新をプロジェクトAGENTS.mdの既定手順にする
@@ -92,6 +92,9 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 2026-09-25: 前ターンでAPK・site URL、公開assetのbyte一致、試験結果（単体1件retry-pass）、Fold実機未確認、進捗記録を提示して「この結果でリリースチケットを閉じてよいですか？」と確認した。ユーザは「y」と返信し、closeを明示承認した。
+- close時点ではアプリのrelease `v0.15.21` と製品サイトのPages公開は完了済み。アプリ`main`には出荷codeが反映済みで、このfeature branchの追加差分は公開後の検証記録のみ。closeで新たに失われる利用者機能はない。`auto_push: false`のためclose後に`main`をpushする。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
