@@ -1,6 +1,6 @@
 # Work Notes: 260924-135909-publish-v0-15-21-and-site
 
-## Status: PDH-human-review
+## Status: PDH-close (human-approved; published APK and site)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —

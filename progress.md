@@ -365,3 +365,4 @@
 [2026/09/24 23:14] v0.15.21 APKをGitHub Releasesへ直接公開し、再ダウンロードした38,651,216バイトがビルド成果物と完全一致した。製品ページをmasuidrive.jpのmain/docsへpushし、Pagesのビルドを確認中。
 [2026/09/24 23:24] Pagesが公開siteの正確なcommitをビルドし、公開4ファイルと追加画像をbyte照合した。412/840pxの公開モック操作と独立AC・Surface裏取りを終え、human review待ちに進めた。
 [2026/09/25 18:45] ユーザからv0.15.21公開チケットのclose承認を受けた。公開済みAPK・サイトと検証記録を確認し、PDH-closeを進める。
+[2026/09/25 18:47] v0.15.21公開チケットをPDH-closeでmainへ統合し、tickets/doneへ移した。最終記録をGitHubへpushする。
