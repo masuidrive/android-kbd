@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "レビュー済みEnter・記号Tab変更をv0.15.21として公開する"
 created_at: "2026-09-24T13:59:09Z"
 started_at: 2026-09-24T14:00:08Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-25T09:47:09Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
