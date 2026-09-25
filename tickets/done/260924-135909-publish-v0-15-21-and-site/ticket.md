@@ -4,7 +4,7 @@ base_branch: default  # Override base branch for start/close (default: use defau
 description: "レビュー済みEnter・記号Tab変更をv0.15.21として公開する"
 created_at: "2026-09-24T13:59:09Z"
 started_at: 2026-09-24T14:00:08Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-09-25T09:47:09Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -34,8 +34,8 @@ Product Briefの同じジェスチャー体系で素早く入力する目的に�
      保証メカニズム」を 1 行明記する (例: editor 警告だけでなく 422 reject されること)。 -->
 このticketが終わると、Android利用者がレビュー済みの操作を含むv0.15.21 APKを入手でき、製品ページで同じ操作を確認できる。
 
-- [ ] AC 1: Android利用者がGitHub Releasesからv0.15.21のAPKをZIPなしで直接ダウンロードでき、インストール後のアプリ情報にv0.15.21が表示される。
-- [ ] AC 2: 製品ページとマニュアルがv0.15.21への直リンクとEnterの上下操作・待機ラベル・記号Tab右端を示し、ページ内の操作モックもスマホ幅とタブレット幅で同じ配置になる。
+- [x] AC 1: Android利用者がGitHub Releasesからv0.15.21のAPKをZIPなしで直接ダウンロードでき、インストール後のアプリ情報にv0.15.21が表示される。
+- [x] AC 2: 製品ページとマニュアルがv0.15.21への直リンクとEnterの上下操作・待機ラベル・記号Tab右端を示し、ページ内の操作モックもスマホ幅とタブレット幅で同じ配置になる。
 
 ### Architectural Invariants check
 <!-- product-brief.md の Architectural Invariants と矛盾しないことを 1 行宣言する。
