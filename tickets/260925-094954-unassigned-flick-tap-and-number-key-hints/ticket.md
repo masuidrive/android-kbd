@@ -3,7 +3,7 @@ priority: 2
 base_branch: default  # Override base branch for start/close (default: use default_branch from config)
 description: "未割当フリックを通常タップに戻し、テンキーの記号キーへ方向ラベルを表示する"
 created_at: "2026-09-25T09:49:54Z"
-started_at: null  # Do not modify manually
+started_at: 2026-09-25T09:50:47Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
