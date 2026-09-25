@@ -263,7 +263,7 @@
   }
   function updateKeyFlick(p,dx,dy) {
     if(!p.flickKey)return false;
-    const rawDirection=updateRawSelection(p,dx,dy,true);
+    const rawDirection=updateRawSelection(p,dx,dy,!p.key.strictFlickDirections);
     p.strictFlickSelected=rawDirection===4;
     p.altSelected=rawDirection===4;
     p.upperSelected=/^[a-z]$/.test(p.flickKey)&&rawDirection===2;
