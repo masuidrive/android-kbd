@@ -1176,8 +1176,8 @@
       [...popup.children].forEach((s,i)=>s.classList.toggle('chosen',i===p.accentIndex));return;
     }
     if(p.key.flick) {p.rawDirection=updateRawSelection(p,dx,dy,false,p.flickThresholds);p.dir=p.key.flick[p.rawDirection]?p.rawDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
-    if(Math.hypot(dx,dy)>=p.flickThresholds.selection)clearTimeout(p.timer);
     if(updateKeyFlick(p,dx,dy)) {
+      if(p.rawDirection||(p.rawAxis==='horizontal'&&Math.hypot(dx,dy)>=p.flickThresholds.selection))clearTimeout(p.timer);
       p.element.classList.toggle('flick-selected',p.altSelected);
       p.element.classList.toggle('uppercase-selected',p.upperSelected);
       const mainText=p.key.text??p.key.label;
@@ -1186,6 +1186,7 @@
       else showPopup(p);
       return;
     }
+    if(Math.hypot(dx,dy)>=p.flickThresholds.selection)clearTimeout(p.timer);
     if(p.key.text)return;
   });
   function finish(e,canceled=false) {

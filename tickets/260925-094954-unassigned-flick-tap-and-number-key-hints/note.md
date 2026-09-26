@@ -133,6 +133,7 @@
 - 非退行の前後入力: QWERTY `a`を中央で450ms超保持すると旧版・修正版ともaccentが開き先頭`à`を確定する。テンキー`-`上フリックは旧版・修正版とも`/`を一度確定する。変更対象の`a`左24dp保持だけ旧版はaccentが開いたが、修正版は開かず`a`を一度確定する。修正版のfocused unitとattached-viewテストで前後契約を固定した。
 - PDH-review-5（96104ff）: 独立reviewerが新AC4〜7のnative設定/gesture・mock一致を調査した。初回報告後の追加sweepで下記2件のMajorを検出した。公開mockの両組13/20dp操作・保存・横はみ出し確認も必要。
 - PDH-review-5追記: mockの長押しtimer取消が感度に関係なく12px固定で、標準13〜17pxと低い13〜25pxではnativeより早くaccent候補・BS repeatを止めるMajorを採用した。またREADME、technical-reference、保存済み仕様資料に固定18pxの記述が残るMajorを採用した。mockのtimer取消を選択閾値へ揃え、6文書の固定値表現を現行3段階へ更新した。低い設定のQWERTY `a`を横13px動かし550ms保持すると実ブラウザでaccent popupが出て、28px動かした対照ではaccentが出ないことを確認した。
+- PDH-review-5再確認: 距離だけのtimer判定では斜め方向でnativeより早い。低感度で`a`をdx15/dy22px動かした場合、斜め距離26dp超でも縦選択26dp未満のためnativeはaccentを維持する。mockをraw方向選択または横軸未割当選択の発生時だけtimer取消へ修正した。実ブラウザの同じ入力550ms保持はaccent表示、dx15/dy27pxの対照はaccentなし・JS errorなし。
 - 採用したCritical #1〜#6はすべてこのticketでfix nowとして修正した。非採用・先送り・record onlyのfindingは0件。
 
 ## Technical reference 更新
