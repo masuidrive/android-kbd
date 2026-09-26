@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-human-review (release published; close approval pending)
+## Status: PDH-implement (new sensitivity scope requested after v0.15.23 review; v0.15.23 remains published)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -13,18 +13,21 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [ ] PDH-implement: 追加感度設定を含む最終SHAで`scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 入力のローカル gesture と静的サイトだけの変更で、外部 provider 経路はない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [ ] PDH-review: 追加感度設定の確定判断が 1 件ずつ実装に落ちている
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [ ] PDH-review: 追加感度設定について採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [ ] PDH-verify: AC 裏取り Agent が追加AC4〜7の実質達成をverify済み
+- [ ] PDH-verify: 追加感度設定のSurface Observer観察済み
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [ ] PDH-verify: 追加感度設定をtechnical-reference.mdと突合済み
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [ ] ユーザ追加依頼: テンキー方式のフリック感度を設定画面から変更できる
+- [ ] ユーザ追加依頼: QWERTYのフリック感度をテンキーと別に設定画面から変更できる
+- [ ] ユーザ追加依頼: 感度設定を含むAPKと製品サイトを公開する
 - [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
 - [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
@@ -38,6 +41,7 @@
 - 影響レイヤー: Android custom view UI・gesture routing、native unit / instrumentation tests、保存仕様、ブラウザmock、docs。IME service・Mozc JNI・変換は非変更。
 - ユーザの二つの発話で未割当方向のtap fallback、移動時の表示と追加振動の抑止、テンキー`-`・`.`の方向ラベルが明示された。既存割当の変更は求められていない。
 - 追加発話「公開までして」でリリース作業も承認された。ACは操作の観察可能な契約で、公開手順はChecklistで追跡する。Product BriefのAI-1〜AI-4に抵触せず、未決のプロダクト判断はない。
+- 2026-09-26追加依頼で「テンキー方式とQWERTYでフリック感度を設定」、続く「公開までして」が明示された。既存の感度値18/10/12dp、設定保存経路、IME再表示経路を測定した。新しい二組の3段階設定は本ticketのAC4〜7として追跡する。影響レイヤーはAndroid app設定・IME service・custom view UI・unit/instrumentation tests・browser mock・docs。Mozc JNIは変更しない。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -48,6 +52,7 @@
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた
   - 現状`KeyboardView.pointerMove`は未割当方向でもhaptic、direction更新、label animation、timer取消を行い、release時の`dispatch`は`spec.value(direction)==null`で入力しない。`KeyboardViewTest`はQWERTY`.`の未割当方向を入力なしと期待する。モック`finish`にも未割当を入力なしとする分岐がある。実装でnative/mock両方を測り直す。
+  - 新AC4〜7: `GestureThresholds`の選択開始18dp・中心復帰10dp・縦専用軸固定12dpと、モックの対応値を確認した。設定の永続性、次回IME表示での反映、二組独立性は実装後にfocused unitと接続実MotionEventで測る。閾値の境界前後およびSpaceの固定10dp開始を比較し、一致しなければ実装完了としない。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
@@ -67,6 +72,9 @@
 - Surface Observerはv0.15.22 APKをAPI36エミュレーター412dpの実IMEへ入れ、QWERTY `e`を未割当左へ約80px動かして1秒保持するとアクセントpopupが出る反例を撮影した。`tmp/android-emulator-release-412dp-qwerty-e-left-hold.png`。同じAPKでテンキー`.`の未割当上下はそれぞれ`.`一文字だった。触覚の物理回数とFold実機は未観測。
 - `8496338`: `GestureInterpreter`のverticalOnly水平18dp到達をraw Selectionとして一度だけ通知し、方向stateはCENTERを維持して`KeyboardView`の未割当timer取消分岐に到達させた。修正前は新規unit反例がFAIL、修正後focused unit PASS。attached production `MotionEvent`の新規ケースを含む接続テストはAPI36.1 emulatorで10 tests PASS（412/840dp、`a`左右24dpを450ms超保持してもaccentなし・`a`一回、中央保持はaccent維持）。Robolectricはhapticの最後の種類しか計測できず、実機振動履歴は別途Surface Observerへ依頼する。
 - `b8b3a72`: v0.15.23/code39の版番号・release notes・サイトリンクを用意した最終APK SHA。`scripts/test-all.sh --parallel --connected`をJava17/SDK36で実行し、fast-checks、Android unit/lint/APK、Android connected (real Mozc)が3/3 PASS。connectedは26 tests、失敗・skip・retry-passはなし。ローカルAPK `app/build/outputs/apk/debug/gesture-ime-v0.15.23.apk` は38,651,216 bytes、SHA-256 `a99efd491c2069f0d30014dcb55aa8e761b8209f066c0b9ecbe6208b873f7dcf`。GitHub Release v0.15.23 の直接APKを再取得し、ローカル成果物とbyte一致した。package `com.masuidrive.gestureime`、versionCode 39、arm64-v8a、RECORD_AUDIO と生成された DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION、INTERNET権限なし。
+- `e0329ab`: Android設定に二組独立の3段階保存を追加し、pointer開始時にmode別閾値を固定する。IME create/startで保存値を読み直し、Spaceは従来のtrackpad閾値を維持する。focused unit 82件PASS。API36.1エミュレーターで新規attached production `KeyboardView`の実MotionEvent接続試験が412/840dpともPASS。Kotlin用similarity parserがないため重複検出は環境制約としてskip。
+- `96104ff`: browser mockへ二組の切替と保存、対応する選択/復帰/軸固定距離を追加し、保存正本HTMLとbyte一致。412/840px実ブラウザで14px上フリックは高い設定のかな=う/QWERTY=Q、標準設定のかな=あ/QWERTY=qとなり、横はみ出し・JSエラーなし。
+- `3f5785c`: v0.15.24/code40のAPK名・配布リンク・マニュアル・release notesを準備。API36エミュレーターの設定画面で二組の感度項目と初期値「標準」を視認し、`site/assets/flick-sensitivity-api36-v0.15.24.png`に記録した。
 - サイト側 commit `ada7884fe382a654c7045097b101b7dacd301bb1`を `masuidrive/masuidrive.jp` main にpush。Pagesは正確にそのcommitをbuiltと報告し、公開中の `index.html`・`mock.html`・`manual.html`・`styles.css` の4ファイルをbyte一致で照合した。公開Chromeの412px/840pxで数値`-`上`/`・左`+`、`.`上未割当で`.`確定を実操作した。両幅でページ/iframeの横はみ出し0、missing assets 0。公開画面記録は `/tmp/md-kbd-v01523-public-phone-mobile.png` と `/tmp/md-kbd-v01523-public-tablet.png`。
 - AC裏取りworkerは正確なrelease SHAと公開site commitを確認して AC1〜AC3 を VERIFIED と判定した。物理端末の振動回数およびFold実機は未観測であり、触覚については未割当時に追加haptic分岐へ入らないコード・attached-view MotionEvent証拠を用いた。
 - Surface Observerは公開v0.15.23とSHA一致のAPKをAPI36エミュレーター412dpに導入した。QWERTY `e`を未割当の左へ80px動かして1.2秒保持してもaccent候補が出ず、release後は通常の`e`を1文字だけ確定した。`tmp/android-emulator-v0.15.23-412dp-qwerty-e-left-hold.png`。`vibrator_manager`の前後差分はDOWN時のIME CLICK 1件のみで、移動時の追加振動を記録しなかった。`tmp/android-emulator-v0.15.23-412dp-e-left-hold-vibrator-{before,after}.txt`。
@@ -123,6 +131,7 @@
 - 独立reviewerは新しいCritical/Majorなし、finding #6は解消と判定。verticalOnly水平18dp到達時にraw LEFT/RIGHTを一度だけ通知し、状態CENTERを維持する。`KeyboardView`は未割当分岐でtimerを止め、選択方向がCENTERのままなので追加hapticとlabel animationを出さない。
 - 確定判断の対応: 未割当中央tap・追加振動抑止=`GestureInterpreter` raw通知+`KeyboardView` assigned guard。既存割当維持=`KeyboardLayouts`を変更せず新旧GestureInterpreterテストで確認。native/mock/manual一致=`site/mock.html`と保存正本のbyte一致、`site/manual.html`の表・文、公開実ブラウザとnative実MotionEventで確認。
 - 非退行の前後入力: QWERTY `a`を中央で450ms超保持すると旧版・修正版ともaccentが開き先頭`à`を確定する。テンキー`-`上フリックは旧版・修正版とも`/`を一度確定する。変更対象の`a`左24dp保持だけ旧版はaccentが開いたが、修正版は開かず`a`を一度確定する。修正版のfocused unitとattached-viewテストで前後契約を固定した。
+- PDH-review-5（96104ff）: 独立reviewerが新AC4〜7のnative設定/gesture・mock一致を確認し、Critical/Majorなし。残る検証課題は公開mockの両組13/20dp操作・保存・横はみ出し確認であり、実装findingではない。
 - 採用したCritical #1〜#6はすべてこのticketでfix nowとして修正した。非採用・先送り・record onlyのfindingは0件。
 
 ## Technical reference 更新
