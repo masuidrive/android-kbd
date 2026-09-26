@@ -871,6 +871,19 @@ class KeyboardViewVoicePunctuationTest {
                     dispatch(view, MotionEvent.ACTION_UP, returnTime, returnTime + 3, kanaX, kanaY - 16.5f * density)
                     assertEquals("$widthDp dp center return releases the tap", listOf(KeyAction.KanaInput("あ")), actions)
 
+                    actions.clear()
+                    val upReturnTime = SystemClock.uptimeMillis() + widthIndex * 100L + 35L
+                    dispatch(view, MotionEvent.ACTION_DOWN, upReturnTime, upReturnTime, kanaX, kanaY)
+                    dispatch(view, MotionEvent.ACTION_MOVE, upReturnTime, upReturnTime + 1, kanaX, kanaY - 32.5f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, upReturnTime, upReturnTime + 2, kanaX, kanaY - 16.5f * density)
+                    assertEquals("$widthDp dp final UP inside return distance commits tap", listOf(KeyAction.KanaInput("あ")), actions)
+
+                    actions.clear()
+                    val upOnlyTime = SystemClock.uptimeMillis() + widthIndex * 100L + 40L
+                    dispatch(view, MotionEvent.ACTION_DOWN, upOnlyTime, upOnlyTime, kanaX, kanaY)
+                    dispatch(view, MotionEvent.ACTION_UP, upOnlyTime, upOnlyTime + 1, kanaX, kanaY - 33f * density)
+                    assertEquals("$widthDp dp UP without MOVE commits flick", listOf(KeyAction.KanaInput("う")), actions)
+
                     view.setMode(KeyboardMode.QWERTY)
                     view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
                     val spaceId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }

@@ -1134,7 +1134,7 @@
       if(!p.keyModifier)p.timer=setTimeout(()=>beginTrackpad(p),450);
     } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
   });
-  keyboard.addEventListener('pointermove',e=>{
+  function updatePointer(e) {
     const emojiStart=emojiViewportStarts.get(e.pointerId);
     if(emojiStart) {
       if(Math.abs(e.clientY-emojiStart.y)>12)emojiViewportDrags.add(e.pointerId);
@@ -1190,9 +1190,11 @@
     }
     if(Math.hypot(dx,dy)>=p.flickThresholds.selection)clearTimeout(p.timer);
     if(p.key.text)return;
-  });
+  }
+  keyboard.addEventListener('pointermove',updatePointer);
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
+    if(!canceled)updatePointer(e);
     clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','paste-selected','control-j-selected');
     const remaining=[...active.values()].at(-1);
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
@@ -1226,7 +1228,7 @@
     if(commit) {emojiViewportDrags.add(pointerId);setTimeout(()=>emojiViewportDrags.delete(pointerId),0);}else emojiViewportDrags.delete(pointerId);
     if(keyboard.hasPointerCapture(pointerId))keyboard.releasePointerCapture(pointerId);
   }
-  keyboard.addEventListener('pointerup',e=>{finishEmojiViewportGesture(e.pointerId,true);finish(e)});
+  keyboard.addEventListener('pointerup',e=>{if(emojiViewportStarts.has(e.pointerId))updatePointer(e);finishEmojiViewportGesture(e.pointerId,true);finish(e)});
   keyboard.addEventListener('pointercancel',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
   keyboard.addEventListener('lostpointercapture',e=>{finishEmojiViewportGesture(e.pointerId,false);finish(e,true)});
   root.addEventListener('click',e=>{

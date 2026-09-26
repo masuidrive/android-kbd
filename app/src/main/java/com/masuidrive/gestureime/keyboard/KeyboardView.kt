@@ -924,7 +924,12 @@ class KeyboardView @JvmOverloads constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> pointerDown(event, event.actionIndex)
             MotionEvent.ACTION_MOVE -> for (i in 0 until event.pointerCount) pointerMove(event, i)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> pointerUp(event.getPointerId(event.actionIndex))
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                // The final coordinate may arrive only with UP (without a preceding MOVE).
+                // Reconcile the selected direction before committing the key.
+                pointerMove(event, event.actionIndex)
+                pointerUp(event.getPointerId(event.actionIndex))
+            }
             MotionEvent.ACTION_CANCEL -> cancelActiveGestures()
         }
         return true
