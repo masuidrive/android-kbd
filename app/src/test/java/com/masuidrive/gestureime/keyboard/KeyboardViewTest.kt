@@ -110,8 +110,8 @@ class KeyboardViewTest {
         val centerReturn = listOf(0f to 24f, 0f to 0f)
 
         listOf(
-            Triple(period, listOf(0f to 17f), KeyAction.CommitText(".")),
-            Triple(backspace, listOf(0f to 17f), KeyAction.Backspace()),
+            Triple(period, listOf(0f to 15f), KeyAction.CommitText(".")),
+            Triple(backspace, listOf(0f to 15f), KeyAction.Backspace()),
             Triple(period, centerReturn, KeyAction.CommitText(".")),
             Triple(backspace, centerReturn, KeyAction.Backspace()),
         ).forEachIndexed { index, (bounds, moves, expected) ->
@@ -989,7 +989,7 @@ class KeyboardViewTest {
             assertEquals("$dx dp horizontal move commits the center once", listOf(KeyAction.CommitText("a")), actions)
         }
 
-        listOf(0f, 17f).forEachIndexed { index, dx ->
+        listOf(0f, 15f).forEachIndexed { index, dx ->
             actions.clear()
             val time = 300L + index * 100L
             touch(MotionEvent.ACTION_DOWN, a.exactCenterX(), a.exactCenterY(), time)

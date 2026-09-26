@@ -81,6 +81,7 @@ class KeyboardViewVoicePunctuationTest {
                 val view = KeyboardView(activity).apply {
                     actionSink = KeyboardActionSink { actions += it }
                     setDualFlickEnabled(true)
+                    setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
                 }
                 activity.setContentView(view)
                 listOf(412f, 840f).forEach { widthDp ->
@@ -173,6 +174,13 @@ class KeyboardViewVoicePunctuationTest {
                     assertEquals("$widthDp dp emoji AZ stays tap below threshold", listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
                     view.setMode(KeyboardMode.EMOJI)
                     actions.clear()
+                    val azFixedThresholdTime = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, azFixedThresholdTime, azFixedThresholdTime, azCenterX, azCenterY)
+                    dispatch(view, MotionEvent.ACTION_MOVE, azFixedThresholdTime, azFixedThresholdTime + 1, azCenterX, azCenterY - 18.5f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, azFixedThresholdTime, azFixedThresholdTime + 2, azCenterX, azCenterY - 18.5f * density)
+                    assertEquals("$widthDp dp emoji AZ retains fixed threshold", listOf(KeyAction.SwitchLayer(KeyboardMode.KANA)), actions)
+                    view.setMode(KeyboardMode.EMOJI)
+                    actions.clear()
                     val azReturnTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, azReturnTime, azReturnTime, azCenterX, azCenterY)
                     dispatch(view, MotionEvent.ACTION_MOVE, azReturnTime, azReturnTime + 1, azCenterX, azCenterY + distance)
@@ -219,8 +227,8 @@ class KeyboardViewVoicePunctuationTest {
                     actions.clear()
                     val backspaceThresholdTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, backspaceThresholdTime, backspaceThresholdTime, centerX, centerY)
-                    dispatch(view, MotionEvent.ACTION_MOVE, backspaceThresholdTime, backspaceThresholdTime + 1, centerX, centerY + 17f * density)
-                    dispatch(view, MotionEvent.ACTION_UP, backspaceThresholdTime, backspaceThresholdTime + 2, centerX, centerY + 17f * density)
+                    dispatch(view, MotionEvent.ACTION_MOVE, backspaceThresholdTime, backspaceThresholdTime + 1, centerX, centerY + 15f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, backspaceThresholdTime, backspaceThresholdTime + 2, centerX, centerY + 15f * density)
                     assertEquals("$widthDp dp symbol backspace stays tap below threshold", listOf(KeyAction.Backspace()), actions)
                     actions.clear()
                     val backspaceReturnTime = SystemClock.uptimeMillis()
@@ -320,6 +328,7 @@ class KeyboardViewVoicePunctuationTest {
                 val view = KeyboardView(activity).apply {
                     actionSink = KeyboardActionSink { actions += it }
                     setMode(KeyboardMode.VOICE)
+                    setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
                 }
                 activity.setContentView(view)
                 val width = (412f * density).toInt()
@@ -348,6 +357,14 @@ class KeyboardViewVoicePunctuationTest {
                     }
                     dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, centerX + dx, centerY + dy)
                     assertEquals("voice punctuation $expected", listOf(KeyAction.CommitText(expected)), actions)
+                }
+                listOf(17f to "、", 18.5f to "。").forEachIndexed { index, (dxDp, expected) ->
+                    actions.clear()
+                    val downTime = SystemClock.uptimeMillis() + 100L + index * 10L
+                    dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, centerX, centerY)
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, centerX - dxDp * density, centerY)
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, centerX - dxDp * density, centerY)
+                    assertEquals("voice punctuation retains fixed threshold $dxDp", listOf(KeyAction.CommitText(expected)), actions)
                 }
             }
         }
@@ -396,16 +413,16 @@ class KeyboardViewVoicePunctuationTest {
                     actions.clear()
                     var time = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + 17f * density, period.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2, period.exactCenterX() + 17f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + 15f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2, period.exactCenterX() + 15f * density, period.exactCenterY())
                     assertEquals("$widthDp dp number period stays tap below threshold", listOf(KeyAction.CommitText(".")), actions)
 
                     actions.clear()
                     time = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, time, time, period.exactCenterX(), period.exactCenterY())
                     dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, period.exactCenterX() + distance, period.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 2, period.exactCenterX() + 10f * density, period.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_UP, time, time + 3, period.exactCenterX() + 10f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 2, period.exactCenterX() + 8f * density, period.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 3, period.exactCenterX() + 8f * density, period.exactCenterY())
                     assertEquals("$widthDp dp number period returns to center", listOf(KeyAction.CommitText(".")), actions)
 
                     actions.clear()
@@ -535,8 +552,8 @@ class KeyboardViewVoicePunctuationTest {
                         actions.clear()
                         var time = SystemClock.uptimeMillis()
                         dispatch(view, MotionEvent.ACTION_DOWN, time, time, centerX, centerY)
-                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX, centerY - 17f * density)
-                        dispatch(view, MotionEvent.ACTION_UP, time, time + 2, centerX, centerY - 17f * density)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, centerX, centerY - 15f * density)
+                        dispatch(view, MotionEvent.ACTION_UP, time, time + 2, centerX, centerY - 15f * density)
                         assertEquals("$widthDp dp $mode Enter stays tap below threshold", listOf(KeyAction.Enter), actions)
 
                         actions.clear()
@@ -644,16 +661,16 @@ class KeyboardViewVoicePunctuationTest {
                     actions.clear()
                     downTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + 17f * density, enter.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + 17f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() + 15f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, enter.exactCenterX() + 15f * density, enter.exactCenterY())
                     assertEquals("$widthDp dp selected Enter stays tap below threshold", listOf(KeyAction.CommitConversion), actions)
 
                     actions.clear()
                     downTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, downTime, downTime, enter.exactCenterX(), enter.exactCenterY())
                     dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 1, enter.exactCenterX() - distance, enter.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 2, enter.exactCenterX() - 10f * density, enter.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 3, enter.exactCenterX() - 10f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, downTime, downTime + 2, enter.exactCenterX() - 8f * density, enter.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 3, enter.exactCenterX() - 8f * density, enter.exactCenterY())
                     assertEquals("$widthDp dp selected Enter returns to confirm", listOf(KeyAction.CommitConversion), actions)
 
                     actions.clear()
@@ -827,6 +844,18 @@ class KeyboardViewVoicePunctuationTest {
                     view.setFlickSensitivities(FlickSensitivity.STANDARD, FlickSensitivity.STANDARD)
                     assertEquals("$widthDp dp kana standard new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -17f))
                     assertEquals("$widthDp dp qwerty standard new boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 17f))
+                    listOf(
+                        FlickSensitivity.HIGH to 10f,
+                        FlickSensitivity.STANDARD to 16f,
+                        FlickSensitivity.LOW to 24f,
+                    ).forEach { (sensitivity, selectionDp) ->
+                        view.setFlickSensitivities(sensitivity, sensitivity)
+                        assertEquals("$widthDp dp $sensitivity kana below", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -selectionDp + .5f))
+                        assertEquals("$widthDp dp $sensitivity kana above", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -selectionDp - .5f))
+                        assertEquals("$widthDp dp $sensitivity qwerty below", listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, selectionDp - .5f))
+                        assertEquals("$widthDp dp $sensitivity qwerty above", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, selectionDp + .5f))
+                    }
+                    view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
                     assertTrue("$widthDp dp cancel", gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
 
                     view.setMode(KeyboardMode.QWERTY)

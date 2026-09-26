@@ -190,6 +190,8 @@
 - 感度ごとの選択開始12/18/26→10/16/24dp、中心復帰7/10/14→6/9/13dp、縦専用キー軸固定8/12/16→7/11/15dp。`KeyboardView`のEMOJI/VOICEには旧固定`GestureThresholds()`を明示し、ブラウザモックにも固定閾値を追加した。
 - 重複検出: `similarity-generic`はKotlinをサポートせず、`similarity-ts`はHTML内のinline JSを入力として扱えないためskip。`site/mock.html`と`docs/reference/mock-source.html`は仕様により意図的な完全複製である。
 - API36.1エミュレーターで`KeyboardViewVoicePunctuationTest#flickSensitivityGroupsChangeOnlyTheirAssignedLayoutsThroughAttachedMotionEvents`を単独実行しPASS。attached production `KeyboardView`へ412/840dp両幅で、旧版ではtapだった11dp高い・17dp標準・25dp低いの新境界を送った。
+- v0.15.25準備SHA `0b7b414`での`test-all.sh --parallel --connected`初回はfast-checksのみPASS。Android単体は二つのGradle呼び出しが同じbuild出力を触ったとみられるクラス未解決でcompile失敗し、単独実行ではコンパイルできたが旧標準18dp前提のKeyboardView unit 2件が失敗した。connectedでは同じ旧前提の4件が失敗した。コードの閾値が実際に変わったため新しい15dp未満・8dp以内へ期待値を修正した。
+- 独立レビューfinding Major: `docs/reference/sites-native-spec.txt`の副ラベル段落が旧12/18/26・7/10/14のままだった。採用し新値へ更新。Minor: production view境界とvoice/emoji固定の証拠不足を採用し、attached viewの全段階±0.5dpとVOICE/EMOJI固定17/18.5dpを追加した。`KeyboardViewTest` focused unitとAPI36.1 connected `KeyboardViewVoicePunctuationTest` 11/11 PASS。再レビューと最終全スイートへ進む。
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
