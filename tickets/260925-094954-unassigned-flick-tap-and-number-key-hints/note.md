@@ -192,6 +192,16 @@
 - API36.1エミュレーターで`KeyboardViewVoicePunctuationTest#flickSensitivityGroupsChangeOnlyTheirAssignedLayoutsThroughAttachedMotionEvents`を単独実行しPASS。attached production `KeyboardView`へ412/840dp両幅で、旧版ではtapだった11dp高い・17dp標準・25dp低いの新境界を送った。
 - v0.15.25準備SHA `0b7b414`での`test-all.sh --parallel --connected`初回はfast-checksのみPASS。Android単体は二つのGradle呼び出しが同じbuild出力を触ったとみられるクラス未解決でcompile失敗し、単独実行ではコンパイルできたが旧標準18dp前提のKeyboardView unit 2件が失敗した。connectedでは同じ旧前提の4件が失敗した。コードの閾値が実際に変わったため新しい15dp未満・8dp以内へ期待値を修正した。
 - 独立レビューfinding Major: `docs/reference/sites-native-spec.txt`の副ラベル段落が旧12/18/26・7/10/14のままだった。採用し新値へ更新。Minor: production view境界とvoice/emoji固定の証拠不足を採用し、attached viewの全段階±0.5dpとVOICE/EMOJI固定17/18.5dpを追加した。`KeyboardViewTest` focused unitとAPI36.1 connected `KeyboardViewVoicePunctuationTest` 11/11 PASS。再レビューと最終全スイートへ進む。
+- 再レビューfinding Major: `docs/reference/android-native-implementation.md`と`docs/reference/html-mock-implementation.md`にも旧距離が残った。採用し、全3種の値と音声・絵文字の旧固定値を両資料へ反映した。
+- 実装SHA `83b8bcc0d2dac71dc42687764960b95a74ed7f7e`で `env ANDROID_HOME=/Users/masuidrive/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home bash scripts/test-all.sh --parallel --connected` を実行。suite自身のsummary:
+  ```text
+  Summary
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+  PASS: android connected (real Mozc)
+  Passed: 3 / 3
+  ```
+- ローカル実Chromeの`http://localhost:8765/mock.html`: 412pxでかな14px上は高い=`う`・標準=`あ`、QWERTY17px上は標準=`A`・低い=`a`。840pxでは横overflow=0、JS error=0。画面 `/private/tmp/md-kbd-v01525-local-412.png`・`/private/tmp/md-kbd-v01525-local-840.png`。nativeは上記接続試験で412/840dpを区別して確認し、物理Fold実機は未観測。
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
