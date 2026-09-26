@@ -19,9 +19,9 @@ enum class FlickSensitivity(
     val selectionDp: Float,
     val returnHysteresisDp: Float,
 ) {
-    HIGH(axisLockDp = 8f, selectionDp = 12f, returnHysteresisDp = 7f),
-    STANDARD(axisLockDp = 12f, selectionDp = 18f, returnHysteresisDp = 10f),
-    LOW(axisLockDp = 16f, selectionDp = 26f, returnHysteresisDp = 14f),
+    HIGH(axisLockDp = 7f, selectionDp = 10f, returnHysteresisDp = 6f),
+    STANDARD(axisLockDp = 11f, selectionDp = 16f, returnHysteresisDp = 9f),
+    LOW(axisLockDp = 15f, selectionDp = 24f, returnHysteresisDp = 13f),
     ;
 
     fun thresholds(): GestureThresholds = GestureThresholds(

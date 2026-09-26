@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-human-review (v0.15.24 published; device review and close approval pending)
+## Status: PDH-implement (v0.15.24 published; sensitivity adjustment requested during human review)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -28,6 +28,7 @@
 - [x] ユーザ追加依頼: テンキー方式のフリック感度を設定画面から変更できる
 - [x] ユーザ追加依頼: QWERTYのフリック感度をテンキーと別に設定画面から変更できる
 - [x] ユーザ追加依頼: 感度設定を含むAPKと製品サイトを公開する
+- [ ] ユーザ追加依頼: かな・テンキーとQWERTY・記号の全感度を少し緩くし、nativeと公開モックを揃える
 - [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
 - [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
@@ -180,6 +181,15 @@
 ## Open Questions
 <!-- 実装中の可逆な迷いと採用した default 値を検出時点で append する
      （運用は pdh-coding「Open Questions protocol」に従う）。 -->
+
+- 2026-09-26: 「もう少しゆるく」の厳密な量は指定されていない。大幅な変化による誤入力を避けるため、各段階の選択開始を一律2dp短くし、復帰・軸固定を1dp短くする可逆な値を採用する。設定の独立性・段階順・Space/音声/絵文字は維持する。利用者の実指で量が不足または過剰なら再調整する。
+
+## Sensitivity adjustment implementation (2026-09-26)
+
+- 変更前の非退行対照として`GestureInterpreterTest.space locks dominant axis and emits incremental units`を単独で実行しPASS。変更後は同じクラスのfocused unitがPASSし、Space開始10dp・横単位8dpは不変。
+- 感度ごとの選択開始12/18/26→10/16/24dp、中心復帰7/10/14→6/9/13dp、縦専用キー軸固定8/12/16→7/11/15dp。`KeyboardView`のEMOJI/VOICEには旧固定`GestureThresholds()`を明示し、ブラウザモックにも固定閾値を追加した。
+- 重複検出: `similarity-generic`はKotlinをサポートせず、`similarity-ts`はHTML内のinline JSを入力として扱えないためskip。`site/mock.html`と`docs/reference/mock-source.html`は仕様により意図的な完全複製である。
+- API36.1エミュレーターで`KeyboardViewVoicePunctuationTest#flickSensitivityGroupsChangeOnlyTheirAssignedLayoutsThroughAttachedMotionEvents`を単独実行しPASS。attached production `KeyboardView`へ412/840dp両幅で、旧版ではtapだった11dp高い・17dp標準・25dp低いの新境界を送った。
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->

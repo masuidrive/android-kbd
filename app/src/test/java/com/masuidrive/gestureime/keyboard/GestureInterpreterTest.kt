@@ -17,9 +17,9 @@ class GestureInterpreterTest {
     @Test fun `pointer thresholds select high standard and low distances without changing trackpad units`() {
         val subject = GestureInterpreter()
         listOf(
-            FlickSensitivity.HIGH to 12f,
-            FlickSensitivity.STANDARD to 18f,
-            FlickSensitivity.LOW to 26f,
+            FlickSensitivity.HIGH to 10f,
+            FlickSensitivity.STANDARD to 16f,
+            FlickSensitivity.LOW to 24f,
         ).forEachIndexed { pointerId, (sensitivity, distance) ->
             subject.start(pointerId, 0f, 0f, pointerThresholds = sensitivity.thresholds())
             assertNull("$sensitivity before selection", subject.move(pointerId, distance - .01f, 0f))
@@ -32,6 +32,23 @@ class GestureInterpreterTest {
 
         subject.start(10, 0f, 0f, trackpad = true, pointerThresholds = FlickSensitivity.LOW.thresholds())
         assertEquals(GestureUpdate.CursorDelta(Direction.RIGHT, 1), subject.move(10, 10f, 0f))
+    }
+
+    @Test fun `shorter sensitivity thresholds keep center return and axis lock ordered`() {
+        val subject = GestureInterpreter()
+        listOf(
+            FlickSensitivity.HIGH to Triple(7f, 10f, 6f),
+            FlickSensitivity.STANDARD to Triple(11f, 16f, 9f),
+            FlickSensitivity.LOW to Triple(15f, 24f, 13f),
+        ).forEachIndexed { pointerId, (sensitivity, distances) ->
+            val (axis, selection, centerReturn) = distances
+            assertEquals(axis, sensitivity.thresholds().axisLockDp)
+            subject.start(pointerId, 0f, 0f, verticalOnly = true, pointerThresholds = sensitivity.thresholds())
+            assertNull(subject.move(pointerId, 0f, -selection + .01f))
+            assertEquals(GestureUpdate.Selection(Direction.UP), subject.move(pointerId, 0f, -selection))
+            assertNull(subject.move(pointerId, 0f, -centerReturn - .01f))
+            assertEquals(GestureUpdate.Selection(Direction.CENTER), subject.move(pointerId, 0f, -centerReturn))
+        }
     }
 
     @Test fun `direction follows current location after selection`() {

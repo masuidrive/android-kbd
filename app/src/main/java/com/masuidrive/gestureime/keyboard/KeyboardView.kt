@@ -1124,7 +1124,7 @@ class KeyboardView @JvmOverloads constructor(
     private fun flickThresholdsFor(mode: KeyboardMode): GestureThresholds = when (mode) {
         KeyboardMode.KANA, KeyboardMode.NUMBERS -> kanaNumberFlickSensitivity.thresholds()
         KeyboardMode.QWERTY, KeyboardMode.SYMBOLS -> qwertySymbolFlickSensitivity.thresholds()
-        KeyboardMode.EMOJI, KeyboardMode.VOICE -> FlickSensitivity.STANDARD.thresholds()
+        KeyboardMode.EMOJI, KeyboardMode.VOICE -> GestureThresholds()
     }
 
     private fun pointerMove(event: MotionEvent, index: Int) {

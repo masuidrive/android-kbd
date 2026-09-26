@@ -383,3 +383,6 @@
 [2026/09/26 14:56] 最終実装SHA 2fe9eceでfast-checks・Android unit/lint/APK・接続27件の全3区分が通過した。v0.15.24/code40のARM64 APKは38,653,320バイト、SHA-256は7ac443ea40bf46d72a000a5ce4be8458f517c7b3557ae86ed1b4a68a7202a383。公開用サイト4ファイルを別repoとbyte照合した。
 [2026/09/26 15:02] v0.15.24 APKをReleaseへ直接公開し、再取得したAPKのbyte一致を確認した。製品サイトはPagesがbed3062をbuiltと報告し、公開4ファイルと新画像もbyte一致。公開412/840pxモックで感度差を実操作し、欠損画像・横はみ出し・JSエラーがないことを確認した。
 [2026/09/26 15:08] 独立Surface ObserverがAPI36.1エミュレーター412dpで二組の設定表示・別々の変更・アプリ再起動後の保存を確認した。adb合成タッチによる文字入力は確認できず、距離別フリックはconnected実MotionEvent試験と公開ブラウザで検証した。物理Fold実機は未確認のままhuman reviewへ進めた。
+[2026/09/26 23:08] ユーザの「両方式のフリック感度をもう少しゆるく」を受け、human review中のチケットへACを追加し実装へ戻した。高い・標準・低いの選択距離を各2dp短縮し、native・モック・資料を同時に調整する。
+[2026/09/26 23:12] nativeとモックの高い・標準・低いを10/16/24dpへ変更し、中心復帰と軸固定も各1dp短縮した。音声・絵文字は旧固定閾値を維持する。GestureInterpreterのfocused unitはPASSし、変更前後でSpaceのカーソル移動試験もPASSした。
+[2026/09/26 23:12] API36.1エミュレーターで接続済みKeyboardViewへの実MotionEvent focused試験がPASSした。412/840dpの両幅で旧版ではtapだった11/17/25dpの新感度境界を検証した。

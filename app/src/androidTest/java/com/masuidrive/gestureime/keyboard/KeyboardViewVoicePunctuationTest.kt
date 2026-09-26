@@ -814,13 +814,19 @@ class KeyboardViewVoicePunctuationTest {
                     }
 
                     view.setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
+                    assertEquals("$widthDp dp kana high new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -11f))
                     assertEquals("$widthDp dp kana high", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
                     assertEquals("$widthDp dp qwerty remains low", listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
                     assertEquals("$widthDp dp number unassigned", listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -13f))
 
                     view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
                     assertEquals("$widthDp dp kana remains low", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))
+                    assertEquals("$widthDp dp kana low new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -25f))
+                    assertEquals("$widthDp dp qwerty high new boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 11f))
                     assertEquals("$widthDp dp qwerty high", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
+                    view.setFlickSensitivities(FlickSensitivity.STANDARD, FlickSensitivity.STANDARD)
+                    assertEquals("$widthDp dp kana standard new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -17f))
+                    assertEquals("$widthDp dp qwerty standard new boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 17f))
                     assertTrue("$widthDp dp cancel", gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
 
                     view.setMode(KeyboardMode.QWERTY)
