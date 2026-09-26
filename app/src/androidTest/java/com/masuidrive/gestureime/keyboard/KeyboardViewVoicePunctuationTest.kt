@@ -43,7 +43,7 @@ class KeyboardViewVoicePunctuationTest {
                     a = bounds(view, aId)
                 }
 
-                listOf(-24f, 24f).forEachIndexed { directionIndex, dxDp ->
+                listOf(-25f, 25f).forEachIndexed { directionIndex, dxDp ->
                     val downTime = SystemClock.uptimeMillis() + (widthIndex * 10L + directionIndex) * 10L
                     scenario.onActivity {
                         actions.clear()
@@ -210,12 +210,12 @@ class KeyboardViewVoicePunctuationTest {
                     actions.clear()
                     val flickTime = SystemClock.uptimeMillis()
                     dispatch(view, MotionEvent.ACTION_DOWN, flickTime, flickTime, backspace.exactCenterX(), backspace.exactCenterY())
-                    dispatch(view, MotionEvent.ACTION_MOVE, flickTime, flickTime + 1, backspace.exactCenterX(), backspace.exactCenterY() + 30f * density)
-                    dispatch(view, MotionEvent.ACTION_UP, flickTime, flickTime + 2, backspace.exactCenterX(), backspace.exactCenterY() + 30f * density)
+                    dispatch(view, MotionEvent.ACTION_MOVE, flickTime, flickTime + 1, backspace.exactCenterX(), backspace.exactCenterY() + 33f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, flickTime, flickTime + 2, backspace.exactCenterX(), backspace.exactCenterY() + 33f * density)
                     assertEquals(listOf(KeyAction.Escape), actions)
                     val centerX = backspace.exactCenterX()
                     val centerY = backspace.exactCenterY()
-                    val backspaceDistance = 30f * density
+                    val backspaceDistance = 33f * density
                     listOf(-backspaceDistance to 0f, 0f to -backspaceDistance, backspaceDistance to 0f).forEachIndexed { index, (dx, dy) ->
                         actions.clear()
                         val time = SystemClock.uptimeMillis() + index * 10L
