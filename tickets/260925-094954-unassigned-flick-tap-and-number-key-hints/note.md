@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-implement (v0.15.25 sensitivity direction corrected by user)
+## Status: PDH-verify (v0.15.26 longer flick distance)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -214,3 +214,12 @@
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
+
+## v0.15.26 longer-distance correction
+
+- 2026-09-27のユーザ訂正に従い、かな・テンキーとQWERTY・記号の割当方向確定距離を高い16dp、標準24dp、低い32dpへ変更した。v0.15.25の10/16/24dpから各段階を長くし、高いは旧標準と同じ。選択解除9/13/17dp、縦方向軸固定11/15/19dp。音声・絵文字は旧固定値、Spaceカーソル移動も不変。
+- 独立review finding Major: `KeyboardView`が`ACTION_UP`の最終座標を処理せず、最後のMOVEと指離し位置が異なると誤確定する。nativeとmockで最終座標を反映した。続くconnected試験で中央長押しアクセントの既定候補が`à`から`á`へ変わる回帰を検出し、アクセント候補indexはMOVE時のみ更新して解消した。旧距離を前提にした接続試験2件も新しい境界で更新した。VOICE句読点とSpaceのMOVEなしUP経路もattached production viewのMotionEvent試験へ追加した。
+- 実装SHA `01c0ba5cde94b96eba9abf398a400858b2bec103`。API36.1エミュレーターのfocused `KeyboardViewVoicePunctuationTest` 11/11 PASS、`KeyboardViewTest` PASS。`scripts/test-all.sh --parallel --connected`初回はfast-checksと接続試験がPASSした一方、既存の絵文字Robolectric試験1件がAndroidX header初期化待ちで失敗した。同試験は単独でPASSし、同じSHAの全体再実行はfast-checks・Android単体/lint/APK・Android接続（real Mozc）の3/3 PASS。物理Fold実機での指操作は未観測。
+- ローカル製品ページの実ブラウザで412pxかな20px上は高い=`う`・標準=`あ`、840px QWERTY28px上は標準=`A`・低い=`a`を確認した。最後のMOVEと指離し位置を変えたLOWかなの対照では33px上で`う`、16.5pxへ戻して離すと`あ`。JS error、欠損画像、横overflowは0。ブラウザ画像は`/private/tmp/md-kbd-v01526-local-412.png`・`/private/tmp/md-kbd-v01526-local-840.png`・`/private/tmp/md-kbd-v01526-local-840-dark.png`。nativeの実MotionEventとブラウザ操作を分けて記録する。
+- 重複検出: `similarity-generic`はKotlin非対応、`similarity-ts`はHTML内のinline JSを扱えないためskip。`site/mock.html`と`docs/reference/mock-source.html`は意図的にbyte同一である。
+- 独立AC裏取りworkerはSHA `01c0ba5c`でAC4〜8をVERIFIEDと判定した。API36.1エミュレーターのattached production `KeyboardView`へ412/840dpの実MotionEventを送り、各段階±0.5dp、旧距離tap、二組独立、未割当、取消、中心復帰、最終UP位置、SpaceとVOICE固定距離、中央holdの既定`à`を確認した。mockの実ブラウザ操作も上記の通り。物理Fold実機・実指の感触は未観測。
