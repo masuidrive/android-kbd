@@ -950,14 +950,15 @@ class KeyboardViewTest {
         }
 
         view.setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
-        assertEquals(listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
+        assertEquals(listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
+        assertEquals(listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -16f))
         assertEquals(listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
         assertEquals(listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -13f))
 
         view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
         assertEquals(listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))
         assertEquals(listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
-        assertTrue(gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
+        assertTrue(gesture(KeyboardMode.KANA, "kana-あ", 0f, -32f, MotionEvent.ACTION_CANCEL).isEmpty())
 
         view.setMode(KeyboardMode.QWERTY)
         view.measure(exact(400), exact(228)); view.layout(0, 0, 400, 228)

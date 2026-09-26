@@ -831,23 +831,25 @@ class KeyboardViewVoicePunctuationTest {
                     }
 
                     view.setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
-                    assertEquals("$widthDp dp kana high new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -11f))
-                    assertEquals("$widthDp dp kana high", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
+                    assertEquals("$widthDp dp kana old high boundary now taps", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -10f))
+                    assertEquals("$widthDp dp kana high boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -16.5f))
                     assertEquals("$widthDp dp qwerty remains low", listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
-                    assertEquals("$widthDp dp number unassigned", listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -13f))
+                    assertEquals("$widthDp dp number unassigned", listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -33f))
 
                     view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
                     assertEquals("$widthDp dp kana remains low", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))
-                    assertEquals("$widthDp dp kana low new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -25f))
-                    assertEquals("$widthDp dp qwerty high new boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 11f))
+                    assertEquals("$widthDp dp kana old low boundary now taps", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -24f))
+                    assertEquals("$widthDp dp kana low boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -32.5f))
+                    assertEquals("$widthDp dp qwerty high boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 16.5f))
                     assertEquals("$widthDp dp qwerty high", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
                     view.setFlickSensitivities(FlickSensitivity.STANDARD, FlickSensitivity.STANDARD)
-                    assertEquals("$widthDp dp kana standard new boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -17f))
-                    assertEquals("$widthDp dp qwerty standard new boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 17f))
+                    assertEquals("$widthDp dp kana old standard boundary now taps", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -16f))
+                    assertEquals("$widthDp dp kana standard boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -24.5f))
+                    assertEquals("$widthDp dp qwerty standard boundary", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 24.5f))
                     listOf(
-                        FlickSensitivity.HIGH to 10f,
-                        FlickSensitivity.STANDARD to 16f,
-                        FlickSensitivity.LOW to 24f,
+                        FlickSensitivity.HIGH to 16f,
+                        FlickSensitivity.STANDARD to 24f,
+                        FlickSensitivity.LOW to 32f,
                     ).forEach { (sensitivity, selectionDp) ->
                         view.setFlickSensitivities(sensitivity, sensitivity)
                         assertEquals("$widthDp dp $sensitivity kana below", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -selectionDp + .5f))
@@ -856,7 +858,18 @@ class KeyboardViewVoicePunctuationTest {
                         assertEquals("$widthDp dp $sensitivity qwerty above", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, selectionDp + .5f))
                     }
                     view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
-                    assertTrue("$widthDp dp cancel", gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
+                    assertTrue("$widthDp dp cancel after selection", gesture(KeyboardMode.KANA, "kana-あ", 0f, -32.5f, MotionEvent.ACTION_CANCEL).isEmpty())
+
+                    view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.LOW)
+                    actions.clear()
+                    val kana = key(KeyboardMode.KANA, "kana-あ")
+                    val returnTime = SystemClock.uptimeMillis() + widthIndex * 100L + 25L
+                    val kanaX = kana.exactCenterX(); val kanaY = kana.exactCenterY()
+                    dispatch(view, MotionEvent.ACTION_DOWN, returnTime, returnTime, kanaX, kanaY)
+                    dispatch(view, MotionEvent.ACTION_MOVE, returnTime, returnTime + 1, kanaX, kanaY - 32.5f * density)
+                    dispatch(view, MotionEvent.ACTION_MOVE, returnTime, returnTime + 2, kanaX, kanaY - 16.5f * density)
+                    dispatch(view, MotionEvent.ACTION_UP, returnTime, returnTime + 3, kanaX, kanaY - 16.5f * density)
+                    assertEquals("$widthDp dp center return releases the tap", listOf(KeyAction.KanaInput("あ")), actions)
 
                     view.setMode(KeyboardMode.QWERTY)
                     view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)

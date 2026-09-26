@@ -251,9 +251,9 @@
     ...[...'zxcvbnm,.'].map((key,i)=>[key, '%-+=/;:!?'[i]])
   ]);
   const flickSensitivity={
-    high:{selection:10,return:6,axis:7},
-    standard:{selection:16,return:9,axis:11},
-    low:{selection:24,return:13,axis:15}
+    high:{selection:16,return:9,axis:11},
+    standard:{selection:24,return:13,axis:15},
+    low:{selection:32,return:17,axis:19}
   };
   const fixedFlickThresholds={selection:18,return:10,axis:12};
   function updateRawSelection(p,dx,dy,verticalOnly=false,thresholds=flickSensitivity.standard) {
