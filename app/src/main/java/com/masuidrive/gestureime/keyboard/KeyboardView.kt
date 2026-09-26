@@ -927,7 +927,7 @@ class KeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 // The final coordinate may arrive only with UP (without a preceding MOVE).
                 // Reconcile the selected direction before committing the key.
-                pointerMove(event, event.actionIndex)
+                pointerMove(event, event.actionIndex, updateAccentSelection = false)
                 pointerUp(event.getPointerId(event.actionIndex))
             }
             MotionEvent.ACTION_CANCEL -> cancelActiveGestures()
@@ -1132,7 +1132,7 @@ class KeyboardView @JvmOverloads constructor(
         KeyboardMode.EMOJI, KeyboardMode.VOICE -> GestureThresholds()
     }
 
-    private fun pointerMove(event: MotionEvent, index: Int) {
+    private fun pointerMove(event: MotionEvent, index: Int, updateAccentSelection: Boolean = true) {
         val id = event.getPointerId(index)
         if (voiceHoldOwner?.first == id) return
         emojiScrollGestures[id]?.let { gesture ->
@@ -1146,7 +1146,7 @@ class KeyboardView @JvmOverloads constructor(
                 return
             }
         }
-        if (id in accentActive) {
+        if (updateAccentSelection && id in accentActive) {
             val hit = active[id]
             val choices = hit?.spec?.center?.label?.let(::accentChoices)
             if (hit != null && choices != null) {

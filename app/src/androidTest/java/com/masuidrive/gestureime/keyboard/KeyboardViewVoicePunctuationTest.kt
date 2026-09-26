@@ -366,6 +366,11 @@ class KeyboardViewVoicePunctuationTest {
                     dispatch(view, MotionEvent.ACTION_UP, downTime, downTime + 2, centerX - dxDp * density, centerY)
                     assertEquals("voice punctuation retains fixed threshold $dxDp", listOf(KeyAction.CommitText(expected)), actions)
                 }
+                actions.clear()
+                val directUpTime = SystemClock.uptimeMillis() + 150L
+                dispatch(view, MotionEvent.ACTION_DOWN, directUpTime, directUpTime, centerX, centerY)
+                dispatch(view, MotionEvent.ACTION_UP, directUpTime, directUpTime + 1, centerX - 30f * density, centerY)
+                assertEquals("voice punctuation applies the final UP coordinate once", listOf(KeyAction.CommitText("。")), actions)
             }
         }
     }
@@ -895,6 +900,12 @@ class KeyboardViewVoicePunctuationTest {
                     dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, space.exactCenterX() + 10f * density, space.exactCenterY())
                     dispatch(view, MotionEvent.ACTION_UP, time, time + 2, space.exactCenterX() + 10f * density, space.exactCenterY())
                     assertEquals("$widthDp dp space remains fixed", listOf(KeyAction.MoveCursor(Direction.RIGHT)), actions)
+
+                    actions.clear()
+                    val directSpaceUpTime = SystemClock.uptimeMillis() + widthIndex * 100L + 60L
+                    dispatch(view, MotionEvent.ACTION_DOWN, directSpaceUpTime, directSpaceUpTime, space.exactCenterX(), space.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, directSpaceUpTime, directSpaceUpTime + 1, space.exactCenterX() + 10f * density, space.exactCenterY())
+                    assertEquals("$widthDp dp Space final UP moves the cursor without committing space", listOf(KeyAction.MoveCursor(Direction.RIGHT)), actions)
                 }
             }
         }

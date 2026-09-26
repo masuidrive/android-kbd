@@ -1134,7 +1134,7 @@
       if(!p.keyModifier)p.timer=setTimeout(()=>beginTrackpad(p),450);
     } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
   });
-  function updatePointer(e) {
+  function updatePointer(e,updateAccentSelection=true) {
     const emojiStart=emojiViewportStarts.get(e.pointerId);
     if(emojiStart) {
       if(Math.abs(e.clientY-emojiStart.y)>12)emojiViewportDrags.add(e.pointerId);
@@ -1174,7 +1174,7 @@
       return;
     }
     if(p.variants) {
-      p.accentIndex=Math.max(0,Math.min(p.variants.length-1,Math.floor((e.clientX-p.accentLeft-3)/34)));
+      if(updateAccentSelection)p.accentIndex=Math.max(0,Math.min(p.variants.length-1,Math.floor((e.clientX-p.accentLeft-3)/34)));
       [...popup.children].forEach((s,i)=>s.classList.toggle('chosen',i===p.accentIndex));return;
     }
     if(p.key.flick) {p.rawDirection=updateRawSelection(p,dx,dy,false,p.flickThresholds);p.dir=p.key.flick[p.rawDirection]?p.rawDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
@@ -1194,7 +1194,7 @@
   keyboard.addEventListener('pointermove',updatePointer);
   function finish(e,canceled=false) {
     const p=active.get(e.pointerId);if(!p)return;
-    if(!canceled)updatePointer(e);
+    if(!canceled)updatePointer(e,false);
     clearTimers(p);active.delete(e.pointerId);p.element.classList.remove('pressed','flick-selected','uppercase-selected','mode-on','choice-active','navigation-selected','paste-selected','control-j-selected');
     const remaining=[...active.values()].at(-1);
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
