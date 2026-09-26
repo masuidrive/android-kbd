@@ -17,6 +17,8 @@
     <button type="button" data-device="inner" aria-pressed="false">Tablet</button>
     <button type="button" data-dual aria-pressed="false">Dual Flick</button>
     <button type="button" data-english-candidates aria-pressed="false">英字候補</button>
+    <span class="sensitivity-group" role="group" aria-label="かな・テンキーのフリック感度"><span class="sensitivity-title">かな・テンキー</span><button type="button" data-sensitivity-group="kana" data-sensitivity="high" aria-pressed="false">高い</button><button type="button" data-sensitivity-group="kana" data-sensitivity="standard" aria-pressed="true">標準</button><button type="button" data-sensitivity-group="kana" data-sensitivity="low" aria-pressed="false">低い</button></span>
+    <span class="sensitivity-group" role="group" aria-label="QWERTY・記号のフリック感度"><span class="sensitivity-title">QWERTY・記号</span><button type="button" data-sensitivity-group="english" data-sensitivity="high" aria-pressed="false">高い</button><button type="button" data-sensitivity-group="english" data-sensitivity="standard" aria-pressed="true">標準</button><button type="button" data-sensitivity-group="english" data-sensitivity="low" aria-pressed="false">低い</button></span>
     <span class="device-size">6.5″ · 2520 × 1080</span>
   </div>
   <div class="phone">
@@ -46,6 +48,9 @@
   #ios-keyboard-demo .device-picker .device-name { margin:0 8px; color:var(--ik-muted); font-size:11px; white-space:nowrap; }
   #ios-keyboard-demo .device-picker button { border:0; border-radius:7px; padding:7px 12px; background:transparent; color:var(--ik-muted); font-size:12px; }
   #ios-keyboard-demo .device-picker button[aria-pressed=true] { background:var(--ik-active); color:var(--ik-ink); }
+  #ios-keyboard-demo .sensitivity-group { display:flex; align-items:center; gap:2px; padding:0 2px 0 4px; border-left:1px solid var(--ik-line); }
+  #ios-keyboard-demo .sensitivity-title { color:var(--ik-muted); font-size:10px; white-space:nowrap; }
+  #ios-keyboard-demo .sensitivity-group button { padding:6px 8px; font-size:11px; }
   #ios-keyboard-demo .device-size { min-width:126px; margin:0 8px; color:var(--ik-muted); font:500 10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; }
   #ios-keyboard-demo .phone { display:flex; flex-direction:column; width:min(100%,412px); margin:0 auto; background:var(--ik-paper); overflow:hidden; }
   #ios-keyboard-demo[data-device=inner] .phone { width:min(100%,840px); }
@@ -245,25 +250,30 @@
     ...[...'asdfghjkl'].map((key,i)=>[key, '@#$&*()\'"'[i]]),
     ...[...'zxcvbnm,.'].map((key,i)=>[key, '%-+=/;:!?'[i]])
   ]);
-  function updateRawSelection(p,dx,dy,verticalOnly=false) {
+  const flickSensitivity={
+    high:{selection:12,return:7,axis:8},
+    standard:{selection:18,return:10,axis:12},
+    low:{selection:26,return:14,axis:16}
+  };
+  function updateRawSelection(p,dx,dy,verticalOnly=false,thresholds=flickSensitivity.standard) {
     const distance=Math.hypot(dx,dy);
     if(verticalOnly) {
-      if(distance<=10) {
+      if(distance<=thresholds.return) {
         p.rawAxis=null;
         p.rawDirection=0;
       }
-      if(!p.rawAxis&&distance>=12)p.rawAxis=Math.abs(dx)>=Math.abs(dy)?'horizontal':'vertical';
-      if(p.rawAxis==='horizontal'||Math.abs(dy)<18)return p.rawDirection;
+      if(!p.rawAxis&&distance>=thresholds.axis)p.rawAxis=Math.abs(dx)>=Math.abs(dy)?'horizontal':'vertical';
+      if(p.rawAxis==='horizontal'||Math.abs(dy)<thresholds.selection)return p.rawDirection;
       p.rawDirection=dy<0?2:4;
       return p.rawDirection;
     }
-    if(p.rawDirection&&distance<=10)p.rawDirection=0;
-    else if(distance>=18)p.rawDirection=Math.abs(dx)>=Math.abs(dy)?(dx<0?1:3):(dy<0?2:4);
+    if(p.rawDirection&&distance<=thresholds.return)p.rawDirection=0;
+    else if(distance>=thresholds.selection)p.rawDirection=Math.abs(dx)>=Math.abs(dy)?(dx<0?1:3):(dy<0?2:4);
     return p.rawDirection;
   }
   function updateKeyFlick(p,dx,dy) {
     if(!p.flickKey)return false;
-    const rawDirection=updateRawSelection(p,dx,dy,!p.key.strictFlickDirections);
+    const rawDirection=updateRawSelection(p,dx,dy,!p.key.strictFlickDirections,p.flickThresholds);
     p.strictFlickSelected=rawDirection===4;
     p.altSelected=rawDirection===4;
     p.upperSelected=/^[a-z]$/.test(p.flickKey)&&rawDirection===2;
@@ -276,13 +286,13 @@
   }
   function updateModifierFlick(p,dx,dy) {
     if(!p.modifierFlick)return false;
-    const rawDirection=updateRawSelection(p,dx,dy,true);
+    const rawDirection=updateRawSelection(p,dx,dy,true,p.flickThresholds);
     p.modifierChoice=rawDirection===4?'Control':rawDirection===2?'Alt':null;
     return true;
   }
   function updateNavigationFlick(p,dx,dy) {
     if(!p.key.navigation)return false;
-    const rawDirection=updateRawSelection(p,dx,dy);
+    const rawDirection=updateRawSelection(p,dx,dy,false,p.flickThresholds);
     const choice=[null,'left','up','right','down'][rawDirection];
     p.navigationChoice=choice&&p.key.navigation[choice]?choice:null;
     return true;
@@ -320,6 +330,7 @@
   let device=defaultDevice;
   let language = isDesktopVisitor?'kana':'english', layer = 'letters', pendingModifier = null, lastSpace = -Infinity;
   let dualEnabled = isDesktopVisitor, englishCandidatesEnabled = false;
+  let kanaSensitivity='standard', englishSensitivity='standard';
   const slashCommands=['/compact','/clear','/quit'];
   const emojiCategories=[
     ['recent','◷',[]],['faces','😀',['😀','😂','🥹','😍','😭','😊','🤔','😎','🙌','👏','✨','💯','❤️','🔥','🎉','🙏','😅','🤣','😉','🙂','🙃','😇','🥳','😴','🤗','🤩','😋','😜','😡','🥺','😱','🤭']],
@@ -345,6 +356,8 @@
       if(Number.isFinite(saved.emojiScrollTop))emojiScrollTop=Math.max(0,saved.emojiScrollTop);
       dualEnabled=Boolean(saved.dualEnabled);
       englishCandidatesEnabled=Boolean(saved.englishCandidatesEnabled);
+      if(flickSensitivity[saved.kanaSensitivity])kanaSensitivity=saved.kanaSensitivity;
+      if(flickSensitivity[saved.englishSensitivity])englishSensitivity=saved.englishSensitivity;
       if(['light','dark'].includes(saved.theme))root.dataset.theme=saved.theme;
     }
   } catch (_) {}
@@ -355,7 +368,7 @@
     if(!showingInitialDemoText)return;
     editor.value='';editor.setSelectionRange(0,0);showingInitialDemoText=false;
   }
-  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({version:demoStateVersion,device,language,layer,dualEnabled,englishCandidatesEnabled,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
+  const persistState=()=>{try{localStorage.setItem('gesture-ime-demo-state',JSON.stringify({version:demoStateVersion,device,language,layer,dualEnabled,englishCandidatesEnabled,kanaSensitivity,englishSensitivity,emojiRecents,emojiScrollTop,theme:root.dataset.theme}));}catch(_){}};
   let keyMap = new Map();
   let preferredCursorX = null;
   const segments = text => [...segmenter.segment(text)];
@@ -1037,6 +1050,10 @@
     dualButton.setAttribute('aria-pressed',String(dualEnabled));
     dualButton.title=keyboard.getBoundingClientRect().width>=600?'中央のかなキーを左右に表示':'広い画面で有効になります';
     $('[data-english-candidates]').setAttribute('aria-pressed',String(englishCandidatesEnabled));
+    root.querySelectorAll('[data-sensitivity-group]').forEach(button=>{
+      const selected=button.dataset.sensitivityGroup==='kana'?kanaSensitivity:englishSensitivity;
+      button.setAttribute('aria-pressed',String(button.dataset.sensitivity===selected));
+    });
     persistState();
     postDemoHeight();
   }
@@ -1100,7 +1117,8 @@
     if(emojiViewport) {emojiViewportStarts.set(e.pointerId,{y:e.clientY,scrollTop:emojiViewport.scrollTop,viewport:emojiViewport,key});keyboard.setPointerCapture(e.pointerId);e.preventDefault();editor.focus({preventScroll:true});return;}
     e.preventDefault();editor.focus({preventScroll:true});
     if([...active.values()].some(p=>p.trackpad))return;
-    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,rawDirection:0,rawAxis:null,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false};
+    const sensitivityName=!voiceDemo.active&&layer!=='emoji'?(language==='kana'?kanaSensitivity:englishSensitivity):'standard';
+    const p={id:e.pointerId,key,origin:key.id,element,x:e.clientX,y:e.clientY,dir:0,rawDirection:0,rawAxis:null,upper:false,keyModifier:currentModifier(),trackpad:false,used:false,flickKey:key.alt||key.gestureAlt?key.id:null,altSelected:false,upperSelected:false,strictFlickSelected:false,flickThresholds:flickSensitivity[sensitivityName]};
     active.set(e.pointerId,p);keyboard.setPointerCapture(e.pointerId);element.classList.add('pressed');
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;
@@ -1157,7 +1175,7 @@
       p.accentIndex=Math.max(0,Math.min(p.variants.length-1,Math.floor((e.clientX-p.accentLeft-3)/34)));
       [...popup.children].forEach((s,i)=>s.classList.toggle('chosen',i===p.accentIndex));return;
     }
-    if(p.key.flick) {p.rawDirection=updateRawSelection(p,dx,dy);p.dir=p.key.flick[p.rawDirection]?p.rawDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
+    if(p.key.flick) {p.rawDirection=updateRawSelection(p,dx,dy,false,p.flickThresholds);p.dir=p.key.flick[p.rawDirection]?p.rawDirection:0;setFlickDirectionSelection(p,p.dir);showPopup(p);return;}
     if(Math.hypot(dx,dy)>12)clearTimeout(p.timer);
     if(updateKeyFlick(p,dx,dy)) {
       p.element.classList.toggle('flick-selected',p.altSelected);
@@ -1272,6 +1290,12 @@
   }));
   $('[data-dual]').addEventListener('click',()=>{cancelGestures();dualEnabled=!dualEnabled;render();});
   $('[data-english-candidates]').addEventListener('click',()=>{cancelGestures();englishCandidatesEnabled=!englishCandidatesEnabled;render();});
+  root.querySelectorAll('[data-sensitivity-group]').forEach(button=>button.addEventListener('click',()=>{
+    cancelGestures();
+    if(button.dataset.sensitivityGroup==='kana')kanaSensitivity=button.dataset.sensitivity;
+    else englishSensitivity=button.dataset.sensitivity;
+    render();
+  }));
   root.querySelectorAll('.device-picker [data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.device===root.dataset.device)));
   root.querySelectorAll('.device-picker [data-theme]').forEach(item=>item.setAttribute('aria-pressed',String(item.dataset.theme===root.dataset.theme)));
   $('.device-size').textContent=displayModes[root.dataset.device].label;
