@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-implement (new sensitivity scope requested after v0.15.23 review; v0.15.23 remains published)
+## Status: PDH-human-review (v0.15.24 published; device review and close approval pending)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -13,21 +13,21 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: 追加感度設定を含む最終SHAで`scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: 追加感度設定を含む最終SHAで`scripts/test-all.sh` 全スイートパス確認済み
 - [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 入力のローカル gesture と静的サイトだけの変更で、外部 provider 経路はない
 - [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 追加感度設定の確定判断が 1 件ずつ実装に落ちている
+- [x] PDH-review: 追加感度設定の確定判断が 1 件ずつ実装に落ちている
 - [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: 追加感度設定について採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が追加AC4〜7の実質達成をverify済み
-- [ ] PDH-verify: 追加感度設定のSurface Observer観察済み
+- [x] PDH-review: 追加感度設定について採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が追加AC4〜7の実質達成をverify済み
+- [x] PDH-verify: 追加感度設定のSurface Observer観察済み
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: 追加感度設定をtechnical-reference.mdと突合済み
+- [x] PDH-verify: 追加感度設定をtechnical-reference.mdと突合済み
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
-- [ ] ユーザ追加依頼: テンキー方式のフリック感度を設定画面から変更できる
-- [ ] ユーザ追加依頼: QWERTYのフリック感度をテンキーと別に設定画面から変更できる
-- [ ] ユーザ追加依頼: 感度設定を含むAPKと製品サイトを公開する
+- [x] ユーザ追加依頼: テンキー方式のフリック感度を設定画面から変更できる
+- [x] ユーザ追加依頼: QWERTYのフリック感度をテンキーと別に設定画面から変更できる
+- [x] ユーザ追加依頼: 感度設定を含むAPKと製品サイトを公開する
 - [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
 - [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
@@ -134,6 +134,25 @@
 - PDH-review-5（96104ff）: 独立reviewerが新AC4〜7のnative設定/gesture・mock一致を調査した。初回報告後の追加sweepで下記2件のMajorを検出した。公開mockの両組13/20dp操作・保存・横はみ出し確認も必要。
 - PDH-review-5追記: mockの長押しtimer取消が感度に関係なく12px固定で、標準13〜17pxと低い13〜25pxではnativeより早くaccent候補・BS repeatを止めるMajorを採用した。またREADME、technical-reference、保存済み仕様資料に固定18pxの記述が残るMajorを採用した。mockのtimer取消を選択閾値へ揃え、6文書の固定値表現を現行3段階へ更新した。低い設定のQWERTY `a`を横13px動かし550ms保持すると実ブラウザでaccent popupが出て、28px動かした対照ではaccentが出ないことを確認した。
 - PDH-review-5再確認: 距離だけのtimer判定では斜め方向でnativeより早い。低感度で`a`をdx15/dy22px動かした場合、斜め距離26dp超でも縦選択26dp未満のためnativeはaccentを維持する。mockをraw方向選択または横軸未割当選択の発生時だけtimer取消へ修正した。実ブラウザの同じ入力550ms保持はaccent表示、dx15/dy27pxの対照はaccentなし・JS errorなし。
+- PDH-review-5最終: reviewerが二度目のtimer差分を再確認し、追加Critical/Majorなしと判定した。mockと保存正本はbyte一致。採用したMajor 2件はどちらもfix nowとして解消し、非採用findingはない。
+
+## PDH-verify. v0.15.24 感度追加の証拠
+
+- 実装SHA `2fe9ece29962bba4daff2e26cc2848d7dc925e97`で `env ANDROID_HOME=/Users/masuidrive/Library/Android/sdk JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home bash scripts/test-all.sh --parallel --connected` を実行した。suite自身のsummary:
+  ```text
+  Summary
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+  PASS: android connected (real Mozc)
+  Passed: 3 / 3
+  ```
+- 接続試験はAPI36.1エミュレーターの27件で0 skipped/0 failed。新規attached `KeyboardView`実MotionEvent試験は412/840dpの高低感度、組の独立性、未割当tap、cancel、Spaceの固定閾値を通した。物理Fold実機は未観測。
+- APK `app/build/outputs/apk/debug/gesture-ime-v0.15.24.apk`: 38,653,320 bytes、SHA-256 `7ac443ea40bf46d72a000a5ce4be8458f517c7b3557ae86ed1b4a68a7202a383`、`com.masuidrive.gestureime`、versionCode 40/versionName 0.15.24、arm64-v8a、minSdk 28/targetSdk 36、RECORD_AUDIOと生成DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION、INTERNETなし。
+- API36エミュレーターの設定画面で二組の感度ラジオと両方標準初期値を視認した。スクリーンショット `site/assets/flick-sensitivity-api36-v0.15.24.png`。これはエミュレーター画面でありFold実機ではない。
+- 独立AC裏取りworkerは実装SHA `2fe9ece`のAC4〜7を全件VERIFIEDとした。設定永続化unit、412/840dpのproduction `KeyboardView`実MotionEvent、ローカル製品ページの実Chromeで14px上フリックの高い/標準差、二組独立保存、overflowなしを確認した。物理Fold実機は未観測。
+- GitHub Release `v0.15.24`へZIPにせず直接APKを公開し、再ダウンロードした`/private/tmp/md-kbd-v01524-verify/gesture-ime-v0.15.24.apk`とローカル成果物を`cmp`でbyte一致確認した。再取得物は38,653,320 bytes、SHA-256 `7ac443ea40bf46d72a000a5ce4be8458f517c7b3557ae86ed1b4a68a7202a383`。
+- 製品サイトrepo `masuidrive/masuidrive.jp` のmain commit `bed3062f210b66029f0396c3dbc7e68bac6f286d`をPagesが`built`と報告した。push前に`index.html`・`mock.html`・`manual.html`・`styles.css`を`site/`とbyte一致確認し、公開後にその4ファイルおよび新設定画面画像を公開URLから取得してbyte一致確認した。
+- 公開製品ページの実Chrome: 412pxは日本語「あ」を14px上へ操作し、高い=`う`、標準=`あ`。840pxはQWERTY `a`を20px上へ操作し、低い=`a`、標準=`A`。両幅で製品ページと埋込mockの横overflow=0、欠損画像=0、JS error=0。公開画面`/private/tmp/md-kbd-v01524-public-412.png`・`/private/tmp/md-kbd-v01524-public-840.png`。
 - 採用したCritical #1〜#6はすべてこのticketでfix nowとして修正した。非採用・先送り・record onlyのfindingは0件。
 
 ## Technical reference 更新
@@ -146,6 +165,11 @@
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+- 公開版: `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.24`。設定画面で「かな・テンキー」と「QWERTY・記号」をそれぞれ高い・標準・低いへ変更できる。標準は以前の操作距離を維持する。設定は保存され、次にキーボードを表示した時に適用される。
+- 確認手順: 設定画面で一方を「高い」、もう一方を「低い」にし、入力テスト画面でかな・QWERTYを切り替える。同じ短いフリックが前者で成立し、後者では通常タップになることを確かめる。アプリを閉じて開き直し、二つの選択が残ることを確かめる。標準へ戻すと従来の感度になる。
+- 自動検証: 実装SHA `2fe9ece`で全スイート3/3 PASS、API36.1エミュレーターのconnected 27件0 failure/skip、独立AC裏取りAC4〜7 VERIFIED。製品ページの公開版も412/840pxで操作済み。物理Fold実機は未観測。
+- 上記の人間レビュー結果と明示的なclose承認が得られるまでPDH-closeへ進まない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
