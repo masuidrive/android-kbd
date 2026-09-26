@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-implement (v0.15.24 published; sensitivity adjustment requested during human review)
+## Status: PDH-human-review (v0.15.25 published; close approval pending)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -28,7 +28,7 @@
 - [x] ユーザ追加依頼: テンキー方式のフリック感度を設定画面から変更できる
 - [x] ユーザ追加依頼: QWERTYのフリック感度をテンキーと別に設定画面から変更できる
 - [x] ユーザ追加依頼: 感度設定を含むAPKと製品サイトを公開する
-- [ ] ユーザ追加依頼: かな・テンキーとQWERTY・記号の全感度を少し緩くし、nativeと公開モックを揃える
+- [x] ユーザ追加依頼: かな・テンキーとQWERTY・記号の全感度を少し緩くし、nativeと公開モックを揃える
 - [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
 - [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
@@ -202,6 +202,13 @@
   Passed: 3 / 3
   ```
 - ローカル実Chromeの`http://localhost:8765/mock.html`: 412pxでかな14px上は高い=`う`・標準=`あ`、QWERTY17px上は標準=`A`・低い=`a`。840pxでは横overflow=0、JS error=0。画面 `/private/tmp/md-kbd-v01525-local-412.png`・`/private/tmp/md-kbd-v01525-local-840.png`。nativeは上記接続試験で412/840dpを区別して確認し、物理Fold実機は未観測。
+
+## PDH-verify / release. v0.15.25 感度微調整の証拠
+
+- 独立reviewerは追加感度微調整の最終diffにCritical/Majorなしと判定。独立AC裏取りはAC4〜8をVERIFIEDとした。採用した資料の旧値Majorは`efa16d2`までに全件修正し、`scripts/fast-checks.sh`の5項目がPASSした。runtime/code/testの最終SHAは`83b8bcc0d2dac71dc42687764960b95a74ed7f7e`で、`scripts/test-all.sh --parallel --connected`はfast-checks・Android unit/lint/APK・Android connected (real Mozc)の3/3 PASS。接続試験はAPI36.1エミュレーターの27件で失敗・skipなし。資料だけの後続commitでは全スイートを再実行していない。
+- GitHub Release `v0.15.25`へZIPにせず直接APK `gesture-ime-v0.15.25.apk`を公開。ローカル`/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/gesture-ime-v0.15.25.apk`は38,657,130 bytes、SHA-256 `910983415e66ecd6c9774970cb3b13f921d385eca3353aeb0483e6b0b819bb51`。Releaseから`/private/tmp/md-kbd-v01525-verify/gesture-ime-v0.15.25.apk`へ再取得し`cmp`でbyte一致。package `com.masuidrive.gestureime`、versionCode 41/versionName 0.15.25、arm64-v8a、minSdk 28/targetSdk 36、RECORD_AUDIOと生成DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION、INTERNETなし。
+- 製品サイトrepo `masuidrive/masuidrive.jp`のmain commit `eb545db5f98d38941aadd95e8474692ed81a70af`をPagesが`built`と報告。push前に`index.html`・`mock.html`・`manual.html`・`styles.css`を`site/`とbyte一致確認し、公開後の4ファイルも取得してbyte一致した。公開実Chromeの412pxでかな14px上は高い=`う`・標準=`あ`、840pxのQWERTY17px上は標準=`A`・低い=`a`。両幅でページ・埋込mockの横overflow=0、欠損画像=0、JS error=0。画面 `/private/tmp/md-kbd-v01525-public-412.png`・`/private/tmp/md-kbd-v01525-public-840.png`。
+- 人間レビュー手順: アプリ設定の「かな・テンキー」と「QWERTY・記号」で同じ感度を選び、旧v0.15.24より短い操作で方向選択できるかを実指で試す。差の目安は全段階で選択開始距離が2dp短縮。設定保存・両組独立・未割当方向の通常tap・Spaceカーソル移動も確認する。物理Fold実機と実指での感触は自動検証外であり、確認結果と明示的close承認を待つ。
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
