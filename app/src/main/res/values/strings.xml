@@ -21,6 +21,11 @@
     <string name="keyboard_height_small">小</string>
     <string name="keyboard_height_standard">標準</string>
     <string name="keyboard_height_large">大</string>
+    <string name="kana_number_flick_sensitivity">かな・テンキーのフリック感度</string>
+    <string name="qwerty_symbol_flick_sensitivity">QWERTY・記号のフリック感度</string>
+    <string name="flick_sensitivity_high">高い</string>
+    <string name="flick_sensitivity_standard">標準</string>
+    <string name="flick_sensitivity_low">低い</string>
     <string name="slash_commands">スラッシュコマンド候補（最大6件）</string>
     <string name="slash_command_hint">候補 %1$d（例: /compact）</string>
     <string name="slash_command_description">スラッシュコマンド候補 %1$d</string>

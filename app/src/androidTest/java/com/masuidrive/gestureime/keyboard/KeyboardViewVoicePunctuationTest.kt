@@ -778,6 +778,67 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun flickSensitivityGroupsChangeOnlyTheirAssignedLayoutsThroughAttachedMotionEvents() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            val actions = mutableListOf<KeyAction>()
+            lateinit var view: KeyboardView
+            var density = 0f
+            scenario.onActivity { activity ->
+                density = activity.resources.displayMetrics.density
+                view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                }
+                activity.setContentView(view)
+            }
+
+            listOf(412f, 840f).forEachIndexed { widthIndex, widthDp ->
+                scenario.onActivity {
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    fun key(mode: KeyboardMode, keyId: String): Rect {
+                        view.setMode(mode)
+                        view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                        val id = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }.indexOfFirst { it.id == keyId }
+                        check(id >= 0) { "missing $keyId in $mode" }
+                        return bounds(view, id)
+                    }
+                    fun gesture(mode: KeyboardMode, keyId: String, dxDp: Float, dyDp: Float, endAction: Int = MotionEvent.ACTION_UP): List<KeyAction> {
+                        actions.clear()
+                        val bounds = key(mode, keyId)
+                        val time = SystemClock.uptimeMillis() + widthIndex * 100L
+                        val x = bounds.exactCenterX(); val y = bounds.exactCenterY()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, x + dxDp * density, y + dyDp * density)
+                        dispatch(view, endAction, time, time + 2, x + dxDp * density, y + dyDp * density)
+                        return actions.toList()
+                    }
+
+                    view.setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
+                    assertEquals("$widthDp dp kana high", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
+                    assertEquals("$widthDp dp qwerty remains low", listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
+                    assertEquals("$widthDp dp number unassigned", listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -13f))
+
+                    view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
+                    assertEquals("$widthDp dp kana remains low", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))
+                    assertEquals("$widthDp dp qwerty high", listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
+                    assertTrue("$widthDp dp cancel", gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
+
+                    view.setMode(KeyboardMode.QWERTY)
+                    view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                    val spaceId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+                        .indexOfFirst { it.kind == KeyKind.SPACE }
+                    val space = bounds(view, spaceId)
+                    actions.clear()
+                    val time = SystemClock.uptimeMillis() + widthIndex * 100L + 50L
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, space.exactCenterX(), space.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, space.exactCenterX() + 10f * density, space.exactCenterY())
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2, space.exactCenterX() + 10f * density, space.exactCenterY())
+                    assertEquals("$widthDp dp space remains fixed", listOf(KeyAction.MoveCursor(Direction.RIGHT)), actions)
+                }
+            }
+        }
+    }
+
     private fun dispatch(view: KeyboardView, action: Int, downTime: Long, eventTime: Long, x: Float, y: Float) {
         MotionEvent.obtain(downTime, eventTime, action, x, y, 0).also {
             view.dispatchTouchEvent(it)

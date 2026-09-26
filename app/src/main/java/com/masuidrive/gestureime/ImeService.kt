@@ -169,6 +169,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             it.setEmojiRecents(ImePreferences.getEmojiRecents(this))
             it.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
             it.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
+            it.setFlickSensitivities(
+                ImePreferences.getKanaNumberFlickSensitivity(this),
+                ImePreferences.getQwertySymbolFlickSensitivity(this),
+            )
             keyboardView = it
         }
         val strip = CandidateStripView(this).also {
@@ -848,6 +852,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
         keyboardView?.setMode(keyboardMode)
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
+        keyboardView?.setFlickSensitivities(
+            ImePreferences.getKanaNumberFlickSensitivity(this),
+            ImePreferences.getQwertySymbolFlickSensitivity(this),
+        )
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         keyboardView?.refreshIntrinsicLayout()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
@@ -873,6 +881,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
         keyboardView?.setDualFlickEnabled(ImePreferences.isDualFlickEnabled(this))
         keyboardView?.setHeightPreset(ImePreferences.getKeyboardHeightPreset(this))
+        keyboardView?.setFlickSensitivities(
+            ImePreferences.getKanaNumberFlickSensitivity(this),
+            ImePreferences.getQwertySymbolFlickSensitivity(this),
+        )
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         updateEmojiPickerVisibility()
     }

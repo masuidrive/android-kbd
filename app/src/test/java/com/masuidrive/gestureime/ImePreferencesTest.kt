@@ -7,6 +7,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
+import com.masuidrive.gestureime.keyboard.FlickSensitivity
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -78,6 +79,27 @@ class ImePreferencesTest {
         assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
         preferences.edit().putInt("keyboard_height_preset", 3).apply()
         assertEquals(KeyboardHeightPreset.STANDARD, ImePreferences.getKeyboardHeightPreset(context))
+    }
+
+    @Test
+    fun flickSensitivitiesDefaultIndependentlyPersistAndSafelyRejectMalformedValues() {
+        val context = RuntimeEnvironment.getApplication()
+        val preferences = context.getSharedPreferences("gesture_ime_preferences", 0)
+        preferences.edit().clear().commit()
+
+        assertEquals(FlickSensitivity.STANDARD, ImePreferences.getKanaNumberFlickSensitivity(context))
+        assertEquals(FlickSensitivity.STANDARD, ImePreferences.getQwertySymbolFlickSensitivity(context))
+        ImePreferences.setKanaNumberFlickSensitivity(context, FlickSensitivity.HIGH)
+        ImePreferences.setQwertySymbolFlickSensitivity(context, FlickSensitivity.LOW)
+        assertEquals(FlickSensitivity.HIGH, ImePreferences.getKanaNumberFlickSensitivity(context))
+        assertEquals(FlickSensitivity.LOW, ImePreferences.getQwertySymbolFlickSensitivity(context))
+
+        preferences.edit()
+            .putString("kana_number_flick_sensitivity", "UNKNOWN")
+            .putInt("qwerty_symbol_flick_sensitivity", 3)
+            .apply()
+        assertEquals(FlickSensitivity.STANDARD, ImePreferences.getKanaNumberFlickSensitivity(context))
+        assertEquals(FlickSensitivity.STANDARD, ImePreferences.getQwertySymbolFlickSensitivity(context))
     }
 
     @Test

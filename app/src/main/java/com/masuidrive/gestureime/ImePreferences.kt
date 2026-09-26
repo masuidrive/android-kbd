@@ -1,6 +1,7 @@
 package com.masuidrive.gestureime
 
 import android.content.Context
+import com.masuidrive.gestureime.keyboard.FlickSensitivity
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 
@@ -12,6 +13,8 @@ object ImePreferences {
     private const val ENGLISH_SUGGESTIONS = "english_suggestions_enabled"
     private const val ANDROID_USER_DICTIONARY = "android_user_dictionary_enabled"
     private const val KEYBOARD_HEIGHT_PRESET = "keyboard_height_preset"
+    private const val KANA_NUMBER_FLICK_SENSITIVITY = "kana_number_flick_sensitivity"
+    private const val QWERTY_SYMBOL_FLICK_SENSITIVITY = "qwerty_symbol_flick_sensitivity"
     private const val EMOJI_RECENT_PREFIX = "emoji_recent_"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
     const val SLASH_COMMAND_SLOTS = 6
@@ -95,6 +98,20 @@ object ImePreferences {
             .apply()
     }
 
+    fun getKanaNumberFlickSensitivity(context: Context): FlickSensitivity =
+        getFlickSensitivity(context, KANA_NUMBER_FLICK_SENSITIVITY)
+
+    fun setKanaNumberFlickSensitivity(context: Context, sensitivity: FlickSensitivity) {
+        setFlickSensitivity(context, KANA_NUMBER_FLICK_SENSITIVITY, sensitivity)
+    }
+
+    fun getQwertySymbolFlickSensitivity(context: Context): FlickSensitivity =
+        getFlickSensitivity(context, QWERTY_SYMBOL_FLICK_SENSITIVITY)
+
+    fun setQwertySymbolFlickSensitivity(context: Context, sensitivity: FlickSensitivity) {
+        setFlickSensitivity(context, QWERTY_SYMBOL_FLICK_SENSITIVITY, sensitivity)
+    }
+
     fun getLastKeyboardMode(context: Context): KeyboardMode {
         val stored = runCatching {
             context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
@@ -134,5 +151,20 @@ object ImePreferences {
             trimmed.startsWith('/') -> trimmed
             else -> "/$trimmed"
         }
+    }
+
+    private fun getFlickSensitivity(context: Context, key: String): FlickSensitivity {
+        val stored = runCatching {
+            context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).getString(key, null)
+        }.getOrNull()
+        return stored?.let { value -> FlickSensitivity.entries.firstOrNull { it.name == value } }
+            ?: FlickSensitivity.STANDARD
+    }
+
+    private fun setFlickSensitivity(context: Context, key: String, sensitivity: FlickSensitivity) {
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(key, sensitivity.name)
+            .apply()
     }
 }

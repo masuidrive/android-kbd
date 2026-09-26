@@ -104,6 +104,8 @@ class KeyboardView @JvmOverloads constructor(
     private var state = KeyboardUiState()
     private val density = resources.displayMetrics.density
     private val interpreter = GestureInterpreter()
+    private var kanaNumberFlickSensitivity = FlickSensitivity.STANDARD
+    private var qwertySymbolFlickSensitivity = FlickSensitivity.STANDARD
     private val hitTargets = mutableListOf<HitTarget>()
     private val active = mutableMapOf<Int, HitTarget>()
     private val directions = mutableMapOf<Int, Direction>()
@@ -239,6 +241,17 @@ class KeyboardView @JvmOverloads constructor(
         cancelActiveGestures()
         state = state.copy(heightPreset = preset)
         rebuildLayout()
+    }
+
+    /** Applies to the next pointer sequence; Space keeps its fixed trackpad thresholds. */
+    fun setFlickSensitivities(
+        kanaNumber: FlickSensitivity,
+        qwertySymbol: FlickSensitivity,
+    ) {
+        if (kanaNumberFlickSensitivity == kanaNumber && qwertySymbolFlickSensitivity == qwertySymbol) return
+        cancelActiveGestures()
+        kanaNumberFlickSensitivity = kanaNumber
+        qwertySymbolFlickSensitivity = qwertySymbol
     }
 
     /** The IME input root must replace a stale host height with this four-row view's own size. */
@@ -1090,8 +1103,14 @@ class KeyboardView @JvmOverloads constructor(
             (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center == null) ||
             (hit.spec.kind == KeyKind.CHARACTER && hit.spec.up != null && hit.spec.down != null &&
                 hit.spec.left == null && hit.spec.right == null)
-        interpreter.start(id, event.getX(index) / density, event.getY(index) / density,
-            trackpad = hit.spec.kind == KeyKind.SPACE, verticalOnly = verticalOnly)
+        interpreter.start(
+            id,
+            event.getX(index) / density,
+            event.getY(index) / density,
+            trackpad = hit.spec.kind == KeyKind.SPACE,
+            verticalOnly = verticalOnly,
+            pointerThresholds = flickThresholdsFor(state.mode),
+        )
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         if (hit.spec.kind == KeyKind.CHARACTER ||
             (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null && hit.spec.id != "voice-backspace")) {
@@ -1100,6 +1119,12 @@ class KeyboardView @JvmOverloads constructor(
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
         syncPopup(id)
         invalidate()
+    }
+
+    private fun flickThresholdsFor(mode: KeyboardMode): GestureThresholds = when (mode) {
+        KeyboardMode.KANA, KeyboardMode.NUMBERS -> kanaNumberFlickSensitivity.thresholds()
+        KeyboardMode.QWERTY, KeyboardMode.SYMBOLS -> qwertySymbolFlickSensitivity.thresholds()
+        KeyboardMode.EMOJI, KeyboardMode.VOICE -> FlickSensitivity.STANDARD.thresholds()
     }
 
     private fun pointerMove(event: MotionEvent, index: Int) {

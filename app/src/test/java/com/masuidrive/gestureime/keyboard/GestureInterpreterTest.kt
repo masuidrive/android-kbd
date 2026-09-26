@@ -14,6 +14,26 @@ class GestureInterpreterTest {
         assertEquals(GestureUpdate.Selection(Direction.CENTER), subject.move(1, 10f, 0f))
     }
 
+    @Test fun `pointer thresholds select high standard and low distances without changing trackpad units`() {
+        val subject = GestureInterpreter()
+        listOf(
+            FlickSensitivity.HIGH to 12f,
+            FlickSensitivity.STANDARD to 18f,
+            FlickSensitivity.LOW to 26f,
+        ).forEachIndexed { pointerId, (sensitivity, distance) ->
+            subject.start(pointerId, 0f, 0f, pointerThresholds = sensitivity.thresholds())
+            assertNull("$sensitivity before selection", subject.move(pointerId, distance - .01f, 0f))
+            assertEquals(
+                "$sensitivity selection",
+                GestureUpdate.Selection(Direction.RIGHT),
+                subject.move(pointerId, distance, 0f),
+            )
+        }
+
+        subject.start(10, 0f, 0f, trackpad = true, pointerThresholds = FlickSensitivity.LOW.thresholds())
+        assertEquals(GestureUpdate.CursorDelta(Direction.RIGHT, 1), subject.move(10, 10f, 0f))
+    }
+
     @Test fun `direction follows current location after selection`() {
         val subject = GestureInterpreter()
         subject.start(7, 10f, 10f)

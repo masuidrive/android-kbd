@@ -14,6 +14,23 @@ data class GestureThresholds(
     val verticalUnitDp: Float = 24f,
 )
 
+enum class FlickSensitivity(
+    val axisLockDp: Float,
+    val selectionDp: Float,
+    val returnHysteresisDp: Float,
+) {
+    HIGH(axisLockDp = 8f, selectionDp = 12f, returnHysteresisDp = 7f),
+    STANDARD(axisLockDp = 12f, selectionDp = 18f, returnHysteresisDp = 10f),
+    LOW(axisLockDp = 16f, selectionDp = 26f, returnHysteresisDp = 14f),
+    ;
+
+    fun thresholds(): GestureThresholds = GestureThresholds(
+        axisLockDp = axisLockDp,
+        selectionDp = selectionDp,
+        returnHysteresisDp = returnHysteresisDp,
+    )
+}
+
 enum class GestureAxis { HORIZONTAL, VERTICAL }
 
 sealed interface GestureUpdate {
@@ -27,6 +44,7 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
         val startY: Float,
         val trackpad: Boolean,
         val verticalOnly: Boolean,
+        val thresholds: GestureThresholds,
         var direction: Direction = Direction.CENTER,
         var axis: GestureAxis? = null,
         var reportedHorizontalSelection: Boolean = false,
@@ -35,8 +53,15 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
 
     private val pointers = mutableMapOf<Int, PointerState>()
 
-    fun start(pointerId: Int, xDp: Float, yDp: Float, trackpad: Boolean = false, verticalOnly: Boolean = false) {
-        pointers[pointerId] = PointerState(xDp, yDp, trackpad, verticalOnly)
+    fun start(
+        pointerId: Int,
+        xDp: Float,
+        yDp: Float,
+        trackpad: Boolean = false,
+        verticalOnly: Boolean = false,
+        pointerThresholds: GestureThresholds = thresholds,
+    ) {
+        pointers[pointerId] = PointerState(xDp, yDp, trackpad, verticalOnly, pointerThresholds)
     }
 
     fun move(pointerId: Int, xDp: Float, yDp: Float): GestureUpdate? {
@@ -47,7 +72,7 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
 
         val distance = hypot(dx, dy)
         if (state.verticalOnly) {
-            if (distance <= thresholds.returnHysteresisDp) {
+            if (distance <= state.thresholds.returnHysteresisDp) {
                 state.axis = null
                 state.reportedHorizontalSelection = false
                 if (state.direction != Direction.CENTER) {
@@ -55,23 +80,23 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
                     return GestureUpdate.Selection(Direction.CENTER)
                 }
             }
-            if (state.axis == null && distance >= thresholds.axisLockDp) {
+            if (state.axis == null && distance >= state.thresholds.axisLockDp) {
                 state.axis = if (abs(dx) >= abs(dy)) GestureAxis.HORIZONTAL else GestureAxis.VERTICAL
             }
             if (state.axis == GestureAxis.HORIZONTAL) {
-                if (distance < thresholds.selectionDp || state.reportedHorizontalSelection) return null
+                if (distance < state.thresholds.selectionDp || state.reportedHorizontalSelection) return null
                 state.reportedHorizontalSelection = true
                 return GestureUpdate.Selection(if (dx < 0) Direction.LEFT else Direction.RIGHT)
             }
-            if (abs(dy) < thresholds.selectionDp) return null
+            if (abs(dy) < state.thresholds.selectionDp) return null
             val next = if (dy < 0) Direction.UP else Direction.DOWN
             if (next == state.direction) return null
             state.direction = next
             return GestureUpdate.Selection(next)
         }
         val next = when {
-            state.direction != Direction.CENTER && distance <= thresholds.returnHysteresisDp -> Direction.CENTER
-            distance < thresholds.selectionDp -> state.direction
+            state.direction != Direction.CENTER && distance <= state.thresholds.returnHysteresisDp -> Direction.CENTER
+            distance < state.thresholds.selectionDp -> state.direction
             abs(dx) >= abs(dy) -> if (dx < 0) Direction.LEFT else Direction.RIGHT
             else -> if (dy < 0) Direction.UP else Direction.DOWN
         }
@@ -82,11 +107,11 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
 
     private fun moveTrackpad(state: PointerState, dx: Float, dy: Float): GestureUpdate? {
         if (state.axis == null) {
-            if (hypot(dx, dy) < thresholds.trackpadStartDp) return null
+            if (hypot(dx, dy) < state.thresholds.trackpadStartDp) return null
             state.axis = if (abs(dx) >= abs(dy)) GestureAxis.HORIZONTAL else GestureAxis.VERTICAL
         }
         val distance = if (state.axis == GestureAxis.HORIZONTAL) dx else dy
-        val unit = if (state.axis == GestureAxis.HORIZONTAL) thresholds.horizontalUnitDp else thresholds.verticalUnitDp
+        val unit = if (state.axis == GestureAxis.HORIZONTAL) state.thresholds.horizontalUnitDp else state.thresholds.verticalUnitDp
         val totalUnits = (floor(abs(distance) / unit) * sign(distance)).toInt()
         val delta = totalUnits - state.emittedUnits
         if (delta == 0) return null

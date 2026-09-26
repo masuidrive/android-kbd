@@ -99,6 +99,7 @@ class SetupActivitySlashCommandsTest {
         context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
         val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
         val choices = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<RadioButton>()
+            .filter { it.tag is com.masuidrive.gestureime.keyboard.KeyboardHeightPreset }
         val minimum = (48 * activity.resources.displayMetrics.density).toInt()
 
         assertEquals(listOf("小", "標準", "大"), choices.map { it.text.toString() })
@@ -109,8 +110,42 @@ class SetupActivitySlashCommandsTest {
         assertEquals(com.masuidrive.gestureime.keyboard.KeyboardHeightPreset.LARGE, ImePreferences.getKeyboardHeightPreset(activity))
         activity.recreate()
         val recreated = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<RadioButton>()
+            .filter { it.tag is com.masuidrive.gestureime.keyboard.KeyboardHeightPreset }
         assertEquals("大", recreated.single { it.isChecked }.text.toString())
         ImePreferences.setKeyboardHeightPreset(activity, com.masuidrive.gestureime.keyboard.KeyboardHeightPreset.STANDARD)
+    }
+
+    @Test
+    fun flickSensitivityChoicesPersistIndependentlyWithStandardDefaults() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        val descendants = activity.findViewById<View>(android.R.id.content).descendants()
+        val labels = descendants.filterIsInstance<TextView>().map { it.text.toString() }
+        val choices = descendants.filterIsInstance<RadioButton>()
+            .filter { it.tag is com.masuidrive.gestureime.keyboard.FlickSensitivity }
+
+        assertTrue(labels.contains("かな・テンキーのフリック感度"))
+        assertTrue(labels.contains("QWERTY・記号のフリック感度"))
+        assertEquals(listOf("高い", "標準", "低い", "高い", "標準", "低い"), choices.map { it.text.toString() })
+        assertEquals(2, choices.count { it.isChecked && it.text.toString() == "標準" })
+
+        choices[0].performClick()
+        choices[5].performClick()
+        assertEquals(
+            com.masuidrive.gestureime.keyboard.FlickSensitivity.HIGH,
+            ImePreferences.getKanaNumberFlickSensitivity(activity),
+        )
+        assertEquals(
+            com.masuidrive.gestureime.keyboard.FlickSensitivity.LOW,
+            ImePreferences.getQwertySymbolFlickSensitivity(activity),
+        )
+
+        activity.recreate()
+        val recreated = activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<RadioButton>()
+            .filter { it.tag is com.masuidrive.gestureime.keyboard.FlickSensitivity }
+        assertTrue(recreated[0].isChecked)
+        assertTrue(recreated[5].isChecked)
     }
 
     private fun View.descendants(): List<View> {

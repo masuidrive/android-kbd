@@ -929,6 +929,48 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.CommitText(".")), actions)
     }
 
+    @Test fun `production motion events apply independent flick sensitivities and preserve center cursor behavior`() {
+        val density = view.resources.displayMetrics.density
+
+        fun keyBoundsFor(mode: KeyboardMode, keyId: String): Rect {
+            view.setMode(mode)
+            view.measure(exact(400), exact(228)); view.layout(0, 0, 400, 228)
+            val id = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }.indexOfFirst { it.id == keyId }
+            check(id >= 0) { "missing $keyId in $mode" }
+            return keyBounds(id)
+        }
+        fun gesture(mode: KeyboardMode, keyId: String, dxDp: Float, dyDp: Float, end: Int = MotionEvent.ACTION_UP): List<KeyAction> {
+            actions.clear()
+            val key = keyBoundsFor(mode, keyId)
+            val x = key.exactCenterX(); val y = key.exactCenterY()
+            touch(MotionEvent.ACTION_DOWN, x, y)
+            touch(MotionEvent.ACTION_MOVE, x + dxDp * density, y + dyDp * density, 1)
+            touch(end, x + dxDp * density, y + dyDp * density, 2)
+            return actions.toList()
+        }
+
+        view.setFlickSensitivities(FlickSensitivity.HIGH, FlickSensitivity.LOW)
+        assertEquals(listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f))
+        assertEquals(listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
+        assertEquals(listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -13f))
+
+        view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
+        assertEquals(listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))
+        assertEquals(listOf(KeyAction.CommitText("1")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
+        assertTrue(gesture(KeyboardMode.KANA, "kana-あ", 0f, -13f, MotionEvent.ACTION_CANCEL).isEmpty())
+
+        view.setMode(KeyboardMode.QWERTY)
+        view.measure(exact(400), exact(228)); view.layout(0, 0, 400, 228)
+        val spaceId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+            .indexOfFirst { it.kind == KeyKind.SPACE }
+        val space = keyBounds(spaceId)
+        actions.clear()
+        touch(MotionEvent.ACTION_DOWN, space.exactCenterX(), space.exactCenterY())
+        touch(MotionEvent.ACTION_MOVE, space.exactCenterX() + 10f * density, space.exactCenterY(), 1)
+        touch(MotionEvent.ACTION_UP, space.exactCenterX() + 10f * density, space.exactCenterY(), 2)
+        assertEquals(listOf(KeyAction.MoveCursor(Direction.RIGHT)), actions)
+    }
+
     @Test @LooperMode(LooperMode.Mode.PAUSED) fun `qwerty accent keys cancel their timer only after an unassigned horizontal selection`() {
         val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
         val aId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }

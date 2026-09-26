@@ -24,6 +24,7 @@ import android.widget.TextView
 import android.widget.Switch
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import com.masuidrive.gestureime.keyboard.FlickSensitivity
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 
 class SetupActivity : AppCompatActivity() {
@@ -121,6 +122,18 @@ class SetupActivity : AppCompatActivity() {
                     if (preset != null) ImePreferences.setKeyboardHeightPreset(context, preset)
                 }
             }, matchWidth())
+            inputCard.addFlickSensitivitySetting(
+                title = getString(R.string.kana_number_flick_sensitivity),
+                saved = ImePreferences.getKanaNumberFlickSensitivity(context),
+                onSelected = { ImePreferences.setKanaNumberFlickSensitivity(context, it) },
+                controlHeight = controlHeight,
+            )
+            inputCard.addFlickSensitivitySetting(
+                title = getString(R.string.qwerty_symbol_flick_sensitivity),
+                saved = ImePreferences.getQwertySymbolFlickSensitivity(context),
+                onSelected = { ImePreferences.setQwertySymbolFlickSensitivity(context, it) },
+                controlHeight = controlHeight,
+            )
             setSectionTitle(getString(R.string.slash_commands), padding)
             val slashCard = addCard(cardPadding)
             val slashInputs = ImePreferences.getSlashCommands(context).mapIndexed { index, command ->
@@ -245,6 +258,42 @@ class SetupActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { bottomMargin = padding / 2 })
+    }
+
+    private fun LinearLayout.addFlickSensitivitySetting(
+        title: String,
+        saved: FlickSensitivity,
+        onSelected: (FlickSensitivity) -> Unit,
+        controlHeight: Int,
+    ) {
+        addView(TextView(context).apply {
+            text = title
+            textSize = 16f
+            setTextColor(getColor(R.color.setup_heading))
+            minimumHeight = controlHeight
+            gravity = Gravity.CENTER_VERTICAL
+        }, matchWidth())
+        addView(RadioGroup(context).apply {
+            orientation = RadioGroup.VERTICAL
+            FlickSensitivity.entries.forEach { sensitivity ->
+                addView(RadioButton(context).apply {
+                    id = View.generateViewId()
+                    text = flickSensitivityLabel(sensitivity)
+                    tag = sensitivity
+                    minimumHeight = controlHeight
+                    isChecked = sensitivity == saved
+                }, matchWidth())
+            }
+            setOnCheckedChangeListener { group, checkedId ->
+                (group.findViewById<RadioButton>(checkedId)?.tag as? FlickSensitivity)?.let(onSelected)
+            }
+        }, matchWidth())
+    }
+
+    private fun flickSensitivityLabel(sensitivity: FlickSensitivity): String = when (sensitivity) {
+        FlickSensitivity.HIGH -> getString(R.string.flick_sensitivity_high)
+        FlickSensitivity.STANDARD -> getString(R.string.flick_sensitivity_standard)
+        FlickSensitivity.LOW -> getString(R.string.flick_sensitivity_low)
     }
 
     private fun View.tintButtonSurfaces() {
