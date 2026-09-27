@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-human-review (number period correction verified locally; not published)
+## Status: PDH-human-review (v0.15.27 APK and product site published; close approval pending)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -35,8 +35,8 @@
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
 - [x] ユーザ追加依頼: テンキー`.`の上を`#`、下を`%`にし、native・mock・補助ラベル・仕様を揃える
 - [x] ユーザ追加質問: キー割当がテーブル形式で変更できる構造かを実装の実態に即して回答する
-- [ ] ユーザ追加依頼: テンキー`.`上下変更をGitHubへpushし、直接APKとして新バージョンを公開する
-- [ ] ユーザ追加依頼: 製品ページ・マニュアル・操作モックを同期して公開し、公開面を検証する
+- [x] ユーザ追加依頼: テンキー`.`上下変更をGitHubへpushし、直接APKとして新バージョンを公開する
+- [x] ユーザ追加依頼: 製品ページ・マニュアル・操作モックを同期して公開し、公開面を検証する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -242,3 +242,13 @@
 - ローカル`./scripts/dev-server.sh --port 29841`の実ブラウザでテンキー`.`の4方向ラベルとaria-label `. , # = %`を確認し、上へ実マウスドラッグで`#`、下へ実マウスドラッグで`%`が入力された。412px/mobileと840px/tabletの画面は`/private/tmp/md-kbd-number-period-mobile-20260927.png`と`/private/tmp/md-kbd-number-period-20260927.png`。`site/mock.html`と`docs/reference/mock-source.html`はbyte一致。公開サイト・配布APKは今回まだ更新していない。
 - 重複検出: `similarity-generic --language kotlin -t 0.7`を変更Kotlinファイルごとに試したが、ツールがKotlinを未サポートとして終了した。既存の定義に値を追加し、新しいヘルパーを導入しなかった。`site/mock.html`と`docs/reference/mock-source.html`の一致は製品規則による意図的な重複。
 - 自己レビュー: `numberPeriod()`以外の記号割当、Space、音声、IME service、Mozc JNIには変更なし。既存の未割当方向テストはテンキー`0`へ移し、タップfallbackを維持した。既存の補助ラベル描画とアクセシビリティ動的説明は新しい`KeySpec`値を読むため個別の描画コード変更は不要。独立worker reviewと物理端末での指操作は未実施。
+
+## v0.15.27 push・公開（2026-09-27）
+
+- 公開コードSHA `2571a4bd69b87f826f5c11212070f1bd10b2e63f`をfeature branchとtag `v0.15.27`へpush。`app/build.gradle.kts`はversionCode 43/versionName 0.15.27。GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.27`へZIPなしの直接APK `gesture-ime-v0.15.27.apk`を公開した。
+- 同SHAで`bash scripts/test-all.sh --parallel --connected`初回はfast-checksのみPASS。並列Gradle実行が同じKotlin cacheとAPK build出力へ同時アクセスし、connectedは破損した一時AndroidManifestでinstall不可・0件実行、unitは`ImeHideBarTest.pickerBodyShowsOnlyFourFullTouchRowsAndHeaderKeepsTen48dpCategories`と`ImeHideBarTest.emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway`の2件がAndroidX header初期化で失敗した。これら2件はretry-passで、初回green扱いしない。
+- コード変更せず同SHAで`bash scripts/test-all.sh --connected`を順次実行。suite summaryは`PASS: fast-checks` / `PASS: android unit, lint, apk` / `PASS: android connected (real Mozc)`、`Passed: 3 / 3`。生成XMLはunit 293件・connected 27件、いずれもfailures/errors/skipped 0。並列初回失敗と順次再実行成功を区別する。
+- ローカルAPK `/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/gesture-ime-v0.15.27.apk`は38,653,322 bytes、SHA-256 `0627a09efd6e96f18d2fecc60ac5d173f6fde7700427b06cbbe53e522fd9ba77`。`/private/tmp/md-kbd-v01527-verify/gesture-ime-v0.15.27.apk`へRelease assetを再ダウンロードしbyte一致。package `com.masuidrive.gestureime`、minSdk 28/targetSdk 36、arm64-v8a、Android debug署名。権限は`RECORD_AUDIO`と生成`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`のみで`INTERNET`なし。
+- 製品サイトrepo `masuidrive/masuidrive.jp`のmain commit `21bd0e729289987cdabe5896f0ca46cc803368b3`をpush。公開前に`site/`とpublishing repoのindex/mock/manual/styles 4ファイルをbyte比較し、GitHub Pages APIは同commitを`built`と報告した。公開4ファイルを`https://masuidrive.jp/products/md-kbd/`から取得して同commitとbyte一致。
+- 公開実ブラウザの製品ページ+埋込mockで412pxと840pxを操作。テンキー`.`の上を実ポインターでフリックして`#`、下で`%`を各幅で入力し、画面には`#%`と`#%#%`が残った。両幅とも親ページ・iframe横overflow=0、欠損画像=0、JavaScript error=0。証拠画面 `/private/tmp/md-kbd-v01527-public-412.png`、`/private/tmp/md-kbd-v01527-public-840.png`。これはブラウザmockの証拠であり、実機Android指操作の証拠ではない。
+- PDH-human-reviewのclose承認は未取得。今回の「push deploy」はリリースの明示指示として扱い、ticket close/mergeの承認へ拡張しない。
