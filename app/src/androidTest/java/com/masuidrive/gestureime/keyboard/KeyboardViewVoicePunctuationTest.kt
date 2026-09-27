@@ -399,9 +399,9 @@ class KeyboardViewVoicePunctuationTest {
                     val gestures: List<Pair<String, Triple<Float, Float, KeyAction?>>> = listOf(
                         "tap" to Triple(0f, 0f, KeyAction.CommitText(".")),
                         "left" to Triple(-distance, 0f, KeyAction.CommitText(",")),
-                        "up" to Triple(0f, -distance, KeyAction.CommitText(".")),
+                        "up" to Triple(0f, -distance, KeyAction.CommitText("#")),
                         "right" to Triple(distance, 0f, KeyAction.CommitText("=")),
-                        "down" to Triple(0f, distance, KeyAction.CommitText(".")),
+                        "down" to Triple(0f, distance, KeyAction.CommitText("%")),
                     )
                     gestures.forEachIndexed { index, (name, gesture) ->
                         val (dx, dy, expected) = gesture
@@ -839,7 +839,7 @@ class KeyboardViewVoicePunctuationTest {
                     assertEquals("$widthDp dp kana old high boundary now taps", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -10f))
                     assertEquals("$widthDp dp kana high boundary", listOf(KeyAction.KanaInput("う")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -16.5f))
                     assertEquals("$widthDp dp qwerty remains low", listOf(KeyAction.CommitText("q")), gesture(KeyboardMode.QWERTY, "key-q", 0f, 20f))
-                    assertEquals("$widthDp dp number unassigned", listOf(KeyAction.CommitText(".")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -33f))
+                    assertEquals("$widthDp dp number period up", listOf(KeyAction.CommitText("#")), gesture(KeyboardMode.NUMBERS, "number-period", 0f, -33f))
 
                     view.setFlickSensitivities(FlickSensitivity.LOW, FlickSensitivity.HIGH)
                     assertEquals("$widthDp dp kana remains low", listOf(KeyAction.KanaInput("あ")), gesture(KeyboardMode.KANA, "kana-あ", 0f, -20f))

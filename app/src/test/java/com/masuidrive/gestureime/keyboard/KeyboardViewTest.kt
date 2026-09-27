@@ -889,8 +889,10 @@ class KeyboardViewTest {
         assertEquals(1, minusHints.count { it.text == "," })
         val periodHints = hintsIn(period)
         assertTrue(periodHints.any { it.text == "," && it.x < period.exactCenterX() })
+        assertTrue(periodHints.any { it.text == "#" && it.y < period.exactCenterY() })
         assertTrue(periodHints.any { it.text == "=" && it.x > period.exactCenterX() })
-        assertEquals(listOf(",", ".", "="), periodHints.map { it.text }.filter { it in setOf(",", ".", "=") }.sorted())
+        assertTrue(periodHints.any { it.text == "%" && it.y > period.exactCenterY() })
+        assertEquals(listOf("#", "%", ",", ".", "="), periodHints.map { it.text }.filter { it in setOf("#", "%", ",", ".", "=") }.sorted())
 
         touch(MotionEvent.ACTION_DOWN, minus.exactCenterX(), minus.exactCenterY(), 0)
         touch(MotionEvent.ACTION_MOVE, minus.exactCenterX(), minus.exactCenterY() - 24f, 10)
@@ -915,18 +917,18 @@ class KeyboardViewTest {
 
     @Test fun `unassigned production move keeps the center selection and center tap haptic`() {
         view.setMode(KeyboardMode.NUMBERS)
-        val periodId = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
-            .indexOfFirst { it.id == "number-period" }
-        val period = keyBounds(periodId)
-        touch(MotionEvent.ACTION_DOWN, period.exactCenterX(), period.exactCenterY(), 0)
+        val zeroId = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
+            .indexOfFirst { it.id == "key-0" }
+        val zero = keyBounds(zeroId)
+        touch(MotionEvent.ACTION_DOWN, zero.exactCenterX(), zero.exactCenterY(), 0)
         assertEquals(android.view.HapticFeedbackConstants.KEYBOARD_TAP, shadowOf(view).lastHapticFeedbackPerformed())
-        touch(MotionEvent.ACTION_MOVE, period.exactCenterX(), period.exactCenterY() - 24f, 10)
+        touch(MotionEvent.ACTION_MOVE, zero.exactCenterX(), zero.exactCenterY() - 24f, 10)
         val directions = KeyboardView::class.java.getDeclaredField("directions").also { it.isAccessible = true }
             .get(view) as Map<*, *>
         assertEquals(Direction.CENTER, directions[0])
         assertEquals(android.view.HapticFeedbackConstants.KEYBOARD_TAP, shadowOf(view).lastHapticFeedbackPerformed())
-        touch(MotionEvent.ACTION_UP, period.exactCenterX(), period.exactCenterY() - 24f, 20)
-        assertEquals(listOf(KeyAction.CommitText(".")), actions)
+        touch(MotionEvent.ACTION_UP, zero.exactCenterX(), zero.exactCenterY() - 24f, 20)
+        assertEquals(listOf(KeyAction.CommitText("0")), actions)
     }
 
     @Test fun `production motion events apply independent flick sensitivities and preserve center cursor behavior`() {

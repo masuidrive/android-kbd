@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-human-review (v0.15.26 longer flick distance released)
+## Status: PDH-implement (2026-09-27 number period mapping correction)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -33,6 +33,8 @@
 - [x] ユーザ依頼: 未割当方向のフリックは見た目と追加振動を動かさず、通常タップとして入力する
 - [x] ユーザ依頼: テンキーの`-`・`.`キーへ割当済み方向の補助ラベルをEnterと同じ配置・選択表現で入れる
 - [x] ユーザ依頼: 修正版APKと製品サイトをレビュー後に公開する
+- [x] ユーザ追加依頼: テンキー`.`の上を`#`、下を`%`にし、native・mock・補助ラベル・仕様を揃える
+- [x] ユーザ追加質問: キー割当がテーブル形式で変更できる構造かを実装の実態に即して回答する
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -44,6 +46,8 @@
 - ユーザの二つの発話で未割当方向のtap fallback、移動時の表示と追加振動の抑止、テンキー`-`・`.`の方向ラベルが明示された。既存割当の変更は求められていない。
 - 追加発話「公開までして」でリリース作業も承認された。ACは操作の観察可能な契約で、公開手順はChecklistで追跡する。Product BriefのAI-1〜AI-4に抵触せず、未決のプロダクト判断はない。
 - 2026-09-26追加依頼で「テンキー方式とQWERTYでフリック感度を設定」、続く「公開までして」が明示された。既存の感度値18/10/12dp、設定保存経路、IME再表示経路を測定した。新しい二組の3段階設定は本ticketのAC4〜7として追跡する。影響レイヤーはAndroid app設定・IME service・custom view UI・unit/instrumentation tests・browser mock・docs。Mozc JNIは変更しない。
+- 2026-09-27にユーザがテンキー`.`の上`#`・下`%`を明示指定したためAC2と確定判断を更新した。既存の`KeyboardLayouts.numberPeriod()`とmock `tenkeyRows`は別々の定義で、補助ラベル描画はKeySpecから読む。影響レイヤーはcustom view UI・gesture routing・unit/instrumentation tests・browser mock・docs。IME service・Mozc JNI・変換は非変更。
+- 2026-09-27補足: 単一の共有テーブルではない。Androidの`KeyboardLayouts.numberPeriod()`は`KeySpec`のcenter/left/up/right/downのデータ、mockの`tenkeyRows`は同順の配列で宣言する。両方ともその定義から入力と補助ラベルを生成する。二重管理のため両定義と仕様を一緒に更新する必要がある。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。

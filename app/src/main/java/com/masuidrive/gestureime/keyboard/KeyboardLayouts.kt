@@ -93,7 +93,7 @@ object KeyboardLayouts {
     )
     private fun numberPeriod() = KeySpec(
         "number-period", KeyKind.CHARACTER,
-        center = value("."), left = value(","), right = value("="),
+        center = value("."), left = value(","), up = value("#"), right = value("="), down = value("%"),
     )
     private fun value(label: String) = FlickValue(label, KeyAction.CommitText(label))
 

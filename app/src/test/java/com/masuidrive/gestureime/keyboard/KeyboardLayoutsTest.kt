@@ -182,14 +182,14 @@ class KeyboardLayoutsTest {
         assertEquals(listOf("-", "+", "/", "*", ","), Direction.entries.map { minus.value(it)?.label })
     }
 
-    @Test fun `number period exposes comma left and equals right with vertical directions unassigned`() {
+    @Test fun `number period exposes four ASCII flick symbols`() {
         val period = keys(KeyboardMode.NUMBERS).single { it.id == "number-period" }
 
         assertEquals(KeyAction.CommitText("."), period.center?.action)
         assertEquals(KeyAction.CommitText(","), period.left?.action)
-        assertNull(period.up)
+        assertEquals(KeyAction.CommitText("#"), period.up?.action)
         assertEquals(KeyAction.CommitText("="), period.right?.action)
-        assertNull(period.down)
+        assertEquals(KeyAction.CommitText("%"), period.down?.action)
     }
 
     @Test fun `every character surface uses the composite question brace key to open symbols`() {
