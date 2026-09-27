@@ -1,6 +1,6 @@
 # Work Notes: 260925-094954-unassigned-flick-tap-and-number-key-hints
 
-## Status: PDH-implement (2026-09-27 number period mapping correction)
+## Status: PDH-human-review (number period correction verified locally; not published)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -230,3 +230,13 @@
 - v0.15.26 APKをGitHub ReleaseへZIPにせず直接公開した。Release URLは`https://github.com/masuidrive/android-kbd/releases/tag/v0.15.26`、APK URLは`https://github.com/masuidrive/android-kbd/releases/download/v0.15.26/gesture-ime-v0.15.26.apk`。ローカル絶対パス`/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/gesture-ime-v0.15.26.apk`。38,854,722 bytes、SHA-256 `9e6ae3414553cc6fd85fe492d3570350355794353fa00a98443548e1ab0a0d10`。公開APKを`/private/tmp/md-kbd-v01526-verify/gesture-ime-v0.15.26.apk`へ再取得しbyte一致。package `com.masuidrive.gestureime`、versionCode 42/versionName 0.15.26、arm64-v8a、minSdk 28/targetSdk 36、RECORD_AUDIOと生成DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION、INTERNETなし。
 - 製品サイトrepo `masuidrive/masuidrive.jp` のmain commit `e1e6496247d1102677ce91015254581b6e02bcd4`をPagesが`built`と報告。公開前に`site/`のindex/mock/manual/styles 4ファイルと公開repo内の対応ファイルをbyte照合し、公開後に同じ4ファイルを`https://masuidrive.jp/products/md-kbd/`から取得してbyte一致した。公開実Chromeでは412pxのかな20px上が高い=`う`・標準=`あ`、840pxのQWERTY28px上が標準=`A`・低い=`a`。両幅で製品ページと埋込mockの横overflow=0、欠損画像=0、JS error=0。画面は`/private/tmp/md-kbd-v01526-public-412-mobile.png`と`/private/tmp/md-kbd-v01526-public-840.png`。公開サイトはbrowser mockの証拠であり、native実機の証拠ではない。
 - 人間レビュー手順: 設定画面で「かな・テンキー」「QWERTY・記号」の各感度を変え、同じフリックを前版v0.15.25と比べる。高いは前版の標準程度、標準と低いはさらに長い指移動が必要。途中で離すとtapになる。物理Foldや実指の感触は自動検証外であり、レビュー結果と明示的なclose承認を待つ。
+
+## 2026-09-27 テンキー`.`の上下フリック
+
+- ユーザの明示指示に従い、`.`の上を`#`、下を`%`へ変更。既存のtap`.`・左`,`・右`=`は維持した。Androidの`KeySpec`とブラウザmockの`tenkeyRows`を更新し、方向ラベルは各定義から生成する。spec、native/mock参照文書、操作マニュアル、`technical-reference.md`を現在形へ揃え、過去版のrelease noteは履歴として保存した。
+- 変更前提確認: `KeyboardLayouts.numberPeriod()`はKotlinで5方向を列挙し、`site/mock.html`は同順配列で5方向を列挙する。native `KeyboardView.drawNumberFlickHints()`は`KeySpec.value(direction)?.label`を4方向で読む。mockは`flickHints`から4方向へラベルを生成する。実装前の未確認仮定はこの読み取りで解消した。
+- 実装SHA `040c6520b29905dd762d026d9e79a027c871dd39`。`KeyboardLayoutsTest`・`KeyboardViewTest` focused unit `BUILD SUCCESSFUL in 16s`。API36.1エミュレーター上のattached production `KeyboardViewVoicePunctuationTest#numberPeriodAndSymbolSwitchesUseProductionMotionEventsAtPhoneAndTabletWidths`は412dp/840dpでtap・左・上・右・下・中心復帰・取消を実MotionEventで通し、`BUILD SUCCESSFUL in 10s`。
+- 同SHAで`bash scripts/test-all.sh --parallel --connected`のsummaryは`PASS: fast-checks` / `PASS: android unit, lint, apk` / `PASS: android connected (real Mozc)`、`Passed: 3 / 3`。物理Fold実機は未観測。
+- ローカル`./scripts/dev-server.sh --port 29841`の実ブラウザでテンキー`.`の4方向ラベルとaria-label `. , # = %`を確認し、上へ実マウスドラッグで`#`、下へ実マウスドラッグで`%`が入力された。412px/mobileと840px/tabletの画面は`/private/tmp/md-kbd-number-period-mobile-20260927.png`と`/private/tmp/md-kbd-number-period-20260927.png`。`site/mock.html`と`docs/reference/mock-source.html`はbyte一致。公開サイト・配布APKは今回まだ更新していない。
+- 重複検出: `similarity-generic --language kotlin -t 0.7`を変更Kotlinファイルごとに試したが、ツールがKotlinを未サポートとして終了した。既存の定義に値を追加し、新しいヘルパーを導入しなかった。`site/mock.html`と`docs/reference/mock-source.html`の一致は製品規則による意図的な重複。
+- 自己レビュー: `numberPeriod()`以外の記号割当、Space、音声、IME service、Mozc JNIには変更なし。既存の未割当方向テストはテンキー`0`へ移し、タップfallbackを維持した。既存の補助ラベル描画とアクセシビリティ動的説明は新しい`KeySpec`値を読むため個別の描画コード変更は不要。独立worker reviewと物理端末での指操作は未実施。
