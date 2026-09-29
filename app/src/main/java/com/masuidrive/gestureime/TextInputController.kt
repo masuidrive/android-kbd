@@ -258,9 +258,6 @@ class TextInputController(
 
     fun sendModifiedKey(label: String, modifier: Modifier) {
         finishComposition()
-        if (isPrivateField && modifier == Modifier.CTRL && label.equals("v", ignoreCase = true)) return
-        val contextAction = if (modifier == Modifier.CTRL) CTRL_CONTEXT_ACTIONS[label.lowercase()] else null
-        if (contextAction != null && connection()?.performContextMenuAction(contextAction) == true) return
         val keyCode = KeyEvent.keyCodeFromString("KEYCODE_${label.uppercase()}")
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN) return
         val meta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
@@ -337,11 +334,4 @@ private val DAKUTEN_TRANSFORMS = mapOf(
 
 private val HANDAKUTEN_TRANSFORMS = mapOf(
     "は" to "ぱ", "ひ" to "ぴ", "ふ" to "ぷ", "へ" to "ぺ", "ほ" to "ぽ",
-)
-
-private val CTRL_CONTEXT_ACTIONS = mapOf(
-    "a" to android.R.id.selectAll,
-    "c" to android.R.id.copy,
-    "x" to android.R.id.cut,
-    "v" to android.R.id.paste,
 )

@@ -79,6 +79,24 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null)), actions)
     }
 
+    @Test fun `ctrl applies to only the next qwerty letter`() {
+        view.setMode(KeyboardMode.QWERTY)
+        val modifier = keyBounds(10)
+        performGesture(modifier, listOf(0f to 30f), time = 0)
+        performGesture(keyBounds(24), time = 10) // c
+        performGesture(keyBounds(12), time = 20) // s
+
+        assertEquals(
+            listOf(
+                KeyAction.SetModifier(Modifier.CTRL),
+                KeyAction.ModifiedKey("c", Modifier.CTRL),
+                KeyAction.SetModifier(null),
+                KeyAction.CommitText("s"),
+            ),
+            actions,
+        )
+    }
+
     @Test fun `qwerty period and backspace use their swapped production touch targets`() {
         val period = keyBounds(20)
         val backspace = keyBounds(30)
