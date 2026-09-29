@@ -1,6 +1,6 @@
 # Work Notes: 260929-065459-send-literal-modifier-key-events
 
-## Status: PDH-implement (In progress)
+## Status: PDH-human-review (Awaiting user review)
 
 ## Checklist
 - [x] Ctrl+C/A/X/V を編集メニューへ変換せず、Ctrl 修飾付きキーイベントとして送る。
@@ -14,18 +14,18 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み（並列で既存絵文字testが1件fail、同一SHA逐次は3/3 PASS。retry-passとして下記に記録）
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み - skip: 修飾キー入力は端末内のInputConnectionだけを使い、外部providerはない。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: 独立reviewのfindingは0件で修正attemptはない。
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（PDH配布物の更新は不要。製品仕様・マニュアル・technical-referenceを更新）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -37,7 +37,7 @@
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
 
 ## Required Probes
-- [ ] `TextInputController` の現在の送信分岐と `KeyboardView` の一回修飾状態を読み、対象のキーと例外を確定する。
+- [x] `TextInputController` の現在の送信分岐と `KeyboardView` の一回修飾状態を読み、対象のキーと例外を確定する。
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
      PDH-ticket-human-review の前に実行して結果を書く。
      実行できないもの（実装しないと分からないこと）は、AC に結果を書かず
@@ -50,6 +50,11 @@
 変更前の経路を確認。`TextInputControllerTest` の fake InputConnection は event の keyCode のみ保存するため、metaState と DOWN/UP を観察できるように拡張する。
 `TextInputController.sendModifiedKey` の Ctrl context action と private Ctrl+V 早期returnを削除。`TextInputControllerTest` で Ctrl/Alt の A/C/X/V/S 全件についてコード・metaState・DOWN/UP・context action不使用を検証し、private Ctrl+Vも検証。`KeyboardViewTest` は実 `MotionEvent` で modifier↓→C→S を送り、Cだけ修飾されSは通常文字となることを検証。ブラウザモックの Ctrl+A 独自選択も削除し、`virtualkey` イベントは維持。`site/mock.html` と保存版は byte 同一。マニュアルと仕様、technical-referenceを更新。
 Focused checks: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew testDebugUnitTest --tests com.masuidrive.gestureime.TextInputControllerTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` → `BUILD SUCCESSFUL in 15s`。最初のSDKパスなし実行は `SDK location not found` で失敗し、環境指定して成功。
+Commits: `7741de2` Android実装・unit・mock、`ee3c761` 仕様・manual・progress・note。検証対象 code SHA は `ee3c76159d4e029fb44f9c12f924612bc20a2ea4`。
+Full suite exact command: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk PATH=/Users/masuidrive/Library/Android/sdk/platform-tools:$PATH bash scripts/test-all.sh --parallel --connected` → `PASS: fast-checks`, `PASS: android connected (real Mozc)`, `FAIL: android unit, lint, apk`, `Passed: 2 / 3`。失敗は `ImeHideBarTest > emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway` 1件（294 tests completed, 1 failed）。同じ SHA を `bash scripts/test-all.sh --connected` で逐次再実行 → `PASS: fast-checks`, `PASS: android unit, lint, apk`, `PASS: android connected (real Mozc)`, `Passed: 3 / 3`。接続27件、失敗0。絵文字testは retry-pass としてhuman reviewへ提示する。
+実ブラウザのローカル合成済み製品ページ `http://127.0.0.1:18766/` でQWERTYのCtrl↓→Aをマウスpointer経路で操作。`virtualkey` は `{key:"a",ctrlKey:true,altKey:false}` を通知し、入力欄の選択範囲は `(1,1)` のまま。Ctrl+Aの選択変換は発生しなかった。browser listenerを二重登録した観測では同じ通知が2件に見えたため、件数の根拠には使わずdetailと選択範囲だけを採用する。
+Surface Observer は `emulator-5554` に code SHA `ee3c761` からビルドしたAPKを入れ、`com.masuidrive.gestureime/.ImeService` を選択。一時的な別APKの `RecordingEditText`（ソース `/private/tmp/modifier-event-observer/app/src/main/java/com/example/keyobserver/MainActivity.java`）を入力先にし、画面上のproduction IMEキーをadbのswipe/tapで操作した。入力先では Ctrl+C/A/S が各 `KEYCODE_C/A/S` DOWN/UP `meta=4096 ctrl=true alt=false`、Alt+A/C/S が各 `KEYCODE_A/C/S` DOWN/UP `meta=2 ctrl=false alt=true` として記録された。Ctrl+Cの次にSをタップするとKeyEventログは増えず、入力欄へ通常文字`s`が入った。password targetでは`EditorInfo inputType=0x81`でCtrl+Vの`KEYCODE_V` DOWN/UP `meta=4096`を受信。IME側の編集メニュー操作は記録されなかった。証拠画像は `evidence/all-events.png`、`evidence/private-ctrl-v.png`。エミュレータ実証であり、物理Foldや全26英字の個別実証ではない。
+AC Verifier はこのnative surface証拠を確認してAC 1〜3をすべてVERIFIEDと再判定。Ctrl+Xは実アプリで個別操作していないが、同一production送信経路とexact-key unit testで確認した。特定アプリごとのショートカット解釈までは契約外。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
@@ -68,6 +73,7 @@ Focused checks: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew te
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 |   |      |     |      |      |      |
+独立review（`pdh-reviewer`）は exact SHA `ee3c761` のdiffを読み Critical/Major/Minor いずれも0件で PASS。端末上の実ターゲットアプリが受け取るところまでは未観測と明記した。
 
 ## Technical reference 更新
 設計判断34に修飾付きKeyEventのDOWN/UP、Ctrlメニュー変換の廃止、private Ctrl+V、Paste独立キーとの区別を記載。

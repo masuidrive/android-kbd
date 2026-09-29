@@ -399,3 +399,5 @@
 [2026/09/27 12:58] v0.15.27 APKをGitHub Releaseへ直接公開し、再取得した38,653,322 byteの成果物がSHA-256とbyteで一致。製品サイトのPages commit 21bd0e7がbuiltとなり、公開4ファイル一致と412px・840pxで上下フリック入力を確認した。
 [2026/09/29 15:55] Ctrl/Alt と英字キーを編集メニュー操作に変換せずキーイベントとして送る修正を開始。現状は Ctrl+A/C/X/V のみ変換、Ctrl+S と Alt 系は送信済みと確認した。
 [2026/09/29 16:01] Ctrl/Altの文字入力を修飾付きDOWN/UPキーイベントに統一し、Ctrl+Aのモック独自選択も除去。RobolectricでCtrl/AltのA/C/X/V/S、private欄のCtrl+V、一回修飾の実MotionEvent経路を確認した。
+[2026/09/29 16:17] 同一SHAの並列全体テストは絵文字再入場unit 1件のみ失敗、逐次再実行では3/3 PASS。fake InputConnection止まりとのAC裏取り指摘を受け、エミュレータ上で一時的な受信記録欄を使う実経路確認へ進めた。
+[2026/09/29 16:20] エミュレータの実IMEから別の受信アプリへCtrl+C/A/S・Alt+A/C/SのDOWN/UPと修飾フラグが届くことを確認。Ctrl+C後の通常Sと機密欄Ctrl+Vも確認し、証拠画像をチケットへ保存した。
