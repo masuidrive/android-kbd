@@ -1,19 +1,19 @@
 # Work Notes: 260929-065459-send-literal-modifier-key-events
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (In progress)
 
 ## Checklist
-- [ ] Ctrl+C/A/X/V を編集メニューへ変換せず、Ctrl 修飾付きキーイベントとして送る。
-- [ ] Ctrl+S と Alt 系も同じキーイベント経路であることを確認する。
-- [ ] 一回だけの修飾状態と機密欄での Ctrl+V を確認する。
+- [x] Ctrl+C/A/X/V を編集メニューへ変換せず、Ctrl 修飾付きキーイベントとして送る。
+- [x] Ctrl+S と Alt 系も同じキーイベント経路であることを確認する。
+- [x] 一回だけの修飾状態と機密欄での Ctrl+V を確認する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -30,6 +30,7 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+2026-09-29: ユーザが「Ctrl+C のコピー変換は不要、キーコードを送る。Alt も全部そう。他の Ctrl+A や S は？」と明示。AC 1〜3 はその依頼を観察可能な操作へ分解した。影響レイヤーは Android app、IME service（既存経路の確認のみ）、unit tests、docs。Mozc JNI・UI・browser mock は挙動変更なし。未決のプロダクト判断なし。依存は現在ブランチの `TextInputController` と一回修飾実装だけで、別チケットの完了を要しない。consumer surface は Android の InputConnection キーイベント。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -43,9 +44,12 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた。`TextInputController.sendModifiedKey` は Ctrl+A/C/X/V を `performContextMenuAction` 優先、Ctrl+V は private 欄で抑制、それ以外を `sendKeyEvent` DOWN/UP で送る。`KeyboardView.dispatch` は次の一文字の後に `updateModifier(null)` を呼ぶ。
 
 ## PDH-implement. 実装ログ
+変更前の経路を確認。`TextInputControllerTest` の fake InputConnection は event の keyCode のみ保存するため、metaState と DOWN/UP を観察できるように拡張する。
+`TextInputController.sendModifiedKey` の Ctrl context action と private Ctrl+V 早期returnを削除。`TextInputControllerTest` で Ctrl/Alt の A/C/X/V/S 全件についてコード・metaState・DOWN/UP・context action不使用を検証し、private Ctrl+Vも検証。`KeyboardViewTest` は実 `MotionEvent` で modifier↓→C→S を送り、Cだけ修飾されSは通常文字となることを検証。ブラウザモックの Ctrl+A 独自選択も削除し、`virtualkey` イベントは維持。`site/mock.html` と保存版は byte 同一。マニュアルと仕様、technical-referenceを更新。
+Focused checks: `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk ./gradlew testDebugUnitTest --tests com.masuidrive.gestureime.TextInputControllerTest --tests com.masuidrive.gestureime.keyboard.KeyboardViewTest` → `BUILD SUCCESSFUL in 15s`。最初のSDKパスなし実行は `SDK location not found` で失敗し、環境指定して成功。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
@@ -66,6 +70,7 @@
 |   |      |     |      |      |      |
 
 ## Technical reference 更新
+設計判断34に修飾付きKeyEventのDOWN/UP、Ctrlメニュー変換の廃止、private Ctrl+V、Paste独立キーとの区別を記載。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
