@@ -3,6 +3,8 @@
 ## Status: PDH-human-review (Awaiting user review)
 
 ## Checklist
+- [ ] 公開依頼に従い、直接ダウンロードできるAPKをビルド・検証・GitHub Releaseへ公開する。
+- [ ] 製品ページ・マニュアル・操作モックを同期公開し、公開ファイルと操作を確認する。
 - [x] Ctrl+C/A/X/V を編集メニューへ変換せず、Ctrl 修飾付きキーイベントとして送る。
 - [x] Ctrl+S と Alt 系も同じキーイベント経路であることを確認する。
 - [x] 一回だけの修飾状態と機密欄での Ctrl+V を確認する。
@@ -26,7 +28,7 @@
 - [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（PDH配布物の更新は不要。製品仕様・マニュアル・technical-referenceを更新）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -81,6 +83,8 @@ AC Verifier はこのnative surface証拠を確認してAC 1〜3をすべてVERI
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
+2026-09-29: 差分、実IMEのキーイベント観測、並列実行のretry-pass、進捗と証拠画像の場所をユーザへ提示し、ticket close承認を依頼した。
+2026-10-04: ユーザがその提示に対して「公開して」と指示した。v0.15.28としてAPK・サイトを公開し、公開後にticket closeを実施する承認と扱う。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
