@@ -3,8 +3,8 @@
 ## Status: PDH-human-review (Awaiting user review)
 
 ## Checklist
-- [ ] 公開依頼に従い、直接ダウンロードできるAPKをビルド・検証・GitHub Releaseへ公開する。
-- [ ] 製品ページ・マニュアル・操作モックを同期公開し、公開ファイルと操作を確認する。
+- [x] 公開依頼に従い、直接ダウンロードできるAPKをビルド・検証・GitHub Releaseへ公開する。
+- [x] 製品ページ・マニュアル・操作モックを同期公開し、公開ファイルと操作を確認する。
 - [x] Ctrl+C/A/X/V を編集メニューへ変換せず、Ctrl 修飾付きキーイベントとして送る。
 - [x] Ctrl+S と Alt 系も同じキーイベント経路であることを確認する。
 - [x] 一回だけの修飾状態と機密欄での Ctrl+V を確認する。
@@ -83,8 +83,11 @@ AC Verifier はこのnative surface証拠を確認してAC 1〜3をすべてVERI
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
+2026-10-04 公開検証: リリース対象 SHA `dfd6f605abf72d6b22fbaf353eea1ba6fba94727`。最初の並列testはsandboxのGradle lock拒否、権限付き並列testは既知の `ImeHideBarTest.emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway` 1/294失敗とビルド競合。逐次testではunit/lint/APK成功、接続testはエミュレータ未起動、次回は既存AVDの空き容量不足で失敗。容量しきい値を一時調整した同じAVDで `bash scripts/test-all.sh --connected` は fast-checks / unit-lint-APK / connected 3/3 PASS、接続27/27。設定変更は元へ復帰。絵文字testは retry-pass として扱う。
+2026-10-04 APK: `app/build/outputs/apk/debug/gesture-ime-v0.15.28.apk`、38,653,320 bytes、SHA-256 `3988999df346b33baafa749c35e285a9f410be3169853ac5263498b642604d3e`。package `com.masuidrive.gestureime`、versionCode 44 / versionName 0.15.28、minSdk 28、ARM64、RECORD_AUDIOあり、INTERNETなし、zipalignとAPK v2署名verify成功。GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.28` に直接APKを添付し、再ダウンロードしたものとbyte一致。
+2026-10-04 site: `masuidrive/masuidrive.jp` main commit `b6f94f0a125b7e66ba87de4cf06fbbc110338892`、GitHub Pages status built。公開の `index.html` / `mock.html` / `manual.html` / `styles.css` は同commitのファイルと4/4 byte一致。公開ページは412px/840pxで横overflowなし、スマホ幅で「あ」tap→入力値「あ」、タブレット Dual Flickで「あ」上フリック→「う」。公開QWERTYでCtrl下フリック→A tapは `{key:"a",ctrlKey:true,altKey:false}`を通知し、選択範囲(1,1)のまま。公開マニュアルの画像欠落・横overflow・ブラウザerrorなし。
 2026-09-29: 差分、実IMEのキーイベント観測、並列実行のretry-pass、進捗と証拠画像の場所をユーザへ提示し、ticket close承認を依頼した。
-2026-10-04: ユーザがその提示に対して「公開して」と指示した。v0.15.28としてAPK・サイトを公開し、公開後にticket closeを実施する承認と扱う。
+2026-10-04: ユーザがその提示に対して「公開して」と指示した。v0.15.28としてAPK・サイトを公開する承認と扱う。ticket closeのchecklistはユーザ自身の確認手順実施と明示承認を要するため、公開後も未チェックを維持する。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
