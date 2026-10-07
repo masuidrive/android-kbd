@@ -1,6 +1,6 @@
 # Work Notes: 260929-065459-send-literal-modifier-key-events
 
-## Status: PDH-human-review (Awaiting user review)
+## Status: PDH-close (User approved; pending close)
 
 ## Checklist
 - [x] 公開依頼に従い、直接ダウンロードできるAPKをビルド・検証・GitHub Releaseへ公開する。
@@ -29,7 +29,8 @@
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（PDH配布物の更新は不要。製品仕様・マニュアル・technical-referenceを更新）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [-] PDH-human-review: ユーザ自身が確認手順を実施した - skip: 実施したという申告はない。公開結果とエミュレータ検証を提示した後、ユーザは明示的にクローズを承認した。
+- [x] PDH-human-review: ユーザが公開結果を受けてクローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
 2026-09-29: ユーザが「Ctrl+C のコピー変換は不要、キーコードを送る。Alt も全部そう。他の Ctrl+A や S は？」と明示。AC 1〜3 はその依頼を観察可能な操作へ分解した。影響レイヤーは Android app、IME service（既存経路の確認のみ）、unit tests、docs。Mozc JNI・UI・browser mock は挙動変更なし。未決のプロダクト判断なし。依存は現在ブランチの `TextInputController` と一回修飾実装だけで、別チケットの完了を要しない。consumer surface は Android の InputConnection キーイベント。
@@ -88,6 +89,7 @@ AC Verifier はこのnative surface証拠を確認してAC 1〜3をすべてVERI
 2026-10-04 site: `masuidrive/masuidrive.jp` main commit `b6f94f0a125b7e66ba87de4cf06fbbc110338892`、GitHub Pages status built。公開の `index.html` / `mock.html` / `manual.html` / `styles.css` は同commitのファイルと4/4 byte一致。公開ページは412px/840pxで横overflowなし、スマホ幅で「あ」tap→入力値「あ」、タブレット Dual Flickで「あ」上フリック→「う」。公開QWERTYでCtrl下フリック→A tapは `{key:"a",ctrlKey:true,altKey:false}`を通知し、選択範囲(1,1)のまま。公開マニュアルの画像欠落・横overflow・ブラウザerrorなし。
 2026-09-29: 差分、実IMEのキーイベント観測、並列実行のretry-pass、進捗と証拠画像の場所をユーザへ提示し、ticket close承認を依頼した。
 2026-10-04: ユーザがその提示に対して「公開して」と指示した。v0.15.28としてAPK・サイトを公開する承認と扱う。ticket closeのchecklistはユーザ自身の確認手順実施と明示承認を要するため、公開後も未チェックを維持する。
+2026-10-07: 公開結果と検証結果の提示後、ユーザが「クローズ」と明示承認した。ユーザ自身の端末確認について実施申告はないため、実施済みとは記録しない。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
