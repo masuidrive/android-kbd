@@ -91,7 +91,7 @@ data class Composition(
     val converted: Boolean,
 )
 
-大文字はモードにせず、英字キーの1回の上スワイプ結果として扱う。Ctrl と Alt は1キーだけ有効な保留状態で、入力後またはキャンセル時に解除する。複数指入力では pointerId ごとに開始座標、現在方向、対象キー、タイマーを保持する。
+大文字はモードにせず、英字キーの1回の上スワイプ結果として扱う。Ctrl と Alt は1キーだけ有効な保留状態で、入力後またはキャンセル時に解除する。英字キーとの組み合わせは修飾フラグ付きの押下・解放キーイベントとして入力先へ送り、IME側で選択・コピー・切り取り・貼り付けへ置き換えない。複数指入力では pointerId ごとに開始座標、現在方向、対象キー、タイマーを保持する。
 
 日本語変換UI
 
@@ -133,7 +133,7 @@ Androidでは ValueAnimator または描画時の補間値で同じ状態を作�
 
 アプリへの文字送信
 
-通常文字は currentInputConnection.commitText(text, 1)、変換中の読みは setComposingText(text, 1)、候補確定は finishComposingText() と commitText() を使う。PasteはAndroidの ClipboardManager.primaryClip から先頭のテキストを取得し、機密入力欄を除いて commitText() する。Backspace、Enter、矢印、Ctrl、Alt など編集キーは対象アプリとの互換性を確認し、必要な場合だけ sendKeyEvent() を使う。
+通常文字は currentInputConnection.commitText(text, 1)、変換中の読みは setComposingText(text, 1)、候補確定は finishComposingText() と commitText() を使う。PasteはAndroidの ClipboardManager.primaryClip から先頭のテキストを取得し、機密入力欄を除いて commitText() する。Backspace、Enter、矢印など編集キーは対象アプリとの互換性を確認し、必要な場合だけ sendKeyEvent() を使う。Ctrl/Altと英字キーの組み合わせは機密欄を含めて修飾フラグ付きKeyEventのACTION_DOWN/ACTION_UPをsendKeyEvent()で送り、編集メニュー操作へ置き換えない。
 
 fun sendModifiedKey(keyCode: Int, ctrl: Boolean, alt: Boolean) {
     val meta = (if (ctrl) KeyEvent.META_CTRL_ON else 0) or

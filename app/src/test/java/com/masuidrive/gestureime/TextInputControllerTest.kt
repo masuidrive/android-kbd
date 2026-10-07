@@ -245,15 +245,24 @@ class TextInputControllerTest {
     }
 
     @Test
-    fun ctrlAUsesEditorContextAction() {
-        controller.sendModifiedKey("a", Modifier.CTRL)
+    fun ctrlAndAltLettersSendModifiedDownAndUpWithoutEditorContextActions() {
+        for (modifier in Modifier.entries) {
+            for (label in listOf("a", "c", "x", "v", "s")) {
+                input.sentKeyEvents.clear()
+                controller.sendModifiedKey(label, modifier)
 
-        assertEquals(android.R.id.selectAll, input.contextAction)
-        assertTrue(input.keyEvents.isEmpty())
+                val keyCode = KeyEvent.keyCodeFromString("KEYCODE_${label.uppercase()}")
+                val meta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
+                assertEquals("$modifier+$label", listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP), input.sentKeyEvents.map { it.action })
+                assertEquals("$modifier+$label", listOf(keyCode, keyCode), input.sentKeyEvents.map { it.keyCode })
+                assertTrue("$modifier+$label", input.sentKeyEvents.all { it.metaState and meta != 0 })
+                assertEquals("$modifier+$label", null, input.contextAction)
+            }
+        }
     }
 
     @Test
-    fun ctrlVPasteIsSuppressedInPrivateFields() {
+    fun ctrlVIsAlsoSentAsKeyEventsInPrivateFields() {
         controller.beginInput(EditorInfo().apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         })
@@ -261,7 +270,9 @@ class TextInputControllerTest {
         controller.sendModifiedKey("v", Modifier.CTRL)
 
         assertEquals(null, input.contextAction)
-        assertTrue(input.keyEvents.isEmpty())
+        assertEquals(listOf(KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_V), input.sentKeyEvents.map { it.keyCode })
+        assertEquals(listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP), input.sentKeyEvents.map { it.action })
+        assertTrue(input.sentKeyEvents.all { it.metaState and KeyEvent.META_CTRL_ON != 0 })
     }
 
     @Test
@@ -359,6 +370,7 @@ class TextInputControllerTest {
         var selectionSucceeds = true
         var contextAction: Int? = null
         val keyEvents = mutableListOf<Int>()
+        val sentKeyEvents = mutableListOf<KeyEvent>()
         val operations = mutableListOf<String>()
         var beforeCursor = ""
         var afterCursor = ""
@@ -389,6 +401,7 @@ class TextInputControllerTest {
 
         override fun sendKeyEvent(event: android.view.KeyEvent): Boolean {
             keyEvents += event.keyCode
+            sentKeyEvents += event
             return true
         }
 
