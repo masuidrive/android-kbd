@@ -4,7 +4,7 @@ base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
 description: "Ctrl/Alt と文字キーの組み合わせを編集メニュー操作へ変換せず送信する"
 created_at: "2026-09-29T06:54:59Z"
 started_at: 2026-09-29T06:55:54Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-10-07T14:53:35Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
