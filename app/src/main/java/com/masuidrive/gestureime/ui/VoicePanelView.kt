@@ -19,6 +19,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatTextView
 import com.masuidrive.gestureime.R
 import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 
@@ -227,7 +228,7 @@ private class VoiceStatusView(
     context: Context,
     private val label: String,
     private val level: Float?,
-) : TextView(context) {
+) : AppCompatTextView(context) {
     private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
