@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
 description: "画像を含むクリップボードでも Paste キーを入力先へ渡す"
 created_at: "2026-10-12T08:27:06Z"
-started_at: null  # Do not modify manually
+started_at: 2026-10-12T08:34:08Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
