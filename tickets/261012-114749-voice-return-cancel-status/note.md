@@ -1,6 +1,6 @@
 # Work Notes: 261012-114749-voice-return-cancel-status
 
-## Status: PDH-human-review (release approved; native voice surface observation and close pending)
+## Status: PDH-implement (voice candidate animation web preview; prior release approved, native voice surface observation and close pending)
 
 ## Checklist
 - [x] 左下を前回レイヤーのラベル・タップ復帰・既存フリック切替に変更する。
@@ -11,6 +11,9 @@
 - [x] 音声状態のTalkBack通知とフォーカスを波形更新中も保つ。
 - [x] v0.15.30 APKを直接配布のGitHub Releaseへ公開し、再ダウンロードしたassetとローカルAPKをbyte比較する。
 - [x] 製品ページ・マニュアル・操作モックを公開し、公開ファイルと実ブラウザで確認する。
+- [x] 音声候補を選んだ瞬間に他候補を消し、選択候補が上へ抜けて消えるアニメーションをWebモックへ実装する。
+- [x] アニメーションを公開サイトで操作し、速度・消え方をユーザが確認できるようにする。
+- [ ] Webでの確認後、同じ選択フィードバックをnative音声候補へ実装する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -51,6 +54,7 @@
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
 - [x] 既存の戻り先保持・VOICEの6 slot・固定高panelをコードで確認した。412dp/840dpの実寸と各方向のproduction MotionEventは実装後に測定する。認識中キャンセルはAC 2どおり破棄・再開する。
+- [x] AC 5: 現行Webモックの候補clickは入力確定直後に再認識開始と全体renderを行い、候補DOMは即時破棄される。選択候補の退出演出を確認できるよう、Web先行の短い暫定速度を実ブラウザで測り、412px/840pxで他候補の即時消失、単一入力、Cancel/レイヤー移動時の残像なしを確認する。native実装はWeb確認後に行う。
 
 ## PDH-implement. 実装ログ
 - browser mock: `site/mock.html` と `docs/reference/mock-source.html` を同一化。ローカル公開構成 `site/index.html#demo` で412px・840pxを実操作し、日本語とQWERTYからの左フリック進入、戻り先ラベル（あん/Az）、左下tap復帰、候補キャンセル後の再認識、固定45px操作行、横はみ出し無しを確認。`node --check` PASS。
@@ -64,6 +68,7 @@
 - mock・文書commit `01cb9b1`: 認識中Cancelの再開、ARIA説明、仕様、マニュアルを一致させた。ブラウザ実操作で認識中Cancel後に旧3候補ではなく次世代の1候補だけが表示されることを確認。412/840画像を目視し、マニュアル画像を新mockへ差替えた。
 - 最終SHA `0a941dc` の `scripts/test-all.sh --parallel --connected` は fast-checks / Android unit・lint・APK / Android connected (real Mozc) の3/3 PASS。独立reviewはCritical/Majorなし。AC裏取りはAC 1・4 VERIFIED、AC 2・3は実日本語音声モデルによるnative観察がないためNOT VERIFIED。コード・unit・mockでは期待動作を確認。
 - Surface Observer相当の実エミュレーター観察を試行。最終debug APKをinstallし、IMEを有効化・選択して入力テストの通常欄をtapしたが、`mInputShown=true` / `mInputViewStarted=false` / `mShowInputRequested=false` で入力ビューは開かなかった。スクリーンショット `/private/tmp/voice-ui-native-final.png` にキーボードは写らない。ハードウェアキーボード表示設定を一時変更しても変化なし。設定はすべて `null` に戻した。実音声の状態遷移・RMSは未観察。
+- Web先行のAC 5: `55fad54` で候補の退出アニメーションを実装し、`9aef392` で2・3行目の選択位置を保つFLIP補正を追加。候補選択直後に他候補がDOMから消え、選択候補は260msで34px上へ移動・フェードアウトする。412pxと840pxで実ブラウザ操作し、2行目 `top 371→371→80ms後343.9`、3行目 `426→426→80ms後398.9` を確認。入力は1回、次の認識へ進み、Cancelで古いタイマーは復活しない。`site/mock.html` と `docs/reference/mock-source.html` はbyte一致。最終Web SHA `9aef392` の `scripts/test-all.sh --parallel` は fast-checks と Android unit/lint/APK の2/2 PASS。nativeのAC 5はWeb確認後に実装する。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -82,6 +87,12 @@
 | 2 | TalkBack / 対称関係 | Major | RMS更新ごとに状態nodeを再生成し、状態の読み上げとフォーカスを失う。 | 採用・修正済み、再review通過 | `6b9c581`で状態view維持と遷移時通知、Partialもdetachせず。 |
 | 3 | 色 | Cosmetic | native状態ラベル色がmockより強い。 | 修正済み | `VoicePanelView`の状態ラベルを`keyboard_muted_text`に揃えた。native描画の実機観察は未了。 |
 
+### Findings (PDH-review-2: Web animation preview)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | AC 5 / 視覚的連続性 | Major | 2行目候補は選択前top371pxから直後316px、3行目は426pxから直後316pxへ瞬間移動する。先行候補のflow削除後に選択行が再配置される。 | 採用・修正済み、再review通過 | `9aef392`のFLIP補正で選択行の開始位置を保持。独立再レビューで2・3行目とも直後の位置は不変で、80ms後は約27px上へ移動。Critical/Majorなし。 |
+
 ## Technical reference 更新
 - `technical-reference.md` の音声レイヤー操作・状態表示・波形描画先・候補キャンセル位置を、下段キーと `VoicePanelView` の新構成へ更新した。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
@@ -95,6 +106,10 @@
 - `gesture-ime-v0.15.30.apk` は38,669,704 bytes、SHA-256 `f28f1da36fd8c34e83eca1514704ca66c827039c48e58613b119afe5e79f9a73`。`com.masuidrive.gestureime`、versionCode 46 / versionName 0.15.30、API 28以上、arm64-v8a、`RECORD_AUDIO`を要求し`INTERNET`は要求しない。GitHub Releaseから再取得し`cmp`で一致を確認した。
 - GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.30`、APK直リンク `https://github.com/masuidrive/android-kbd/releases/download/v0.15.30/gesture-ime-v0.15.30.apk`。feature branchをoriginへpushした。ticketはAC 2・3の実音声native観察待ちでopenのまま。
 - 製品サイトの公開元commit `0b4ee75adecc1d5fa4bda386bdca0d0e15e24732`。`site/index.html`、`site/mock.html`、`site/manual.html`、`site/styles.css`を公開元とbyte比較し、Pagesのビルドcommit一致を確認した。公開URLから同4ファイルと音声モック画像を再取得してbyte比較も一致。公開ブラウザ412px/840pxで横はみ出しなし、音声レイヤーへの左フリック・認識中Cancel後の再準備・かなキー入力を確認し、ブラウザエラーなし。参考画像 `/private/tmp/md-kbd-v0.15.30-public-phone-mobile.png`、`/private/tmp/md-kbd-v0.15.30-public-tablet.png`。
+
+## AC 5 Web先行プレビュー公開記録
+- Webソース最終SHA `9aef39238aa0446b10be58c38742515b922e9ffd`、公開元 `masuidrive/masuidrive.jp` commit `ec791b68a34d8d35c96812dc5b1a513e04119db8`。GitHub Pages latest buildは同commitの`built`。公開元と`site/`の主要4ファイルはbyte一致し、公開URLから再取得した4ファイルも公開元とbyte一致。
+- 公開ページ `https://masuidrive.jp/products/md-kbd/#demo` を412pxブラウザで操作。左フリックで音声レイヤーに入り、3行目候補を選ぶと選択前後のtopはともに437px、他候補は即時0件、選択候補1件のみ、CSSアニメーション0.26s。readonly入力欄は選んだ文1回のみ。350ms後は選択候補0件で認識中へ戻る。840pxではページscrollWidth825px / viewport840px、モックscrollWidth793px / iframe幅793pxで横はみ出しなし。Webのみの先行プレビューであり、nativeのAC 5および実音声AC 2/3は未検証・未実装の範囲が残る。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
