@@ -83,7 +83,7 @@ class ImeServiceVoiceHoldTest {
         assertEquals(View.VISIBLE, h.root.findViewById<VoicePanelView>(R.id.voice_panel).visibility)
         val candidateRows = listOf("第一候補", "第二候補", "第三候補").map { h.root.findText(it) }
         assertTrue(candidateRows.zipWithNext().all { (first, second) -> second.top >= first.bottom })
-        h.root.findText("第二候補").performClick()
+        h.root.findText("第二候補").performClick(); h.finishCandidateSelection()
         h.idle()
 
         assertEquals("第二候補", h.input.text)
@@ -101,9 +101,9 @@ class ImeServiceVoiceHoldTest {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("一回目"); h.idle()
-        h.root.findText("一回目").performClick(); h.idle()
+        h.root.findText("一回目").performClick(); h.finishCandidateSelection(); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("二回目"); h.idle()
-        h.root.findText("二回目").performClick(); h.idle()
+        h.root.findText("二回目").performClick(); h.finishCandidateSelection(); h.idle()
 
         assertEquals("一回目二回目", h.input.text)
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
@@ -231,7 +231,7 @@ class ImeServiceVoiceHoldTest {
 
         h.recognizer.result("選択待ち"); h.idle()
         assertTrue(h.root.allText().contains("候補を選択"))
-        h.root.findText("選択待ち").performClick(); h.idle()
+        h.root.findText("選択待ち").performClick(); h.finishCandidateSelection(); h.idle()
         assertTrue(h.root.allText().contains("準備中"))
 
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
@@ -272,12 +272,26 @@ class ImeServiceVoiceHoldTest {
         h.recognizer.support?.invoke(true); h.recognizer.result("一回だけ"); h.idle()
         val candidate = h.root.findText("一回だけ")
 
-        candidate.performClick(); candidate.performClick(); h.idle()
+        candidate.performClick(); candidate.performClick(); h.finishCandidateSelection(); h.idle()
         h.recognizer.support?.invoke(true); h.idle()
 
         assertEquals("一回だけ", h.input.text)
         assertEquals(2, h.recognizer.startCount)
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
+    }
+
+    @Test fun cancelDuringCandidateSelectionAnimationDropsThePendingCommit() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("取り消す候補"); h.idle()
+
+        h.root.findText("取り消す候補").performClick()
+        h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
+        h.finishCandidateSelection()
+
+        assertEquals("", h.input.text)
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
     }
 
     @Test fun queuedVoicePreviewTapCannotCommitOrRestartAfterCancelInvalidatesItsSession() {
@@ -324,7 +338,7 @@ class ImeServiceVoiceHoldTest {
         h.recognizer.support?.invoke(true); h.recognizer.result("拒否"); h.idle()
         h.input.acceptCommits = false
 
-        h.root.findText("拒否").performClick(); h.idle()
+        h.root.findText("拒否").performClick(); h.finishCandidateSelection(); h.idle()
 
         assertEquals("", h.input.text)
         assertEquals(1, h.recognizer.startCount)
@@ -383,7 +397,7 @@ class ImeServiceVoiceHoldTest {
 
         val promoted = h.root.findText("古い途中結果")
         assertTrue(promoted.isClickable)
-        promoted.performClick(); h.idle()
+        promoted.performClick(); h.finishCandidateSelection(); h.idle()
         assertEquals("古い途中結果", h.input.text)
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
     }
@@ -446,6 +460,9 @@ class ImeServiceVoiceHoldTest {
         init { ImePreferences.setEnglishSuggestionsEnabled(service, false); val text=TextInputController({input},service,service.getSystemService(ClipboardManager::class.java)); val voice=VoiceRecognitionController(35,{permission},{onDevice},{ l->recognizer.listener=l;recognizer },service::onVoiceState,service::onVoiceInputLevel); service.installTestDependencies(voice,text,conversion); service.onStartInput(EditorInfo(),false); root=service.onCreateInputView() }
         fun begin(){ service.onVoiceHold(VoiceHoldEvent.Begin(1)); idle(); recognizer.support?.invoke(true); if(ready) recognizer.ready(); idle() }
         fun idle()=Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        fun finishCandidateSelection() = Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(
+            java.time.Duration.ofMillis(260),
+        )
     }
     private class RecordingConnection(v:View):BaseInputConnection(v,true){
         var text=""

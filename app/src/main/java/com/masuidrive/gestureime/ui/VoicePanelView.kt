@@ -1,5 +1,8 @@
 package com.masuidrive.gestureime.ui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Canvas
@@ -14,7 +17,9 @@ import android.text.style.StyleSpan
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -25,6 +30,9 @@ import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 
 private const val MAX_HIGHLIGHT_CANDIDATES = 8
 private const val MAX_DIFF_MATRIX_CELLS = 262_144
+private const val VOICE_CANDIDATE_SELECTION_DURATION_MS = 260L
+private const val VOICE_CANDIDATE_SELECTION_TOP_FRACTION = 0.78f
+private const val VOICE_CANDIDATE_SELECTION_FINAL_ALPHA = 0.2f
 
 /** Fixed voice-layer surface for partial text, errors, and one selectable candidate per row. */
 class VoicePanelView @JvmOverloads constructor(
@@ -42,6 +50,7 @@ class VoicePanelView @JvmOverloads constructor(
     private var voice = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var inputLevel: Float? = null
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
+    private var candidateSelection: CandidateSelection? = null
 
     init {
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -54,6 +63,7 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
+        cancelCandidateSelection()
         val contentChanged = candidates.candidates != snapshot.candidates
         candidates = snapshot
         render()
@@ -61,6 +71,7 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     fun setVoiceState(snapshot: VoiceUiSnapshot) {
+        cancelCandidateSelection()
         val stateChanged = voice.state != snapshot.state
         voice = snapshot
         val nextInputLevel = when {
@@ -82,8 +93,17 @@ class VoicePanelView @JvmOverloads constructor(
         statusView.setInputLevel(normalized)
     }
 
+    /** Stops a selected candidate from committing after the voice session is invalidated. */
+    fun cancelCandidateSelection() {
+        val selection = candidateSelection ?: return
+        candidateSelection = null
+        selection.animator?.cancel()
+        removeView(selection.view)
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        cancelCandidateSelection()
         applyThemeColors()
         render()
     }
@@ -192,11 +212,65 @@ class VoicePanelView @JvmOverloads constructor(
                 }
                 if (snapshot.selectable) {
                     setOnClickListener {
-                        onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index))
+                        beginCandidateSelection(CandidateUiEvent(snapshot.token, index), this)
                     }
                 }
             }, rowLayout(withGap = true))
         }
+    }
+
+    private fun beginCandidateSelection(event: CandidateUiEvent, candidate: TextView) {
+        if (candidateSelection != null || candidate.parent !== rows) return
+
+        val startLeft = scroll.left + rows.left + candidate.left - scroll.scrollX
+        val startTop = scroll.top + rows.top + candidate.top - scroll.scrollY
+        val selection = CandidateSelection(candidate, event, startTop.toFloat())
+        candidateSelection = selection
+        rows.removeView(candidate)
+        removeRowsAfterStatus()
+        candidate.setOnClickListener(null)
+        candidate.isEnabled = false
+        candidate.isClickable = false
+        candidate.isFocusable = false
+        candidate.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        addView(candidate, LayoutParams(candidate.width, candidate.height).apply {
+            leftMargin = startLeft
+            topMargin = startTop
+        })
+
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            finishCandidateSelection(selection)
+            return
+        }
+        selection.animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = VOICE_CANDIDATE_SELECTION_DURATION_MS
+            interpolator = PathInterpolator(0.2f, 0.82f, 0.35f, 1f)
+            addUpdateListener { animator ->
+                val progress = animator.animatedValue as Float
+                val movingToTop = (progress / VOICE_CANDIDATE_SELECTION_TOP_FRACTION).coerceAtMost(1f)
+                candidate.translationY = -selection.startTop * movingToTop -
+                    candidate.height * ((progress - VOICE_CANDIDATE_SELECTION_TOP_FRACTION) /
+                    (1f - VOICE_CANDIDATE_SELECTION_TOP_FRACTION)).coerceAtLeast(0f)
+                candidate.alpha = if (progress <= VOICE_CANDIDATE_SELECTION_TOP_FRACTION) 1f else {
+                    1f - (1f - VOICE_CANDIDATE_SELECTION_FINAL_ALPHA) *
+                        ((progress - VOICE_CANDIDATE_SELECTION_TOP_FRACTION) /
+                            (1f - VOICE_CANDIDATE_SELECTION_TOP_FRACTION))
+                }
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    finishCandidateSelection(selection)
+                }
+            })
+            start()
+        }
+    }
+
+    private fun finishCandidateSelection(selection: CandidateSelection) {
+        if (candidateSelection !== selection) return
+        candidateSelection = null
+        removeView(selection.view)
+        onCandidateSelected?.invoke(selection.event)
     }
 
     private fun addPlainText(text: String, description: String) {
@@ -262,6 +336,14 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private class CandidateSelection(
+        val view: TextView,
+        val event: CandidateUiEvent,
+        val startTop: Float,
+    ) {
+        var animator: ValueAnimator? = null
+    }
 }
 
 private fun VoiceUiState.acceptsVoiceInputLevel(): Boolean =

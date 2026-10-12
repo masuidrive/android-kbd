@@ -1290,6 +1290,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun invalidateContinuousVoiceSession() {
         voiceSessionGeneration++
+        voicePanel?.cancelCandidateSelection()
         voiceController.cancel(notify = false)
     }
 

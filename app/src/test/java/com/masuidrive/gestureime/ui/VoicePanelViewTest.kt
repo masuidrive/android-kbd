@@ -2,6 +2,7 @@ package com.masuidrive.gestureime.ui
 
 import android.app.Activity
 import android.graphics.drawable.GradientDrawable
+import android.os.Looper
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
@@ -23,6 +24,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -47,7 +49,52 @@ class VoicePanelViewTest {
         assertTrue(view.descendants().filterIsInstance<ScrollView>().single().getChildAt(0).height > view.height)
 
         candidates[1].performClick()
+        assertEquals(emptyList<CandidateUiEvent>(), events)
+        advanceAnimationsBy(260)
         assertEquals(listOf(CandidateUiEvent(41, 0)), events)
+    }
+
+    @Test
+    fun selectedCandidateKeepsItsInitialPositionThenLeavesThePanelAtTwentyPercentOpacity() {
+        val view = view()
+        view.showCandidates(CandidateUiSnapshot(46, listOf("第一候補", "第二候補", "第三候補")))
+        view.setVoiceState(VoiceUiSnapshot(56, VoiceUiState.Preview("第一候補")))
+        view.measure(exact(320), exact(220))
+        view.layout(0, 0, 320, 220)
+        val selected = view.textView("第三候補")
+        val initialTop = selected.top
+
+        selected.performClick()
+
+        assertEquals(listOf("候補を選択", "第三候補"), view.allTextViews().map { it.text.toString() })
+        assertEquals(initialTop, selected.top)
+        assertEquals(1f, selected.alpha, 0f)
+        assertFalse(selected.isClickable)
+        assertFalse(selected.isFocusable)
+
+        advanceAnimationsBy(250)
+
+        assertTrue(selected.top + selected.translationY <= 1f)
+        assertTrue(selected.alpha in 0.19f..0.3f)
+    }
+
+    @Test
+    fun cancelingCandidateSelectionSuppressesTheDelayedCommit() {
+        val view = view()
+        val events = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(events::add)
+        view.showCandidates(CandidateUiSnapshot(49, listOf("第一候補", "第二候補")))
+        view.setVoiceState(VoiceUiSnapshot(59, VoiceUiState.Preview("第一候補")))
+        view.measure(exact(320), exact(180))
+        view.layout(0, 0, 320, 180)
+        val selected = view.textView("第二候補")
+
+        selected.performClick()
+        view.cancelCandidateSelection()
+        advanceAnimationsBy(300)
+
+        assertEquals(emptyList<CandidateUiEvent>(), events)
+        assertEquals(listOf("候補を選択"), view.allTextViews().map { it.text.toString() })
     }
 
     @Test
@@ -258,6 +305,10 @@ class VoicePanelViewTest {
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+
+    private fun advanceAnimationsBy(milliseconds: Long) {
+        shadowOf(Looper.getMainLooper()).idleFor(milliseconds, TimeUnit.MILLISECONDS)
+    }
 
     private fun View.textView(value: String): TextView =
         allTextViews().single { it.text.toString() == value }
