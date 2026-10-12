@@ -14,7 +14,9 @@
 - [x] 音声候補を選んだ瞬間に他候補を消し、選択候補が上へ抜けて消えるアニメーションをWebモックへ実装する。
 - [x] アニメーションを公開サイトで操作し、速度・消え方をユーザが確認できるようにする。
 - [x] 選択候補が候補枠の上端まで動くようWebアニメーションを調整し、到達直前まで文字を見せる。
-- [ ] Webでの確認後、同じ選択フィードバックをnative音声候補へ実装する。
+- [ ] 上へ抜けるWeb候補の最後のopacityを約20%にして、製品ページへ公開する。
+- [x] Webでの確認後、同じ選択フィードバックをnative音声候補へ実装する。
+- [ ] 更新したAndroid APKをビルド・検証し、GitHub Releaseへ直接ダウンロード可能なAPKとして公開する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -71,6 +73,7 @@
 - Surface Observer相当の実エミュレーター観察を試行。最終debug APKをinstallし、IMEを有効化・選択して入力テストの通常欄をtapしたが、`mInputShown=true` / `mInputViewStarted=false` / `mShowInputRequested=false` で入力ビューは開かなかった。スクリーンショット `/private/tmp/voice-ui-native-final.png` にキーボードは写らない。ハードウェアキーボード表示設定を一時変更しても変化なし。設定はすべて `null` に戻した。実音声の状態遷移・RMSは未観察。
 - Web先行のAC 5: `55fad54` で候補の退出アニメーションを実装し、`9aef392` で2・3行目の選択位置を保つFLIP補正を追加。候補選択直後に他候補がDOMから消え、選択候補は260msで34px上へ移動・フェードアウトする。412pxと840pxで実ブラウザ操作し、2行目 `top 371→371→80ms後343.9`、3行目 `426→426→80ms後398.9` を確認。入力は1回、次の認識へ進み、Cancelで古いタイマーは復活しない。`site/mock.html` と `docs/reference/mock-source.html` はbyte一致。最終Web SHA `9aef392` の `scripts/test-all.sh --parallel` は fast-checks と Android unit/lint/APK の2/2 PASS。nativeのAC 5はWeb確認後に実装する。
 - Web視覚調整 `4e34aa478ae54b0020ce8c41b7f689d63ca48829`: DOM実寸で候補の開始位置、枠上端、候補高さを測って移動距離を決める。260msの78%時点では候補上端が枠上端へ達し、文字は不透明のまま。残り22%で枠外へ抜けつつフェードする。選択候補をsticky状態行より前面へ置く。独立レビューでphone/tablet各1〜3行を確認し、約185msで上端到達・opacity 1、約210ms以降のみフェード、スクロール済みphone 3行目も良好。非選択の即時消去、入力1回、次認識、reduced motionでの即時進行、モック正本byte一致、ブラウザエラーなし。Critical/Majorなし。最終SHAの`scripts/test-all.sh --parallel`は2/2 PASS。
+- Web終端不透明度 `1228eb9` は20%へ調整し、412px・840pxの実ブラウザで入力1回、横はみ出しなし、正本とのbyte一致を確認した。native初回実装 `09d1fdc` は接続エミュレーターのattached `VoicePanelView` instrumentation 2件が通過したが、独立reviewで確定遅延と時間補間の2件を発見した。修正 `d549cb7` は候補tap時にeditorへ1回だけ確定し、260msの表示終了後に次の認識を開始する。取消・layer・editor切替では確定済み文字を保持して再開予約だけを破棄する。実時間78%で上端へ達してからalpha 0.2へ退出する。回帰unitは修正前FAIL・修正後PASS、focused unitと接続エミュレーターのattached view instrumentation 2件はPASS。最終SHAの全チェック・公開物照合は別途記録する。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -94,6 +97,16 @@
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
 | 1 | AC 5 / 視覚的連続性 | Major | 2行目候補は選択前top371pxから直後316px、3行目は426pxから直後316pxへ瞬間移動する。先行候補のflow削除後に選択行が再配置される。 | 採用・修正済み、再review通過 | `9aef392`のFLIP補正で選択行の開始位置を保持。独立再レビューで2・3行目とも直後の位置は不変で、80ms後は約27px上へ移動。Critical/Majorなし。 |
+
+### Findings (PDH-review-3: native voice candidate animation)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | AC 5 / native・mock state retention | Critical | nativeは候補tapから260ms後にだけ確定し、その間のキャンセル・レイヤー・editor切替でtap済み文字が0回入力になる。Webはtap時に1回入力する。 | 採用・修正済み、対象差分再review通過 | `d549cb7`でtap時に1回確定し、切替時は再開予約だけ破棄。修正前FAIL・修正後PASSの回帰unitあり。 |
+| 2 | AC 5 / native・mock motion parity | Major | PathInterpolatorの出力を78%区間判定に使い、nativeは約78msで枠上端へ到達する。Webは約203msまで移動して到達する。 | 採用・修正済み、対象差分再review通過 | `d549cb7`で実時間78%を区切り、両区間に独立easing。120ms/250msの接続testあり。 |
+
+- 3回目のreviewはWeb先行からnativeへ対象を広げた初回のnative review。繰り返しの広い差分reviewを増やさず、2件の再現操作を固定して、修正後は候補tap→即時確定→途中切替と78%時点の位置・alphaを実挙動中心に裏取りする。
+- `d549cb77a51480c45d33717b68bf2403b16d656b`の指摘2件に限る独立再reviewはCritical/Majorなし。即時commit、無効化時の確定保持、実時間78%の区間と個別easingを確認した。
 
 ## Technical reference 更新
 - `technical-reference.md` の音声レイヤー操作・状態表示・波形描画先・候補キャンセル位置を、下段キーと `VoicePanelView` の新構成へ更新した。
