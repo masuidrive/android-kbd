@@ -19,7 +19,6 @@ class VoicePanelViewDifferenceTest {
     fun similarVoiceCandidatesHighlightOnlyTheirDifferentCharacters() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         lateinit var rows: List<TextView>
-        var discardedToken: Long? = null
         instrumentation.runOnMainSync {
             val view = VoicePanelView(instrumentation.targetContext)
             val candidates = listOf(
@@ -27,18 +26,16 @@ class VoicePanelViewDifferenceTest {
                 "タブレットとかでも横幅を大きめにして欲しい",
                 "タブレットとかでも横幅が大きめにして欲しい",
             )
-            view.setOnCandidatesDiscarded { discardedToken = it }
             view.showCandidates(CandidateUiSnapshot(1, candidates))
             view.setVoiceState(VoiceUiSnapshot(1, VoiceUiState.Preview(candidates.first())))
             rows = view.descendants().filterIsInstance<TextView>()
         }
 
-        val cancel = rows.first()
+        val status = rows.first()
         val candidateRows = rows.drop(1)
-        assertEquals("キャンセル", cancel.text)
-        assertEquals("候補を破棄して認識を続ける", cancel.contentDescription)
-        instrumentation.runOnMainSync { cancel.performClick() }
-        assertEquals(1L, discardedToken)
+        assertEquals("候補を選択", status.text)
+        assertEquals("候補を選択", status.contentDescription)
+        assertEquals(3, candidateRows.size)
 
         assertEquals(listOf(listOf("を", "ほ"), listOf("を", "欲"), listOf("が", "欲")), candidateRows.map(::highlightedText))
         candidateRows.forEach { row ->

@@ -30,7 +30,7 @@ private const val VOICE_INPUT_LEVEL_STEPS = 24
 private const val VOICE_INPUT_LEVEL_SCALE_DB = 20.0
 internal const val KEY_ROW_GAP_DP = 10f
 
-/** Maps any finite provider-specific RMS value monotonically into a bounded display level. */
+/** Maps any finite provider-specific RMS value into the fixed voice-panel waveform range. */
 internal fun normalizeVoiceInputLevel(rmsDb: Float): Float {
     require(rmsDb.isFinite()) { "RMS input level must be finite" }
     val bounded = atan(rmsDb.toDouble() / VOICE_INPUT_LEVEL_SCALE_DB) / Math.PI + 0.5
@@ -96,7 +96,6 @@ class KeyboardView @JvmOverloads constructor(
         private const val ACTION_FLICK_UP = 0x01020002
         private const val ACTION_FLICK_RIGHT = 0x01020003
         private const val ACTION_FLICK_DOWN = 0x01020004
-        internal const val VOICE_SESSION_STATUS_VIRTUAL_ID = 0x7fff0001
     }
 
     var actionSink: KeyboardActionSink? = null
@@ -152,7 +151,7 @@ class KeyboardView @JvmOverloads constructor(
     private var emojiScrollOffset = 0f
     private val emojiScrollGestures = mutableMapOf<Int, EmojiScrollGesture>()
     private val emojiViewport = RectF()
-    private var voiceSessionStatusHovered = false
+    private var voiceReturnMode = KeyboardMode.QWERTY
     private var ownsSystemBottomInset = true
     private var systemBottomInsetFallback = 0
     private var retainsIntrinsicHeightInIme = false
@@ -171,14 +170,18 @@ class KeyboardView @JvmOverloads constructor(
 
     fun setMode(mode: KeyboardMode) {
         if (state.mode == mode) return
-        if (state.mode == KeyboardMode.VOICE && mode != KeyboardMode.VOICE && state.voiceSessionActive) {
-            setVoiceSessionActive(false)
-        }
         cancelActiveGestures()
         if (mode == KeyboardMode.EMOJI) emojiScrollOffset = 0f
         state = state.copy(mode = mode)
         contentDescription = "${mode.displayName}キーボード"
         rebuildLayout()
+    }
+
+    /** Sets the label of VOICE's return key before the layer is entered. */
+    fun setVoiceReturnMode(mode: KeyboardMode) {
+        if (mode == KeyboardMode.VOICE || voiceReturnMode == mode) return
+        voiceReturnMode = mode
+        if (state.mode == KeyboardMode.VOICE) rebuildLayout()
     }
 
     /** Height covered by the picker below its 50dp category header: top inset plus four rows. */
@@ -268,57 +271,6 @@ class KeyboardView @JvmOverloads constructor(
         emojiScrollOffset = emojiScrollOffset.coerceIn(0f, emojiScrollRange())
         if (state.mode == KeyboardMode.EMOJI) rebuildLayout() else invalidate()
     }
-
-    /** Keeps the non-action voice status in its dedicated bottom-row fifth. */
-    fun setVoiceSessionActive(active: Boolean) {
-        if (state.voiceSessionActive == active) return
-        if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
-        state = state.copy(
-            voiceSessionActive = active,
-            voiceSessionStatus = if (active) state.voiceSessionStatus ?: VoiceSessionStatus.PREPARING else null,
-            voiceInputLevel = if (active) state.voiceInputLevel else null,
-        )
-        accessibilityHelper.invalidateRoot()
-        if (active) accessibilityHelper.announceVoiceSessionStarted()
-        invalidate()
-    }
-
-    /** Keeps status wording aligned with the recognizer lifecycle rather than optimistic restart timing. */
-    fun setVoiceSessionStatus(status: VoiceSessionStatus?) {
-        val accepted = status?.takeIf { state.voiceSessionActive }
-        val statusChanged = state.voiceSessionStatus != accepted
-        if (state.voiceSessionStatus == accepted &&
-            (accepted == VoiceSessionStatus.LISTENING || state.voiceInputLevel == null)
-        ) return
-        state = state.copy(
-            voiceSessionStatus = accepted,
-            voiceInputLevel = if (accepted == VoiceSessionStatus.LISTENING) state.voiceInputLevel else null,
-        )
-        accessibilityHelper.invalidateRoot()
-        if (statusChanged && accepted != null) accessibilityHelper.announceVoiceSessionStarted()
-        invalidate()
-    }
-
-    /** SpeechRecognizer RMS has no documented range, so the renderer owns bounded quantization. */
-    fun setVoiceInputLevel(rmsDb: Float?): Boolean {
-        if (rmsDb != null && !rmsDb.isFinite()) return false
-        val normalized = rmsDb?.takeIf {
-            state.voiceSessionActive && state.voiceSessionStatus == VoiceSessionStatus.LISTENING
-        }?.let(::normalizeVoiceInputLevel)
-        if (state.voiceInputLevel == normalized) return false
-        state = state.copy(voiceInputLevel = normalized)
-        invalidate()
-        return true
-    }
-
-    fun showVoiceInputLevelBaseline() {
-        if (state.voiceSessionStatus != VoiceSessionStatus.LISTENING || state.voiceInputLevel == 0f) return
-        state = state.copy(voiceInputLevel = 0f)
-        invalidate()
-    }
-
-    internal fun isVoiceSessionStatusAccessibilityFocused(): Boolean =
-        accessibilityHelper.getAccessibilityFocusedVirtualViewId() == VOICE_SESSION_STATUS_VIRTUAL_ID
 
     fun setPreviewOnly(enabled: Boolean) {
         cancelActiveGestures()
@@ -479,53 +431,6 @@ class KeyboardView @JvmOverloads constructor(
                 drawKey(canvas, target, active.entries.firstOrNull { it.value == target }?.key)
             }
         }
-        if (state.mode == KeyboardMode.VOICE && state.voiceSessionActive) drawVoiceSessionStatus(canvas)
-    }
-
-    private fun drawVoiceSessionStatus(canvas: Canvas) {
-        val status = hitTargets.firstOrNull { it.spec.id == "voice-status" } ?: return
-        val label = state.voiceSessionStatus?.label ?: return
-        textPaint.color = context.getColor(R.color.keyboard_muted_text)
-        textPaint.alpha = 255
-        textPaint.textSize = sp(13f)
-        textPaint.textAlign = Paint.Align.CENTER
-        val labelWidth = textPaint.measureText(label)
-        val amplitude = state.voiceInputLevel
-        val barWidth = dp(1.5f)
-        val barGap = dp(1.5f)
-        val barCount = 4
-        val waveWidth = barWidth * barCount + barGap * (barCount - 1)
-        val groupWidth = if (amplitude == null) labelWidth else labelWidth + dp(4f) + waveWidth
-        val x = status.bounds.centerX() - groupWidth / 2f + labelWidth / 2f
-        val y = status.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
-        canvas.drawText(label, x, y, textPaint)
-        if (amplitude == null) return
-
-        keyPaint.color = context.getColor(R.color.keyboard_muted_text)
-        keyPaint.alpha = 255
-        val waveLeft = x + labelWidth / 2f + dp(4f)
-        val waveCenterY = status.bounds.centerY()
-        val shape = floatArrayOf(0.55f, 1f, 0.72f, 0.42f)
-        shape.forEachIndexed { index, multiplier ->
-            val height = dp(2f) + dp(12f) * amplitude * multiplier
-            val left = waveLeft + index * (barWidth + barGap)
-            canvas.drawRoundRect(
-                RectF(left, waveCenterY - height / 2f, left + barWidth, waveCenterY + height / 2f),
-                barWidth / 2f,
-                barWidth / 2f,
-                keyPaint,
-            )
-        }
-    }
-
-    private fun voiceSessionStatusBounds(): android.graphics.Rect? {
-        if (state.mode != KeyboardMode.VOICE || !state.voiceSessionActive) return null
-        val status = hitTargets.firstOrNull { it.spec.id == "voice-status" } ?: return null
-        val bounds = android.graphics.Rect(
-            status.bounds.left.toInt(), status.bounds.top.toInt(),
-            status.bounds.right.toInt(), status.bounds.bottom.toInt(),
-        )
-        return bounds.takeUnless { it.isEmpty }
     }
 
     private fun buildHitTargets(top: Float) {
@@ -546,6 +451,7 @@ class KeyboardView @JvmOverloads constructor(
             state.conversionActive,
             state.conversionCandidateSelected,
             state.emojiRecents,
+            voiceReturnMode,
         ).rows
         val sharedUnits = rows.maxOf { row -> row.keys.sumOf { it.widthUnits.toDouble() }.toFloat() }
         rows.forEachIndexed { rowIndex, row ->
@@ -885,6 +791,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun mainTextSize(spec: KeySpec) = when {
         spec.id == "punct" -> 18f
+        spec.id == "voice-candidate-cancel" -> 13f
         spec.kind == KeyKind.ENTER -> 15f
         spec.kind in setOf(KeyKind.SPACE, KeyKind.MODE, KeyKind.LAYER_SWITCH) -> 16f
         spec.kind == KeyKind.MODIFIER || spec.kind == KeyKind.ACCENT -> 18f
@@ -958,17 +865,6 @@ class KeyboardView @JvmOverloads constructor(
         return true
     }
 
-    public override fun dispatchHoverEvent(event: MotionEvent): Boolean {
-        val handled = accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
-        voiceSessionStatusHovered = when (event.actionMasked) {
-            MotionEvent.ACTION_HOVER_EXIT -> false
-            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE ->
-                voiceSessionStatusBounds()?.contains(event.x.toInt(), event.y.toInt()) == true
-            else -> voiceSessionStatusHovered
-        }
-        return handled
-    }
-
     override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
         super.onInitializeAccessibilityNodeInfo(info)
         if (state.mode == KeyboardMode.EMOJI && emojiScrollRange() > 0f) {
@@ -1005,10 +901,6 @@ class KeyboardView @JvmOverloads constructor(
 
     private inner class KeyboardAccessibilityHelper(host: View) : ExploreByTouchHelper(host) {
         override fun getVirtualViewAt(x: Float, y: Float): Int {
-            val statusBounds = voiceSessionStatusBounds()
-            if (statusBounds != null && statusBounds.contains(x.toInt(), y.toInt())) {
-                return VOICE_SESSION_STATUS_VIRTUAL_ID
-            }
             return hitTargetIndexAt(x, y).takeIf { it >= 0 } ?: INVALID_ID
         }
 
@@ -1017,27 +909,10 @@ class KeyboardView @JvmOverloads constructor(
                 val target = hitTargets[id]
                 if (target.spec.kind == KeyKind.EMPTY || !isTargetVisible(target)) return@forEach
                 virtualViewIds += id
-                if (target.spec.id == "voice-cancel" && voiceSessionStatusBounds() != null) {
-                    virtualViewIds += VOICE_SESSION_STATUS_VIRTUAL_ID
-                }
             }
         }
 
         override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
-            if (virtualViewId == VOICE_SESSION_STATUS_VIRTUAL_ID) {
-                // ExploreByTouchHelper may ask for an ID which was focused just before the
-                // listening state disappeared. Keep that delayed lookup well-formed while
-                // making it non-visible; otherwise it throws before the focus-clear event can
-                // be delivered.
-                val bounds = voiceSessionStatusBounds()
-                node.className = "android.widget.TextView"
-                node.contentDescription = state.voiceSessionStatus?.label.orEmpty()
-                node.isFocusable = bounds != null
-                node.isClickable = false
-                node.isVisibleToUser = bounds != null
-                node.setBoundsInParent(bounds ?: android.graphics.Rect(-2, -2, -1, -1))
-                return
-            }
             val target = hitTargets.getOrNull(virtualViewId) ?: return
             val bounds = visibleBounds(target) ?: return
             node.className = "android.widget.Button"
@@ -1064,7 +939,6 @@ class KeyboardView @JvmOverloads constructor(
 
         override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: android.os.Bundle?): Boolean {
             if (previewOnly) return false
-            if (virtualViewId == VOICE_SESSION_STATUS_VIRTUAL_ID) return false
             val target = hitTargets.getOrNull(virtualViewId) ?: return false
             if (!isTargetVisible(target)) return false
             val direction = when (action) {
@@ -1084,31 +958,6 @@ class KeyboardView @JvmOverloads constructor(
             return true
         }
 
-        fun announceVoiceSessionStarted() {
-            sendEventForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityEvent.TYPE_ANNOUNCEMENT)
-        }
-
-        fun clearVoiceSessionStatusFocus() {
-            if (voiceSessionStatusHovered) {
-                // ExploreByTouchHelper owns the hovered-ID state. Send it an actual exit so
-                // a later hover cannot emit a second exit for this vanished status node.
-                val exit = MotionEvent.obtain(0, 0, MotionEvent.ACTION_HOVER_EXIT, -1f, -1f, 0)
-                try {
-                    this@KeyboardView.dispatchHoverEvent(exit)
-                } finally {
-                    exit.recycle()
-                }
-            }
-            if (getAccessibilityFocusedVirtualViewId() == VOICE_SESSION_STATUS_VIRTUAL_ID) {
-                getAccessibilityNodeProvider(this@KeyboardView)?.performAction(
-                    VOICE_SESSION_STATUS_VIRTUAL_ID,
-                    AccessibilityNodeInfo.ACTION_CLEAR_ACCESSIBILITY_FOCUS,
-                    null,
-                )
-            }
-            clearKeyboardFocusForVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID)
-            invalidateVirtualView(VOICE_SESSION_STATUS_VIRTUAL_ID)
-        }
     }
 
     private fun pointerDown(event: MotionEvent, index: Int) {
@@ -1192,7 +1041,9 @@ class KeyboardView @JvmOverloads constructor(
                         scheduleTimer(id, activeHit, Direction.DOWN)
                     }
                     animateLabels(id, direction)
-                    if (activeHit != null && activeHit.spec.value(direction)?.action == KeyAction.VoiceHold) {
+                    if (state.mode != KeyboardMode.VOICE && activeHit != null &&
+                        activeHit.spec.value(direction)?.action == KeyAction.VoiceHold
+                    ) {
                         beginVoiceGesture(id, activeHit)
                     }
                 }
@@ -1257,6 +1108,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun beginVoiceGesture(id: Int, hit: HitTarget) {
+        if (state.mode == KeyboardMode.VOICE) return
         if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || voiceHoldOwner != null) return
         voiceGestureCancelledPointers += id
         voiceEntryPointer = id

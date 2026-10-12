@@ -501,158 +501,50 @@ class KeyboardViewTest {
         assertEquals(228, view.measuredHeight)
     }
 
-    @Test fun `voice status owns its sixth-sized slot with six equal touch targets and fixed four row geometry`() {
-        listOf(
-            Triple(412, KeyboardHeightPreset.SMALL, 208),
-            Triple(840, KeyboardHeightPreset.SMALL, 208),
-            Triple(412, KeyboardHeightPreset.STANDARD, 228),
-            Triple(840, KeyboardHeightPreset.STANDARD, 228),
-            Triple(412, KeyboardHeightPreset.LARGE, 248),
-            Triple(840, KeyboardHeightPreset.LARGE, 248),
-        ).forEach { (width, preset, height) ->
-            view.setHeightPreset(preset)
-            view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+    @Test fun `voice bottom row has six equal actions and fixed four row geometry`() {
+        listOf(412, 840).forEach { width ->
             view.setMode(KeyboardMode.VOICE)
-            val provider = view.accessibilityNodeProvider
-            val cancelBefore = keyBounds(3)
-            val voiceStatus = keyBounds(4)
-            val punctuation = keyBounds(5)
-            val space = keyBounds(6)
-            val backspace = keyBounds(7)
-            val enter = keyBounds(8)
-            val cancelActionsBefore = requireNotNull(provider.createAccessibilityNodeInfo(3)).actions
-            val nodesBefore = requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount
-            val accessibility = shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
-                setEnabled(true)
-                setTouchExplorationEnabled(true)
-            }
-            val announcementsBefore = accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
-            }
-
-            view.setVoiceSessionActive(true)
-            assertEquals("準備中", requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)).contentDescription)
-            view.setVoiceSessionStatus(VoiceSessionStatus.PREPARING)
-            val preparingCanvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
-            assertTrue(preparingCanvas.draws.any { it.text == "準備中" && it.x > cancelBefore.right && it.x < punctuation.left })
-            assertEquals("準備中", requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)).contentDescription)
-
-            view.setVoiceSessionStatus(VoiceSessionStatus.LISTENING)
-            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
-            })
-            val canvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
-            val status = requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID))
-
-            assertTrue(canvas.draws.any { it.text == "認識中" && it.x > cancelBefore.right && it.x < punctuation.left })
-            assertTrue(listOf(cancelBefore, voiceStatus, punctuation, space, backspace, enter).all { kotlin.math.abs(it.width() - cancelBefore.width()) <= 1 })
-            assertTrue(listOf(cancelBefore, voiceStatus, punctuation, space, backspace, enter).all { it.top == cancelBefore.top && it.bottom == cancelBefore.bottom })
-            assertTrue(cancelBefore.right <= voiceStatus.left)
-            assertTrue(voiceStatus.right <= punctuation.left)
-            assertTrue(punctuation.right <= space.left)
-            assertTrue(space.right <= backspace.left)
-            assertTrue(backspace.right <= enter.left)
-            assertEquals(cancelBefore, keyBounds(3))
-            assertEquals(cancelActionsBefore, requireNotNull(provider.createAccessibilityNodeInfo(3)).actions)
-            assertEquals(height, view.measuredHeight)
-            assertEquals(nodesBefore + 1, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
-            assertEquals("認識中", status.contentDescription)
-            assertFalse(status.isClickable)
-            assertFalse(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_CLICK, null))
-            val backspaceNode = requireNotNull(provider.createAccessibilityNodeInfo(7))
-            assertEquals("タップ ⌫", backspaceNode.contentDescription)
-            assertTrue(backspaceNode.isClickable)
-            val statusBounds = Rect().also(status::getBoundsInParent)
-            assertTrue(statusBounds.left >= cancelBefore.right)
-            assertTrue(statusBounds.right <= punctuation.left)
-            val hoverEnter = MotionEvent.obtain(0, 1, MotionEvent.ACTION_HOVER_ENTER, statusBounds.exactCenterX().toFloat(), statusBounds.exactCenterY().toFloat(), 0)
-            try {
-                assertTrue(view.dispatchHoverEvent(hoverEnter))
-            } finally {
-                hoverEnter.recycle()
-            }
-            assertTrue(accessibility.sentAccessibilityEvents.any {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
-            })
-            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
-            })
-
-            view.setVoiceSessionActive(true)
-            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
-            })
-
-            assertTrue(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null))
-            assertTrue(view.isVoiceSessionStatusAccessibilityFocused())
-            view.setVoiceSessionActive(false)
-            assertFalse(view.isVoiceSessionStatusAccessibilityFocused())
-            val delayedStatus = requireNotNull(runCatching {
-                provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)
-            }.getOrThrow())
-            assertFalse(delayedStatus.isVisibleToUser)
-            val exitsAfterClear = accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
-            }
-            val staleHover = MotionEvent.obtain(2, 3, MotionEvent.ACTION_HOVER_MOVE, statusBounds.exactCenterX().toFloat(), statusBounds.exactCenterY().toFloat(), 0)
-            try {
-                view.dispatchHoverEvent(staleHover)
-            } finally {
-                staleHover.recycle()
-            }
-            assertEquals(exitsAfterClear, accessibility.sentAccessibilityEvents.count {
-                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
-            })
-            val idle = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
-            assertFalse(idle.draws.any { it.text == "認識中" })
-            assertEquals(nodesBefore, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
-
-            actions.clear()
-            touch(MotionEvent.ACTION_DOWN, backspace.exactCenterX(), backspace.exactCenterY())
-            touch(MotionEvent.ACTION_UP, backspace.exactCenterX(), backspace.exactCenterY(), 10)
-            assertEquals(listOf(KeyAction.Backspace()), actions)
-            actions.clear()
-            touch(MotionEvent.ACTION_DOWN, backspace.exactCenterX(), backspace.exactCenterY(), 20)
-            touch(MotionEvent.ACTION_MOVE, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 21)
-            touch(MotionEvent.ACTION_UP, backspace.exactCenterX() + 30f, backspace.exactCenterY(), 22)
-            assertEquals(listOf(KeyAction.Backspace()), actions)
+            view.measure(exact(width), exact(228)); view.layout(0, 0, width, 228)
+            val bottom = (3..8).map(::keyBounds)
+            assertTrue(bottom.all { kotlin.math.abs(it.width() - bottom.first().width()) <= 1 })
+            assertTrue(bottom.all { it.top == bottom.first().top && it.bottom == bottom.first().bottom })
+            val descriptions = (3..8).map { requireNotNull(view.accessibilityNodeProvider.createAccessibilityNodeInfo(it)).contentDescription.toString() }
+            assertTrue(descriptions[0].startsWith("タップ Az、上 日本語、右 QWERTY、下 テンキー"))
+            assertTrue(descriptions[1].startsWith("タップ キャンセル"))
+            val cancelDraw = CaptureCanvas(Bitmap.createBitmap(width, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
+                .draws.single { it.text == "キャンセル" }
+            assertGlyphInside(cancelDraw.x, cancelDraw.y, cancelDraw.text, cancelDraw.textSize, bottom[1])
         }
     }
 
-    @Test fun `voice waveform clamps provider levels grows with sound and clears without changing geometry`() {
+    @Test fun `voice return key routes tap assigned flicks and an unassigned flick through the production touch path`() {
+        view.setVoiceReturnMode(KeyboardMode.KANA)
         view.setMode(KeyboardMode.VOICE)
         view.measure(exact(412), exact(228)); view.layout(0, 0, 412, 228)
-        view.setVoiceSessionActive(true)
-        view.setVoiceSessionStatus(VoiceSessionStatus.LISTENING)
-        val statusBounds = keyBounds(4)
-        val originalHeight = view.measuredHeight
-
-        fun waveformState(): List<RoundDraw> {
-            return CaptureCanvas(Bitmap.createBitmap(412, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
-                .roundRects.filter { draw ->
-                    draw.rect.left >= statusBounds.left && draw.rect.right <= statusBounds.right && draw.rect.width() <= 3f
-                }
+        val key = keyBounds(3)
+        val x = key.exactCenterX()
+        val y = key.exactCenterY()
+        listOf(
+            0f to KeyAction.CancelVoice,
+            -35f to KeyAction.SwitchLayer(KeyboardMode.KANA),
+            35f to KeyAction.SwitchLayer(KeyboardMode.NUMBERS),
+        ).forEachIndexed { index, (dy, expected) ->
+            view.setMode(KeyboardMode.VOICE)
+            actions.clear()
+            touch(MotionEvent.ACTION_DOWN, x, y, index * 3L)
+            if (dy != 0f) touch(MotionEvent.ACTION_MOVE, x, y + dy, index * 3L + 1)
+            touch(MotionEvent.ACTION_UP, x, y + dy, index * 3L + 2)
+            assertEquals(listOf(expected), actions)
         }
-        fun waveform(level: Float?): List<RoundDraw> {
-            view.setVoiceInputLevel(level)
-            return waveformState()
-        }
+        view.setMode(KeyboardMode.VOICE)
+        actions.clear()
+        touch(MotionEvent.ACTION_DOWN, x, y, 20L)
+        touch(MotionEvent.ACTION_MOVE, x - 35f, y, 21L)
+        touch(MotionEvent.ACTION_UP, x - 35f, y, 22L)
+        assertEquals(listOf(KeyAction.CancelVoice), actions)
+    }
 
-        view.showVoiceInputLevelBaseline()
-        val baseline = waveformState()
-        val quiet = waveform(-40f)
-        val mid = waveform(-10f)
-        val loud = waveform(10f)
-        assertEquals(4, baseline.size)
-        assertEquals(2f, baseline.maxOf { it.rect.height() }, .01f)
-        assertEquals(4, quiet.size)
-        assertEquals(4, mid.size)
-        assertEquals(4, loud.size)
-        assertTrue(quiet.maxOf { it.rect.height() } > baseline.maxOf { it.rect.height() })
-        assertTrue(mid.maxOf { it.rect.height() } > quiet.maxOf { it.rect.height() })
-        assertTrue(loud.maxOf { it.rect.height() } > mid.maxOf { it.rect.height() })
-        assertEquals(0, waveform(null).size)
-        assertEquals(originalHeight, view.measuredHeight)
+    @Test fun `voice waveform normalization is bounded and monotonic`() {
         assertTrue(normalizeVoiceInputLevel(-40f) < normalizeVoiceInputLevel(-10f))
         assertTrue(normalizeVoiceInputLevel(-10f) < normalizeVoiceInputLevel(5f))
         assertTrue(normalizeVoiceInputLevel(5f) < normalizeVoiceInputLevel(40f))
@@ -665,14 +557,6 @@ class KeyboardViewTest {
         assertTrue(orderedLevels.all { it in 0f..1f })
         assertTrue(orderedLevels.zipWithNext().all { (left, right) -> left <= right })
 
-        view.setVoiceInputLevel(-10f)
-        val quantized = view.voiceInputLevel()
-        assertFalse(view.setVoiceInputLevel(-10.1f))
-        assertEquals(quantized, view.voiceInputLevel())
-        assertFalse(view.setVoiceInputLevel(Float.NaN))
-        assertFalse(view.setVoiceInputLevel(Float.POSITIVE_INFINITY))
-        assertFalse(view.setVoiceInputLevel(Float.NEGATIVE_INFINITY))
-        assertEquals(quantized, view.voiceInputLevel())
     }
 
     @Test fun `voice punctuation has the full idle label and commits every flick direction`() {
@@ -701,22 +585,13 @@ class KeyboardViewTest {
         }
     }
 
-    @Test fun `leaving voice clears a focused listening status before its virtual node disappears`() {
-        shadowOf(view.context.getSystemService(AccessibilityManager::class.java)).apply {
-            setEnabled(true)
-            setTouchExplorationEnabled(true)
-        }
+    @Test fun `leaving voice removes no additional status control`() {
         view.setMode(KeyboardMode.VOICE)
         view.measure(exact(400), exact(228)); view.layout(0, 0, 400, 228)
-        view.setVoiceSessionActive(true)
         val provider = view.accessibilityNodeProvider
-
-        assertTrue(provider.performAction(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null))
-        assertTrue(view.isVoiceSessionStatusAccessibilityFocused())
+        assertEquals(6, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
         view.setMode(KeyboardMode.QWERTY)
-
-        assertFalse(view.isVoiceSessionStatusAccessibilityFocused())
-        assertTrue(runCatching { provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID) }.isSuccess)
+        assertEquals(34, requireNotNull(provider.createAccessibilityNodeInfo(-1)).childCount)
     }
 
     @Test fun `right layer swipe stays qwerty and second pointer does not duplicate voice entry`() {
@@ -1550,9 +1425,6 @@ class KeyboardViewTest {
             super.drawRoundRect(rect, rx, ry, paint)
         }
     }
-
-    private fun KeyboardView.voiceInputLevel(): Float? =
-        (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceInputLevel
 
     private fun exact(size: Int) = android.view.View.MeasureSpec.makeMeasureSpec(size, android.view.View.MeasureSpec.EXACTLY)
 }

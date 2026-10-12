@@ -581,6 +581,108 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun voiceReturnAndCandidateCancelUseProductionMotionEventsAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { actions += it }
+                }
+                activity.setContentView(view)
+                val returnLabels = mapOf(
+                    KeyboardMode.KANA to "あん",
+                    KeyboardMode.NUMBERS to "19",
+                    KeyboardMode.QWERTY to "Az",
+                    KeyboardMode.SYMBOLS to "?}",
+                    KeyboardMode.EMOJI to "☺",
+                )
+
+                listOf(412f, 840f).forEachIndexed { widthIndex, widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    val selectionDistance = 30f * density
+
+                    fun resetVoice(returnMode: KeyboardMode): Pair<Rect, Rect> {
+                        view.setVoiceReturnMode(returnMode)
+                        view.setMode(KeyboardMode.VOICE)
+                        view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                        val keys = KeyboardLayouts.layout(KeyboardMode.VOICE, voiceReturnMode = returnMode).rows.flatMap { it.keys }
+                        val returnId = keys.indexOfFirst { it.id == "voice-return" }
+                        val discardId = keys.indexOfFirst { it.id == "voice-candidate-cancel" }
+                        check(returnId >= 0 && discardId >= 0) { "Voice bottom controls missing" }
+                        return bounds(view, returnId) to bounds(view, discardId)
+                    }
+
+                    fun gesture(key: Rect, moves: List<Pair<Float, Float>>, end: Int = MotionEvent.ACTION_UP, offset: Long): List<KeyAction> {
+                        actions.clear()
+                        val time = SystemClock.uptimeMillis() + widthIndex * 1_000L + offset
+                        val x = key.exactCenterX(); val y = key.exactCenterY()
+                        dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                        moves.forEachIndexed { index, (dx, dy) ->
+                            dispatch(view, MotionEvent.ACTION_MOVE, time, time + index + 1, x + dx, y + dy)
+                        }
+                        val (lastDx, lastDy) = moves.lastOrNull() ?: (0f to 0f)
+                        dispatch(view, end, time, time + moves.size + 1, x + lastDx, y + lastDy)
+                        return actions.toList()
+                    }
+
+                    returnLabels.forEach { (returnMode, label) ->
+                        val (returnKey) = resetVoice(returnMode)
+                        assertTrue(
+                            "$widthDp dp $returnMode voice return label",
+                            view.accessibilityNodeProvider.createAccessibilityNodeInfo(
+                                KeyboardLayouts.layout(KeyboardMode.VOICE, voiceReturnMode = returnMode).rows.flatMap { it.keys }
+                                    .indexOfFirst { it.id == "voice-return" },
+                            )?.contentDescription?.toString()?.startsWith("タップ $label") == true,
+                        )
+                    }
+
+                    listOf(
+                        "tap" to (emptyList<Pair<Float, Float>>() to KeyAction.CancelVoice),
+                        "up" to (listOf(0f to -selectionDistance) to KeyAction.SwitchLayer(KeyboardMode.KANA)),
+                        "right" to (listOf(selectionDistance to 0f) to KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
+                        "down" to (listOf(0f to selectionDistance) to KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
+                        "left fallback" to (listOf(-selectionDistance to 0f) to KeyAction.CancelVoice),
+                        "below threshold" to (listOf(0f to -17f * density) to KeyAction.CancelVoice),
+                        "return to center" to (listOf(0f to -selectionDistance, 0f to -9f * density) to KeyAction.CancelVoice),
+                    ).forEachIndexed { index, (name, expected) ->
+                        val (returnKey) = resetVoice(KeyboardMode.QWERTY)
+                        val (moves, action) = expected
+                        assertEquals("$widthDp dp voice return $name", listOf(action), gesture(returnKey, moves, offset = index * 10L))
+                    }
+                    val (returnKey) = resetVoice(KeyboardMode.QWERTY)
+                    assertTrue(
+                        "$widthDp dp voice return cancel",
+                        gesture(returnKey, listOf(0f to selectionDistance), MotionEvent.ACTION_CANCEL, 90).isEmpty(),
+                    )
+
+                    listOf(
+                        "tap" to emptyList<Pair<Float, Float>>(),
+                        "left fallback" to listOf(-selectionDistance to 0f),
+                        "up fallback" to listOf(0f to -selectionDistance),
+                        "right fallback" to listOf(selectionDistance to 0f),
+                        "down fallback" to listOf(0f to selectionDistance),
+                        "below threshold" to listOf(0f to -17f * density),
+                        "return to center" to listOf(0f to selectionDistance, 0f to 9f * density),
+                    ).forEachIndexed { index, (name, moves) ->
+                        val (_, discardKey) = resetVoice(KeyboardMode.QWERTY)
+                        assertEquals(
+                            "$widthDp dp candidate cancel $name",
+                            listOf(KeyAction.DiscardVoiceCandidates),
+                            gesture(discardKey, moves, offset = 120L + index * 10L),
+                        )
+                    }
+                    val (_, discardKey) = resetVoice(KeyboardMode.QWERTY)
+                    assertTrue(
+                        "$widthDp dp candidate cancel cancel",
+                        gesture(discardKey, listOf(-selectionDistance to 0f), MotionEvent.ACTION_CANCEL, 200).isEmpty(),
+                    )
+                }
+            }
+        }
+    }
+
     @Test fun conversionCandidateAndConfirmButtonsUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
 import android.widget.TextView
+import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -34,9 +35,10 @@ class VoicePanelViewTest {
         view.layout(0, 0, 320, 110)
 
         val candidates = view.allTextViews()
-        assertEquals(listOf("キャンセル", "第一候補", "第二候補", "第三候補"), candidates.map { it.text.toString() })
+        assertEquals(listOf("候補を選択", "第一候補", "第二候補", "第三候補"), candidates.map { it.text.toString() })
         assertTrue(candidates.zipWithNext().all { (first, second) -> second.top >= first.bottom })
-        assertTrue(candidates.all { it.isClickable && it.isFocusable && it.background is GradientDrawable })
+        assertFalse(candidates.first().isClickable)
+        assertTrue(candidates.drop(1).all { it.isClickable && it.isFocusable && it.background is GradientDrawable })
         assertTrue(view.descendants().filterIsInstance<ScrollView>().single().getChildAt(0).height > view.height)
 
         candidates[1].performClick()
@@ -44,19 +46,49 @@ class VoicePanelViewTest {
     }
 
     @Test
-    fun cancelRowDiscardsOnlyTheVisibleVoiceCandidates() {
+    fun candidatePanelDoesNotDuplicateTheBottomCancelAction() {
         val view = view()
-        val tokens = mutableListOf<Long>()
-        view.setOnCandidatesDiscarded(tokens::add)
         view.showCandidates(CandidateUiSnapshot(44, listOf("候補")))
         view.setVoiceState(VoiceUiSnapshot(54, VoiceUiState.Preview("候補")))
 
-        val cancel = view.textView("キャンセル")
-        assertTrue(cancel.isClickable)
-        assertEquals("候補を破棄して認識を続ける", cancel.contentDescription)
-        cancel.performClick()
+        assertEquals(listOf("候補を選択", "候補"), view.allTextViews().map { it.text.toString() })
+        assertTrue(view.allTextViews().none { it.text.toString() == "キャンセル" })
+    }
 
-        assertEquals(listOf(44L), tokens)
+    @Test
+    fun voiceStatusesStayInThePanelAndClearWaveformOutsideListening() {
+        val view = view()
+        view.setVoiceState(VoiceUiSnapshot(91, VoiceUiState.Starting))
+        assertEquals(listOf("準備中"), view.allTextViews().map { it.text.toString() })
+
+        view.setVoiceState(VoiceUiSnapshot(92, VoiceUiState.Recording))
+        assertEquals(0f, requireNotNull(reflectionInputLevel(view)), 0f)
+        view.setVoiceInputLevel(-10f)
+        assertEquals(listOf("認識中"), view.allTextViews().map { it.text.toString() })
+        assertEquals(normalizeVoiceInputLevel(-10f), requireNotNull(reflectionInputLevel(view)), 0f)
+
+        view.setVoiceState(VoiceUiSnapshot(93, VoiceUiState.Recognizing))
+        assertEquals(listOf("処理中"), view.allTextViews().map { it.text.toString() })
+        assertNull(reflectionInputLevel(view))
+    }
+
+    @Test
+    fun nonPreviewVoiceStatesCenterInTheFixedPanelWhileCandidatesStartAtTheTop() {
+        val view = view()
+        view.measure(exact(320), exact(165))
+        view.layout(0, 0, 320, 165)
+
+        view.setVoiceState(VoiceUiSnapshot(93, VoiceUiState.Recording))
+        view.measure(exact(320), exact(165))
+        view.layout(0, 0, 320, 165)
+        val listening = view.textView("認識中")
+        assertTrue(listening.top > 0)
+
+        view.showCandidates(CandidateUiSnapshot(94, listOf("候補")))
+        view.setVoiceState(VoiceUiSnapshot(94, VoiceUiState.Preview("候補")))
+        view.measure(exact(320), exact(165))
+        view.layout(0, 0, 320, 165)
+        assertEquals(0, view.textView("候補を選択").top)
     }
 
     @Test
@@ -167,7 +199,7 @@ class VoicePanelViewTest {
         view.showCandidates(CandidateUiSnapshot(83, emptyList(), selectable = false))
         view.setVoiceState(VoiceUiSnapshot(84, VoiceUiState.Recognizing))
 
-        assertTrue(view.allTextViews().isEmpty())
+        assertEquals(listOf("処理中"), view.allTextViews().map { it.text.toString() })
     }
 
     private fun exact(size: Int) = View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
@@ -182,6 +214,9 @@ class VoicePanelViewTest {
             .sortedBy(text::getSpanStart)
             .map { text.subSequence(text.getSpanStart(it), text.getSpanEnd(it)).toString() }
     }
+
+    private fun reflectionInputLevel(view: VoicePanelView): Float? =
+        VoicePanelView::class.java.getDeclaredField("inputLevel").apply { isAccessible = true }.get(view) as Float?
 
     private fun highlightedRanges(view: TextView): List<Pair<Int, Int>> {
         val text = view.text as Spanned

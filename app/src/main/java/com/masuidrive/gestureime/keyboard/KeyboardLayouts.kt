@@ -9,13 +9,14 @@ object KeyboardLayouts {
         conversionActive: Boolean = false,
         conversionCandidateSelected: Boolean = false,
         emojiRecents: List<String> = emptyList(),
+        voiceReturnMode: KeyboardMode = KeyboardMode.QWERTY,
     ): KeyboardLayout = when (mode) {
         KeyboardMode.QWERTY -> qwerty()
         KeyboardMode.SYMBOLS -> symbols()
         KeyboardMode.KANA -> kana(dualKana, conversionActive, conversionCandidateSelected)
         KeyboardMode.NUMBERS -> numbers()
         KeyboardMode.EMOJI -> emoji(emojiRecents)
-        KeyboardMode.VOICE -> voice()
+        KeyboardMode.VOICE -> voice(voiceReturnMode)
     }
 
     private fun text(label: String, secondary: String? = null, kind: KeyKind = KeyKind.CHARACTER, width: Float = 1f) =
@@ -76,11 +77,11 @@ object KeyboardLayouts {
             KeyboardRow(listOf(layerKey("AZ", KeyboardMode.QWERTY), empty(7f))),
         )
 
-    private fun voice(): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
+    private fun voice(returnMode: KeyboardMode): KeyboardLayout = KeyboardLayout(KeyboardMode.VOICE, listOf(
         KeyboardRow(listOf(empty(6f))),
         KeyboardRow(listOf(empty(6f))),
         KeyboardRow(listOf(empty(6f))),
-        KeyboardRow(listOf(voiceLayerKey(), voiceStatusSlot(), voicePunct(), space(), voiceBackspace(), enter())),
+        KeyboardRow(listOf(voiceReturnKey(returnMode), voiceCandidateCancel(), voicePunct(), space(), voiceBackspace(), enter())),
     ))
 
     private fun kana(center: String, left: String, up: String, right: String, down: String) = KeySpec(
@@ -178,8 +179,8 @@ object KeyboardLayouts {
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), widthUnits = width, dark = true)
 
-    private fun voiceLayerKey() = KeySpec("voice-cancel", KeyKind.LAYER_SWITCH,
-        FlickValue("キャンセル", KeyAction.CancelVoice),
+    private fun voiceReturnKey(returnMode: KeyboardMode) = KeySpec("voice-return", KeyKind.LAYER_SWITCH,
+        FlickValue(voiceReturnLabel(returnMode), KeyAction.CancelVoice),
         up = FlickValue(KeyboardMode.KANA.displayName, KeyAction.SwitchLayer(KeyboardMode.KANA)),
         right = FlickValue(KeyboardMode.QWERTY.displayName, KeyAction.SwitchLayer(KeyboardMode.QWERTY)),
         down = FlickValue(KeyboardMode.NUMBERS.displayName, KeyAction.SwitchLayer(KeyboardMode.NUMBERS)),
@@ -187,8 +188,18 @@ object KeyboardLayouts {
         dark = true,
     )
 
-    /** The spoken-state label is drawn over this non-action sixth-sized slot of the voice bottom row. */
-    private fun voiceStatusSlot() = KeySpec("voice-status", KeyKind.EMPTY, null)
+    /** Discards only a selectable voice preview; recognizing states deliberately leave it inert. */
+    private fun voiceCandidateCancel() = KeySpec("voice-candidate-cancel", KeyKind.CHARACTER,
+        FlickValue("キャンセル", KeyAction.DiscardVoiceCandidates), dark = true)
+
+    private fun voiceReturnLabel(returnMode: KeyboardMode): String = when (returnMode) {
+        KeyboardMode.KANA -> "あん"
+        KeyboardMode.NUMBERS -> "19"
+        KeyboardMode.QWERTY -> "Az"
+        KeyboardMode.SYMBOLS -> "?}"
+        KeyboardMode.EMOJI -> "☺"
+        KeyboardMode.VOICE -> "Az"
+    }
 
     /** Voice punctuation commits immediately: it must never enter the Mozc reading buffer. */
     private fun voicePunct() = KeySpec("voice-punct", KeyKind.CHARACTER,

@@ -92,8 +92,8 @@ class KeyboardLayoutsTest {
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.QWERTY), key.right?.action)
             assertEquals(KeyAction.SwitchLayer(KeyboardMode.NUMBERS), key.down?.action)
         }
-        val voice = keys(KeyboardMode.VOICE).single { it.kind == KeyKind.LAYER_SWITCH }
-        assertEquals("キャンセル", voice.center?.label)
+        val voice = keys(KeyboardMode.VOICE).single { it.id == "voice-return" }
+        assertEquals("Az", voice.center?.label)
         assertEquals(1f, voice.widthUnits)
         assertEquals(KeyAction.CancelVoice, voice.center?.action)
         assertNull(voice.left)
@@ -105,14 +105,32 @@ class KeyboardLayoutsTest {
         }
     }
 
+    @Test fun `voice return label identifies every possible previous layer`() {
+        val expected = mapOf(
+            KeyboardMode.KANA to "あん",
+            KeyboardMode.NUMBERS to "19",
+            KeyboardMode.QWERTY to "Az",
+            KeyboardMode.SYMBOLS to "?}",
+            KeyboardMode.EMOJI to "☺",
+        )
+        expected.forEach { (returnMode, label) ->
+            val key = KeyboardLayouts.layout(KeyboardMode.VOICE, voiceReturnMode = returnMode)
+                .rows.last().keys.first()
+            assertEquals(label, key.center?.label)
+            assertEquals(KeyAction.CancelVoice, key.center?.action)
+        }
+    }
+
     @Test fun `voice bottom row has six equal columns and direct punctuation`() {
         val rows = KeyboardLayouts.layout(KeyboardMode.VOICE).rows
         assertEquals(4, rows.size)
         assertTrue(rows.take(3).all { it.keys.single().widthUnits == 6f })
 
         val bottom = rows.last().keys
-        assertEquals(listOf("voice-cancel", "voice-status", "voice-punct", "space", "voice-backspace", "enter"), bottom.map { it.id })
+        assertEquals(listOf("voice-return", "voice-candidate-cancel", "voice-punct", "space", "voice-backspace", "enter"), bottom.map { it.id })
         assertTrue(bottom.all { it.widthUnits == 1f })
+        assertEquals("キャンセル", bottom[1].center?.label)
+        assertEquals(KeyAction.DiscardVoiceCandidates, bottom[1].center?.action)
         val punctuation = bottom[2]
         assertEquals(KeyKind.CHARACTER, punctuation.kind)
         assertEquals(

@@ -2,6 +2,9 @@ package com.masuidrive.gestureime.ui
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.text.SpannableString
@@ -17,6 +20,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.masuidrive.gestureime.R
+import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 
 private const val MAX_HIGHLIGHT_CANDIDATES = 8
 private const val MAX_DIFF_MATRIX_CELLS = 262_144
@@ -34,8 +38,8 @@ class VoicePanelView @JvmOverloads constructor(
     }
     private var candidates = CandidateUiSnapshot(0L, emptyList())
     private var voice = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
+    private var inputLevel: Float? = null
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
-    private var onCandidatesDiscarded: ((Long) -> Unit)? = null
 
     init {
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -47,10 +51,6 @@ class VoicePanelView @JvmOverloads constructor(
         onCandidateSelected = listener
     }
 
-    fun setOnCandidatesDiscarded(listener: (Long) -> Unit) {
-        onCandidatesDiscarded = listener
-    }
-
     fun showCandidates(snapshot: CandidateUiSnapshot) {
         val contentChanged = candidates.candidates != snapshot.candidates
         candidates = snapshot
@@ -60,6 +60,19 @@ class VoicePanelView @JvmOverloads constructor(
 
     fun setVoiceState(snapshot: VoiceUiSnapshot) {
         voice = snapshot
+        inputLevel = when {
+            snapshot.state.acceptsVoiceInputLevel() -> inputLevel ?: 0f
+            else -> null
+        }
+        render()
+    }
+
+    /** Shows a four-bar local waveform only while the voice panel is listening. */
+    fun setVoiceInputLevel(rmsDb: Float?) {
+        val normalized = rmsDb?.takeIf { it.isFinite() && voice.state.acceptsVoiceInputLevel() }
+            ?.let(::normalizeVoiceInputLevel)
+        if (inputLevel == normalized) return
+        inputLevel = normalized
         render()
     }
 
@@ -80,32 +93,39 @@ class VoicePanelView @JvmOverloads constructor(
         when (val state = voice.state) {
             VoiceUiState.Hidden,
             VoiceUiState.Idle,
-            VoiceUiState.Starting,
-            VoiceUiState.Recording,
-            VoiceUiState.Recognizing,
-            -> Unit
-            is VoiceUiState.Partial -> addPlainText(state.text, "認識途中: ${state.text}")
-            is VoiceUiState.Preview -> renderCandidates()
+            -> rows.gravity = Gravity.TOP
+            is VoiceUiState.Preview -> {
+                rows.gravity = Gravity.TOP
+                addStatus("候補を選択")
+                renderCandidates()
+            }
+            else -> {
+                rows.gravity = Gravity.CENTER_VERTICAL
+                renderNonPreviewState(state)
+            }
+        }
+    }
+
+    private fun renderNonPreviewState(state: VoiceUiState) {
+        when (state) {
+            VoiceUiState.Starting -> addStatus("準備中")
+            VoiceUiState.Recording -> addStatus("認識中", inputLevel)
+            VoiceUiState.Recognizing -> addStatus("処理中")
+            is VoiceUiState.Partial -> {
+                addStatus("認識中", inputLevel)
+                addPlainText(state.text, "認識途中: ${state.text}")
+            }
             is VoiceUiState.Unavailable -> addPlainText(state.message, state.message)
             VoiceUiState.PermissionRequired -> addPlainText("マイクの許可が必要です", "マイクの許可が必要です")
+            VoiceUiState.Hidden,
+            VoiceUiState.Idle,
+            is VoiceUiState.Preview,
+            -> error("Non-preview renderer received $state")
         }
     }
 
     private fun renderCandidates() {
         val snapshot = candidates
-        rows.addView(textRow("キャンセル").apply {
-            isEnabled = snapshot.selectable
-            isClickable = snapshot.selectable
-            isFocusable = snapshot.selectable
-            contentDescription = "候補を破棄して認識を続ける"
-            background = GradientDrawable().apply {
-                setColor(context.getColor(R.color.candidate_background))
-                cornerRadius = dp(7).toFloat()
-            }
-            if (snapshot.selectable) {
-                setOnClickListener { onCandidatesDiscarded?.invoke(snapshot.token) }
-            }
-        }, rowLayout())
         val differenceMasks = candidateDifferenceMasks(snapshot.candidates)
         snapshot.candidates.forEachIndexed { index, candidate ->
             rows.addView(textRow(highlightDifferences(candidate, differenceMasks[index])).apply {
@@ -137,6 +157,15 @@ class VoicePanelView @JvmOverloads constructor(
             isClickable = false
             isFocusable = false
             background = null
+        }, rowLayout())
+    }
+
+    private fun addStatus(label: String, level: Float? = null) {
+        rows.addView(VoiceStatusView(context, label, level).apply {
+            contentDescription = label
+            isEnabled = true
+            isClickable = false
+            isFocusable = false
         }, rowLayout())
     }
 
@@ -188,6 +217,49 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+}
+
+private fun VoiceUiState.acceptsVoiceInputLevel(): Boolean =
+    this == VoiceUiState.Recording || this is VoiceUiState.Partial
+
+/** Fixed-height panel status that keeps the level indicator out of the keyboard's action row. */
+private class VoiceStatusView(
+    context: Context,
+    private val label: String,
+    private val level: Float?,
+) : TextView(context) {
+    private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    init {
+        text = label
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        setTextColor(context.getColor(R.color.keyboard_text))
+        gravity = Gravity.CENTER_VERTICAL
+        minHeight = dp(48f).toInt()
+        setPadding(dp(16f).toInt(), dp(10f).toInt(), dp(16f).toInt(), dp(10f).toInt())
+        wavePaint.color = context.getColor(R.color.keyboard_muted_text)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val amplitude = level ?: return
+        val barWidth = dp(1.5f)
+        val barGap = dp(1.5f)
+        val waveLeft = paddingLeft + paint.measureText(label) + dp(8f)
+        val centerY = height / 2f
+        floatArrayOf(0.55f, 1f, 0.72f, 0.42f).forEachIndexed { index, multiplier ->
+            val height = dp(2f) + dp(12f) * amplitude * multiplier
+            val left = waveLeft + index * (barWidth + barGap)
+            canvas.drawRoundRect(
+                RectF(left, centerY - height / 2f, left + barWidth, centerY + height / 2f),
+                barWidth / 2f,
+                barWidth / 2f,
+                wavePaint,
+            )
+        }
+    }
+
+    private fun dp(value: Float): Float = value * resources.displayMetrics.density
 }
 
 /** Marks code points that are not part of every candidate's pairwise longest common subsequence. */

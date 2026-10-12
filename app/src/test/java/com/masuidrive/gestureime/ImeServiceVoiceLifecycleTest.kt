@@ -174,6 +174,7 @@ class ImeServiceVoiceLifecycleTest {
             val actions = mutableListOf<KeyAction>()
 
             service.setModeForLifecycleTest(KeyboardMode.VOICE, returnMode = KeyboardMode.KANA)
+            keyboard.setVoiceReturnMode(KeyboardMode.KANA)
             keyboard.setMode(KeyboardMode.VOICE)
             keyboard.actionSink = KeyboardActionSink { actions += it }
             panel.visibility = View.VISIBLE
@@ -190,6 +191,7 @@ class ImeServiceVoiceLifecycleTest {
 
             val expectedActions = mapOf(
                 3 to KeyAction.CancelVoice,
+                4 to KeyAction.DiscardVoiceCandidates,
                 5 to KeyAction.CommitText("、"),
                 6 to KeyAction.CommitText(" "),
                 7 to KeyAction.Backspace(),
@@ -203,7 +205,22 @@ class ImeServiceVoiceLifecycleTest {
                 dispatchTouch(root, MotionEvent.ACTION_UP, bounds.exactCenterX().toFloat(), touchY.toFloat(), index * 2L + 1)
                 expectedActions[virtualId]?.let { expected ->
                     assertEquals(listOf(expected), actions.drop(actionCount))
-                } ?: assertEquals("voice status has no action", actionCount, actions.size)
+                } ?: error("all voice bottom controls must be actionable")
+            }
+
+            val returnBounds = keyBounds(keyboard, 3)
+            val centerX = returnBounds.exactCenterX().toFloat()
+            val centerY = keyboard.top + returnBounds.exactCenterY()
+            listOf(
+                -40f to KeyAction.SwitchLayer(KeyboardMode.KANA),
+                40f to KeyAction.SwitchLayer(KeyboardMode.NUMBERS),
+            ).forEachIndexed { index, (offset, expected) ->
+                keyboard.setMode(KeyboardMode.VOICE)
+                val count = actions.size
+                dispatchTouch(root, MotionEvent.ACTION_DOWN, centerX, centerY.toFloat(), 100L + index * 3)
+                dispatchTouch(root, MotionEvent.ACTION_MOVE, centerX, centerY + offset, 101L + index * 3)
+                dispatchTouch(root, MotionEvent.ACTION_UP, centerX, centerY + offset, 102L + index * 3)
+                assertEquals(listOf(expected), actions.drop(count))
             }
         } finally {
             preferences.edit().clear().commit()

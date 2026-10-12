@@ -31,7 +31,6 @@ import com.masuidrive.gestureime.keyboard.EmojiLayerHorizontalGeometry
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
-import com.masuidrive.gestureime.keyboard.VoiceSessionStatus
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.keyboard.VoiceHoldSink
@@ -221,7 +220,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val panel = VoicePanelView(this).also {
             it.id = R.id.voice_panel
             it.setOnCandidateSelected(::onCandidateSelected)
-            it.setOnCandidatesDiscarded(::onVoiceCandidatesDiscarded)
             it.visibility = View.GONE
             voicePanel = it
         }
@@ -952,7 +950,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onKeyAction(action: KeyAction) {
         val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
-        val voiceCandidateDiscard = action == KeyAction.DiscardVoiceCandidates && candidateSource == CandidateSource.VOICE
+        // The bottom voice Cancel is available during every voice phase, but only a preview may
+        // discard. Treat its other phases as no-ops instead of tearing down live recognition.
+        val voiceCandidateDiscard = action == KeyAction.DiscardVoiceCandidates && keyboardMode == KeyboardMode.VOICE
         val voiceEditingSession = continuousVoiceEditingSessionFor(action)
         // A destructive voice-layer action must invalidate a queued candidate tap before the
         // action mutex reaches it. This closes the small queueing window after a user cancels
@@ -988,11 +988,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun onCandidateSelected(event: CandidateUiEvent) {
         if (event.token != candidateUiToken) return
         onKeyAction(KeyAction.SelectCandidate(event.index))
-    }
-
-    private fun onVoiceCandidatesDiscarded(token: Long) {
-        if (token != candidateUiToken) return
-        onKeyAction(KeyAction.DiscardVoiceCandidates)
     }
 
     private fun onCandidateLongPressed(event: CandidateUiLongPressEvent): Boolean {
@@ -1251,8 +1246,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         resetConversion(clearComposing = false)
         voiceReturnMode = keyboardMode
         keyboardMode = KeyboardMode.VOICE
+        keyboardView?.setVoiceReturnMode(voiceReturnMode)
         keyboardView?.setMode(KeyboardMode.VOICE)
-        keyboardView?.setVoiceSessionActive(false)
         updateEmojiPickerVisibility()
         candidateSource = CandidateSource.VOICE
         candidates = emptyList()
@@ -1295,7 +1290,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun invalidateContinuousVoiceSession() {
         voiceSessionGeneration++
         voiceController.cancel(notify = false)
-        keyboardView?.setVoiceSessionActive(false)
     }
 
     private fun startContinuousVoiceRecognition(token: Long, session: Long) {
@@ -1310,7 +1304,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             !textController.isPrivateField
 
     private fun leaveVoiceLayer() {
-        keyboardView?.setVoiceSessionActive(false)
         candidateSource = CandidateSource.NONE
         candidates = emptyList()
         showCandidateStrip(emptyList(), -1)
@@ -1667,13 +1660,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
         if (keyboardMode == KeyboardMode.VOICE) {
-            keyboardView?.setVoiceSessionActive(state.isContinuousVoiceSession())
-            keyboardView?.setVoiceSessionStatus(state.toKeyboardVoiceSessionStatus())
-            when (state) {
-                VoiceBackendState.Recording,
-                is VoiceBackendState.Partial -> keyboardView?.showVoiceInputLevelBaseline()
-                else -> keyboardView?.setVoiceInputLevel(null)
-            }
             when (state) {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
@@ -1723,7 +1709,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     internal fun onVoiceInputLevel(rmsDb: Float, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField || keyboardMode != KeyboardMode.VOICE) return
-        keyboardView?.setVoiceInputLevel(rmsDb)
+        voicePanel?.setVoiceInputLevel(rmsDb)
     }
 
     private fun commitVoiceHold(requestId: Long, token: Long, text: String) {
@@ -2113,31 +2099,6 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
     is VoiceBackendState.Preview -> VoiceUiState.Preview(candidates.firstOrNull().orEmpty())
     is VoiceBackendState.Unavailable -> VoiceUiState.Unavailable(message)
-}
-
-private fun VoiceBackendState.isContinuousVoiceSession(): Boolean = when (this) {
-    VoiceBackendState.Starting,
-    VoiceBackendState.Recording,
-    VoiceBackendState.Recognizing,
-    is VoiceBackendState.Partial,
-    is VoiceBackendState.Preview,
-    -> true
-    VoiceBackendState.Idle,
-    VoiceBackendState.PermissionRequired,
-    is VoiceBackendState.Unavailable,
-    -> false
-}
-
-private fun VoiceBackendState.toKeyboardVoiceSessionStatus(): VoiceSessionStatus? = when (this) {
-    VoiceBackendState.Starting -> VoiceSessionStatus.PREPARING
-    VoiceBackendState.Recording,
-    is VoiceBackendState.Partial -> VoiceSessionStatus.LISTENING
-    VoiceBackendState.Recognizing -> VoiceSessionStatus.PROCESSING
-    is VoiceBackendState.Preview -> VoiceSessionStatus.CANDIDATE
-    VoiceBackendState.Idle,
-    VoiceBackendState.PermissionRequired,
-    is VoiceBackendState.Unavailable,
-    -> null
 }
 
 internal fun String.toKatakana(): String = map { char ->
