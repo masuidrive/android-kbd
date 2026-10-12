@@ -1,11 +1,14 @@
 package com.masuidrive.gestureime.ui
 
+import android.app.Activity
 import android.graphics.drawable.GradientDrawable
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.widget.ScrollView
 import android.widget.TextView
 import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
@@ -16,7 +19,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Robolectric
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -70,6 +75,56 @@ class VoicePanelViewTest {
         view.setVoiceState(VoiceUiSnapshot(93, VoiceUiState.Recognizing))
         assertEquals(listOf("処理中"), view.allTextViews().map { it.text.toString() })
         assertNull(reflectionInputLevel(view))
+    }
+
+    @Test
+    fun rmsUpdatesKeepTheFocusedStatusNodeAndDoNotAnnounceWhileStateChangesAnnounceOnce() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = VoicePanelView(activity)
+        activity.setContentView(view)
+        val accessibility = shadowOf(activity.getSystemService(AccessibilityManager::class.java)).apply {
+            setEnabled(true)
+            setTouchExplorationEnabled(true)
+        }
+        view.setVoiceState(VoiceUiSnapshot(94, VoiceUiState.Recording))
+        val status = view.textView("認識中")
+        assertTrue(status.requestFocus())
+        val announcementsAfterState = accessibility.sentAccessibilityEvents.count {
+            it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT
+        }
+
+        view.setVoiceInputLevel(-8f)
+
+        assertTrue(status === view.textView("認識中"))
+        assertTrue(status.hasFocus())
+        assertEquals(announcementsAfterState, accessibility.sentAccessibilityEvents.count {
+            it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT
+        })
+
+        view.setVoiceState(VoiceUiSnapshot(95, VoiceUiState.Partial("最初の途中結果")))
+        val detail = view.textView("最初の途中結果")
+        assertTrue(status === view.textView("認識中"))
+        assertTrue(status.hasFocus())
+        assertEquals(announcementsAfterState, accessibility.sentAccessibilityEvents.count {
+            it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT
+        })
+
+        view.setVoiceState(VoiceUiSnapshot(95, VoiceUiState.Partial("更新した途中結果")))
+
+        assertTrue(status === view.textView("認識中"))
+        assertTrue(detail === view.textView("更新した途中結果"))
+        assertTrue(status.hasFocus())
+        assertEquals(announcementsAfterState, accessibility.sentAccessibilityEvents.count {
+            it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT
+        })
+
+        view.setVoiceState(VoiceUiSnapshot(95, VoiceUiState.Recognizing))
+
+        assertTrue(status === view.textView("処理中"))
+        assertTrue(status.hasFocus())
+        assertEquals(announcementsAfterState + 1, accessibility.sentAccessibilityEvents.count {
+            it.eventType == AccessibilityEvent.TYPE_ANNOUNCEMENT
+        })
     }
 
     @Test

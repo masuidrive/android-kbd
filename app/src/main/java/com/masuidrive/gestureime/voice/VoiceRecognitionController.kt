@@ -183,15 +183,6 @@ class VoiceRecognitionController internal constructor(
         return result
     }
 
-    /** Discards a visible final-result preview without ending the continuous voice layer. */
-    fun discardPreview(token: Long): Boolean {
-        requireMainThread()
-        if (token != editorToken || preview == null) return false
-        invalidate(destroy = true)
-        onState(VoiceBackendState.Idle, token)
-        return true
-    }
-
     fun cancel(notify: Boolean = true) {
         requireMainThread()
         val token = editorToken

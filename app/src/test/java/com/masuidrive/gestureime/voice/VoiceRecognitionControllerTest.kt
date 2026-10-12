@@ -192,14 +192,14 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
-    fun discardPreviewCreatesANewSessionAndDropsTheOldCallbacks() {
+    fun cancelledRecognitionCreatesANewSessionAndDropsTheOldCallbacks() {
         val controller = controller()
         controller.start(17, continueAfterSilence = true)
         recognizer.supportCallback?.invoke(true)
         val oldListener = recognizer.listener
         oldListener?.onResults(listOf("捨てる候補"))
 
-        assertTrue(controller.discardPreview(17))
+        controller.cancel()
         controller.start(17, continueAfterSilence = true)
         recognizer.supportCallback?.invoke(true)
         oldListener?.onResults(listOf("古い候補"))

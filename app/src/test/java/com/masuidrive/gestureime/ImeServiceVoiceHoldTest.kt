@@ -26,16 +26,24 @@ import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class ImeServiceVoiceHoldTest {
-    @Test fun voiceCandidateCancelIsInertUntilThereIsASelectablePreview() {
+    @Test fun voiceCandidateCancelDropsActiveRecognitionThenRestartsWithoutAcceptingOldResults() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        val stale = h.recognizer.listener
 
         h.service.onKeyAction(KeyAction.DiscardVoiceCandidates); h.idle()
 
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
         assertEquals(1, h.recognizer.startCount)
-        assertTrue(h.root.allText().contains("認識中"))
+        assertTrue(h.root.allText().contains("準備中"))
+        stale?.onResults(listOf("古い認識結果")); h.idle()
+        assertFalse(h.root.allText().contains("古い認識結果"))
+
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        assertEquals(2, h.recognizer.startCount)
+        h.recognizer.result("次の認識結果"); h.idle()
+        assertTrue(h.root.allText().contains("次の認識結果"))
     }
 
     @Test fun voiceCandidateCancelDropsOnlyThePreviewThenRestartsAndRejectsStaleCallbacks() {

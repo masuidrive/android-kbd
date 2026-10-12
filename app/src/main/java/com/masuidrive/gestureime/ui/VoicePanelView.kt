@@ -37,6 +37,7 @@ class VoicePanelView @JvmOverloads constructor(
         isVerticalScrollBarEnabled = true
         addView(rows, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
+    private val statusView = VoiceStatusView(context)
     private var candidates = CandidateUiSnapshot(0L, emptyList())
     private var voice = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var inputLevel: Float? = null
@@ -60,12 +61,16 @@ class VoicePanelView @JvmOverloads constructor(
     }
 
     fun setVoiceState(snapshot: VoiceUiSnapshot) {
+        val stateChanged = voice.state != snapshot.state
         voice = snapshot
-        inputLevel = when {
+        val nextInputLevel = when {
             snapshot.state.acceptsVoiceInputLevel() -> inputLevel ?: 0f
             else -> null
         }
-        render()
+        val inputLevelChanged = inputLevel != nextInputLevel
+        inputLevel = nextInputLevel
+        if (stateChanged) render(announceStatus = true)
+        else if (inputLevelChanged) statusView.setInputLevel(inputLevel)
     }
 
     /** Shows a four-bar local waveform only while the voice panel is listening. */
@@ -74,7 +79,7 @@ class VoicePanelView @JvmOverloads constructor(
             ?.let(::normalizeVoiceInputLevel)
         if (inputLevel == normalized) return
         inputLevel = normalized
-        render()
+        statusView.setInputLevel(normalized)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -89,37 +94,80 @@ class VoicePanelView @JvmOverloads constructor(
         scroll.setBackgroundColor(context.getColor(R.color.keyboard_background))
     }
 
-    private fun render() {
-        rows.removeAllViews()
+    private fun render(announceStatus: Boolean = false) {
         when (val state = voice.state) {
             VoiceUiState.Hidden,
             VoiceUiState.Idle,
-            -> rows.gravity = Gravity.TOP
-            is VoiceUiState.Preview -> {
+            -> {
+                rows.removeAllViews()
                 rows.gravity = Gravity.TOP
-                addStatus("候補を選択")
+            }
+            VoiceUiState.Starting -> renderStatusOnly("準備中", announceStatus)
+            VoiceUiState.Recording -> renderStatusOnly("認識中", announceStatus, inputLevel)
+            VoiceUiState.Recognizing -> renderStatusOnly("処理中", announceStatus)
+            is VoiceUiState.Partial -> renderPartial(state, announceStatus)
+            is VoiceUiState.Preview -> {
+                rows.removeAllViews()
+                rows.gravity = Gravity.TOP
+                addStatus("候補を選択", announceStatus)
                 renderCandidates()
             }
             else -> {
+                rows.removeAllViews()
                 rows.gravity = Gravity.CENTER_VERTICAL
-                renderNonPreviewState(state)
+                renderNonPreviewState(state, announceStatus)
             }
         }
     }
 
-    private fun renderNonPreviewState(state: VoiceUiState) {
+    private fun renderStatusOnly(label: String, announceStatus: Boolean, level: Float? = null) {
+        rows.gravity = Gravity.CENTER_VERTICAL
+        if (rows.childCount > 0 && rows.getChildAt(0) === statusView) {
+            removeRowsAfterStatus()
+            statusView.setStatus(label, level, announceStatus)
+        } else {
+            rows.removeAllViews()
+            addStatus(label, announceStatus, level)
+        }
+    }
+
+    private fun renderPartial(state: VoiceUiState.Partial, announceStatus: Boolean) {
+        rows.gravity = Gravity.CENTER_VERTICAL
+        if (rows.childCount > 0 && rows.getChildAt(0) === statusView) {
+            statusView.setStatus("認識中", inputLevel, announceStatus)
+        } else {
+            rows.removeAllViews()
+            addStatus("認識中", announceStatus, inputLevel)
+        }
+        val detail = rows.getChildAt(1) as? TextView
+        if (detail?.contentDescription?.toString()?.startsWith("認識途中:") != true) {
+            removeRowsAfterStatus()
+            addPlainText(state.text, "認識途中: ${state.text}")
+        } else {
+            detail.text = state.text
+            detail.contentDescription = "認識途中: ${state.text}"
+            removeRowsAfter(detail)
+        }
+    }
+
+    private fun removeRowsAfterStatus() {
+        removeRowsAfter(statusView)
+    }
+
+    private fun removeRowsAfter(view: android.view.View) {
+        while (rows.indexOfChild(view) + 1 < rows.childCount) rows.removeViewAt(rows.indexOfChild(view) + 1)
+    }
+
+    private fun renderNonPreviewState(state: VoiceUiState, announceStatus: Boolean) {
         when (state) {
-            VoiceUiState.Starting -> addStatus("準備中")
-            VoiceUiState.Recording -> addStatus("認識中", inputLevel)
-            VoiceUiState.Recognizing -> addStatus("処理中")
-            is VoiceUiState.Partial -> {
-                addStatus("認識中", inputLevel)
-                addPlainText(state.text, "認識途中: ${state.text}")
-            }
             is VoiceUiState.Unavailable -> addPlainText(state.message, state.message)
             VoiceUiState.PermissionRequired -> addPlainText("マイクの許可が必要です", "マイクの許可が必要です")
             VoiceUiState.Hidden,
             VoiceUiState.Idle,
+            VoiceUiState.Starting,
+            VoiceUiState.Recording,
+            VoiceUiState.Recognizing,
+            is VoiceUiState.Partial,
             is VoiceUiState.Preview,
             -> error("Non-preview renderer received $state")
         }
@@ -161,13 +209,9 @@ class VoicePanelView @JvmOverloads constructor(
         }, rowLayout())
     }
 
-    private fun addStatus(label: String, level: Float? = null) {
-        rows.addView(VoiceStatusView(context, label, level).apply {
-            contentDescription = label
-            isEnabled = true
-            isClickable = false
-            isFocusable = false
-        }, rowLayout())
+    private fun addStatus(label: String, announceStatus: Boolean, level: Float? = null) {
+        rows.addView(statusView, rowLayout())
+        statusView.setStatus(label, level, announceStatus)
     }
 
     private fun highlightDifferences(value: String, differences: BooleanArray): CharSequence {
@@ -226,19 +270,35 @@ private fun VoiceUiState.acceptsVoiceInputLevel(): Boolean =
 /** Fixed-height panel status that keeps the level indicator out of the keyboard's action row. */
 private class VoiceStatusView(
     context: Context,
-    private val label: String,
-    private val level: Float?,
 ) : AppCompatTextView(context) {
     private val wavePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var level: Float? = null
 
     init {
-        text = label
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         setTextColor(context.getColor(R.color.keyboard_text))
         gravity = Gravity.CENTER_VERTICAL
         minHeight = dp(48f).toInt()
         setPadding(dp(16f).toInt(), dp(10f).toInt(), dp(16f).toInt(), dp(10f).toInt())
         wavePaint.color = context.getColor(R.color.keyboard_muted_text)
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        isFocusable = true
+    }
+
+    fun setStatus(label: String, level: Float?, announce: Boolean) {
+        val labelChanged = text.toString() != label
+        if (labelChanged) {
+            text = label
+            contentDescription = label
+        }
+        setInputLevel(level)
+        if (announce && labelChanged) announceForAccessibility(label)
+    }
+
+    fun setInputLevel(level: Float?) {
+        if (this.level == level) return
+        this.level = level
+        invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -246,7 +306,7 @@ private class VoiceStatusView(
         val amplitude = level ?: return
         val barWidth = dp(1.5f)
         val barGap = dp(1.5f)
-        val waveLeft = paddingLeft + paint.measureText(label) + dp(8f)
+        val waveLeft = paddingLeft + paint.measureText(text.toString()) + dp(8f)
         val centerY = height / 2f
         floatArrayOf(0.55f, 1f, 0.72f, 0.42f).forEachIndexed { index, multiplier ->
             val height = dp(2f) + dp(12f) * amplitude * multiplier

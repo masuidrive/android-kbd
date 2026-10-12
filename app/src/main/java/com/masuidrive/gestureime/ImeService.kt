@@ -949,10 +949,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     override fun onKeyAction(action: KeyAction) {
+        if (action == KeyAction.DiscardVoiceCandidates && keyboardMode == KeyboardMode.VOICE) {
+            discardVoiceRecognition()
+            return
+        }
         val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
-        // The bottom voice Cancel is available during every voice phase, but only a preview may
-        // discard. Treat its other phases as no-ops instead of tearing down live recognition.
-        val voiceCandidateDiscard = action == KeyAction.DiscardVoiceCandidates && keyboardMode == KeyboardMode.VOICE
         val voiceEditingSession = continuousVoiceEditingSessionFor(action)
         // A destructive voice-layer action must invalidate a queued candidate tap before the
         // action mutex reaches it. This closes the small queueing window after a user cancels
@@ -962,12 +963,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         ) {
             invalidateContinuousVoiceSession()
         }
-        if (!voiceCandidateSelection && !voiceCandidateDiscard && voiceEditingSession == null) {
+        if (!voiceCandidateSelection && voiceEditingSession == null) {
             cancelVoiceHold()
             if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         }
         val queuedForEditor = editorSession.capture()
-        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate || action == KeyAction.DiscardVoiceCandidates) {
+        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) {
             candidateSnapshot()
         } else {
             null
@@ -1212,7 +1213,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 else if (candidateSource == CandidateSource.PREDICTION) commitPredictionCandidate(action.index, editorToken)
                 else commitJapaneseCandidate(action.index, editorToken)
             }
-            KeyAction.DiscardVoiceCandidates -> discardVoiceCandidates(editorToken)
+            KeyAction.DiscardVoiceCandidates -> Unit
             KeyAction.CycleCandidate -> cycleCandidate()
             is KeyAction.SetModifier -> finishEnglishRaw()
             KeyAction.VoiceHold -> startVoiceLayer(editorToken)
@@ -1274,12 +1275,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         startContinuousVoiceRecognition(token, session)
     }
 
-    private fun discardVoiceCandidates(token: Long) {
-        val session = voiceSessionGeneration
-        if (!isCurrentContinuousVoiceSession(session, token)) return
-        if (!voiceController.discardPreview(token)) return
-        if (!isCurrentContinuousVoiceSession(session, token)) return
-        startContinuousVoiceRecognition(token, session)
+    /** Cancels the current recognizer generation before starting the next continuous request. */
+    private fun discardVoiceRecognition() {
+        val token = editorSession.capture()
+        if (!isCurrentContinuousVoiceSession(voiceSessionGeneration, token)) return
+        invalidateContinuousVoiceSession()
+        startContinuousVoiceRecognition(token, voiceSessionGeneration)
     }
 
     private fun cancelVoiceSession() {
