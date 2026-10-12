@@ -9,8 +9,8 @@
 - [x] nativeとブラウザモックを揃え、スマホ・タブレット幅の操作と高さを検証する。
 - [x] 認識中のキャンセルで古い認識を破棄して再開し、callbackの混入を防ぐ。
 - [x] 音声状態のTalkBack通知とフォーカスを波形更新中も保つ。
-- [ ] v0.15.30 APKを直接配布のGitHub Releaseへ公開し、再ダウンロードしたassetとローカルAPKをbyte比較する。
-- [ ] 製品ページ・マニュアル・操作モックを公開し、公開ファイルと実ブラウザで確認する。
+- [x] v0.15.30 APKを直接配布のGitHub Releaseへ公開し、再ダウンロードしたassetとローカルAPKをbyte比較する。
+- [x] 製品ページ・マニュアル・操作モックを公開し、公開ファイルと実ブラウザで確認する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -89,6 +89,12 @@
 
 ## PDH-human-review. 人間レビュー
 差分・検証結果・実機未観察の範囲を説明した後、ユーザが「リリースして」と明示指示した。v0.15.30の公開は承認済みと扱う。一方、実日本語音声モデルでの進行中キャンセル、状態遷移、RMS波形はまだ観察できず、AC 2・3は未検証のためticket closeは保留する。ブラウザモックの参考画像は `site/assets/voice-layer-mock-v0.15.30.png`。
+
+## v0.15.30 リリース記録
+- リリース元SHA `19983ee727595308a87ecf46c0035b0bde4df376`。`scripts/test-all.sh --parallel --connected` の初回はAVDの/data空き255MBでAPK installが拒否され、fast-checksとunit/lint/APKはPASS、connectedはFAIL（0 tests）。既定の容量しきい値は両方`null`で、テスト中だけ1%/50MBへ下げて同じSHAで再実行した。実出力は `PASS: fast-checks`、`PASS: android unit, lint, apk`、`PASS: android connected (real Mozc)`、`Passed: 3 / 3`。終了後、しきい値を削除し`null`へ復元した。
+- `gesture-ime-v0.15.30.apk` は38,669,704 bytes、SHA-256 `f28f1da36fd8c34e83eca1514704ca66c827039c48e58613b119afe5e79f9a73`。`com.masuidrive.gestureime`、versionCode 46 / versionName 0.15.30、API 28以上、arm64-v8a、`RECORD_AUDIO`を要求し`INTERNET`は要求しない。GitHub Releaseから再取得し`cmp`で一致を確認した。
+- GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.30`、APK直リンク `https://github.com/masuidrive/android-kbd/releases/download/v0.15.30/gesture-ime-v0.15.30.apk`。feature branchをoriginへpushした。ticketはAC 2・3の実音声native観察待ちでopenのまま。
+- 製品サイトの公開元commit `0b4ee75adecc1d5fa4bda386bdca0d0e15e24732`。`site/index.html`、`site/mock.html`、`site/manual.html`、`site/styles.css`を公開元とbyte比較し、Pagesのビルドcommit一致を確認した。公開URLから同4ファイルと音声モック画像を再取得してbyte比較も一致。公開ブラウザ412px/840pxで横はみ出しなし、音声レイヤーへの左フリック・認識中Cancel後の再準備・かなキー入力を確認し、ブラウザエラーなし。参考画像 `/private/tmp/md-kbd-v0.15.30-public-phone-mobile.png`、`/private/tmp/md-kbd-v0.15.30-public-tablet.png`。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
