@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
 description: "音声レイヤーの戻るキーと候補取消・状態表示を整理する"
 created_at: "2026-10-12T11:47:49Z"
-started_at: null  # Do not modify manually
+started_at: 2026-10-12T11:48:35Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
