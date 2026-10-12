@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
 description: "音声候補のキャンセル操作と無音後の認識再開を整える"
 created_at: "2026-10-12T08:30:09Z"
-started_at: null  # Do not modify manually
+started_at: 2026-10-12T08:56:27Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
