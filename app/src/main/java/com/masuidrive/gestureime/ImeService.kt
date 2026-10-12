@@ -113,6 +113,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var voiceReturnMode = KeyboardMode.QWERTY
     private var candidateUiToken = 0L
     private var voiceUiToken = 0L
+    private var pendingVoiceCandidateAnimation: PendingVoiceCandidateAnimation? = null
     private var voiceHoldRequestId: Long? = null
     private var voiceHoldEditorToken = 0L
     private var voiceHoldReady = false
@@ -220,6 +221,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val panel = VoicePanelView(this).also {
             it.id = R.id.voice_panel
             it.setOnCandidateSelected(::onCandidateSelected)
+            it.setOnCandidateSelectionFinished(::onVoiceCandidateSelectionFinished)
             it.visibility = View.GONE
             voicePanel = it
         }
@@ -988,7 +990,22 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun onCandidateSelected(event: CandidateUiEvent) {
         if (event.token != candidateUiToken) return
+        if (candidateSource == CandidateSource.VOICE && keyboardMode == KeyboardMode.VOICE) {
+            pendingVoiceCandidateAnimation = PendingVoiceCandidateAnimation(
+                event = event,
+                session = voiceSessionGeneration,
+                editorToken = editorSession.capture(),
+            )
+        }
         onKeyAction(KeyAction.SelectCandidate(event.index))
+    }
+
+    private fun onVoiceCandidateSelectionFinished(event: CandidateUiEvent) {
+        if (event.token != candidateUiToken) return
+        val pending = pendingVoiceCandidateAnimation ?: return
+        if (pending.event != event) return
+        pending.animationFinished = true
+        restartAfterVoiceCandidateAnimation(pending)
     }
 
     private fun onCandidateLongPressed(event: CandidateUiLongPressEvent): Boolean {
@@ -1260,6 +1277,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun commitVoiceCandidate(index: Int, token: Long) {
         val session = voiceSessionGeneration
         if (!isCurrentContinuousVoiceSession(session, token)) return
+        val pending = pendingVoiceCandidateAnimation?.takeIf {
+            it.event.token == candidateUiToken &&
+                it.event.index == index &&
+                it.session == session &&
+                it.editorToken == token
+        }
         val text = voiceController.confirm(token, index) ?: return
         if (!isCurrentContinuousVoiceSession(session, token)) return
         var committed = false
@@ -1270,9 +1293,12 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             return
         }
         if (!isCurrentContinuousVoiceSession(session, token)) return
-        // confirm() synchronously clears the preview through onVoiceState(Idle). Restart only
-        // after that clear and the guarded single editor commit have both completed.
-        startContinuousVoiceRecognition(token, session)
+        if (pending == null) {
+            startContinuousVoiceRecognition(token, session)
+        } else {
+            pending.committed = true
+            restartAfterVoiceCandidateAnimation(pending)
+        }
     }
 
     /** Cancels the current recognizer generation before starting the next continuous request. */
@@ -1290,8 +1316,17 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun invalidateContinuousVoiceSession() {
         voiceSessionGeneration++
+        pendingVoiceCandidateAnimation = null
         voicePanel?.cancelCandidateSelection()
         voiceController.cancel(notify = false)
+    }
+
+    private fun restartAfterVoiceCandidateAnimation(pending: PendingVoiceCandidateAnimation) {
+        if (!pending.committed || !pending.animationFinished) return
+        if (pendingVoiceCandidateAnimation !== pending) return
+        pendingVoiceCandidateAnimation = null
+        if (!isCurrentContinuousVoiceSession(pending.session, pending.editorToken)) return
+        startContinuousVoiceRecognition(pending.editorToken, pending.session)
     }
 
     private fun startContinuousVoiceRecognition(token: Long, session: Long) {
@@ -1662,6 +1697,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     internal fun onVoiceState(state: VoiceBackendState, token: Long) {
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
         if (keyboardMode == KeyboardMode.VOICE) {
+            // confirm() emits Idle synchronously. Keep the selected row visible until its
+            // animation reports completion, then start the next recognizer generation.
+            if (state == VoiceBackendState.Idle && pendingVoiceCandidateAnimation != null) return
             when (state) {
                 is VoiceBackendState.Partial -> {
                     candidateSource = CandidateSource.VOICE
@@ -1799,6 +1837,15 @@ private fun inputSafeBottomInset(insets: WindowInsets): Int = max(
 private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
 
 private val HISTORY_CANDIDATE_SOURCES = setOf(CandidateSource.JAPANESE, CandidateSource.PREDICTION)
+
+private class PendingVoiceCandidateAnimation(
+    val event: CandidateUiEvent,
+    val session: Long,
+    val editorToken: Long,
+) {
+    var committed = false
+    var animationFinished = false
+}
 
 private data class CandidateSnapshot(
     val source: CandidateSource,

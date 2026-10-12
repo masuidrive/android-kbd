@@ -280,7 +280,24 @@ class ImeServiceVoiceHoldTest {
         assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
     }
 
-    @Test fun cancelDuringCandidateSelectionAnimationDropsThePendingCommit() {
+    @Test fun voiceCandidateCommitsOnTapAndRestartsOnlyAfterItsAnimation() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.result("即時確定"); h.idle()
+
+        h.root.findText("即時確定").performClick(); h.idle()
+
+        assertEquals("即時確定", h.input.text)
+        assertEquals(1, h.recognizer.startCount)
+
+        h.finishCandidateSelection(); h.idle()
+
+        assertEquals(1, h.recognizer.startCount)
+        h.recognizer.support?.invoke(true); h.idle()
+        assertEquals(2, h.recognizer.startCount)
+    }
+
+    @Test fun cancelDuringCandidateSelectionAnimationRetainsTheTappedCommit() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
         h.recognizer.support?.invoke(true); h.recognizer.result("取り消す候補"); h.idle()
@@ -289,7 +306,7 @@ class ImeServiceVoiceHoldTest {
         h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
         h.finishCandidateSelection()
 
-        assertEquals("", h.input.text)
+        assertEquals("取り消す候補", h.input.text)
         assertEquals(1, h.recognizer.startCount)
         assertEquals(KeyboardMode.QWERTY, h.root.findKeyboard().mode())
     }

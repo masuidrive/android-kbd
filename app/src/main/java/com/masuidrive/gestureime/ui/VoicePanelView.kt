@@ -19,6 +19,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -50,6 +51,7 @@ class VoicePanelView @JvmOverloads constructor(
     private var voice = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var inputLevel: Float? = null
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
+    private var onCandidateSelectionFinished: ((CandidateUiEvent) -> Unit)? = null
     private var candidateSelection: CandidateSelection? = null
 
     init {
@@ -60,6 +62,10 @@ class VoicePanelView @JvmOverloads constructor(
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) {
         onCandidateSelected = listener
+    }
+
+    fun setOnCandidateSelectionFinished(listener: (CandidateUiEvent) -> Unit) {
+        onCandidateSelectionFinished = listener
     }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
@@ -237,6 +243,7 @@ class VoicePanelView @JvmOverloads constructor(
             leftMargin = startLeft
             topMargin = startTop
         })
+        onCandidateSelected?.invoke(event)
 
         if (!ValueAnimator.areAnimatorsEnabled()) {
             finishCandidateSelection(selection)
@@ -244,18 +251,9 @@ class VoicePanelView @JvmOverloads constructor(
         }
         selection.animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = VOICE_CANDIDATE_SELECTION_DURATION_MS
-            interpolator = PathInterpolator(0.2f, 0.82f, 0.35f, 1f)
+            interpolator = LinearInterpolator()
             addUpdateListener { animator ->
-                val progress = animator.animatedValue as Float
-                val movingToTop = (progress / VOICE_CANDIDATE_SELECTION_TOP_FRACTION).coerceAtMost(1f)
-                candidate.translationY = -selection.startTop * movingToTop -
-                    candidate.height * ((progress - VOICE_CANDIDATE_SELECTION_TOP_FRACTION) /
-                    (1f - VOICE_CANDIDATE_SELECTION_TOP_FRACTION)).coerceAtLeast(0f)
-                candidate.alpha = if (progress <= VOICE_CANDIDATE_SELECTION_TOP_FRACTION) 1f else {
-                    1f - (1f - VOICE_CANDIDATE_SELECTION_FINAL_ALPHA) *
-                        ((progress - VOICE_CANDIDATE_SELECTION_TOP_FRACTION) /
-                            (1f - VOICE_CANDIDATE_SELECTION_TOP_FRACTION))
-                }
+                applyCandidateSelectionFrame(candidate, selection, animator.animatedValue as Float)
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
@@ -270,7 +268,26 @@ class VoicePanelView @JvmOverloads constructor(
         if (candidateSelection !== selection) return
         candidateSelection = null
         removeView(selection.view)
-        onCandidateSelected?.invoke(selection.event)
+        onCandidateSelectionFinished?.invoke(selection.event)
+    }
+
+    private fun applyCandidateSelectionFrame(
+        candidate: TextView,
+        selection: CandidateSelection,
+        elapsedFraction: Float,
+    ) {
+        val exitFraction = (elapsedFraction - VOICE_CANDIDATE_SELECTION_TOP_FRACTION) /
+            (1f - VOICE_CANDIDATE_SELECTION_TOP_FRACTION)
+        if (exitFraction <= 0f) {
+            candidate.translationY = -selection.startTop * candidateSelectionInterpolator.getInterpolation(
+                elapsedFraction / VOICE_CANDIDATE_SELECTION_TOP_FRACTION,
+            )
+            candidate.alpha = 1f
+            return
+        }
+        val exitProgress = candidateSelectionInterpolator.getInterpolation(exitFraction.coerceAtMost(1f))
+        candidate.translationY = -selection.startTop - candidate.height * exitProgress
+        candidate.alpha = 1f - (1f - VOICE_CANDIDATE_SELECTION_FINAL_ALPHA) * exitProgress
     }
 
     private fun addPlainText(text: String, description: String) {
@@ -343,6 +360,10 @@ class VoicePanelView @JvmOverloads constructor(
         val startTop: Float,
     ) {
         var animator: ValueAnimator? = null
+    }
+
+    private companion object {
+        val candidateSelectionInterpolator = PathInterpolator(0.2f, 0.82f, 0.35f, 1f)
     }
 }
 

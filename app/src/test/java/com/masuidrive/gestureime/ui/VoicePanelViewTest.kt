@@ -49,7 +49,7 @@ class VoicePanelViewTest {
         assertTrue(view.descendants().filterIsInstance<ScrollView>().single().getChildAt(0).height > view.height)
 
         candidates[1].performClick()
-        assertEquals(emptyList<CandidateUiEvent>(), events)
+        assertEquals(listOf(CandidateUiEvent(41, 0)), events)
         advanceAnimationsBy(260)
         assertEquals(listOf(CandidateUiEvent(41, 0)), events)
     }
@@ -57,6 +57,8 @@ class VoicePanelViewTest {
     @Test
     fun selectedCandidateKeepsItsInitialPositionThenLeavesThePanelAtTwentyPercentOpacity() {
         val view = view()
+        val events = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(events::add)
         view.showCandidates(CandidateUiSnapshot(46, listOf("第一候補", "第二候補", "第三候補")))
         view.setVoiceState(VoiceUiSnapshot(56, VoiceUiState.Preview("第一候補")))
         view.measure(exact(320), exact(220))
@@ -71,6 +73,7 @@ class VoicePanelViewTest {
         assertEquals(1f, selected.alpha, 0f)
         assertFalse(selected.isClickable)
         assertFalse(selected.isFocusable)
+        assertEquals(listOf(CandidateUiEvent(46, 2)), events)
 
         advanceAnimationsBy(250)
 
@@ -79,7 +82,7 @@ class VoicePanelViewTest {
     }
 
     @Test
-    fun cancelingCandidateSelectionSuppressesTheDelayedCommit() {
+    fun cancelingCandidateSelectionDoesNotWithdrawTheImmediateCommit() {
         val view = view()
         val events = mutableListOf<CandidateUiEvent>()
         view.setOnCandidateSelected(events::add)
@@ -93,7 +96,7 @@ class VoicePanelViewTest {
         view.cancelCandidateSelection()
         advanceAnimationsBy(300)
 
-        assertEquals(emptyList<CandidateUiEvent>(), events)
+        assertEquals(listOf(CandidateUiEvent(49, 1)), events)
         assertEquals(listOf("候補を選択"), view.allTextViews().map { it.text.toString() })
     }
 

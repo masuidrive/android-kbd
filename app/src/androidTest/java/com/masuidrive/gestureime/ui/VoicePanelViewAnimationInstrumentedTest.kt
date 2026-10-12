@@ -50,9 +50,16 @@ class VoicePanelViewAnimationInstrumentedTest {
                 assertEquals(initialTop, selected.top)
                 assertEquals(1f, selected.alpha, 0f)
                 assertFalse(selected.isClickable)
+                assertEquals(listOf(CandidateUiEvent(71, 2)), events)
             }
 
-            Thread.sleep(250)
+            Thread.sleep(120)
+            scenario.onActivity {
+                assertTrue(selected.top + selected.translationY > 1f)
+                assertEquals(1f, selected.alpha, 0f)
+            }
+
+            Thread.sleep(130)
             scenario.onActivity {
                 assertTrue(selected.top + selected.translationY <= 1f)
                 assertTrue(selected.alpha in 0.19f..0.3f)
@@ -92,7 +99,7 @@ class VoicePanelViewAnimationInstrumentedTest {
             Thread.sleep(300)
             instrumentation.waitForIdleSync()
             scenario.onActivity {
-                assertEquals(emptyList<CandidateUiEvent>(), events)
+                assertEquals(listOf(CandidateUiEvent(72, 0)), events)
                 assertEquals(listOf("候補を選択"), panel.allTextViews().map { it.text.toString() })
             }
         }
