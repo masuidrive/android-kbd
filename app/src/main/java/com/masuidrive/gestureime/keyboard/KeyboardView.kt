@@ -273,16 +273,38 @@ class KeyboardView @JvmOverloads constructor(
     fun setVoiceSessionActive(active: Boolean) {
         if (state.voiceSessionActive == active) return
         if (!active) accessibilityHelper.clearVoiceSessionStatusFocus()
-        state = state.copy(voiceSessionActive = active, voiceInputLevel = if (active) state.voiceInputLevel else null)
+        state = state.copy(
+            voiceSessionActive = active,
+            voiceSessionStatus = if (active) state.voiceSessionStatus ?: VoiceSessionStatus.PREPARING else null,
+            voiceInputLevel = if (active) state.voiceInputLevel else null,
+        )
         accessibilityHelper.invalidateRoot()
         if (active) accessibilityHelper.announceVoiceSessionStarted()
+        invalidate()
+    }
+
+    /** Keeps status wording aligned with the recognizer lifecycle rather than optimistic restart timing. */
+    fun setVoiceSessionStatus(status: VoiceSessionStatus?) {
+        val accepted = status?.takeIf { state.voiceSessionActive }
+        val statusChanged = state.voiceSessionStatus != accepted
+        if (state.voiceSessionStatus == accepted &&
+            (accepted == VoiceSessionStatus.LISTENING || state.voiceInputLevel == null)
+        ) return
+        state = state.copy(
+            voiceSessionStatus = accepted,
+            voiceInputLevel = if (accepted == VoiceSessionStatus.LISTENING) state.voiceInputLevel else null,
+        )
+        accessibilityHelper.invalidateRoot()
+        if (statusChanged && accepted != null) accessibilityHelper.announceVoiceSessionStarted()
         invalidate()
     }
 
     /** SpeechRecognizer RMS has no documented range, so the renderer owns bounded quantization. */
     fun setVoiceInputLevel(rmsDb: Float?): Boolean {
         if (rmsDb != null && !rmsDb.isFinite()) return false
-        val normalized = rmsDb?.takeIf { state.voiceSessionActive }?.let(::normalizeVoiceInputLevel)
+        val normalized = rmsDb?.takeIf {
+            state.voiceSessionActive && state.voiceSessionStatus == VoiceSessionStatus.LISTENING
+        }?.let(::normalizeVoiceInputLevel)
         if (state.voiceInputLevel == normalized) return false
         state = state.copy(voiceInputLevel = normalized)
         invalidate()
@@ -290,7 +312,7 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     fun showVoiceInputLevelBaseline() {
-        if (!state.voiceSessionActive || state.voiceInputLevel == 0f) return
+        if (state.voiceSessionStatus != VoiceSessionStatus.LISTENING || state.voiceInputLevel == 0f) return
         state = state.copy(voiceInputLevel = 0f)
         invalidate()
     }
@@ -462,11 +484,12 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun drawVoiceSessionStatus(canvas: Canvas) {
         val status = hitTargets.firstOrNull { it.spec.id == "voice-status" } ?: return
+        val label = state.voiceSessionStatus?.label ?: return
         textPaint.color = context.getColor(R.color.keyboard_muted_text)
         textPaint.alpha = 255
         textPaint.textSize = sp(13f)
         textPaint.textAlign = Paint.Align.CENTER
-        val labelWidth = textPaint.measureText("認識中")
+        val labelWidth = textPaint.measureText(label)
         val amplitude = state.voiceInputLevel
         val barWidth = dp(1.5f)
         val barGap = dp(1.5f)
@@ -475,7 +498,7 @@ class KeyboardView @JvmOverloads constructor(
         val groupWidth = if (amplitude == null) labelWidth else labelWidth + dp(4f) + waveWidth
         val x = status.bounds.centerX() - groupWidth / 2f + labelWidth / 2f
         val y = status.bounds.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
-        canvas.drawText("認識中", x, y, textPaint)
+        canvas.drawText(label, x, y, textPaint)
         if (amplitude == null) return
 
         keyPaint.color = context.getColor(R.color.keyboard_muted_text)
@@ -1008,7 +1031,7 @@ class KeyboardView @JvmOverloads constructor(
                 // be delivered.
                 val bounds = voiceSessionStatusBounds()
                 node.className = "android.widget.TextView"
-                node.contentDescription = "認識中"
+                node.contentDescription = state.voiceSessionStatus?.label.orEmpty()
                 node.isFocusable = bounds != null
                 node.isClickable = false
                 node.isVisibleToUser = bounds != null

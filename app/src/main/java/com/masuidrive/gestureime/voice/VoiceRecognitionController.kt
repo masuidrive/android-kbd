@@ -19,6 +19,8 @@ import androidx.annotation.RequiresApi
 sealed interface VoiceBackendState {
     data object Idle : VoiceBackendState
     data object PermissionRequired : VoiceBackendState
+    /** The recognizer is being created or restarted, but has not reported onReadyForSpeech yet. */
+    data object Starting : VoiceBackendState
     data object Recording : VoiceBackendState
     data object Recognizing : VoiceBackendState
     data class Partial(val text: String) : VoiceBackendState
@@ -83,6 +85,8 @@ class VoiceRecognitionController internal constructor(
     private var generation = 0L
     private var editorToken = 0L
     private var recognizer: VoiceRecognizer? = null
+    private var readyForSpeech = false
+    private var speechEnded = false
     private var partial: String? = null
     private var preview: List<String>? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -106,17 +110,24 @@ class VoiceRecognitionController internal constructor(
         editorToken = token
         val activeGeneration = generation
         val created = runCatching { factory.create(object : VoiceRecognizerListener {
-            override fun onReady() = deliver(activeGeneration, VoiceBackendState.Recording)
+            override fun onReady() = markReady(activeGeneration)
             override fun onInputLevel(rmsDb: Float) = deliverInputLevel(activeGeneration, rmsDb)
             override fun onEndOfSpeech() {
-                deliver(activeGeneration, partialState())
+                if (activeGeneration != generation) return
+                speechEnded = true
+                deliver(activeGeneration, VoiceBackendState.Recognizing)
                 scheduleEndOfSpeechFallback(activeGeneration)
             }
             override fun onPartialResults(results: List<String>) {
                 if (activeGeneration != generation || preview != null) return
                 val text = results.firstOrNull { it.isNotBlank() } ?: return
                 partial = text
-                deliver(activeGeneration, VoiceBackendState.Partial(text))
+                deliver(activeGeneration, when {
+                    speechEnded -> VoiceBackendState.Recognizing
+                    readyForSpeech -> VoiceBackendState.Partial(text)
+                    else -> VoiceBackendState.Starting
+                })
+                if (speechEnded) scheduleEndOfSpeechFallback(activeGeneration)
             }
             override fun onResults(results: List<String>) {
                 if (activeGeneration != generation) return
@@ -139,7 +150,7 @@ class VoiceRecognitionController internal constructor(
             return
         }
         recognizer = created
-        onState(VoiceBackendState.Recognizing, token)
+        onState(VoiceBackendState.Starting, token)
         runCatching {
             created.checkJapaneseSupport { installed ->
                 if (activeGeneration != generation) return@checkJapaneseSupport
@@ -159,7 +170,8 @@ class VoiceRecognitionController internal constructor(
             finishWith(activeGeneration, VoiceBackendState.Unavailable("音声認識を停止できません"))
             return
         }
-        onState(partialState(), editorToken)
+        speechEnded = true
+        onState(VoiceBackendState.Recognizing, editorToken)
     }
 
     fun confirm(token: Long, index: Int = 0): String? {
@@ -169,6 +181,15 @@ class VoiceRecognitionController internal constructor(
         invalidate(destroy = true)
         onState(VoiceBackendState.Idle, token)
         return result
+    }
+
+    /** Discards a visible final-result preview without ending the continuous voice layer. */
+    fun discardPreview(token: Long): Boolean {
+        requireMainThread()
+        if (token != editorToken || preview == null) return false
+        invalidate(destroy = true)
+        onState(VoiceBackendState.Idle, token)
+        return true
     }
 
     fun cancel(notify: Boolean = true) {
@@ -187,8 +208,14 @@ class VoiceRecognitionController internal constructor(
         if (activeGeneration == generation) onState(state, editorToken)
     }
 
+    private fun markReady(activeGeneration: Long) {
+        if (activeGeneration != generation || speechEnded) return
+        readyForSpeech = true
+        onState(VoiceBackendState.Recording, editorToken)
+    }
+
     private fun deliverInputLevel(activeGeneration: Long, rmsDb: Float) {
-        if (activeGeneration == generation && preview == null && rmsDb.isFinite()) {
+        if (activeGeneration == generation && readyForSpeech && !speechEnded && preview == null && rmsDb.isFinite()) {
             onInputLevel(rmsDb, editorToken)
         }
     }
@@ -212,6 +239,8 @@ class VoiceRecognitionController internal constructor(
         generation++
         clearEndOfSpeechFallback()
         clearSilenceRestart()
+        readyForSpeech = false
+        speechEnded = false
         partial = null
         preview = null
         recognizer?.let {
@@ -224,9 +253,6 @@ class VoiceRecognitionController internal constructor(
     private fun requireMainThread() {
         check(Looper.myLooper() == Looper.getMainLooper()) { "Voice recognition must run on the main thread" }
     }
-
-    private fun partialState(): VoiceBackendState =
-        partial?.let(VoiceBackendState::Partial) ?: VoiceBackendState.Recognizing
 
     private fun scheduleEndOfSpeechFallback(activeGeneration: Long) {
         clearEndOfSpeechFallback()
@@ -248,7 +274,7 @@ class VoiceRecognitionController internal constructor(
         if (activeGeneration != generation) return
         val token = editorToken
         invalidate(destroy = true)
-        onState(VoiceBackendState.Recognizing, token)
+        onState(VoiceBackendState.Starting, token)
         val restartGeneration = generation
         silenceRestart = Runnable {
             silenceRestart = null

@@ -4,7 +4,7 @@ base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
 description: "音声候補のキャンセル操作と無音後の認識再開を整える"
 created_at: "2026-10-12T08:30:09Z"
 started_at: 2026-10-12T08:56:27Z # Do not modify manually
-closed_at: null   # Do not modify manually
+closed_at: 2026-10-12T11:14:21Z # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
 
@@ -15,9 +15,9 @@ Product Brief の音声レイヤーで連続入力する際、誤認識候補を
 
 ### What / Acceptance Criteria
 この ticket が終わると、音声レイヤーの利用者が候補を捨てて次の発話へ移り、認識の準備状態を見分けられるようになる。
-- [ ] AC 1: 音声候補の一覧に「キャンセル」を選べる行がある。
-- [ ] AC 2: 候補の「キャンセル」を選ぶと候補だけ破棄し、音声レイヤーに留まって次の認識へ進む。下段の「キャンセル」は音声レイヤーを終了する。
-- [ ] AC 3: 無音後の再起動中と、実際に発話を受け付けられる状態を利用者が見分けられる。
+- [x] AC 1: 音声候補の一覧に「キャンセル」を選べる行がある。
+- [x] AC 2: 候補の「キャンセル」を選ぶと候補だけ破棄し、音声レイヤーに留まって次の認識へ進む。下段の「キャンセル」は音声レイヤーを終了する。
+- [x] AC 3: 無音後の再起動中と、実際に発話を受け付けられる状態を利用者が見分けられる。
 
 ### Architectural Invariants check
 AI-1 と AI-2 を維持し、音声認識は既存の端末内 API のみを使う。AI-3 と AI-4 に影響しない。

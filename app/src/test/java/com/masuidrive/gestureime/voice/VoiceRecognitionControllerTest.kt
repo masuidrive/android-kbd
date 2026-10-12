@@ -44,6 +44,26 @@ class VoiceRecognitionControllerTest {
     }
 
     @Test
+    fun startingDoesNotClaimReadinessOrAcceptInputLevelsUntilOnReady() {
+        val controller = controller()
+        controller.start(6, continueAfterSilence = true)
+        recognizer.supportCallback?.invoke(true)
+
+        assertEquals(VoiceBackendState.Starting to 6L, states.last())
+        recognizer.listener?.onInputLevel(8f)
+        assertTrue(inputLevels.isEmpty())
+        recognizer.listener?.onPartialResults(listOf("準備前の途中結果"))
+        assertEquals(VoiceBackendState.Starting to 6L, states.last())
+
+        recognizer.listener?.onReady()
+        assertEquals(VoiceBackendState.Recording to 6L, states.last())
+        recognizer.listener?.onInputLevel(8f)
+        assertEquals(listOf(8f to 6L), inputLevels)
+        recognizer.listener?.onPartialResults(listOf("準備後の途中結果"))
+        assertEquals(VoiceBackendState.Partial("準備後の途中結果") to 6L, states.last())
+    }
+
+    @Test
     fun endOfSpeechPromotesTheLatestOfMultipleLongSpeechPartialsAfterGracePeriod() {
         val controller = controller()
         controller.start(8)
@@ -57,15 +77,19 @@ class VoiceRecognitionControllerTest {
         assertNull(controller.confirm(8))
 
         recognizer.listener?.onEndOfSpeech()
-        assertEquals(VoiceBackendState.Partial("最新の途中結果") to 8L, states.last())
+        assertEquals(VoiceBackendState.Recognizing to 8L, states.last())
+        recognizer.listener?.onInputLevel(9f)
+        assertTrue(inputLevels.isEmpty())
+        recognizer.listener?.onPartialResults(listOf("終了後の途中結果"))
+        assertEquals(VoiceBackendState.Recognizing to 8L, states.last())
         assertNull(controller.confirm(8))
 
         Shadows.shadowOf(Looper.getMainLooper()).idleFor(
             Duration.ofMillis(VoiceRecognitionController.END_OF_SPEECH_GRACE_MS),
         )
 
-        assertEquals(VoiceBackendState.Preview(listOf("最新の途中結果")) to 8L, states.last())
-        assertEquals("最新の途中結果", controller.confirm(8))
+        assertEquals(VoiceBackendState.Preview(listOf("終了後の途中結果")) to 8L, states.last())
+        assertEquals("終了後の途中結果", controller.confirm(8))
     }
 
     @Test
@@ -133,7 +157,7 @@ class VoiceRecognitionControllerTest {
             val silentListener = recognizer.listener
             silentListener?.onError(error)
 
-            assertEquals(VoiceBackendState.Recognizing to 14L, states.last())
+            assertEquals(VoiceBackendState.Starting to 14L, states.last())
             assertEquals(1, recognizer.startCount)
 
             Shadows.shadowOf(Looper.getMainLooper()).idleFor(
@@ -165,6 +189,24 @@ class VoiceRecognitionControllerTest {
 
         assertEquals(VoiceBackendState.Idle to 15L, states.last())
         assertEquals(1, recognizer.startCount)
+    }
+
+    @Test
+    fun discardPreviewCreatesANewSessionAndDropsTheOldCallbacks() {
+        val controller = controller()
+        controller.start(17, continueAfterSilence = true)
+        recognizer.supportCallback?.invoke(true)
+        val oldListener = recognizer.listener
+        oldListener?.onResults(listOf("捨てる候補"))
+
+        assertTrue(controller.discardPreview(17))
+        controller.start(17, continueAfterSilence = true)
+        recognizer.supportCallback?.invoke(true)
+        oldListener?.onResults(listOf("古い候補"))
+        recognizer.listener?.onResults(listOf("次の発話"))
+
+        assertEquals(VoiceBackendState.Preview(listOf("次の発話")) to 17L, states.last())
+        assertNull(controller.confirm(18))
     }
 
     @Test
@@ -224,6 +266,7 @@ class VoiceRecognitionControllerTest {
         controller.start(18, continueAfterSilence = true)
         recognizer.supportCallback?.invoke(true)
         val firstListener = recognizer.listener
+        firstListener?.onReady()
 
         firstListener?.onInputLevel(-3f)
         firstListener?.onInputLevel(4.5f)
@@ -236,6 +279,7 @@ class VoiceRecognitionControllerTest {
             Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
         )
         recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onReady()
         recognizer.listener?.onInputLevel(7f)
         recognizer.listener?.onResults(listOf("完了"))
         recognizer.listener?.onInputLevel(10f)
@@ -248,6 +292,7 @@ class VoiceRecognitionControllerTest {
         val controller = controller()
         controller.start(5)
         recognizer.supportCallback?.invoke(true)
+        recognizer.listener?.onReady()
         controller.stop()
 
         assertTrue(recognizer.stopped)

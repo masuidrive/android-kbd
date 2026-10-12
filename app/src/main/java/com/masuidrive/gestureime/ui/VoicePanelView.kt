@@ -35,6 +35,7 @@ class VoicePanelView @JvmOverloads constructor(
     private var candidates = CandidateUiSnapshot(0L, emptyList())
     private var voice = VoiceUiSnapshot(0L, VoiceUiState.Hidden)
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
+    private var onCandidatesDiscarded: ((Long) -> Unit)? = null
 
     init {
         addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -44,6 +45,10 @@ class VoicePanelView @JvmOverloads constructor(
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) {
         onCandidateSelected = listener
+    }
+
+    fun setOnCandidatesDiscarded(listener: (Long) -> Unit) {
+        onCandidatesDiscarded = listener
     }
 
     fun showCandidates(snapshot: CandidateUiSnapshot) {
@@ -75,6 +80,7 @@ class VoicePanelView @JvmOverloads constructor(
         when (val state = voice.state) {
             VoiceUiState.Hidden,
             VoiceUiState.Idle,
+            VoiceUiState.Starting,
             VoiceUiState.Recording,
             VoiceUiState.Recognizing,
             -> Unit
@@ -87,6 +93,19 @@ class VoicePanelView @JvmOverloads constructor(
 
     private fun renderCandidates() {
         val snapshot = candidates
+        rows.addView(textRow("キャンセル").apply {
+            isEnabled = snapshot.selectable
+            isClickable = snapshot.selectable
+            isFocusable = snapshot.selectable
+            contentDescription = "候補を破棄して認識を続ける"
+            background = GradientDrawable().apply {
+                setColor(context.getColor(R.color.candidate_background))
+                cornerRadius = dp(7).toFloat()
+            }
+            if (snapshot.selectable) {
+                setOnClickListener { onCandidatesDiscarded?.invoke(snapshot.token) }
+            }
+        }, rowLayout())
         val differenceMasks = candidateDifferenceMasks(snapshot.candidates)
         snapshot.candidates.forEachIndexed { index, candidate ->
             rows.addView(textRow(highlightDifferences(candidate, differenceMasks[index])).apply {
@@ -107,7 +126,7 @@ class VoicePanelView @JvmOverloads constructor(
                         onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index))
                     }
                 }
-            }, rowLayout(withGap = index > 0))
+            }, rowLayout(withGap = true))
         }
     }
 

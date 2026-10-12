@@ -3,6 +3,7 @@ package com.masuidrive.gestureime.ui
 sealed interface VoiceUiState {
     data object Hidden : VoiceUiState
     data object Idle : VoiceUiState
+    data object Starting : VoiceUiState
     data object Recording : VoiceUiState
     data object Recognizing : VoiceUiState
     data class Partial(val text: String) : VoiceUiState

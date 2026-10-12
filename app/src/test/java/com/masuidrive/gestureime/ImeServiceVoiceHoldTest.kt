@@ -10,6 +10,7 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardUiState
 import com.masuidrive.gestureime.keyboard.KeyboardView
+import com.masuidrive.gestureime.keyboard.VoiceSessionStatus
 import com.masuidrive.gestureime.keyboard.normalizeVoiceInputLevel
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.VoicePanelView
@@ -27,6 +28,28 @@ import kotlinx.coroutines.runBlocking
 
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[35])
 class ImeServiceVoiceHoldTest {
+    @Test fun voiceCandidateCancelDropsOnlyThePreviewThenRestartsAndRejectsStaleCallbacks() {
+        val h = Harness()
+        h.service.onKeyAction(KeyAction.VoiceHold); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.result("捨てる候補"); h.idle()
+        val stale = h.recognizer.listener
+
+        assertTrue(h.root.findText("キャンセル").performClick()); h.idle()
+
+        assertEquals("", h.input.text)
+        assertEquals(KeyboardMode.VOICE, h.root.findKeyboard().mode())
+        assertEquals(1, h.recognizer.startCount)
+        assertEquals(VoiceSessionStatus.PREPARING, h.root.findKeyboard().voiceSessionStatus())
+        stale?.onResults(listOf("古い候補")); h.idle()
+        assertFalse(h.root.allText().contains("古い候補"))
+
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
+        assertEquals(2, h.recognizer.startCount)
+        assertEquals(VoiceSessionStatus.LISTENING, h.root.findKeyboard().voiceSessionStatus())
+        h.recognizer.result("次の候補"); h.idle()
+        assertTrue(h.root.allText().contains("次の候補"))
+    }
+
     @Test fun voiceLayerShowsMultipleCandidatesAndCommitsTappedChoiceThenRestarts() {
         val h = Harness()
         h.service.onKeyAction(KeyAction.VoiceHold)
@@ -194,14 +217,16 @@ class ImeServiceVoiceHoldTest {
         h.recognizer.result("選択待ち"); h.idle()
         assertNull(h.root.findKeyboard().voiceInputLevel())
         h.root.findText("選択待ち").performClick(); h.idle()
-        assertEquals(0f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+        assertNull(h.root.findKeyboard().voiceInputLevel())
 
-        h.recognizer.support?.invoke(true); h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.idle()
         assertEquals(0f, requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
+        h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
+        assertNull(h.root.findKeyboard().voiceInputLevel())
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(
             java.time.Duration.ofMillis(VoiceRecognitionController.SILENCE_RESTART_DELAY_MS),
         )
-        h.recognizer.support?.invoke(true); h.recognizer.level(9f); h.idle()
+        h.recognizer.support?.invoke(true); h.recognizer.ready(); h.recognizer.level(9f); h.idle()
         assertEquals(normalizeVoiceInputLevel(9f), requireNotNull(h.root.findKeyboard().voiceInputLevel()), 0f)
 
         h.service.onKeyAction(KeyAction.CancelVoice); h.idle()
@@ -338,6 +363,8 @@ class ImeServiceVoiceHoldTest {
         assertTrue(h.root.allText().contains("古い途中結果"))
 
         h.recognizer.end()
+        h.idle()
+        assertEquals(VoiceSessionStatus.PROCESSING, h.root.findKeyboard().voiceSessionStatus())
         h.recognizer.error(android.speech.SpeechRecognizer.ERROR_NO_MATCH); h.idle()
 
         val promoted = h.root.findText("古い途中結果")
@@ -423,4 +450,5 @@ class ImeServiceVoiceHoldTest {
     private fun KeyboardView.mode(): KeyboardMode = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).mode
     private fun KeyboardView.voiceSessionActive(): Boolean = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceSessionActive
     private fun KeyboardView.voiceInputLevel(): Float? = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceInputLevel
+    private fun KeyboardView.voiceSessionStatus(): VoiceSessionStatus? = (KeyboardView::class.java.getDeclaredField("state").apply { isAccessible = true }.get(this) as KeyboardUiState).voiceSessionStatus
 }

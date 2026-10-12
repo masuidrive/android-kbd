@@ -31,6 +31,7 @@ import com.masuidrive.gestureime.keyboard.EmojiLayerHorizontalGeometry
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.KeyboardActionSink
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import com.masuidrive.gestureime.keyboard.VoiceSessionStatus
 import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.keyboard.VoiceHoldSink
@@ -220,6 +221,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val panel = VoicePanelView(this).also {
             it.id = R.id.voice_panel
             it.setOnCandidateSelected(::onCandidateSelected)
+            it.setOnCandidatesDiscarded(::onVoiceCandidatesDiscarded)
             it.visibility = View.GONE
             voicePanel = it
         }
@@ -950,6 +952,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onKeyAction(action: KeyAction) {
         val voiceCandidateSelection = action is KeyAction.SelectCandidate && candidateSource == CandidateSource.VOICE
+        val voiceCandidateDiscard = action == KeyAction.DiscardVoiceCandidates && candidateSource == CandidateSource.VOICE
         val voiceEditingSession = continuousVoiceEditingSessionFor(action)
         // A destructive voice-layer action must invalidate a queued candidate tap before the
         // action mutex reaches it. This closes the small queueing window after a user cancels
@@ -959,12 +962,16 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         ) {
             invalidateContinuousVoiceSession()
         }
-        if (!voiceCandidateSelection && voiceEditingSession == null) {
+        if (!voiceCandidateSelection && !voiceCandidateDiscard && voiceEditingSession == null) {
             cancelVoiceHold()
             if (!textController.isPrivateField) setVoiceUi(voiceController.initialState().toUiState())
         }
         val queuedForEditor = editorSession.capture()
-        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate) candidateSnapshot() else null
+        val queuedCandidateSnapshot = if (action is KeyAction.SelectCandidate || action == KeyAction.DiscardVoiceCandidates) {
+            candidateSnapshot()
+        } else {
+            null
+        }
         serviceScope.launch {
             actionMutex.withLock {
                 if (!editorSession.isCurrent(queuedForEditor)) return@withLock
@@ -981,6 +988,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun onCandidateSelected(event: CandidateUiEvent) {
         if (event.token != candidateUiToken) return
         onKeyAction(KeyAction.SelectCandidate(event.index))
+    }
+
+    private fun onVoiceCandidatesDiscarded(token: Long) {
+        if (token != candidateUiToken) return
+        onKeyAction(KeyAction.DiscardVoiceCandidates)
     }
 
     private fun onCandidateLongPressed(event: CandidateUiLongPressEvent): Boolean {
@@ -1205,6 +1217,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 else if (candidateSource == CandidateSource.PREDICTION) commitPredictionCandidate(action.index, editorToken)
                 else commitJapaneseCandidate(action.index, editorToken)
             }
+            KeyAction.DiscardVoiceCandidates -> discardVoiceCandidates(editorToken)
             KeyAction.CycleCandidate -> cycleCandidate()
             is KeyAction.SetModifier -> finishEnglishRaw()
             KeyAction.VoiceHold -> startVoiceLayer(editorToken)
@@ -1263,6 +1276,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (!isCurrentContinuousVoiceSession(session, token)) return
         // confirm() synchronously clears the preview through onVoiceState(Idle). Restart only
         // after that clear and the guarded single editor commit have both completed.
+        startContinuousVoiceRecognition(token, session)
+    }
+
+    private fun discardVoiceCandidates(token: Long) {
+        val session = voiceSessionGeneration
+        if (!isCurrentContinuousVoiceSession(session, token)) return
+        if (!voiceController.discardPreview(token)) return
+        if (!isCurrentContinuousVoiceSession(session, token)) return
         startContinuousVoiceRecognition(token, session)
     }
 
@@ -1647,10 +1668,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         if (!editorSession.isCurrent(token) || textController.isPrivateField) return
         if (keyboardMode == KeyboardMode.VOICE) {
             keyboardView?.setVoiceSessionActive(state.isContinuousVoiceSession())
+            keyboardView?.setVoiceSessionStatus(state.toKeyboardVoiceSessionStatus())
             when (state) {
                 VoiceBackendState.Recording,
-                VoiceBackendState.Recognizing -> keyboardView?.showVoiceInputLevelBaseline()
-                is VoiceBackendState.Partial -> Unit
+                is VoiceBackendState.Partial -> keyboardView?.showVoiceInputLevelBaseline()
                 else -> keyboardView?.setVoiceInputLevel(null)
             }
             when (state) {
@@ -2086,6 +2107,7 @@ internal fun shouldUpdateEmojiPickerMask(
 private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
     VoiceBackendState.Idle -> VoiceUiState.Idle
     VoiceBackendState.PermissionRequired -> VoiceUiState.PermissionRequired
+    VoiceBackendState.Starting -> VoiceUiState.Starting
     VoiceBackendState.Recording -> VoiceUiState.Recording
     VoiceBackendState.Recognizing -> VoiceUiState.Recognizing
     is VoiceBackendState.Partial -> VoiceUiState.Partial(text)
@@ -2094,6 +2116,7 @@ private fun VoiceBackendState.toUiState(): VoiceUiState = when (this) {
 }
 
 private fun VoiceBackendState.isContinuousVoiceSession(): Boolean = when (this) {
+    VoiceBackendState.Starting,
     VoiceBackendState.Recording,
     VoiceBackendState.Recognizing,
     is VoiceBackendState.Partial,
@@ -2103,6 +2126,18 @@ private fun VoiceBackendState.isContinuousVoiceSession(): Boolean = when (this) 
     VoiceBackendState.PermissionRequired,
     is VoiceBackendState.Unavailable,
     -> false
+}
+
+private fun VoiceBackendState.toKeyboardVoiceSessionStatus(): VoiceSessionStatus? = when (this) {
+    VoiceBackendState.Starting -> VoiceSessionStatus.PREPARING
+    VoiceBackendState.Recording,
+    is VoiceBackendState.Partial -> VoiceSessionStatus.LISTENING
+    VoiceBackendState.Recognizing -> VoiceSessionStatus.PROCESSING
+    is VoiceBackendState.Preview -> VoiceSessionStatus.CANDIDATE
+    VoiceBackendState.Idle,
+    VoiceBackendState.PermissionRequired,
+    is VoiceBackendState.Unavailable,
+    -> null
 }
 
 internal fun String.toKatakana(): String = map { char ->

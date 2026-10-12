@@ -34,13 +34,29 @@ class VoicePanelViewTest {
         view.layout(0, 0, 320, 110)
 
         val candidates = view.allTextViews()
-        assertEquals(listOf("第一候補", "第二候補", "第三候補"), candidates.map { it.text.toString() })
+        assertEquals(listOf("キャンセル", "第一候補", "第二候補", "第三候補"), candidates.map { it.text.toString() })
         assertTrue(candidates.zipWithNext().all { (first, second) -> second.top >= first.bottom })
         assertTrue(candidates.all { it.isClickable && it.isFocusable && it.background is GradientDrawable })
         assertTrue(view.descendants().filterIsInstance<ScrollView>().single().getChildAt(0).height > view.height)
 
         candidates[1].performClick()
-        assertEquals(listOf(CandidateUiEvent(41, 1)), events)
+        assertEquals(listOf(CandidateUiEvent(41, 0)), events)
+    }
+
+    @Test
+    fun cancelRowDiscardsOnlyTheVisibleVoiceCandidates() {
+        val view = view()
+        val tokens = mutableListOf<Long>()
+        view.setOnCandidatesDiscarded(tokens::add)
+        view.showCandidates(CandidateUiSnapshot(44, listOf("候補")))
+        view.setVoiceState(VoiceUiSnapshot(54, VoiceUiState.Preview("候補")))
+
+        val cancel = view.textView("キャンセル")
+        assertTrue(cancel.isClickable)
+        assertEquals("候補を破棄して認識を続ける", cancel.contentDescription)
+        cancel.performClick()
+
+        assertEquals(listOf(44L), tokens)
     }
 
     @Test
@@ -53,7 +69,7 @@ class VoicePanelViewTest {
         )))
         view.setVoiceState(VoiceUiSnapshot(52, VoiceUiState.Preview("候補あり")))
 
-        val rows = view.allTextViews()
+        val rows = view.allTextViews().drop(1)
         assertEquals(listOf(listOf("を", "ほ"), listOf("を", "欲"), listOf("が", "欲")), rows.map(::highlightedText))
         rows.forEach { row ->
             val text = row.text as Spanned
@@ -70,7 +86,7 @@ class VoicePanelViewTest {
             val view = view()
             view.showCandidates(CandidateUiSnapshot(43L + index, candidates))
             view.setVoiceState(VoiceUiSnapshot(53L + index, VoiceUiState.Preview(candidates.first())))
-            assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+            assertTrue(view.allTextViews().drop(1).all { highlightedText(it).isEmpty() })
         }
     }
 
@@ -83,7 +99,7 @@ class VoicePanelViewTest {
             val view = view()
             view.showCandidates(CandidateUiSnapshot(45L + index, candidates))
             view.setVoiceState(VoiceUiSnapshot(55L + index, VoiceUiState.Preview(candidates.first())))
-            assertEquals(expected, view.allTextViews().map(::highlightedText))
+            assertEquals(expected, view.allTextViews().drop(1).map(::highlightedText))
         }
     }
 
@@ -92,7 +108,7 @@ class VoicePanelViewTest {
         val view = view()
         view.showCandidates(CandidateUiSnapshot(47, listOf("aa", "ab")))
         view.setVoiceState(VoiceUiSnapshot(57, VoiceUiState.Preview("aa")))
-        assertEquals(listOf(listOf(1 to 2), listOf(1 to 2)), view.allTextViews().map(::highlightedRanges))
+        assertEquals(listOf(listOf(1 to 2), listOf(1 to 2)), view.allTextViews().drop(1).map(::highlightedRanges))
     }
 
     @Test
@@ -104,8 +120,8 @@ class VoicePanelViewTest {
             val view = view()
             view.showCandidates(CandidateUiSnapshot(48L + index, candidates))
             view.setVoiceState(VoiceUiSnapshot(58L + index, VoiceUiState.Preview(candidates.first())))
-            assertEquals(candidates, view.allTextViews().map { it.text.toString() })
-            assertTrue(view.allTextViews().all { highlightedText(it).isEmpty() })
+            assertEquals(candidates, view.allTextViews().drop(1).map { it.text.toString() })
+            assertTrue(view.allTextViews().drop(1).all { highlightedText(it).isEmpty() })
         }
     }
 

@@ -531,6 +531,16 @@ class KeyboardViewTest {
             }
 
             view.setVoiceSessionActive(true)
+            assertEquals("準備中", requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)).contentDescription)
+            view.setVoiceSessionStatus(VoiceSessionStatus.PREPARING)
+            val preparingCanvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
+            assertTrue(preparingCanvas.draws.any { it.text == "準備中" && it.x > cancelBefore.right && it.x < punctuation.left })
+            assertEquals("準備中", requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID)).contentDescription)
+
+            view.setVoiceSessionStatus(VoiceSessionStatus.LISTENING)
+            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
+                it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
+            })
             val canvas = CaptureCanvas(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)).also(view::draw)
             val status = requireNotNull(provider.createAccessibilityNodeInfo(KeyboardView.VOICE_SESSION_STATUS_VIRTUAL_ID))
 
@@ -564,12 +574,12 @@ class KeyboardViewTest {
             assertTrue(accessibility.sentAccessibilityEvents.any {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
             })
-            assertEquals(announcementsBefore + 1, accessibility.sentAccessibilityEvents.count {
+            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
             })
 
             view.setVoiceSessionActive(true)
-            assertEquals(announcementsBefore + 1, accessibility.sentAccessibilityEvents.count {
+            assertEquals(announcementsBefore + 2, accessibility.sentAccessibilityEvents.count {
                 it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_ANNOUNCEMENT
             })
 
@@ -613,6 +623,7 @@ class KeyboardViewTest {
         view.setMode(KeyboardMode.VOICE)
         view.measure(exact(412), exact(228)); view.layout(0, 0, 412, 228)
         view.setVoiceSessionActive(true)
+        view.setVoiceSessionStatus(VoiceSessionStatus.LISTENING)
         val statusBounds = keyBounds(4)
         val originalHeight = view.measuredHeight
 

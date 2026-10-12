@@ -13,6 +13,12 @@ enum class Modifier { CTRL, ALT }
 enum class KanaTransform { CYCLE, SMALL, DAKUTEN, HANDAKUTEN }
 enum class KeyKind { CHARACTER, KANA, MODE, LAYER_SWITCH, MODIFIER, BACKSPACE, SPACE, ENTER, ACCENT, EMPTY }
 enum class CursorBoundary { START, END }
+enum class VoiceSessionStatus(val label: String) {
+    PREPARING("準備中"),
+    LISTENING("認識中"),
+    PROCESSING("処理中"),
+    CANDIDATE("候補を選択"),
+}
 
 data class FlickValue(val label: String, val action: KeyAction)
 
@@ -57,6 +63,7 @@ sealed interface KeyAction {
     data object CommitWithoutConversion : KeyAction
     data object ConvertToKatakana : KeyAction
     data class SelectCandidate(val index: Int) : KeyAction
+    data object DiscardVoiceCandidates : KeyAction
     data object CycleCandidate : KeyAction
     data class Backspace(val repeat: Boolean = false) : KeyAction
     data object Enter : KeyAction
@@ -92,6 +99,8 @@ data class KeyboardUiState(
     val emojiRecents: List<String> = emptyList(),
     /** True only while the dedicated voice layer owns a live recognition session. */
     val voiceSessionActive: Boolean = false,
+    /** Status of the dedicated voice session; preparing is deliberately distinct from listening. */
+    val voiceSessionStatus: VoiceSessionStatus? = null,
     /** Normalized input amplitude while recognition is accepting RMS callbacks; null hides the waveform. */
     val voiceInputLevel: Float? = null,
 )
