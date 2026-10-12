@@ -1,6 +1,10 @@
 package com.masuidrive.gestureime
 
+import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
+import android.net.Uri
+import android.os.Bundle
 import android.text.InputType
 import android.view.View
 import android.view.KeyEvent
@@ -8,6 +12,8 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputContentInfo
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.CursorBoundary
@@ -29,6 +35,7 @@ import kotlinx.coroutines.runBlocking
 @Config(sdk = [35])
 class TextInputControllerTest {
     private val context = RuntimeEnvironment.getApplication()
+    private val clipboard = context.getSystemService(ClipboardManager::class.java)
     private lateinit var input: RecordingInputConnection
     private lateinit var controller: TextInputController
 
@@ -38,7 +45,7 @@ class TextInputControllerTest {
         controller = TextInputController(
             connection = { input },
             context = context,
-            clipboard = context.getSystemService(ClipboardManager::class.java),
+            clipboard = clipboard,
         )
     }
 
@@ -57,6 +64,122 @@ class TextInputControllerTest {
 
         controller.beginInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT })
         assertFalse(controller.isPrivateField)
+    }
+
+    @Test
+    fun pasteCommitsImageClipboardToAnEditorThatAdvertisesAMatchingMimeType() {
+        controller.beginInput(EditorInfo().apply { contentMimeTypes = arrayOf("image/*") })
+        clipboard.setPrimaryClip(imageClip())
+
+        controller.paste()
+
+        assertEquals(Uri.parse("content://clipboard/image.png"), input.committedContent?.contentUri)
+        assertEquals(InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, input.contentFlags)
+        assertEquals(null, input.contextAction)
+        assertTrue(input.operations.isEmpty())
+    }
+
+    @Test
+    fun pasteDelegatesTextClipboardToTheEditorBeforeUsingFallback() {
+        clipboard.setPrimaryClip(ClipData.newPlainText("text", "pasted text"))
+
+        controller.paste()
+
+        assertEquals(android.R.id.paste, input.contextAction)
+        assertTrue(input.operations.isEmpty())
+    }
+
+    @Test
+    fun pasteFallsBackToTextWhenTheEditorRejectsTheStandardPasteAction() {
+        input.contextActionSucceeds = false
+        clipboard.setPrimaryClip(ClipData.newPlainText("text", "pasted text"))
+
+        controller.paste()
+
+        assertEquals(android.R.id.paste, input.contextAction)
+        assertEquals(listOf("commit:pasted text"), input.operations)
+    }
+
+    @Test
+    fun pasteCommitsActualTextFromATextFirstMixedMimeClipboardItem() {
+        clipboard.setPrimaryClip(textFirstMixedMimeClip())
+
+        controller.paste()
+
+        assertEquals(null, input.contextAction)
+        assertEquals(listOf("commit:caption"), input.operations)
+    }
+
+    @Test
+    fun pasteDoesNotDelegateImageClipboardToAnEditorWithANonmatchingMimeType() {
+        controller.beginInput(EditorInfo().apply { contentMimeTypes = arrayOf("image/jpeg") })
+        clipboard.setPrimaryClip(imageClip())
+
+        controller.paste()
+
+        assertEquals(null, input.committedContent)
+        assertEquals(null, input.contextAction)
+        assertTrue(input.operations.isEmpty())
+    }
+
+    @Test
+    fun pasteCommitsActualTextWhenAMixedMimeItemAlsoHasAnUnsupportedImageUri() {
+        clipboard.setPrimaryClip(textAndImageClip())
+
+        controller.paste()
+
+        assertEquals(null, input.contextAction)
+        assertEquals(listOf("commit:caption"), input.operations)
+    }
+
+    @Test
+    fun pastePrioritizesCompatibleImageOverTextInAMixedMimeItem() {
+        controller.beginInput(EditorInfo().apply { contentMimeTypes = arrayOf("image/*") })
+        clipboard.setPrimaryClip(textAndImageClip())
+
+        controller.paste()
+
+        assertEquals(Uri.parse("content://clipboard/image.png"), input.committedContent?.contentUri)
+        assertEquals(null, input.contextAction)
+        assertTrue(input.operations.isEmpty())
+    }
+
+    @Test
+    fun pasteDoesNotFallBackOrReplaceSelectionWhenAnEditorRejectsImageContent() {
+        input.commitContentSucceeds = false
+        input.selectedContent = "selected"
+        controller.beginInput(EditorInfo().apply { contentMimeTypes = arrayOf("image/png") })
+        clipboard.setPrimaryClip(imageClip())
+
+        controller.paste()
+
+        assertEquals(Uri.parse("content://clipboard/image.png"), input.committedContent?.contentUri)
+        assertEquals("selected", input.selectedContent)
+        assertEquals(null, input.contextAction)
+        assertTrue(input.operations.isEmpty())
+    }
+
+    @Test
+    fun pasteDoesNotPassClipboardToPasswordOrNoLearningFields() {
+        clipboard.setPrimaryClip(ClipData.newPlainText("text", "secret"))
+        for (editorInfo in listOf(
+            EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            },
+            EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT
+                imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            },
+        )) {
+            input.contextAction = null
+            input.operations.clear()
+            controller.beginInput(editorInfo)
+
+            controller.paste()
+
+            assertEquals(null, input.contextAction)
+            assertTrue(input.operations.isEmpty())
+        }
     }
 
     @Test
@@ -369,6 +492,11 @@ class TextInputControllerTest {
         var selection: Pair<Int, Int>? = null
         var selectionSucceeds = true
         var contextAction: Int? = null
+        var contextActionSucceeds = true
+        var committedContent: InputContentInfo? = null
+        var contentFlags: Int? = null
+        var commitContentSucceeds = true
+        var selectedContent = ""
         val keyEvents = mutableListOf<Int>()
         val sentKeyEvents = mutableListOf<KeyEvent>()
         val operations = mutableListOf<String>()
@@ -396,7 +524,14 @@ class TextInputControllerTest {
 
         override fun performContextMenuAction(id: Int): Boolean {
             contextAction = id
-            return true
+            return contextActionSucceeds
+        }
+
+        override fun commitContent(inputContentInfo: InputContentInfo, flags: Int, opts: Bundle?): Boolean {
+            committedContent = inputContentInfo
+            contentFlags = flags
+            if (commitContentSucceeds) selectedContent = ""
+            return commitContentSucceeds
         }
 
         override fun sendKeyEvent(event: android.view.KeyEvent): Boolean {
@@ -420,4 +555,19 @@ class TextInputControllerTest {
             return true
         }
     }
+
+    private fun imageClip(): ClipData = ClipData(
+        ClipDescription("image", arrayOf("image/png")),
+        ClipData.Item(Uri.parse("content://clipboard/image.png")),
+    )
+
+    private fun textFirstMixedMimeClip(): ClipData = ClipData(
+        ClipDescription("image and text", arrayOf("image/png", ClipDescription.MIMETYPE_TEXT_PLAIN)),
+        ClipData.Item("caption"),
+    )
+
+    private fun textAndImageClip(): ClipData = ClipData(
+        ClipDescription("image and text", arrayOf("image/png", ClipDescription.MIMETYPE_TEXT_PLAIN)),
+        ClipData.Item("caption", null, null, Uri.parse("content://clipboard/image.png")),
+    )
 }

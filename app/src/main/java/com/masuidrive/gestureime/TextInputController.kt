@@ -2,6 +2,7 @@ package com.masuidrive.gestureime
 
 import android.content.ClipDescription
 import android.content.ClipboardManager
+import android.content.ContentResolver
 import android.content.Context
 import android.icu.text.BreakIterator
 import android.text.InputType
@@ -10,6 +11,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputContentInfo
 import com.masuidrive.gestureime.conversion.PredictionContext
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
@@ -250,10 +252,32 @@ class TextInputController(
     fun paste() {
         if (isPrivateField || !clipboard.hasPrimaryClip()) return
         val clip = clipboard.primaryClip ?: return
-        if (!clip.description.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) &&
-            !clip.description.hasMimeType(ClipDescription.MIMETYPE_TEXT_HTML)
-        ) return
-        clip.getItemAt(0).coerceToText(context)?.toString()?.takeIf { it.isNotEmpty() }?.let(::commitText)
+        val item = clip.getItemAt(0)
+        val imageMimeTypes = (0 until clip.description.mimeTypeCount)
+            .map { clip.description.getMimeType(it) }
+            .filter { it.startsWith("image/", ignoreCase = true) }
+        val imageUri = item.uri?.takeIf { it.scheme == ContentResolver.SCHEME_CONTENT }
+        if (imageUri != null && imageMimeTypes.any { imageMimeType ->
+                editorInfo.contentMimeTypes.orEmpty().any { editorMimeType ->
+                    ClipDescription.compareMimeTypes(imageMimeType, editorMimeType)
+                }
+            }) {
+            finishComposition()
+            connection()?.commitContent(
+                InputContentInfo(imageUri, clip.description),
+                InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION,
+                null,
+            )
+            return
+        }
+        val text = item.text?.toString()?.takeIf { it.isNotEmpty() } ?: return
+        if (imageMimeTypes.isNotEmpty()) {
+            commitText(text)
+            return
+        }
+        finishComposition()
+        val input = connection() ?: return
+        if (!input.performContextMenuAction(android.R.id.paste)) input.commitText(text, 1)
     }
 
     fun sendModifiedKey(label: String, modifier: Modifier) {

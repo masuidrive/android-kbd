@@ -133,7 +133,7 @@ Androidでは ValueAnimator または描画時の補間値で同じ状態を作�
 
 アプリへの文字送信
 
-通常文字は currentInputConnection.commitText(text, 1)、変換中の読みは setComposingText(text, 1)、候補確定は finishComposingText() と commitText() を使う。PasteはAndroidの ClipboardManager.primaryClip から先頭のテキストを取得し、機密入力欄を除いて commitText() する。Backspace、Enter、矢印など編集キーは対象アプリとの互換性を確認し、必要な場合だけ sendKeyEvent() を使う。Ctrl/Altと英字キーの組み合わせは機密欄を含めて修飾フラグ付きKeyEventのACTION_DOWN/ACTION_UPをsendKeyEvent()で送り、編集メニュー操作へ置き換えない。
+通常文字は currentInputConnection.commitText(text, 1)、変換中の読みは setComposingText(text, 1)、候補確定は finishComposingText() と commitText() を使う。Pasteは機密入力欄では無効にする。画像クリップは、先頭項目がcontent URIで入力先が対応する画像MIMEを宣言している場合だけ、読み取り権限つきのcommitContent()で渡す。画像URIしかないclipで入力先が受け付けない場合は何もしない。画像と文字の混在clipで先頭項目が実テキストの場合はその文字だけを入力する。画像を含まないクリップでは入力先の標準Paste操作を優先し、受け付けない場合だけ先頭に実際のテキストがあるときに限り commitText() する。画像URIを文字列へ変換して入力しない。ブラウザモックの入力欄はテキスト専用であり、画像PasteはAndroidアプリで確認する。Backspace、Enter、矢印など編集キーは対象アプリとの互換性を確認し、必要な場合だけ sendKeyEvent() を使う。Ctrl/Altと英字キーの組み合わせは機密欄を含めて修飾フラグ付きKeyEventのACTION_DOWN/ACTION_UPをsendKeyEvent()で送り、編集メニュー操作へ置き換えない。
 
 fun sendModifiedKey(keyCode: Int, ctrl: Boolean, alt: Boolean) {
     val meta = (if (ctrl) KeyEvent.META_CTRL_ON else 0) or

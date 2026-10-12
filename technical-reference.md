@@ -63,6 +63,8 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 
 34. QWERTYのCtrl/Alt保留は次の1文字だけに適用する。英字キーはCtrl+A/C/X/V/Sを含めて`InputConnection.sendKeyEvent()`へ`META_CTRL_ON`または`META_ALT_ON`を付けた`ACTION_DOWN`/`ACTION_UP`ペアで送り、IMEでは`performContextMenuAction()`に置き換えない。private入力欄のCtrl+Vもキーイベントとして渡す。入力先が受け取ったイベントの意味を決める。独立したPasteキーのprivate欄禁止は維持する。（2026-09-29 / 260929-065459-send-literal-modifier-key-events）
 
+35. 独立Pasteキーはprivate入力欄を拒否する。画像clipでは先頭項目の`content://` URIと、`EditorInfo.contentMimeTypes`に一致する画像MIMEがあるときだけ`InputConnection.commitContent(InputContentInfo, INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null)`へ渡す。`commitContent` を試みて失敗した場合は通常Pasteや文字列へフォールバックしない。画像を含むclipでも互換な画像URIがなく先頭項目に実テキストがある場合は、その実テキストだけを直接`commitText()`する。画像を含まないclipでは`InputConnection.performContextMenuAction(android.R.id.paste)`を優先し、入力先が`false`を返した場合だけ先頭項目の実テキストを`commitText()`する。画像URIをテキストとして入力しない。画像の受け取り可否は入力先アプリの`commitContent`対応による。（2026-10-12 / 261012-082706-paste-clipboard-content）
+
 ## 実装の注意・地雷
 
 - `finishComposingText()` の直後に同じ候補を `commitText()` するとEditorによって二重入力になる。候補確定はcomposing領域へ直接 `commitText()` する。
