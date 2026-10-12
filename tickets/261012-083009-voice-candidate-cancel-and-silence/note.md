@@ -29,6 +29,7 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+ユーザの既存指定「候補選択してもすぐ次の音声認識に入ってほしい。キャンセルを押すまで」と、今回の「候補にキャンセルって選択肢が欲しい」を合わせ、候補内キャンセルは現在の候補だけを破棄して連続認識を続け、下段のキャンセルだけがレイヤーを終了する、と解釈した。影響レイヤー: Android app、IME service、custom view UI、unit tests、instrumentation/device tests、docs。Mozc JNI は変更しない。無音後に認識準備前の発話を確実に取得する保証は Android SpeechRecognizer にはないため、準備中と準備完了を表示で区別し、再起動間隔も実測して縮められる範囲を確認する。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
