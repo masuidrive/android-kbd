@@ -13,6 +13,7 @@
 - [x] 製品ページ・マニュアル・操作モックを公開し、公開ファイルと実ブラウザで確認する。
 - [x] 音声候補を選んだ瞬間に他候補を消し、選択候補が上へ抜けて消えるアニメーションをWebモックへ実装する。
 - [x] アニメーションを公開サイトで操作し、速度・消え方をユーザが確認できるようにする。
+- [x] 選択候補が候補枠の上端まで動くようWebアニメーションを調整し、到達直前まで文字を見せる。
 - [ ] Webでの確認後、同じ選択フィードバックをnative音声候補へ実装する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
@@ -69,6 +70,7 @@
 - 最終SHA `0a941dc` の `scripts/test-all.sh --parallel --connected` は fast-checks / Android unit・lint・APK / Android connected (real Mozc) の3/3 PASS。独立reviewはCritical/Majorなし。AC裏取りはAC 1・4 VERIFIED、AC 2・3は実日本語音声モデルによるnative観察がないためNOT VERIFIED。コード・unit・mockでは期待動作を確認。
 - Surface Observer相当の実エミュレーター観察を試行。最終debug APKをinstallし、IMEを有効化・選択して入力テストの通常欄をtapしたが、`mInputShown=true` / `mInputViewStarted=false` / `mShowInputRequested=false` で入力ビューは開かなかった。スクリーンショット `/private/tmp/voice-ui-native-final.png` にキーボードは写らない。ハードウェアキーボード表示設定を一時変更しても変化なし。設定はすべて `null` に戻した。実音声の状態遷移・RMSは未観察。
 - Web先行のAC 5: `55fad54` で候補の退出アニメーションを実装し、`9aef392` で2・3行目の選択位置を保つFLIP補正を追加。候補選択直後に他候補がDOMから消え、選択候補は260msで34px上へ移動・フェードアウトする。412pxと840pxで実ブラウザ操作し、2行目 `top 371→371→80ms後343.9`、3行目 `426→426→80ms後398.9` を確認。入力は1回、次の認識へ進み、Cancelで古いタイマーは復活しない。`site/mock.html` と `docs/reference/mock-source.html` はbyte一致。最終Web SHA `9aef392` の `scripts/test-all.sh --parallel` は fast-checks と Android unit/lint/APK の2/2 PASS。nativeのAC 5はWeb確認後に実装する。
+- Web視覚調整 `4e34aa478ae54b0020ce8c41b7f689d63ca48829`: DOM実寸で候補の開始位置、枠上端、候補高さを測って移動距離を決める。260msの78%時点では候補上端が枠上端へ達し、文字は不透明のまま。残り22%で枠外へ抜けつつフェードする。選択候補をsticky状態行より前面へ置く。独立レビューでphone/tablet各1〜3行を確認し、約185msで上端到達・opacity 1、約210ms以降のみフェード、スクロール済みphone 3行目も良好。非選択の即時消去、入力1回、次認識、reduced motionでの即時進行、モック正本byte一致、ブラウザエラーなし。Critical/Majorなし。最終SHAの`scripts/test-all.sh --parallel`は2/2 PASS。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -110,6 +112,7 @@
 ## AC 5 Web先行プレビュー公開記録
 - Webソース最終SHA `9aef39238aa0446b10be58c38742515b922e9ffd`、公開元 `masuidrive/masuidrive.jp` commit `ec791b68a34d8d35c96812dc5b1a513e04119db8`。GitHub Pages latest buildは同commitの`built`。公開元と`site/`の主要4ファイルはbyte一致し、公開URLから再取得した4ファイルも公開元とbyte一致。
 - 公開ページ `https://masuidrive.jp/products/md-kbd/#demo` を412pxブラウザで操作。左フリックで音声レイヤーに入り、3行目候補を選ぶと選択前後のtopはともに437px、他候補は即時0件、選択候補1件のみ、CSSアニメーション0.26s。readonly入力欄は選んだ文1回のみ。350ms後は選択候補0件で認識中へ戻る。840pxではページscrollWidth825px / viewport840px、モックscrollWidth793px / iframe幅793pxで横はみ出しなし。Webのみの先行プレビューであり、nativeのAC 5および実音声AC 2/3は未検証・未実装の範囲が残る。
+- 上端到達版の公開元commit `57c4ebd9feed0d84148b690596210054d7299d05`。Pages latest buildは同SHAの`built`、公開URLから取得したindex/mock/manual/stylesは公開元とbyte一致。公開412pxの実ブラウザで左フリック→音声候補3件→3行目選択を実施。選択直後の候補topは437pxのまま、候補は1件になり入力は選択文1回。200ms時点の候補topは299.004px、枠topは299px、opacityは1。840pxはページ825/viewport840、モック793/iframe793で横はみ出しなし、画像欠落0。独立レビューは1〜3行目のphone/tabletとreduced motionまでNo Critical/Major。native実装はWeb確認後の作業として残す。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
