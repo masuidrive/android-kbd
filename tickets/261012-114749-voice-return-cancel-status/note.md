@@ -1,6 +1,6 @@
 # Work Notes: 261012-114749-voice-return-cancel-status
 
-## Status: PDH-implement (voice candidate animation web preview; prior release approved, native voice surface observation and close pending)
+## Status: PDH-verify (v0.15.31 released; native speech-model surface observation and close pending)
 
 ## Checklist
 - [x] 左下を前回レイヤーのラベル・タップ復帰・既存フリック切替に変更する。
@@ -14,9 +14,9 @@
 - [x] 音声候補を選んだ瞬間に他候補を消し、選択候補が上へ抜けて消えるアニメーションをWebモックへ実装する。
 - [x] アニメーションを公開サイトで操作し、速度・消え方をユーザが確認できるようにする。
 - [x] 選択候補が候補枠の上端まで動くようWebアニメーションを調整し、到達直前まで文字を見せる。
-- [ ] 上へ抜けるWeb候補の最後のopacityを約20%にして、製品ページへ公開する。
+- [x] 上へ抜けるWeb候補の最後のopacityを約20%にして、製品ページへ公開する。
 - [x] Webでの確認後、同じ選択フィードバックをnative音声候補へ実装する。
-- [ ] 更新したAndroid APKをビルド・検証し、GitHub Releaseへ直接ダウンロード可能なAPKとして公開する。
+- [x] 更新したAndroid APKをビルド・検証し、GitHub Releaseへ直接ダウンロード可能なAPKとして公開する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -27,12 +27,12 @@
 - [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
 - [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
 - [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
 - [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
@@ -126,6 +126,13 @@
 - Webソース最終SHA `9aef39238aa0446b10be58c38742515b922e9ffd`、公開元 `masuidrive/masuidrive.jp` commit `ec791b68a34d8d35c96812dc5b1a513e04119db8`。GitHub Pages latest buildは同commitの`built`。公開元と`site/`の主要4ファイルはbyte一致し、公開URLから再取得した4ファイルも公開元とbyte一致。
 - 公開ページ `https://masuidrive.jp/products/md-kbd/#demo` を412pxブラウザで操作。左フリックで音声レイヤーに入り、3行目候補を選ぶと選択前後のtopはともに437px、他候補は即時0件、選択候補1件のみ、CSSアニメーション0.26s。readonly入力欄は選んだ文1回のみ。350ms後は選択候補0件で認識中へ戻る。840pxではページscrollWidth825px / viewport840px、モックscrollWidth793px / iframe幅793pxで横はみ出しなし。Webのみの先行プレビューであり、nativeのAC 5および実音声AC 2/3は未検証・未実装の範囲が残る。
 - 上端到達版の公開元commit `57c4ebd9feed0d84148b690596210054d7299d05`。Pages latest buildは同SHAの`built`、公開URLから取得したindex/mock/manual/stylesは公開元とbyte一致。公開412pxの実ブラウザで左フリック→音声候補3件→3行目選択を実施。選択直後の候補topは437pxのまま、候補は1件になり入力は選択文1回。200ms時点の候補topは299.004px、枠topは299px、opacityは1。840pxはページ825/viewport840、モック793/iframe793で横はみ出しなし、画像欠落0。独立レビューは1〜3行目のphone/tabletとreduced motionまでNo Critical/Major。native実装はWeb確認後の作業として残す。
+
+## v0.15.31 リリース記録
+- リリース元SHA `b61a37123f2459ea8b8ea64411ea31303a628264`。`scripts/test-all.sh --parallel --connected` は `PASS: fast-checks`、`PASS: android unit, lint, apk`、`PASS: android connected (real Mozc)` の3/3 PASS。エミュレーターの一時的なstorage thresholdは1%/50MBから元の`null`/`null`へ復元した。物理端末と端末内日本語音声モデルによる実発話は未観察。
+- ローカルAPK `/Users/masuidrive/Develop/personal/android-kbd/app/build/outputs/apk/debug/gesture-ime-v0.15.31.apk` は38,901,974 bytes、SHA-256 `85d3077c9edc3f38f403ce2a4c975a7c8e816c40aed589549f449d74797f45e5`。`com.masuidrive.gestureime`、versionCode 47 / versionName 0.15.31、API 28以上、arm64-v8a、`RECORD_AUDIO`要求、`INTERNET`要求なし。GitHub Releaseから再ダウンロードして`cmp`一致。
+- GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.31`、APK直リンク `https://github.com/masuidrive/android-kbd/releases/download/v0.15.31/gesture-ime-v0.15.31.apk`。feature branchをoriginへpush済み。AC 2・3の実音声native観察待ちのためticketはopenのまま。
+- 製品サイト公開元commit `81acb9ba883fb159476ae2f64283f14abfe6a7b9`。公開元と`site/`のindex/mock/manual/stylesをbyte比較し、Pages latest buildは同SHAの`built`。公開URLから再取得した同4ファイルも公開元とbyte一致。実ブラウザ412pxでは左フリックで音声候補3件を表示し、3行目を選んだ200ms時点でtop299.004px/枠top299px、opacity 1、他候補0、入力1回。別候補の250ms時点でopacity 0.20428。840pxでは2行目を選んだ200ms時点でtop266.002px/枠top266px、opacity 1、他候補0、入力を確認。412pxはページ397/viewport412、mock365/frame365、840pxはページ825/viewport840、mock793/frame793で横はみ出しなし、画像欠落とbrowser errorなし。参考画像 `/private/tmp/md-kbd-v0.15.31-public-phone.png` と `/private/tmp/md-kbd-v0.15.31-public-tablet.png`。
+- nativeのAC 5はattached `VoicePanelView` instrumentationと`ImeService` unit、独立reviewで確定保持・上端到達の時間配分・終端alphaを確認した。実際の音声結果を載せたproduction IME画面の観察はできていないため、AC 2・3とともに物理端末確認へ残す。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
