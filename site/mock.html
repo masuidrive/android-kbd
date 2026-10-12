@@ -547,9 +547,9 @@
     startVoiceDemoRecognition();render(true);
   }
   function cancelVoiceCandidate() {
-    if(!voiceDemo.active||voiceDemo.phase!=='ready')return;
+    if(!voiceDemo.active||voiceDemo.phase==='unavailable')return;
     voiceDemo.turn++;
-    announce('候補を破棄して次の認識を開始');
+    announce('現在の認識または候補を破棄して次の認識を開始');
     startVoiceDemoRecognition();render(true);
   }
   function appendVoicePanelStatus(viewport) {
@@ -890,7 +890,7 @@
     const names={
       backspace:'削除',
       'voice-return':'タップで'+voiceReturnLabel()+'へ戻る。上フリックで日本語、右フリックでQWERTY、下フリックでテンキー',
-      'voice-candidate-cancel':'候補を破棄して次の認識を開始',
+      'voice-candidate-cancel':'現在の認識または候補を破棄して次の認識を開始',
       'voice-backspace':'タップで削除',
       'flick-backspace':'タップで削除、下フリックでEsc',
       'modifier-gesture':pendingModifier

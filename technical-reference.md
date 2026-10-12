@@ -75,4 +75,4 @@ Based on https://github.com/masuidrive/pdh/blob/15e6289/codex/templates/technica
 - 候補Viewのtapは表示時候補のsnapshotと現在候補が一致する場合だけ受理する。
 - `SpeechRecognizer`の生成、listener設定、開始、停止、取消、破棄はmain threadで行う。`stopListening()`後は結果またはerrorまで再開始せず、`onFinishInputView`でも音声sessionを破棄する。
 
-音声認識の無音後再開では、認識器生成後も `RecognitionListener.onReadyForSpeech` が来るまでは準備中として扱う。`onEndOfSpeech` 後は処理中とし、RMS波形を停止する。下段の2列目のキャンセルは未確定候補だけを破棄して新しいrecognizerを開始し、候補一覧には表示しない。左下のレイヤーキーは音声レイヤーを終了して進入前レイヤーに戻る。generation/tokenで古い認識callbackと候補タップを拒否する。（2026-10-12 / 261012-083009-voice-candidate-cancel-and-silence）
+音声認識の無音後再開では、認識器生成後も `RecognitionListener.onReadyForSpeech` が来るまでは準備中として扱う。`onEndOfSpeech` 後は処理中とし、RMS波形を停止する。下段の2列目のキャンセルは進行中の認識または未確定候補を破棄して新しいrecognizerを開始し、候補一覧には表示しない。左下のレイヤーキーは音声レイヤーを終了して進入前レイヤーに戻る。generation/tokenで古い認識callbackと候補タップを拒否する。（2026-10-12 / 261012-083009-voice-candidate-cancel-and-silence）
