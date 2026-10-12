@@ -1,0 +1,38 @@
+---
+priority: 2
+base_branch: features/260925-094954-unassigned-flick-tap-and-number-key-hints
+description: "音声レイヤーの戻るキーと候補取消・状態表示を整理する"
+created_at: "2026-10-12T11:47:49Z"
+started_at: null  # Do not modify manually
+closed_at: null   # Do not modify manually
+canceled_at: null # Do not modify manually
+---
+
+## 261012-114749-voice-return-cancel-status
+
+### Why
+Product Brief の6レイヤーを迷わず行き来できる操作体系に対して、現行音声レイヤーの左下「キャンセル」は前のレイヤーへ戻るキーだと分からず、候補一覧のキャンセルとも意味が重複する。認識状態をキーの間に表示するため、入力操作と状態表示が混ざっている。
+
+### What / Acceptance Criteria
+この ticket が終わると、音声入力の利用者が前のレイヤーへ戻る操作と音声候補を取り消す操作を区別でき、認識状態を選択エリアで確認できる。
+- [ ] AC 1: 音声レイヤー左下は進入前のレイヤーに対応するラベル（例: `Az`）を表示し、タップでそのレイヤーへ戻る。上・右・下フリックのレイヤー切替も利用できる。
+- [ ] AC 2: 左下の隣の「キャンセル」は現在の音声候補または進行中の認識を破棄し、音声レイヤーに留まって次の認識へ進む。古い結果は確定されない。
+- [ ] AC 3: 準備中・認識中・処理中・候補選択待ちと、認識中の波形を候補選択エリアに表示する。下段のキーに認識状態は表示しない。
+- [ ] AC 4: スマホ幅・タブレット幅の native IME とブラウザモックで、操作行の高さと既存の句読点・Space・削除・Enter操作を保つ。
+
+### Architectural Invariants check
+AI-1/AI-2の端末内音声認識とprivate欄の制限を維持する。AI-3/AI-4には影響しない。
+
+### Design Decisions
+- 候補選択エリアは既存の固定高音声パネルを使い、認識状態と波形をそこへ移す。IME全体の高さは変えない。
+- 隣のキャンセルは音声レイヤーを終了しない。候補がない認識中も現在の認識を取り消して新しい認識へ進む。
+
+### Out-of-scope
+- 音声認識エンジン、認識精度、再開待ち時間、音声モデルの変更。
+- 新しい権限・通信経路・クラウド認識の追加。
+
+### Implementation Notes
+- 音声レイヤーの左下ラベルは「キャンセル」ではなく前のレイヤーのキーラベル。隣にキャンセルを置く。状態表示は選択エリアへ移す。
+
+---
+Work notes: `note.md`
