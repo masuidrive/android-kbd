@@ -1,12 +1,14 @@
 # Work Notes: 261012-114749-voice-return-cancel-status
 
-## Status: PDH-open (Opening)
+## Status: PDH-review (Implementation and focused checks)
 
 ## Checklist
-- [ ] 左下を前回レイヤーのラベル・タップ復帰・既存フリック切替に変更する。
-- [ ] 左下の隣へ音声候補／認識を破棄して継続する「キャンセル」を置く。
-- [ ] 準備中・認識中・処理中・候補待ちと波形を選択エリアへ移す。
-- [ ] nativeとブラウザモックを揃え、スマホ・タブレット幅の操作と高さを検証する。
+- [x] 左下を前回レイヤーのラベル・タップ復帰・既存フリック切替に変更する。
+- [x] 左下の隣へ候補を破棄して継続する「キャンセル」を置き、候補一覧内の旧キャンセル行を除く。
+- [x] 準備中・認識中・処理中・候補待ちと波形を選択エリアへ移す。
+- [x] nativeとブラウザモックを揃え、スマホ・タブレット幅の操作と高さを検証する。
+- [x] 認識中のキャンセルで古い認識を破棄して再開し、callbackの混入を防ぐ。
+- [x] 音声状態のTalkBack通知とフォーカスを波形更新中も保つ。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -31,6 +33,9 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+- Product Briefの6レイヤー共通操作体系に接続。影響層: Android app、IME service、custom view UI、unit tests、instrumentation/device tests、HTML/CSS mock、docs。Mozc JNIは無変更。
+- 現状確認: `ImeService.voiceReturnMode` は既に進入前レイヤーを保持。`KeyboardLayouts`のVOICE最下段はキャンセルと非操作状態slotを使い、`VoicePanelView`は固定高の候補エリアである。したがって左下ラベル・slot差替え・status移設は既存モデル内で実装可能。
+- ユーザの明示依頼は前回レイヤー復帰、隣キャンセル、状態の選択エリア表示。AC 2の確定契約では認識中のキャンセルも現在の認識を破棄して再開する。候補一覧内の旧キャンセルを下段2番目へ移す。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -43,12 +48,19 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 既存の戻り先保持・VOICEの6 slot・固定高panelをコードで確認した。412dp/840dpの実寸と各方向のproduction MotionEventは実装後に測定する。認識中キャンセルはAC 2どおり破棄・再開する。
 
 ## PDH-implement. 実装ログ
+- browser mock: `site/mock.html` と `docs/reference/mock-source.html` を同一化。ローカル公開構成 `site/index.html#demo` で412px・840pxを実操作し、日本語とQWERTYからの左フリック進入、戻り先ラベル（あん/Az）、左下tap復帰、候補キャンセル後の再認識、固定45px操作行、横はみ出し無しを確認。`node --check` PASS。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+- Android実装commit `415550b`、モック・文書commit `0164bed`。Coding Engineerのfocused unit 134件 PASS、`compileDebugAndroidTestKotlin` PASS。監督側が接続エミュレーターで追加 `KeyboardViewVoicePunctuationTest.voiceReturnAndCandidateCancelUseProductionMotionEventsAtPhoneAndTabletWidths` を実行し1/1 PASS。最初のinstallは/data空き219MBの容量判定で失敗し、テスト中だけstorage thresholdを1%/50MBにして再実行した。終了後に元へ戻す。
+- `6971a9f` の `scripts/test-all.sh --parallel --connected` は fast-checks / Android unit・lint・APK / connected の3/3 PASS。ただし独立reviewのCritical/Major修正で再実行が必要。
+- review修正commit `6b9c581`: VOICE下段Cancelを認識中にも即時generation破棄・再開。status viewを維持しRMSはinvalidateだけ、Partial更新もstatusをdetachせず、ラベル変更時だけaccessibility announcement。unitに旧callback拒否・フォーカス/通知回数を追加。focused unit PASS。
+- mock・文書commit `01cb9b1`: 認識中Cancelの再開、ARIA説明、仕様、マニュアルを一致させた。ブラウザ実操作で認識中Cancel後に旧3候補ではなく次世代の1候補だけが表示されることを確認。412/840画像を目視し、マニュアル画像を新mockへ差替えた。
+- 確認待ち: 最終SHAの `scripts/test-all.sh --parallel --connected`、独立review/AC再裏取り、native実音声モデルでの状態遷移・波形/Surface Observer。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -63,9 +75,12 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | AC 2 / test追従 | Critical | 進行中認識ではキャンセルがinert。認識世代を破棄して再開する必要がある。 | 採用・修正済み、再review待ち | `6b9c581`で世代破棄・再開・旧callback拒否を追加。 |
+| 2 | TalkBack / 対称関係 | Major | RMS更新ごとに状態nodeを再生成し、状態の読み上げとフォーカスを失う。 | 採用・修正済み、再review待ち | `6b9c581`で状態view維持と遷移時通知、Partialもdetachせず。 |
+| 3 | 色 | Cosmetic | native状態ラベル色がmockより強い。 | 保留 | 上記修正後のUIを観察して判断。 |
 
 ## Technical reference 更新
+- `technical-reference.md` の音声レイヤー操作・状態表示・波形描画先・候補キャンセル位置を、下段キーと `VoicePanelView` の新構成へ更新した。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
