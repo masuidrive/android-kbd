@@ -276,7 +276,7 @@ private class VoiceStatusView(
 
     init {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        setTextColor(context.getColor(R.color.keyboard_text))
+        setTextColor(context.getColor(R.color.keyboard_muted_text))
         gravity = Gravity.CENTER_VERTICAL
         minHeight = dp(48f).toInt()
         setPadding(dp(16f).toInt(), dp(10f).toInt(), dp(16f).toInt(), dp(10f).toInt())

@@ -1,6 +1,6 @@
 # Work Notes: 261012-114749-voice-return-cancel-status
 
-## Status: PDH-review (Implementation and focused checks)
+## Status: PDH-human-review (release approved; native voice surface observation and close pending)
 
 ## Checklist
 - [x] 左下を前回レイヤーのラベル・タップ復帰・既存フリック切替に変更する。
@@ -9,6 +9,8 @@
 - [x] nativeとブラウザモックを揃え、スマホ・タブレット幅の操作と高さを検証する。
 - [x] 認識中のキャンセルで古い認識を破棄して再開し、callbackの混入を防ぐ。
 - [x] 音声状態のTalkBack通知とフォーカスを波形更新中も保つ。
+- [ ] v0.15.30 APKを直接配布のGitHub Releaseへ公開し、再ダウンロードしたassetとローカルAPKをbyte比較する。
+- [ ] 製品ページ・マニュアル・操作モックを公開し、公開ファイルと実ブラウザで確認する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -60,7 +62,8 @@
 - `6971a9f` の `scripts/test-all.sh --parallel --connected` は fast-checks / Android unit・lint・APK / connected の3/3 PASS。ただし独立reviewのCritical/Major修正で再実行が必要。
 - review修正commit `6b9c581`: VOICE下段Cancelを認識中にも即時generation破棄・再開。status viewを維持しRMSはinvalidateだけ、Partial更新もstatusをdetachせず、ラベル変更時だけaccessibility announcement。unitに旧callback拒否・フォーカス/通知回数を追加。focused unit PASS。
 - mock・文書commit `01cb9b1`: 認識中Cancelの再開、ARIA説明、仕様、マニュアルを一致させた。ブラウザ実操作で認識中Cancel後に旧3候補ではなく次世代の1候補だけが表示されることを確認。412/840画像を目視し、マニュアル画像を新mockへ差替えた。
-- 確認待ち: 最終SHAの `scripts/test-all.sh --parallel --connected`、独立review/AC再裏取り、native実音声モデルでの状態遷移・波形/Surface Observer。
+- 最終SHA `0a941dc` の `scripts/test-all.sh --parallel --connected` は fast-checks / Android unit・lint・APK / Android connected (real Mozc) の3/3 PASS。独立reviewはCritical/Majorなし。AC裏取りはAC 1・4 VERIFIED、AC 2・3は実日本語音声モデルによるnative観察がないためNOT VERIFIED。コード・unit・mockでは期待動作を確認。
+- Surface Observer相当の実エミュレーター観察を試行。最終debug APKをinstallし、IMEを有効化・選択して入力テストの通常欄をtapしたが、`mInputShown=true` / `mInputViewStarted=false` / `mShowInputRequested=false` で入力ビューは開かなかった。スクリーンショット `/private/tmp/voice-ui-native-final.png` にキーボードは写らない。ハードウェアキーボード表示設定を一時変更しても変化なし。設定はすべて `null` に戻した。実音声の状態遷移・RMSは未観察。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -75,9 +78,9 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-| 1 | AC 2 / test追従 | Critical | 進行中認識ではキャンセルがinert。認識世代を破棄して再開する必要がある。 | 採用・修正済み、再review待ち | `6b9c581`で世代破棄・再開・旧callback拒否を追加。 |
-| 2 | TalkBack / 対称関係 | Major | RMS更新ごとに状態nodeを再生成し、状態の読み上げとフォーカスを失う。 | 採用・修正済み、再review待ち | `6b9c581`で状態view維持と遷移時通知、Partialもdetachせず。 |
-| 3 | 色 | Cosmetic | native状態ラベル色がmockより強い。 | 保留 | 上記修正後のUIを観察して判断。 |
+| 1 | AC 2 / test追従 | Critical | 進行中認識ではキャンセルがinert。認識世代を破棄して再開する必要がある。 | 採用・修正済み、再review通過 | `6b9c581`で世代破棄・再開・旧callback拒否を追加。 |
+| 2 | TalkBack / 対称関係 | Major | RMS更新ごとに状態nodeを再生成し、状態の読み上げとフォーカスを失う。 | 採用・修正済み、再review通過 | `6b9c581`で状態view維持と遷移時通知、Partialもdetachせず。 |
+| 3 | 色 | Cosmetic | native状態ラベル色がmockより強い。 | 修正済み | `VoicePanelView`の状態ラベルを`keyboard_muted_text`に揃えた。native描画の実機観察は未了。 |
 
 ## Technical reference 更新
 - `technical-reference.md` の音声レイヤー操作・状態表示・波形描画先・候補キャンセル位置を、下段キーと `VoicePanelView` の新構成へ更新した。
@@ -85,6 +88,7 @@
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
+差分・検証結果・実機未観察の範囲を説明した後、ユーザが「リリースして」と明示指示した。v0.15.30の公開は承認済みと扱う。一方、実日本語音声モデルでの進行中キャンセル、状態遷移、RMS波形はまだ観察できず、AC 2・3は未検証のためticket closeは保留する。ブラウザモックの参考画像は `site/assets/voice-layer-mock-v0.15.30.png`。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
