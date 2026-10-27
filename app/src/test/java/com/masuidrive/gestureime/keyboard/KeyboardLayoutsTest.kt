@@ -29,7 +29,9 @@ class KeyboardLayoutsTest {
     @Test fun `modifier and backspace expose only their allowed directions`() {
         val qwerty = keys(KeyboardMode.QWERTY)
         val modifier = qwerty.single { it.kind == KeyKind.MODIFIER }
-        assertNull(modifier.center); assertNull(modifier.left); assertNull(modifier.right)
+        assertEquals("T", modifier.center?.label)
+        assertEquals(KeyAction.Tab, modifier.center?.action)
+        assertNull(modifier.left); assertNull(modifier.right)
         assertEquals(KeyAction.SetModifier(Modifier.ALT), modifier.up?.action)
         assertEquals(KeyAction.SetModifier(Modifier.CTRL), modifier.down?.action)
         val backspace = qwerty.single { it.kind == KeyKind.BACKSPACE }

@@ -631,6 +631,9 @@ class KeyboardView @JvmOverloads constructor(
             val cX = safeCenterX(target.bounds, target.bounds.centerX(), "C")
             val aX = safeCenterX(target.bounds, target.bounds.centerX(), "A")
             canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f)), textPaint)
+            textPaint.textSize = sp(18f)
+            drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, centerY), true)
+            textPaint.textSize = sp(10f)
             canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f)), textPaint)
         } else if (!animatedEnglish && !animatedEnterPaste && !selectedEnterControlJ && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
@@ -807,7 +810,7 @@ class KeyboardView @JvmOverloads constructor(
         (state.mode == KeyboardMode.QWERTY && spec.kind == KeyKind.CHARACTER) ||
             (spec.kind == KeyKind.BACKSPACE && spec.down != null)
 
-    private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "C/A" else ""
+    private fun modifierLabel(spec: KeySpec) = if (spec.kind == KeyKind.MODIFIER) "T" else ""
 
     private fun drawMainLabel(
         canvas: Canvas, label: String, bounds: RectF, y: Float, allowComposite: Boolean,
@@ -894,8 +897,8 @@ class KeyboardView @JvmOverloads constructor(
     }
 
     private fun describe(spec: KeySpec): String = Direction.entries.mapNotNull { direction ->
-        spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.label?.let { label ->
-            "${directionLabel(direction)} $label"
+        spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.let { value ->
+            "${directionLabel(direction)} ${if (value.action == KeyAction.Tab) "Tab" else value.label}"
         }
     }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
 
@@ -1127,7 +1130,13 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun dispatch(spec: KeySpec, direction: Direction) {
         if (spec.kind == KeyKind.MODIFIER && direction == Direction.CENTER) {
-            if (state.pendingModifier != null) updateModifier(null)
+            if (state.pendingModifier != null) {
+                updateModifier(null)
+                announceForAccessibility("修飾キーを解除")
+            } else {
+                actionSink?.onKeyAction(KeyAction.Tab)
+                announceForAccessibility("Tab")
+            }
             return
         }
         val action = spec.value(direction)?.action ?: return

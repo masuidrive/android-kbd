@@ -79,6 +79,16 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null)), actions)
     }
 
+    @Test fun `modifier center tap sends Tab in both English layers`() {
+        for (mode in listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
+            view.setMode(mode)
+            actions.clear()
+            val modifier = keyBounds(10)
+            performGesture(modifier, time = 0)
+            assertEquals(mode.toString(), listOf(KeyAction.Tab), actions)
+        }
+    }
+
     @Test fun `ctrl applies to only the next qwerty letter`() {
         view.setMode(KeyboardMode.QWERTY)
         val modifier = keyBounds(10)

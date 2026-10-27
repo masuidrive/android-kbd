@@ -375,6 +375,71 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun modifierCenterTabAndVerticalFlicksUseProductionMotionEventsAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply { actionSink = KeyboardActionSink { actions += it } }
+                activity.setContentView(view)
+                val distance = 36f * density
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS).forEach { mode ->
+                        view.setMode(mode)
+                        view.measure(exact(width), exact(height))
+                        view.layout(0, 0, width, height)
+                        val id = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                            .indexOfFirst { it.kind == KeyKind.MODIFIER }
+                        check(id >= 0) { "$mode has no modifier key" }
+                        val key = bounds(view, id)
+                        assertTrue("$widthDp dp $mode accessible Tab", view.accessibilityNodeProvider
+                            .createAccessibilityNodeInfo(id)?.contentDescription?.toString()?.contains("タップ Tab") == true)
+
+                        fun gesture(name: String, points: List<Pair<Float, Float>>, canceled: Boolean = false) {
+                            actions.clear()
+                            val time = SystemClock.uptimeMillis()
+                            val x = key.exactCenterX()
+                            val y = key.exactCenterY()
+                            dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                            points.forEachIndexed { index, (dx, dy) ->
+                                dispatch(view, MotionEvent.ACTION_MOVE, time, time + index + 1L, x + dx, y + dy)
+                            }
+                            val (dx, dy) = points.lastOrNull() ?: (0f to 0f)
+                            dispatch(view, if (canceled) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP,
+                                time, time + points.size + 1L, x + dx, y + dy)
+                        }
+
+                        listOf(
+                            "tap" to (emptyList<Pair<Float, Float>>() to listOf(KeyAction.Tab)),
+                            "left" to (listOf(-distance to 0f) to listOf(KeyAction.Tab)),
+                            "right" to (listOf(distance to 0f) to listOf(KeyAction.Tab)),
+                            "below threshold" to (listOf(0f to -12f * density) to listOf(KeyAction.Tab)),
+                            "return to center" to (listOf(0f to -distance, 0f to 0f) to listOf(KeyAction.Tab)),
+                            "up" to (listOf(0f to -distance) to listOf(KeyAction.SetModifier(Modifier.ALT))),
+                            "down" to (listOf(0f to distance) to listOf(KeyAction.SetModifier(Modifier.CTRL))),
+                        ).forEach { (name, case) ->
+                            view.setModifier(null)
+                            gesture(name, case.first)
+                            assertEquals("$widthDp dp $mode $name", case.second, actions)
+                        }
+
+                        view.setModifier(null)
+                        gesture("cancel", listOf(0f to -distance), canceled = true)
+                        assertTrue("$widthDp dp $mode cancellation", actions.isEmpty())
+
+                        view.setModifier(null)
+                        gesture("choose Ctrl", listOf(0f to distance))
+                        gesture("clear Ctrl", emptyList())
+                        assertEquals("$widthDp dp $mode modifier clear", listOf(KeyAction.SetModifier(null)), actions)
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun numberPeriodAndSymbolSwitchesUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

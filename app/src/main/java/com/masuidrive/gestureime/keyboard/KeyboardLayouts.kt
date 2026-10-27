@@ -98,7 +98,7 @@ object KeyboardLayouts {
     )
     private fun value(label: String) = FlickValue(label, KeyAction.CommitText(label))
 
-    private fun modifier() = KeySpec("modifier", KeyKind.MODIFIER, null,
+    private fun modifier() = KeySpec("modifier", KeyKind.MODIFIER, FlickValue("T", KeyAction.Tab),
         up = FlickValue("A", KeyAction.SetModifier(Modifier.ALT)),
         down = FlickValue("C", KeyAction.SetModifier(Modifier.CTRL)), widthUnits = .5f, dark = true)
 
