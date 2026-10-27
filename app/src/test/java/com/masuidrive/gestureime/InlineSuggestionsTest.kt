@@ -52,8 +52,9 @@ class InlineSuggestionsTest {
 
     @Test
     fun requestUsesCandidateStripHeightAndBoundedProviderViewWidth() {
-        val density = 2f
-        val request = createInlineSuggestionsRequest(density, android.os.Bundle())
+        val context = org.robolectric.RuntimeEnvironment.getApplication()
+        val density = context.resources.displayMetrics.density
+        val request = createInlineSuggestionsRequest(context, android.os.Bundle())
         val presentation = request.inlinePresentationSpecs.single()
 
         assertEquals(INLINE_SUGGESTION_MAX_COUNT, request.maxSuggestionCount)

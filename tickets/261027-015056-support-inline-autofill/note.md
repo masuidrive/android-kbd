@@ -68,6 +68,9 @@ PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザ�
 2026-10-27 11:17 JST: connected suite後のGboard状態で採った`fix-3909a6f-ordinary-q.*`は無効な証拠として棄却。`b00318a` APKを再導入しmd-kbdをIME選択後、通常欄へfocusして実キー`q`をtap。`/private/tmp/md-kbd-inline-autofill-qa/b00318a-ordinary-q-mdkbd.png`に通常欄の`q`が見え、同名`.xml`の`content-desc="QA ordinary input"`は`focused=true`・`text=q`。エミュレータは終了しAVDだけ残した。
 2026-10-27 11:18 JST: PDH-review -> PDH-verify。AC3のみ実質VERIFIEDとしticketでcheck、AC1/2/4は部分証拠のまま未check。固定QA値の証拠画像をticketの`evidence/`へ保存し、未確認を隠さないclose判断資料`review-board.md`を作成した。API30と旧OSの実機検証環境はなく、大きな追加system imageを導入せずhuman reviewへ渡す。
 2026-10-27 11:22 JST: PDH-verify -> PDH-human-review。独立AC VerifierはAC1/2/4を部分・未確認、AC3を確認済みと判定。独立Surface ObserverはQAサービス経路の候補表示・入力を観察。判断資料の独立読者が挙げた4件（closeと公開の混同、エミュレータ幅の未記載、AC3の証拠範囲、SHA/環境の紐付け）をすべて訂正し再読でblockerなし。Bitwarden本体とAndroid 9/10実OSの確認なしで閉じるか、人間判断待ち。
+2026-10-27 11:58 JST: 利用者の実Bitwarden試験ではChromeのログイン欄の下にBitwardenの候補ポップアップが出て、キーボードが閉じた。再タップ後はmd-kbdが表示されるが候補欄は空白。これは期待するinline候補表示を実証せず、AC1/2は未達・未検証のまま。Bitwardenの「自動入力候補の表示」がInlineかPopupか利用者へ確認中。公式文書はPopup時の欄上表示と、Inline時のキーボード表示を区別している。設定確認後も再現するなら実端末のIME request/responseを調査する。
+2026-10-27 12:05 JST: 利用者がBitwardenの候補表示をInlineへ変更後、Chromeの会員番号欄にfocusした実機スクリーンショットで、md-kbdの候補帯へBitwardenの候補2件が表示された。AC1の実Bitwarden表示面を確認。候補tap後に会員番号・パスワードが入力されるかは未報告のためAC2は未確認。スクリーンショットには個人の会員番号が含まれるためticket内へ複製しない。
+2026-10-27 12:10 JST: 利用者が候補の白背景を指摘。AndroidX v1に空のstyleだけを渡したことで既定の白面になっていた。IME requestに通常候補と同じ角丸face・明暗別の面色と文字色を指定。Android 36.1のQA AutofillServiceで411dp相当・ダークは暗色候補、840dp相当・ライトは白候補と対比の取れる文字を画面で確認。実Bitwardenの新style反映、候補tap後の入力は未確認。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。

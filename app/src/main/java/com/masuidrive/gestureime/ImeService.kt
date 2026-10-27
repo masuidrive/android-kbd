@@ -146,7 +146,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
         if (!supportsInlineSuggestions()) return null
-        return createInlineSuggestionsRequest(resources.displayMetrics.density, uiExtras)
+        return createInlineSuggestionsRequest(this, uiExtras)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
