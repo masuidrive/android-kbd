@@ -134,6 +134,8 @@ close gate 独立確認で、復旧元、外部キー操作契約、保存デー
 
 ユーザは close gate 提示後の `2026-10-28` に「りりーすしていいよ」と回答し、続けて「masuidrive.jpにね」と公開先を指定した。既知の retry-pass 1件と未確認範囲を示した後の明示的な出荷・ticket close 承認として扱う。正式APKと canonical 製品ページの公開完了まで追加 checklist を未了で保持する。
 
+正式版 v0.15.33 (`497b1aa`) の検証は、最初の並列実行で独立GradleプロセスのKotlinキャッシュ競合により単体試験コンパイルが失敗。逐次実行で既存の `ImeHideBarTest` 1件と接続試験2件が失敗した。対象の単独再実行でImeHideBarと音声アニメーションは通過し、絵文字タップのみ再現した。絵文字試験中のエミュレータ画面を撮影すると `System UI isn't responding` ダイアログが全面表示され、InputDispatcherのタップを遮っていた。エミュレータ再起動後の正常画面で `scripts/test-all.sh --connected` を再実行し、fast-checks、単体/Lint/APK、接続31件すべて通過（3/3区分、0 failed / 0 skipped）。リリース版のアプリ動作変更はversionCode/nameのみで、C/A実装はreview済みの `9c43701` と同一。
+
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
      例: API の未文書化の挙動、ライブラリの制約、既存コードの隠れた依存関係。
