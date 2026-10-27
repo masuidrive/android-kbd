@@ -169,19 +169,27 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         response.inlineSuggestions.forEachIndexed { index, suggestion ->
             positionsBySuggestion.getOrPut(suggestion) { mutableListOf() }.add(index)
         }
+        var pendingInflations = positionsBySuggestion.size
         positionsBySuggestion.forEach { (suggestion, positions) ->
             suggestion.inflate(this, size, mainExecutor) contentCallback@ { content ->
-                if (content == null || !inlineSuggestionController.accepts(responseGeneration) ||
-                    !editorSession.isCurrent(editorToken)
-                ) return@contentCallback
-                inlineSuggestionViews = inlineSuggestionViews.toMutableList().apply {
-                    positions.forEach { this[it] = content }
+                if (!inlineSuggestionController.accepts(responseGeneration) || !editorSession.isCurrent(editorToken)) {
+                    return@contentCallback
+                }
+                pendingInflations--
+                if (content != null) {
+                    inlineSuggestionViews = inlineSuggestionViews.toMutableList().apply {
+                        positions.forEach { this[it] = content }
+                    }
                 }
                 val displayedViews = mutableListOf<View>()
                 inlineSuggestionViews.forEach { view ->
                     if (view != null && displayedViews.none { it === view }) displayedViews += view
                 }
-                candidateStrip?.showInlineSuggestionViews(displayedViews)
+                if (shouldRestoreCandidatesAfterInlineInflation(pendingInflations, displayedViews.size)) {
+                    clearInlineSuggestions(restoreCandidates = true)
+                } else {
+                    candidateStrip?.showInlineSuggestionViews(displayedViews)
+                }
             }
         }
         return true

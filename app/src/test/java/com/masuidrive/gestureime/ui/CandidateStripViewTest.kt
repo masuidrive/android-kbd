@@ -54,6 +54,23 @@ class CandidateStripViewTest {
         assertEquals("normal", view.textView("normal").text.toString())
     }
 
+    @Test fun inlineProviderViewRetainsItsFrameworkSuppliedSizeWhenItHasNoIntrinsicSize() {
+        val view = view()
+        val providerView = View(view.context).apply {
+            layoutParams = ViewGroup.LayoutParams(315, 33)
+        }
+
+        view.showInlineSuggestionViews(listOf(providerView))
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(50, View.MeasureSpec.EXACTLY),
+        )
+        view.layout(0, 0, 400, 50)
+
+        assertEquals(315, providerView.width)
+        assertEquals(33, providerView.height)
+    }
+
     @Test fun partialCandidateUsesTheCandidateFaceButCannotBeSelected() {
         val view = view()
         val events = mutableListOf<CandidateUiEvent>()

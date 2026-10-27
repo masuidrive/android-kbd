@@ -66,7 +66,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     fun showInlineSuggestionViews(views: List<View>) {
         candidateRow.removeAllViews()
         views.forEachIndexed { index, view ->
-            candidateRow.addView(view, candidateLayout(hasLeadingGap = index > 0))
+            candidateRow.addView(view, inlineSuggestionLayout(view, hasLeadingGap = index > 0))
         }
         candidateScroll.scrollTo(0, 0)
     }
@@ -147,6 +147,14 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     private fun candidateLayout(hasLeadingGap: Boolean = false) = LayoutParams(
         ViewGroup.LayoutParams.WRAP_CONTENT,
         ViewGroup.LayoutParams.MATCH_PARENT,
+    ).apply {
+        if (hasLeadingGap) marginStart = dp(5)
+    }
+
+    /** InlineContentView has no useful intrinsic size; retain the framework-rendered bounds. */
+    private fun inlineSuggestionLayout(view: View, hasLeadingGap: Boolean) = LayoutParams(
+        view.layoutParams?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT,
+        view.layoutParams?.height ?: ViewGroup.LayoutParams.MATCH_PARENT,
     ).apply {
         if (hasLeadingGap) marginStart = dp(5)
     }

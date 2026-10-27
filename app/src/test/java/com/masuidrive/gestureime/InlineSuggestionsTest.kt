@@ -3,7 +3,6 @@ package com.masuidrive.gestureime
 import android.content.res.XmlResourceParser
 import android.os.Build
 import androidx.autofill.inline.UiVersions
-import androidx.autofill.inline.v1.InlineSuggestionUi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,9 +44,16 @@ class InlineSuggestionsTest {
     }
 
     @Test
+    fun normalCandidatesReturnOnlyAfterEveryCurrentInlineInflationFails() {
+        assertFalse(shouldRestoreCandidatesAfterInlineInflation(pendingInflations = 1, renderedViews = 0))
+        assertFalse(shouldRestoreCandidatesAfterInlineInflation(pendingInflations = 0, renderedViews = 1))
+        assertTrue(shouldRestoreCandidatesAfterInlineInflation(pendingInflations = 0, renderedViews = 0))
+    }
+
+    @Test
     fun requestUsesCandidateStripHeightAndBoundedProviderViewWidth() {
         val density = 2f
-        val request = createInlineSuggestionsRequest(density, supportedUiExtras())!!
+        val request = createInlineSuggestionsRequest(density, android.os.Bundle())
         val presentation = request.inlinePresentationSpecs.single()
 
         assertEquals(INLINE_SUGGESTION_MAX_COUNT, request.maxSuggestionCount)
@@ -57,11 +63,6 @@ class InlineSuggestionsTest {
         assertEquals(INLINE_SUGGESTION_HEIGHT_DP * density, presentation.maxSize.height.toFloat(), 0f)
         assertEquals(presentation.maxSize, inlineSuggestionInflationSize(density))
         assertTrue(UiVersions.INLINE_UI_VERSION_1 in UiVersions.getVersions(presentation.style))
-    }
-
-    @Test
-    fun requestIsNotCreatedWhenPlatformDoesNotOfferTheSupportedUiTemplate() {
-        assertEquals(null, createInlineSuggestionsRequest(1f, android.os.Bundle()))
     }
 
     @Test
@@ -77,7 +78,4 @@ class InlineSuggestionsTest {
         parser.close()
     }
 
-    private fun supportedUiExtras() = UiVersions.newStylesBuilder()
-        .addStyle(InlineSuggestionUi.newStyleBuilder().build())
-        .build()
 }
