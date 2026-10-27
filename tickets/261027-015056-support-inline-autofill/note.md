@@ -52,6 +52,16 @@ PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザ�
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+2026-10-27 10:56 JST: 独立QAがAndroidX標準のinline UI provider契約を調べ、IME側の`InlinePresentationSpec` style Bundle未設定ではv1 UI候補を返さないproviderがあると指摘した。Android公式`InlinePresentationSpec.Builder.setStyle`はstyle必須と記載。Bitwardenの現在版がこのhandshakeを必ず要求する直接証拠は未取得。実装担当へ伝え、v1 style交渉と実service経路の検証を要求した。参照: https://developer.android.com/reference/android/widget/inline/InlinePresentationSpec.Builder 、https://developer.android.com/reference/androidx/autofill/inline/v1/InlineSuggestionUi 。
+2026-10-27 10:57 JST: 物理Android端末のADB接続はゼロ。ユーザへBitwardenログイン済み端末の接続可否を非同期で質問した。並行してQAは別scratchで無害な固定値を返す実AutofillService APKを用意する。これはAndroid framework transportの証拠で、Bitwarden本体の互換性証拠とは区別する。AVD Medium_Phone_API_36.1は利用可能。API28/29のAVDは現時点で存在しない。
+2026-10-27 10:59 JST: QAの独立scratch `/private/tmp/md-kbd-inline-autofill-qa` に、username/password入力欄とAndroidX v1 style確認後に固定値を返す実AutofillService APKを作成した。`./gradlew -p /private/tmp/md-kbd-inline-autofill-qa :app:assembleDebug` はBUILD SUCCESSFUL。APK 3,257,153 bytes、SHA-256 `826f7f3ebc80347648620e1ac52f33e5ea0d45e66e1eb7c620be32f08035cd85`。実動作はIMEビルド後にエミュレータで検証予定。Bitwardenの実serviceを代替した証拠とは扱わない。
+2026-10-27 11:02 JST: 実装担当がappだけを`0401d4c`としてcommitした。候補50dp欄へ保護Viewを並べる、AndroidX v1 style Bundle交渉、editor/view切替で古いcallbackを無効化する内容。Focused `:app:testDebugUnitTest` 50件は失敗0、Directorの`:app:assembleDebug`はBUILD SUCCESSFUL。独立reviewとAndroidエミュレータの実service経路検証を開始した。
+2026-10-27 11:03 JST: ユーザはBitwardenログイン済み端末をADB接続できないと回答。実Bitwarden候補のE2Eはこの環境では実施できない。Android公式APIとQA用AutofillServiceで契約・transportを検証し、Bitwarden本体の未検証をhuman review資料へ明示する。
+2026-10-27 11:04 JST: API36.1・411dpの実Android framework経路でQAサービスのFillResponse 1 dataset・inline renderは観測したが、`0401d4c`のIME候補欄は空白でtapしても入力されなかった。画像 `/private/tmp/md-kbd-inline-autofill-qa/username-inline.png`。AC1/2未達として修正まで検証gateを進めない。独立reviewと実装担当へ原因調査を依頼した。
+2026-10-27 11:06 JST: QA用サービスの候補が出ない一方、通常欄で実キー`q`をtapすると入力された（`/private/tmp/md-kbd-inline-autofill-qa/no-autofill-typed.png`）。候補欄の背景は描画されているがchipはない。原因はresponse受信、inflate callback、view追加のどこかに絞って調査する。AndroidX v1非宣言の`uiExtras`を理由にrequest自体を拒否する条件も独立reviewで指摘された。
+2026-10-27 11:08 JST: 独立review（対象SHA `0401d4ca0778509bd8e36f2b064b0aeaac2dd770`）で同じAC1/2に結び付く2件を採用した。保護`InlineContentView`が持つremote描画サイズ945x99を`CandidateStripView`が`WRAP_CONTENT`へ上書きし、IME側intrinsic幅ゼロのためchipが見えなくなる。Android 11 AOSPの空`uiExtras`を現実装が拒否する点もAPI30の候補表示を妨げる。両方fix nowとし、テストdoubleを実Viewのサイズ契約へ近づける。
+2026-10-27 11:09 JST: 実装担当のfix `3909a6f`で保護Viewの実寸保持、空`uiExtras`受付、全inflate失敗時の通常候補復帰を入れた。独立reviewはこの修正差分に限定し、QAは同じAndroid AutofillService経路で再実行する。
+2026-10-27 11:11 JST: QAの固定値AutofillServiceで、Android 36.1・411dpに候補chip `QA Autofill qa@example.test` が表示され、実tapでusername=`qa@example.test`、passwordの固定テスト値がAndroid自動入力から入り、重複入力なし。通常欄へ切り替えるとchipはなく、実キー`q`で`q`が入力された。840dp幅でもchip表示を確認し、`wm size`を初期値へ戻した。証拠 `/private/tmp/md-kbd-inline-autofill-qa/fix-3909a6f-phone-username-2.png`、`fix-3909a6f-phone-after-fill.png`、`fix-3909a6f-phone-ordinary-focus.png`、`fix-3909a6f-tablet-840dp.png`。Bitwarden本体ではない。修正差分`0401d4c..3909a6f`の独立再reviewは元3件解消、追加Critical/Majorなし。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -66,11 +76,16 @@ PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザ�
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 0401d4c `CandidateStripView`の保護View寸法 | Critical | remote contentの実寸を`WRAP_CONTENT`へ捨てるため実候補が0幅になる。QA実経路で空欄を再現 | fix now | AC1/2を妨げる。providerの実`layoutParams`を保持しzero-intrinsic testと実serviceで再検証 |
+| 2 | 0401d4c Android 11の空`uiExtras` | Critical | AndroidX v1広告がない場合にrequestを拒否する | fix now | API30のAC1/2を妨げる。v1 styleを常時構成し空Bundle testを更新 |
+| 3 | 0401d4c inflate null callback | Major | 全候補inflate失敗後もinline activeで通常候補を抑止し続ける | fix now | AC3の復帰動作を妨げる。完了と有効Viewを数え、0件なら復帰 |
+
+PDH-review-2: `3909a6f3b0db9f93b73725eb567e655cb0b7229c` の修正差分のみ独立再review。上記3件は解消、修正差分に新Critical/Majorなし。Critical 1は実AutofillServiceでも再現手順がPASS。Critical 2は空Bundle unit testで固定し、API30実機は未使用。Major 3は完了数・有効View数の判定testで固定。実BitwardenとAndroid 9/10の端末テストは未実施。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+候補欄のAndroid inline Autofill優先表示、providerの保護Viewとその実寸、空`uiExtras`、API30未満のguard、入力欄切替による破棄を`technical-reference.md`の判断36へ記録した。視覚仕様は`docs/reference/sites-native-spec.txt`、ユーザ手順は`site/manual.html`へ追加した。ブラウザmockはAndroidのAutofillServiceへ接続できないため、このOS連携を擬似的に再現せず、specとmanualに制限を明記した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
