@@ -1,6 +1,6 @@
 # Work Notes: 261027-065123-make-ca-tap-tab
 
-## Status: PDH-human-review (Human review)
+## Status: PDH-close (Release and close)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -24,8 +24,9 @@
 - [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
 - [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
-- [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
+- [ ] ユーザ依頼: C/A中央T版のAPKを正式リリースし、masuidrive.jpの製品ページとマニュアル・操作デモを公開更新する。
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -130,6 +131,8 @@ Surface Observer は最終 SHA `9c43701` の APK を Android 16・412dp 相当�
 close gate 独立確認で、復旧元、外部キー操作契約、保存データ変更なしの根拠が不足と指摘された。固定復旧元 `919d73b8cc661a8f89a9a9298766664f19531138` と現在の archive を一時領域へ展開し、差分の逆適用後に対象11ファイルの byte 一致を確認。board に公開後の戻し方、入力先アプリの範囲、後方互換性、エラー契約と生成物、差分列挙の根拠を補った。独立再review は pass。
 
 ユーザのAPK URL依頼を受け、最終実装SHA `9c43701` で作ったdebug APKを既存の24時間Flyer確認ページ `https://dteqzpbq.aboutme.style/` に掲載。ファイルは `app/build/outputs/apk/debug/app-debug.apk`、38,920,031 bytes、SHA-256 `ab83bfe6d686ac4ce5a31208c1d2fd47a14998a8fd762aa4ab81821e64906eb3`、package `com.masuidrive.gestureime`、version `0.15.32` / code 48。Flyer側の新しいpart1/2のhashはそれぞれ `e1149e3528848f30a7308a10b69e4fb7916324f65217e31476f4e2f090485b48` / `fe829ed2ae1c66519e35ce9b7caa3e462ec27edcc40c016aaa064095cabef07f` でローカルと一致し、結合hashも元APKと一致。旧レビューAPKのpart1/2は削除。サイト期限は `2026-10-28T07:24:47.941Z`（JST 16:24）。Flyer確認配布は正式リリースではなく、ticketクローズ承認は未取得。
+
+ユーザは close gate 提示後の `2026-10-28` に「りりーすしていいよ」と回答し、続けて「masuidrive.jpにね」と公開先を指定した。既知の retry-pass 1件と未確認範囲を示した後の明示的な出荷・ticket close 承認として扱う。正式APKと canonical 製品ページの公開完了まで追加 checklist を未了で保持する。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
