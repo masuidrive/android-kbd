@@ -5,10 +5,12 @@ import android.content.res.Configuration
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.graphics.Outline
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -66,6 +68,12 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
     fun showInlineSuggestionViews(views: List<View>) {
         candidateRow.removeAllViews()
         views.forEachIndexed { index, view ->
+            view.outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(target: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, target.width, target.height, dp(7).toFloat())
+                }
+            }
+            view.clipToOutline = true
             candidateRow.addView(view, inlineSuggestionLayout(view, hasLeadingGap = index > 0))
         }
         candidateScroll.scrollTo(0, 0)
