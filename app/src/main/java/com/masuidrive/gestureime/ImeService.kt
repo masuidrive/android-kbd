@@ -5,12 +5,16 @@ import android.content.Context
 import android.graphics.Rect
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InlineSuggestion
+import android.view.inputmethod.InlineSuggestionsRequest
+import android.view.inputmethod.InlineSuggestionsResponse
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
@@ -45,6 +49,7 @@ import com.masuidrive.gestureime.ui.VoiceUiState
 import com.masuidrive.gestureime.ui.VoicePanelView
 import com.masuidrive.gestureime.voice.VoiceBackendState
 import com.masuidrive.gestureime.voice.VoiceRecognitionController
+import java.util.IdentityHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +76,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private lateinit var voiceController: VoiceRecognitionController
     private var keyboardView: KeyboardView? = null
     private var candidateStrip: CandidateStripView? = null
+    private val inlineSuggestionController = InlineSuggestionController()
+    private var inlineSuggestionViews = emptyList<View?>()
     private var voicePanel: VoicePanelView? = null
     private var publicEmojiPicker: EmojiPickerView? = null
     private var privateEmojiPicker: EmojiPickerView? = null
@@ -136,7 +143,52 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         getSharedPreferences("androidx.emoji2.emojipicker.preferences", MODE_PRIVATE).edit().clear().commit()
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
+        if (!supportsInlineSuggestions()) return null
+        return createInlineSuggestionsRequest(resources.displayMetrics.density, uiExtras)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse): Boolean {
+        if (!supportsInlineSuggestions()) return false
+        val editorToken = editorSession.capture()
+        val responseGeneration = inlineSuggestionController.beginResponse()
+        inlineSuggestionViews = MutableList(response.inlineSuggestions.size) { null }
+        candidateStrip?.clearInlineSuggestionViews()
+        updateEmojiPickerVisibility()
+        if (response.inlineSuggestions.isEmpty()) {
+            clearInlineSuggestions(restoreCandidates = true)
+            return true
+        }
+        val size = inlineSuggestionInflationSize(resources.displayMetrics.density)
+        // The platform contract permits each InlineSuggestion to be inflated only once. A
+        // malformed response can repeat the same instance, so group by identity before asking
+        // the provider to create its protected view.
+        val positionsBySuggestion = IdentityHashMap<InlineSuggestion, MutableList<Int>>()
+        response.inlineSuggestions.forEachIndexed { index, suggestion ->
+            positionsBySuggestion.getOrPut(suggestion) { mutableListOf() }.add(index)
+        }
+        positionsBySuggestion.forEach { (suggestion, positions) ->
+            suggestion.inflate(this, size, mainExecutor) contentCallback@ { content ->
+                if (content == null || !inlineSuggestionController.accepts(responseGeneration) ||
+                    !editorSession.isCurrent(editorToken)
+                ) return@contentCallback
+                inlineSuggestionViews = inlineSuggestionViews.toMutableList().apply {
+                    positions.forEach { this[it] = content }
+                }
+                val displayedViews = mutableListOf<View>()
+                inlineSuggestionViews.forEach { view ->
+                    if (view != null && displayedViews.none { it === view }) displayedViews += view
+                }
+                candidateStrip?.showInlineSuggestionViews(displayedViews)
+            }
+        }
+        return true
+    }
+
     override fun onCreateInputView(): View {
+        clearInlineSuggestions(restoreCandidates = false)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // A fresh input view owns fresh pickers; do not retain its detached predecessors.
         pickerLayoutSignatures.clear()
@@ -383,7 +435,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val isEmoji = keyboardMode == KeyboardMode.EMOJI
         val isVoice = keyboardMode == KeyboardMode.VOICE
         val isPrivate = ::textController.isInitialized && textController.isPrivateField
-        candidateStrip?.visibility = if (isEmoji || isVoice || isPrivate) {
+        candidateStrip?.visibility = if (isEmoji || isVoice || (isPrivate && !inlineSuggestionController.isActive)) {
             View.INVISIBLE
         } else {
             View.VISIBLE
@@ -836,6 +888,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        clearInlineSuggestions(restoreCandidates = false)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // Input views can be hidden and reused without onCreateInputView. The next visible
         // emoji session is a layer entry, so it must queue a fresh Recent reset.
@@ -867,6 +920,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
+        clearInlineSuggestions(restoreCandidates = false)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         invalidateEnglish(clearComposing = false)
@@ -892,6 +946,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     override fun onFinishInput() {
+        clearInlineSuggestions(restoreCandidates = false)
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // Editor changes can reuse this view too; do not carry an old visible transition into
         // the next editor session.
@@ -1464,7 +1519,16 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         selectedIndex: Int,
         selectable: Boolean = true,
     ) {
+        if (inlineSuggestionController.isActive) return
         candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable))
+    }
+
+    private fun clearInlineSuggestions(restoreCandidates: Boolean) {
+        inlineSuggestionController.clear()
+        inlineSuggestionViews = emptyList()
+        candidateStrip?.clearInlineSuggestionViews()
+        if (restoreCandidates) showCandidateStrip(candidates, selectedCandidate)
+        if (::textController.isInitialized) updateEmojiPickerVisibility()
     }
 
     private fun showVoiceCandidates(

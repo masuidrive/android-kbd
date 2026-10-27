@@ -8,6 +8,7 @@ import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -55,6 +56,24 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         candidateSnapshot = snapshot
         render()
         if (contentChanged) candidateScroll.scrollTo(0, 0)
+    }
+
+    /**
+     * Hosts provider-owned inline Autofill content without reading or transforming it. The
+     * framework creates these views as protected InlineContentViews; keeping this method view
+     * based lets the candidate strip remain unaware of Autofill provider data.
+     */
+    fun showInlineSuggestionViews(views: List<View>) {
+        candidateRow.removeAllViews()
+        views.forEachIndexed { index, view ->
+            candidateRow.addView(view, candidateLayout(hasLeadingGap = index > 0))
+        }
+        candidateScroll.scrollTo(0, 0)
+    }
+
+    fun clearInlineSuggestionViews() {
+        candidateRow.removeAllViews()
+        candidateScroll.scrollTo(0, 0)
     }
 
     fun showStatus(message: String) {

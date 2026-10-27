@@ -108,6 +108,10 @@ class ImeTestActivitySafeAreaTest {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             activity.findViewById<android.widget.EditText>(R.id.ime_test_password_field).inputType,
         )
+        assertTrue(View.AUTOFILL_HINT_USERNAME in
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_email_field).autofillHints.orEmpty())
+        assertTrue(View.AUTOFILL_HINT_PASSWORD in
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_password_field).autofillHints.orEmpty())
     }
 
     private fun createActivity() = Robolectric.buildActivity(ImeTestActivity::class.java).setup().get()

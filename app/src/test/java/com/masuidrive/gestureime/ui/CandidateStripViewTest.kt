@@ -36,6 +36,24 @@ class CandidateStripViewTest {
         assertEquals(listOf(CandidateUiEvent(20, 1)), candidates)
     }
 
+    @Test fun inlineProviderViewTemporarilyReplacesNormalCandidatesAndLeavesTheirTextUntouched() {
+        val view = view()
+        val providerView = TextView(view.context).apply { text = "provider-owned" }
+        view.showCandidates(CandidateUiSnapshot(20, listOf("normal")))
+
+        view.showInlineSuggestionViews(listOf(providerView))
+
+        assertEquals(providerView, view.getChildAt(0).let { it as HorizontalScrollView }.getChildAt(0).let {
+            it as ViewGroup
+        }.getChildAt(0))
+        assertEquals("provider-owned", providerView.text.toString())
+        assertEquals(null, runCatching { view.textView("normal") }.getOrNull())
+
+        view.showCandidates(CandidateUiSnapshot(21, listOf("normal")))
+
+        assertEquals("normal", view.textView("normal").text.toString())
+    }
+
     @Test fun partialCandidateUsesTheCandidateFaceButCannotBeSelected() {
         val view = view()
         val events = mutableListOf<CandidateUiEvent>()

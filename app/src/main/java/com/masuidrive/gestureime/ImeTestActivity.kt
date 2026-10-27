@@ -61,6 +61,7 @@ class ImeTestActivity : AppCompatActivity() {
                 id = R.id.ime_test_email_field
                 hint = getString(R.string.ime_test_email_hint)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                setAutofillHints(View.AUTOFILL_HINT_USERNAME)
             }, matchWidth())
             addView(TextView(context).apply {
                 text = getString(R.string.ime_test_private_input)
@@ -72,6 +73,7 @@ class ImeTestActivity : AppCompatActivity() {
                 id = R.id.ime_test_password_field
                 hint = getString(R.string.ime_test_password_hint)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                setAutofillHints(View.AUTOFILL_HINT_PASSWORD)
             }, matchWidth())
         }
         val scroll = ScrollView(this).apply {
