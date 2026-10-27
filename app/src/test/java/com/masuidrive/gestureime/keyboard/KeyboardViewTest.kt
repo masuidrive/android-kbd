@@ -111,6 +111,15 @@ class KeyboardViewTest {
             assertTrue("$mode selected state", selected.isSelected)
             assertEquals("修飾キーを解除", selected.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
             actions.clear()
+            view.cancelActiveGestures()
+            assertEquals(listOf(KeyAction.SetModifier(null)), actions)
+            val canceled = requireNotNull(provider.createAccessibilityNodeInfo(10))
+            assertEquals("$mode canceled description", "タップ Tab、上 Alt、下 Ctrl", canceled.contentDescription.toString())
+            assertFalse("$mode canceled state", canceled.isSelected)
+            assertEquals("Tab", canceled.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
+
+            view.setModifier(Modifier.ALT)
+            actions.clear()
             assertTrue(provider.performAction(10, AccessibilityNodeInfo.ACTION_CLICK, null))
             assertEquals(listOf(KeyAction.SetModifier(null)), actions)
         }

@@ -354,8 +354,7 @@ class KeyboardView @JvmOverloads constructor(
         repeated.clear()
         interpreter.cancelAll()
         if (state.pendingModifier != null) {
-            state = state.copy(pendingModifier = null)
-            actionSink?.onKeyAction(KeyAction.SetModifier(null))
+            updateModifier(null)
         }
         invalidate()
     }
