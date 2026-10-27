@@ -26,7 +26,7 @@
 - [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [x] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
-- [ ] ユーザ依頼: C/A中央T版のAPKを正式リリースし、masuidrive.jpの製品ページとマニュアル・操作デモを公開更新する。
+- [x] ユーザ依頼: C/A中央T版のAPKを正式リリースし、masuidrive.jpの製品ページとマニュアル・操作デモを公開更新する。
 
 ## PDH-ticket-review. Ticket contract check
 <!-- 実装前に ticket の契約を確認する。
@@ -135,6 +135,8 @@ close gate 独立確認で、復旧元、外部キー操作契約、保存デー
 ユーザは close gate 提示後の `2026-10-28` に「りりーすしていいよ」と回答し、続けて「masuidrive.jpにね」と公開先を指定した。既知の retry-pass 1件と未確認範囲を示した後の明示的な出荷・ticket close 承認として扱う。正式APKと canonical 製品ページの公開完了まで追加 checklist を未了で保持する。
 
 正式版 v0.15.33 (`497b1aa`) の検証は、最初の並列実行で独立GradleプロセスのKotlinキャッシュ競合により単体試験コンパイルが失敗。逐次実行で既存の `ImeHideBarTest` 1件と接続試験2件が失敗した。対象の単独再実行でImeHideBarと音声アニメーションは通過し、絵文字タップのみ再現した。絵文字試験中のエミュレータ画面を撮影すると `System UI isn't responding` ダイアログが全面表示され、InputDispatcherのタップを遮っていた。エミュレータ再起動後の正常画面で `scripts/test-all.sh --connected` を再実行し、fast-checks、単体/Lint/APK、接続31件すべて通過（3/3区分、0 failed / 0 skipped）。リリース版のアプリ動作変更はversionCode/nameのみで、C/A実装はreview済みの `9c43701` と同一。
+
+正式リリース v0.15.33: タグのtargetは `ba1fd6f704d0776b6904fa093c95dc038fd596fe`。直接APK `https://github.com/masuidrive/android-kbd/releases/download/v0.15.33/gesture-ime-v0.15.33.apk` を公開し、再ダウンロードした `/private/tmp/md-kbd-v01533-verify/gesture-ime-v0.15.33.apk` とローカル `/private/tmp/gesture-ime-v0.15.33.apk` を `cmp` で完全一致確認。38,723,341 bytes / SHA-256 `8b167b6a4fd606dc567fd00da14502fee036f637aab1aecc4be2c884d32c55e9` / package `com.masuidrive.gestureime` / versionName 0.15.33 / code 49 / arm64-v8a / RECORD_AUDIOとAndroid生成のアプリ内受信権限。製品サイトの `index.html`・`mock.html`・`manual.html`・`styles.css` はpush前に `site/` とbyte比較。masuidrive.jpのPagesは `9a9302673b5e2ae46950adbe2130a832a5749f94` を `built` と報告し、公開4ファイルもcommitとbyte一致。公開モックは412pxでq+Tab入力、840px Tabletで追加Tab、C/A上フリックによるAlt選択と中央タップ解除を操作し、画像欠落・横はみ出し・ブラウザJavaScript errorはなかった。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
