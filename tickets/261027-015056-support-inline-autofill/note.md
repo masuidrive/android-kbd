@@ -1,6 +1,6 @@
 # Work Notes: 261027-015056-support-inline-autofill
 
-## Status: PDH-implement (2026-10-27 10:53 JST)
+## Status: PDH-human-review (2026-10-27 11:22 JST)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -12,18 +12,18 @@
 - [ ] ユーザ依頼: Bitwardenと共に使えるAndroidインライン自動入力に対応する。
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み（2026-10-27の「Bitwardenと共に使うためにinline autofill対応して」という明示実装依頼の範囲をAC 1〜4へ分解）
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: Android AutofillServiceはHTTPではなく端末内Binder API。QA serviceのFillResponseと実tap入力を確認し、Bitwarden本体は未確認として記録。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
 - [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -62,6 +62,12 @@ PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザ�
 2026-10-27 11:08 JST: 独立review（対象SHA `0401d4ca0778509bd8e36f2b064b0aeaac2dd770`）で同じAC1/2に結び付く2件を採用した。保護`InlineContentView`が持つremote描画サイズ945x99を`CandidateStripView`が`WRAP_CONTENT`へ上書きし、IME側intrinsic幅ゼロのためchipが見えなくなる。Android 11 AOSPの空`uiExtras`を現実装が拒否する点もAPI30の候補表示を妨げる。両方fix nowとし、テストdoubleを実Viewのサイズ契約へ近づける。
 2026-10-27 11:09 JST: 実装担当のfix `3909a6f`で保護Viewの実寸保持、空`uiExtras`受付、全inflate失敗時の通常候補復帰を入れた。独立reviewはこの修正差分に限定し、QAは同じAndroid AutofillService経路で再実行する。
 2026-10-27 11:11 JST: QAの固定値AutofillServiceで、Android 36.1・411dpに候補chip `QA Autofill qa@example.test` が表示され、実tapでusername=`qa@example.test`、passwordの固定テスト値がAndroid自動入力から入り、重複入力なし。通常欄へ切り替えるとchipはなく、実キー`q`で`q`が入力された。840dp幅でもchip表示を確認し、`wm size`を初期値へ戻した。証拠 `/private/tmp/md-kbd-inline-autofill-qa/fix-3909a6f-phone-username-2.png`、`fix-3909a6f-phone-after-fill.png`、`fix-3909a6f-phone-ordinary-focus.png`、`fix-3909a6f-tablet-840dp.png`。Bitwarden本体ではない。修正差分`0401d4c..3909a6f`の独立再reviewは元3件解消、追加Critical/Majorなし。
+2026-10-27 11:12 JST: `b00318aaea62ede21a33df0a4c9ddcb19cfb27e8`で`ANDROID_HOME=/Users/masuidrive/Library/Android/sdk scripts/test-all.sh --parallel --connected`実行。suite summary原文は`PASS: fast-checks`、`PASS: android unit, lint, apk`、`PASS: android connected (real Mozc)`、`Passed: 3 / 3`。XML集計はunit 325件・connected 30件でfailures/errors/skippedすべて0。fixtureスクリーンショットはapp変更最終SHA `3909a6f`時の採取で、`b00318a`との差分は文書のみ。
+2026-10-27 11:14 JST: 独立Surface Observerは411/840dpのchipと自動入力後の消去を視認。通常欄に`q`を打ったというQA口頭報告はスクリーンショットだけでは入力先が一意に読めないため、QAへUI dumpまたは追加撮影を依頼した。この点を証拠確定までAC3/4の通常入力経路の実画面証拠とは扱わない。
+2026-10-27 11:15 JST: 独立AC Verifierの`b00318a`判定はAC1/2/4がPARTIAL / NOT VERIFIED、AC3がVERIFIED。QA fixtureでの標準経路PASSはBitwarden本体の候補表示・tapを証明しない。API28/29 guardのunit testはあるがAndroid 9/10実OSでのIME入力・popup非阻害は未確認。この2箇所をhuman reviewに残す。全体テストのconnected suiteがIMEの選択をGboardに戻したため、追加QAはmd-kbd再導入後に行う。
+2026-10-27 11:17 JST: connected suite後のGboard状態で採った`fix-3909a6f-ordinary-q.*`は無効な証拠として棄却。`b00318a` APKを再導入しmd-kbdをIME選択後、通常欄へfocusして実キー`q`をtap。`/private/tmp/md-kbd-inline-autofill-qa/b00318a-ordinary-q-mdkbd.png`に通常欄の`q`が見え、同名`.xml`の`content-desc="QA ordinary input"`は`focused=true`・`text=q`。エミュレータは終了しAVDだけ残した。
+2026-10-27 11:18 JST: PDH-review -> PDH-verify。AC3のみ実質VERIFIEDとしticketでcheck、AC1/2/4は部分証拠のまま未check。固定QA値の証拠画像をticketの`evidence/`へ保存し、未確認を隠さないclose判断資料`review-board.md`を作成した。API30と旧OSの実機検証環境はなく、大きな追加system imageを導入せずhuman reviewへ渡す。
+2026-10-27 11:22 JST: PDH-verify -> PDH-human-review。独立AC VerifierはAC1/2/4を部分・未確認、AC3を確認済みと判定。独立Surface ObserverはQAサービス経路の候補表示・入力を観察。判断資料の独立読者が挙げた4件（closeと公開の混同、エミュレータ幅の未記載、AC3の証拠範囲、SHA/環境の紐付け）をすべて訂正し再読でblockerなし。Bitwarden本体とAndroid 9/10実OSの確認なしで閉じるか、人間判断待ち。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
