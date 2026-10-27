@@ -4,7 +4,7 @@ base_branch: features/261027-015056-support-inline-autofill
 description: "C/A キーの中央タップで Tab を入力する"
 created_at: "2026-10-27T06:51:23Z"
 started_at: 2026-10-27T06:52:37Z
-closed_at: null
+closed_at: 2026-10-27T16:03:11Z
 canceled_at: null
 ---
 
