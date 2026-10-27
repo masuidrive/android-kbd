@@ -1,6 +1,8 @@
 package com.masuidrive.gestureime
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.util.Size
@@ -40,6 +42,7 @@ internal const val INLINE_SUGGESTION_HEIGHT_DP = 38
 internal const val INLINE_SUGGESTION_MAX_COUNT = 5
 
 @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
+@SuppressLint("RestrictedApi") // AndroidX v1 exposes ViewStyle through a library-restricted base builder.
 internal fun createInlineSuggestionsRequest(
     context: Context,
     @Suppress("UNUSED_PARAMETER") uiExtras: Bundle,
@@ -49,7 +52,7 @@ internal fun createInlineSuggestionsRequest(
     // its own presentation style, which lets compatible Autofill providers render their views.
     fun size(widthDp: Int) = Size((widthDp * density).toInt(), (INLINE_SUGGESTION_HEIGHT_DP * density).toInt())
     val chipStyle = ViewStyle.Builder()
-        .setBackgroundColor(context.getColor(R.color.candidate_background))
+        .setBackground(Icon.createWithResource(context, R.color.candidate_background))
         .setPadding((14 * density).toInt(), 0, (14 * density).toInt(), 0)
         .build()
     val style = InlineSuggestionUi.newStyleBuilder()
