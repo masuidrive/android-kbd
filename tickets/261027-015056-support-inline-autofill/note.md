@@ -3,7 +3,7 @@
 ## Status: PDH-human-review (2026-10-27 11:22 JST)
 
 ## Checklist
-- [ ] ユーザ依頼: 修正版APKと製品ページをmasuidrive.jpで公開し、公開面を確認する（2026-10-27の「これでmasuidrive.jpで公開してok」）。
+- [x] ユーザ依頼: 修正版APKと製品ページをmasuidrive.jpで公開し、公開面を確認する（2026-10-27の「これでmasuidrive.jpで公開してok」）。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -117,3 +117,5 @@ PDH-review-2: `3909a6f3b0db9f93b73725eb567e655cb0b7229c` の修正差分のみ�
 2026-10-27 12:24 JST: 色styleの最終形は既存の明暗別`candidate_background`をAndroidX v1 `ViewStyle.setBackground(Icon.createWithResource(...))`へ指定（`RestrictedApi`はv1 style builder使用箇所だけ局所抑制）。追加drawableはRobolectricの絵文字テスト失敗を誘発したため撤去。固定値QA Android 36.1の411dp相当画面でダークは濃灰・ライトは白を確認し、チケットevidence画像を更新。最終実装SHA `8313d89`の`test-all.sh --parallel --connected`はfast-checksとconnectedはPASS、unitが既存`ImeHideBarTest`で断続失敗。unit/lint/APKを分けたGradle実行はPASS。実Bitwardenの候補tap後の入力はまだ未確認。
 
 2026-10-27 12:29 JST: Flyerの24時間レビューサイト `https://dteqzpbq.aboutme.style/` に修正版APKを差し替え、元APK SHA-256 `4611213617df838878e9e00440563c49217267cecdb295d6b6acb9f23f399d4a`・38,965,643バイト、分割ファイルのFlyer側SHA-256はローカルと一致。旧分割2件を削除。Bitwardenの候補tap後の実機挙動は未確認。
+
+2026-10-27 15:48 JST: 利用者がmasuidrive.jpへの公開を明示承認。v0.15.32（versionCode 48）を実装SHA `d64a78374a8314f26eb3390b962602dafedbb459`でビルド、GitHub Releasesへ直接APKとして公開。ローカル `/private/tmp/md-kbd-v0.15.32/gesture-ime-v0.15.32.apk`、38,723,339 bytes、SHA-256 `8f1d0cf9a8bdf14ba6b7da38d9fbede51a14b0dc705890aa9745d1b3dfc8a52b`。再ダウンロードしたassetとcmp完全一致。package `com.masuidrive.gestureime`、minSdk 28、targetSdk 36、ABI arm64-v8a、権限はRECORD_AUDIOとAndroid生成のアプリ内受信権限、INTERNETなし。`scripts/test-all.sh --parallel --connected`初回は並列APK生成競合により接続test 0件・install parse failure、同一SHA再実行はfast-checks/unit+lint+apk/connectedの3/3 PASS。サイト `masuidrive/masuidrive.jp` のcommit `88085b3b0499d1d4c557a4af396beca5a2ad7dba`をPagesがbuild済み。公開index/mock/manual/stylesの4ファイルはpushしたcommitとbyte-identical。公開ページは412pxと840pxで横overflowなし、画像欠け・ブラウザerrorなし、モックでtap/右flick入力を確認。Bitwarden実機の候補選択後の入力と旧OS実画面は未確認。公開承認はPDH close承認として扱わず、ticketは開いたまま。
