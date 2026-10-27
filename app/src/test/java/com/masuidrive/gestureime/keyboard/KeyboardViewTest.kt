@@ -89,6 +89,33 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `modifier accessibility describes Tab or clear for its current state`() {
+        for (mode in listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
+            view.setMode(mode)
+            view.setModifier(null)
+            val provider = view.accessibilityNodeProvider
+            val idle = requireNotNull(provider.createAccessibilityNodeInfo(10))
+            assertEquals("$mode idle description", "タップ Tab、上 Alt、下 Ctrl", idle.contentDescription.toString())
+            assertFalse("$mode idle selection", idle.isSelected)
+            assertEquals("Tab", idle.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
+            assertTrue(idle.actionList.any { it.label?.toString() == "上 Alt" })
+            assertTrue(idle.actionList.any { it.label?.toString() == "下 Ctrl" })
+
+            actions.clear()
+            assertTrue(provider.performAction(10, AccessibilityNodeInfo.ACTION_CLICK, null))
+            assertEquals(listOf(KeyAction.Tab), actions)
+
+            view.setModifier(Modifier.ALT)
+            val selected = requireNotNull(provider.createAccessibilityNodeInfo(10))
+            assertEquals("$mode selected description", "タップで解除、上 Alt、下 Ctrl", selected.contentDescription.toString())
+            assertTrue("$mode selected state", selected.isSelected)
+            assertEquals("修飾キーを解除", selected.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
+            actions.clear()
+            assertTrue(provider.performAction(10, AccessibilityNodeInfo.ACTION_CLICK, null))
+            assertEquals(listOf(KeyAction.SetModifier(null)), actions)
+        }
+    }
+
     @Test fun `ctrl applies to only the next qwerty letter`() {
         view.setMode(KeyboardMode.QWERTY)
         val modifier = keyBounds(10)

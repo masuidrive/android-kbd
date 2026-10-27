@@ -896,11 +896,13 @@ class KeyboardView @JvmOverloads constructor(
         Direction.CENTER -> "タップ"; Direction.LEFT -> "左"; Direction.UP -> "上"; Direction.RIGHT -> "右"; Direction.DOWN -> "下"
     }
 
-    private fun describe(spec: KeySpec): String = Direction.entries.mapNotNull { direction ->
-        spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.let { value ->
-            "${directionLabel(direction)} ${if (value.action == KeyAction.Tab) "Tab" else value.label}"
+    private fun describe(spec: KeySpec): String = if (spec.kind == KeyKind.MODIFIER) {
+        "${if (state.pendingModifier == null) "タップ Tab" else "タップで解除"}、上 Alt、下 Ctrl"
+    } else Direction.entries.mapNotNull { direction ->
+        spec.value(direction)?.takeUnless { it.action == KeyAction.VoiceHold }?.label?.let { label ->
+            "${directionLabel(direction)} $label"
         }
-    }.joinToString("、").ifEmpty { if (spec.kind == KeyKind.MODIFIER) "上 Alt、下 Ctrl" else "入力なし" }
+    }.joinToString("、").ifEmpty { "入力なし" }
 
     private inner class KeyboardAccessibilityHelper(host: View) : ExploreByTouchHelper(host) {
         override fun getVirtualViewAt(x: Float, y: Float): Int {
@@ -920,11 +922,16 @@ class KeyboardView @JvmOverloads constructor(
             val bounds = visibleBounds(target) ?: return
             node.className = "android.widget.Button"
             node.contentDescription = describe(target.spec)
+            if (target.spec.kind == KeyKind.MODIFIER) node.isSelected = state.pendingModifier != null
             node.setBoundsInParent(android.graphics.Rect(
                 bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt()))
             target.spec.center?.let {
                 node.isClickable = true
-                node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+                node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                    AccessibilityNodeInfoCompat.ACTION_CLICK,
+                    if (target.spec.kind == KeyKind.MODIFIER && state.pendingModifier != null) "修飾キーを解除"
+                    else if (it.action == KeyAction.Tab) "Tab" else null,
+                ))
             }
             listOf(
                 ACTION_FLICK_LEFT to Direction.LEFT,
@@ -934,7 +941,10 @@ class KeyboardView @JvmOverloads constructor(
             ).forEach { (id, direction) ->
                 target.spec.value(direction)?.let {
                     if (it.action != KeyAction.VoiceHold) {
-                        node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, "${directionLabel(direction)} ${it.label}"))
+                        val label = if (target.spec.kind == KeyKind.MODIFIER) {
+                            if (direction == Direction.UP) "Alt" else "Ctrl"
+                        } else it.label
+                        node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(id, "${directionLabel(direction)} $label"))
                     }
                 }
             }
@@ -1160,6 +1170,7 @@ class KeyboardView @JvmOverloads constructor(
     private fun updateModifier(modifier: Modifier?) {
         state = state.copy(pendingModifier = modifier)
         actionSink?.onKeyAction(KeyAction.SetModifier(modifier))
+        accessibilityHelper.invalidateRoot()
         invalidate()
     }
 
