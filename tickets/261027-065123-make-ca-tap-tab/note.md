@@ -1,6 +1,6 @@
 # Work Notes: 261027-065123-make-ca-tap-tab
 
-## Status: PDH-implement (Implementation)
+## Status: PDH-human-review (Human review)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -9,21 +9,21 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] ユーザ依頼: C/A キーの中央に T を表示し、中央タップを Tab にする。
+- [x] ユーザ依頼: C/A キーの中央に T を表示し、中央タップを Tab にする。
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: オフラインIME内のキーイベントとローカルHTMLだけで、外部providerは呼ばない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -59,6 +59,23 @@ Focused checks: `./gradlew :app:testDebugUnitTest --tests 'com.masuidrive.gestur
 
 ブラウザは `agent-browser` でローカル製品ページの iframe と `mock.html` を確認。412px幅のMobile設定で中央C/T/Aが表示され横はみ出しなし（scrollWidth=innerWidth=412）、実クリック後の入力欄 value は `"\\t"`。上フリック後はAlt選択を表示し、続けて中央tapすると解除して value は `"\\t"` のまま。デスクトップのTablet設定でもC/T/A表示と中央クリック後のvalue `"\\t"` を確認。
 
+論理commit: `739d168` native実装とunit／production MotionEventテスト、`a4dc33b` mock・仕様・手順・進捗。AC・不変条件・Out-of-scopeは実装中に変更なし。
+
+Initial implementation SHA `a4dc33bbb7f6d13a2d36a09fdb4447fe625367c5` で `scripts/test-all.sh --parallel --connected` を1回実行。後述のreview指摘でAndroidのaccessibility実装を変更したため、最終SHAで再実行する。スイート自身の要約は次のとおり。
+
+```
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+  PASS: android connected (real Mozc)
+
+Passed: 3 / 3
+```
+
+詳細: fast-checks `5 checks passed (2127 ms)`、Android build `BUILD SUCCESSFUL in 28s`、接続試験 `Finished 31 tests on Medium_Phone_API_36.1(AVD) - 16`、`BUILD SUCCESSFUL in 43s`。接続試験のログは全件0 skipped／0 failed。Focused Android test とブラウザ操作は一時確認、Gradle unit とconnected testは恒久 application-test。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -72,16 +89,43 @@ Focused checks: `./gradlew :app:testDebugUnitTest --tests 'com.masuidrive.gestur
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | TalkBack / modifier state | Major | 修飾選択中も中央タップをTabと読み上げ、実際の解除と一致しない。取消時の状態通知も欠ける | 採用・修正済み | AC 1/2 の利用者操作へ直接影響する。`8e63c3f` と `9c43701` で状態依存の説明・操作ラベル・通知を揃えた |
+
+反例固定: 修正前の `KeyboardViewTest.accessibility exposes individual keys and activates focused key` は通常qキーについて説明に「タップ q」を含み、ACTION_CLICKで `CommitText("q")` を送った (`BUILD SUCCESSFUL in 3s`)。修正後の同じ `KeyboardViewTest` class は `BUILD SUCCESSFUL in 11s` で、通常qキーの結果を保持したまま modifier の未選択／選択中説明とaction labelを確認した。
+
+再review: `9c43701` に対する元finding限定の再確認で No Critical/Major。`cancelActiveGestures()` からも `updateModifier(null)` を通し、選択→cancel→通常の説明・非選択・Tab action labelへ戻るテストが `BUILD SUCCESSFUL in 10s`。
+
+全スイートの2回目はSHA `8e63c3f` で `fast-checks` と `android connected (real Mozc)` がPASS、`android unit, lint, apk` がFAIL。`ImeHideBarTest.emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway` が `ImeHideBarTest.kt:572` の `requireNotNull(header)` で `IllegalArgumentException`。現行版の単独実行1回目もFAIL、base ref `919d73b` を `git archive` で展開して同じ単独Gradle stepを実行した結果は `BUILD SUCCESSFUL in 9s`。その後、現行版の同じ単独テスト再実行は `BUILD SUCCESSFUL in 3s`。このテストは retry-pass 1件として最終報告に残す。今回の差分に絵文字実装の変更はないが、base成功だけをもって失敗を免責しない。最終SHAの全スイートを再実行する。
+
+最終実装 SHA `9c4370113e68197f507141f2d30f17cc3f95a4e1` で `scripts/test-all.sh --parallel --connected` を再実行した。スイート自身の要約:
+
+```
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk
+  PASS: android connected (real Mozc)
+
+Passed: 3 / 3
+```
+
+fast-checks `5 checks passed (2140 ms)`、Android unit/lint/apk `BUILD SUCCESSFUL in 24s`、connected `Finished 31 tests on Medium_Phone_API_36.1(AVD) - 16` / `BUILD SUCCESSFUL in 46s`。最終実行では0 failed / 0 skipped。初回失敗の `ImeHideBarTest` は再実行でのみ通過した1件として保持する。
+
+Surface Observer は最終 SHA `9c43701` の APK を Android 16・412dp 相当エミュレータへ再インストールして観察。QWERTY／記号の双方で C/T/A 表示、中央 T タップで通常入力欄から数値欄へフォーカス移動、上フリックで青い A、下フリックで青い C、Alt 選択中の中央タップで解除して Tab を誤送信しないことを確認。表示崩れ・重なりなし。証拠は `tmp/surface-final-qwerty.png`、`tmp/surface-symbols.png`、`tmp/surface-final-alt.png`、`tmp/surface-final-ctrl.png`。物理端末・840dpの実画面・TalkBack実聴は未観察（840dpタッチ経路とアクセシビリティ情報は接続試験で確認）。検証後にエミュレータを停止。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
+`technical-reference.md` の QWERTY/Symbols 設計決定19を、C/A中央T/Tab・上下の次1キー修飾・保留中中央解除の現行動作へ更新。ほかの設計決定は変更していない。
+
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
+
+実装・レビュー・AC裏取り・Surface Observer を最終 SHA `9c43701` で完了。採用した Major 1件は修正済み、未対応 finding は0件。ユーザへ提示する差分・テスト・確認手順は `close-gate.md` にまとめる。承認後に ticket close と通常のAPK・サイト公開へ進む。明示承認前は close しない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
