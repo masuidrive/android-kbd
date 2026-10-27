@@ -70,7 +70,7 @@ PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザ�
 2026-10-27 11:22 JST: PDH-verify -> PDH-human-review。独立AC VerifierはAC1/2/4を部分・未確認、AC3を確認済みと判定。独立Surface ObserverはQAサービス経路の候補表示・入力を観察。判断資料の独立読者が挙げた4件（closeと公開の混同、エミュレータ幅の未記載、AC3の証拠範囲、SHA/環境の紐付け）をすべて訂正し再読でblockerなし。Bitwarden本体とAndroid 9/10実OSの確認なしで閉じるか、人間判断待ち。
 2026-10-27 11:58 JST: 利用者の実Bitwarden試験ではChromeのログイン欄の下にBitwardenの候補ポップアップが出て、キーボードが閉じた。再タップ後はmd-kbdが表示されるが候補欄は空白。これは期待するinline候補表示を実証せず、AC1/2は未達・未検証のまま。Bitwardenの「自動入力候補の表示」がInlineかPopupか利用者へ確認中。公式文書はPopup時の欄上表示と、Inline時のキーボード表示を区別している。設定確認後も再現するなら実端末のIME request/responseを調査する。
 2026-10-27 12:05 JST: 利用者がBitwardenの候補表示をInlineへ変更後、Chromeの会員番号欄にfocusした実機スクリーンショットで、md-kbdの候補帯へBitwardenの候補2件が表示された。AC1の実Bitwarden表示面を確認。候補tap後に会員番号・パスワードが入力されるかは未報告のためAC2は未確認。スクリーンショットには個人の会員番号が含まれるためticket内へ複製しない。
-2026-10-27 12:10 JST: 利用者が候補の白背景を指摘。AndroidX v1に空のstyleだけを渡したことで既定の白面になっていた。IME requestに通常候補と同じ角丸face・明暗別の面色と文字色を指定。Android 36.1のQA AutofillServiceで411dp相当・ダークは暗色候補、840dp相当・ライトは白候補と対比の取れる文字を画面で確認。実Bitwardenの新style反映、候補tap後の入力は未確認。
+2026-10-27 12:10 JST: 利用者が候補の白背景を指摘。AndroidX v1に空のstyleだけを渡したことで既定の白面になっていた。初案ではIME requestに通常候補と同じ角丸face・明暗別の面色と文字色を指定。後続のRobolectric資源問題により角丸drawableを撤去し、最終版では明暗別の面色と文字色を指定。Android 36.1のQA AutofillServiceで411dp相当・ダークは暗色候補、840dp相当・ライトは白候補と対比の取れる文字を画面で確認。実Bitwardenの新style反映、候補tap後の入力は未確認。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -112,3 +112,7 @@ PDH-review-2: `3909a6f3b0db9f93b73725eb567e655cb0b7229c` の修正差分のみ�
 
 ## Resume Point
 <!-- 中断時の最終 commit・理由・再開手順を記録する（pdh-coding「中断手順」に従う）。 -->
+
+2026-10-27 12:24 JST: 色styleの最終形は既存の明暗別`candidate_background`をAndroidX v1 `ViewStyle.setBackground(Icon.createWithResource(...))`へ指定（`RestrictedApi`はv1 style builder使用箇所だけ局所抑制）。追加drawableはRobolectricの絵文字テスト失敗を誘発したため撤去。固定値QA Android 36.1の411dp相当画面でダークは濃灰・ライトは白を確認し、チケットevidence画像を更新。最終実装SHA `8313d89`の`test-all.sh --parallel --connected`はfast-checksとconnectedはPASS、unitが既存`ImeHideBarTest`で断続失敗。unit/lint/APKを分けたGradle実行はPASS。実Bitwardenの候補tap後の入力はまだ未確認。
+
+2026-10-27 12:29 JST: Flyerの24時間レビューサイト `https://dteqzpbq.aboutme.style/` に修正版APKを差し替え、元APK SHA-256 `4611213617df838878e9e00440563c49217267cecdb295d6b6acb9f23f399d4a`・38,965,643バイト、分割ファイルのFlyer側SHA-256はローカルと一致。旧分割2件を削除。Bitwardenの候補tap後の実機挙動は未確認。

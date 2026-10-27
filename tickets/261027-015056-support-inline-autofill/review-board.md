@@ -23,7 +23,7 @@ Bitwardenを使う人がキーボードを切り替えず、ログイン欄の�
 
 840dpの表示は[Tablet相当の画像](evidence/tablet-inline.png)、候補がない通常欄の入力は[通常欄にqを入力した画像](evidence/ordinary-q.png)で確認できます。
 
-利用者の実Bitwarden画像では、インライン候補は正しく出ましたが、ダークキーボード上でAndroidX既定の白い候補面が目立ちました。IMEが候補の保護内容を読まずにAndroidX v1の表示styleだけを指定し、通常候補と同じ暗色面・明色文字に揃えました。[暗色の411dp相当](evidence/inline-dark-themed.png)と[明色の840dp相当](evidence/inline-light-wide.png)は固定QA値のAndroid AutofillServiceによる表示で、Bitwarden本体の新しい色を実機で見た証拠ではありません。
+利用者の実Bitwarden画像では、インライン候補は正しく出ましたが、ダークキーボード上でAndroidX既定の白い候補面が目立ちました。IMEが候補の保護内容を読まずにAndroidX v1の表示styleだけを指定し、通常候補と同じ暗色面・明色文字に揃えました。[暗色の411dp相当](evidence/inline-dark-themed.png)と[明色の411dp相当](evidence/inline-light-wide.png)は固定QA値のAndroid AutofillServiceによる表示で、Bitwarden本体の新しい色を実機で見た証拠ではありません。
 
 ## 受け入れ条件ごとの達成
 
