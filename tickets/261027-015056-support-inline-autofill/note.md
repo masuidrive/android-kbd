@@ -1,6 +1,6 @@
 # Work Notes: 261027-015056-support-inline-autofill
 
-## Status: PDH-open (2026-10-27 10:52 JST)
+## Status: PDH-implement (2026-10-27 10:53 JST)
 
 ## Checklist
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
@@ -10,8 +10,8 @@
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
 - [ ] ユーザ依頼: Bitwardenと共に使えるAndroidインライン自動入力に対応する。
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み（2026-10-27の「Bitwardenと共に使うためにinline autofill対応して」という明示実装依頼の範囲をAC 1〜4へ分解）
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -32,6 +32,12 @@
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
+PDH-open -> PDH-ticket-review — Android標準のIME inline autofillをユーザの依頼へ対応付け、Who/WhatをACへ分解した。
+PDH-ticket-review -> PDH-ticket-human-review — Android/Bitwarden公式資料でAPI 30以上の能力と、サービス側Inline設定が必要なことを確認した。AC読み手は目的を復元できると判定。軽微な曖昧さは通常候補との同時表示だが、確定判断の優先/復帰で解消する。
+PDH-ticket-human-review -> PDH-implement — 同じ能力の実装をユーザが明示依頼済み。pdh-decision-boardの「板を出さない条件」に従い、同じ内容の再承認を求めない。追加の製品判断が出れば影響経路を止めて再確認する。
+影響レイヤー: Android app、IME service、custom view UI、unit tests、instrumentation/device tests、docs。Mozc JNIは対象外。
+根拠: Android公式 https://developer.android.com/identity/autofill/ime-autofill はIME XML宣言、request/response、provider Viewのinflateを規定。Bitwarden公式 https://bitwarden.com/help/auto-fill-android/ はAndroid 11以降、Bitwarden Autofill ServiceとInline表示、互換IMEを要求。現行 `app/src/main/res/xml/method.xml` にinline宣言はなく、`ImeService`にcallback実装はない。`minSdk=28`、`targetSdk=36`。既存候補barは50dp。
+`Open Questions`は現時点で承認者専有の未決なし。`draft/TBD/TODO/FIXME/[NEEDS CLARIFICATION]`なし。既存の未確定文字プレビューticketは未クローズだが、標準inline APIの実装・テストを物理的に妨げない。マージ時に候補欄の差分を照合する。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -40,7 +46,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた。Android API 30で入力開始後にrequestを受け、サービスが返す候補はIMEから内容を読めない保護Viewとしてinflateできることを公式資料で確認。Bitwarden公式はAndroid 11+と対応IMEを必要条件とする。実際のBitwarden候補・選択結果は実装後にproviderとアカウントが必要なため、PDH-verifyで実端末により確認する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
