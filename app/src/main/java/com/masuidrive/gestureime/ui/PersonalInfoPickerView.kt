@@ -25,6 +25,7 @@ import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardLayouts
 import com.masuidrive.gestureime.keyboard.KeyboardPopupController
 import com.masuidrive.gestureime.keyboard.KeySpec
+import com.masuidrive.gestureime.keyboard.FlickValue
 import com.masuidrive.gestureime.keyboard.keyboardContentHorizontalGeometry
 import androidx.core.view.ViewCompat
 import kotlin.math.max
@@ -76,8 +77,8 @@ class PersonalInfoPickerView @JvmOverloads constructor(
 
     fun setLayerMode(mode: KeyboardMode) {
         layerMode = mode
-        layerKey.text = if (mode == KeyboardMode.QWERTY || mode == KeyboardMode.SYMBOLS) "あん" else "Az"
-        layerKey.contentDescription = "レイヤー切り替え。左フリックで音声、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー"
+        layerKey.text = layerLabel(mode)
+        layerKey.contentDescription = "タップで${mode.displayName}へ戻る。左フリックで音声、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー"
     }
 
     /** Keep the footer at the same effective row pitch as the keyboard after width changes. */
@@ -106,13 +107,26 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    private fun showPunctuationPreview(key: View, direction: Direction) {
+    private fun layerLabel(mode: KeyboardMode): String = when (mode) {
+        KeyboardMode.KANA -> "あん"
+        KeyboardMode.NUMBERS -> "19"
+        KeyboardMode.EMOJI -> "☺"
+        KeyboardMode.QWERTY -> "Az"
+        KeyboardMode.SYMBOLS -> "?}"
+        KeyboardMode.VOICE -> "Az"
+    }
+
+    private fun layerPreviewSpec(): KeySpec = KeyboardLayouts.layout(KeyboardMode.KANA).rows.last().keys.first().copy(
+        center = FlickValue(layerLabel(layerMode), KeyAction.SwitchLayer(layerMode)),
+    )
+
+    private fun showFlickPreview(key: View, direction: Direction, spec: KeySpec) {
         val anchorLocation = IntArray(2).also(::getLocationOnScreen)
         val keyLocation = IntArray(2).also(key::getLocationOnScreen)
         val left = (keyLocation[0] - anchorLocation[0]).toFloat()
         val top = (keyLocation[1] - anchorLocation[1]).toFloat()
         punctuationPopupController.show(this, RectF(left, top, left + key.width, top + key.height),
-            punctuationPreviewSpec, direction)
+            spec, direction)
     }
 
     private fun editRow() = LinearLayout(context).apply {
@@ -142,7 +156,7 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         fun TextView.withFlickActions(
             actions: Map<Direction, KeyAction>,
             trackpad: Boolean = false,
-            previewSpec: KeySpec? = null,
+            previewSpec: (() -> KeySpec?)? = null,
         ) {
             val accessibleActions = if (trackpad) mapOf(
                 Direction.LEFT to KeyAction.MoveCursor(Direction.LEFT),
@@ -169,7 +183,7 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 var cursorMoved = false
                 val density = resources.displayMetrics.density
                 fun updatePreview(view: View) {
-                    if (previewSpec != null) showPunctuationPreview(view, direction)
+                    previewSpec?.invoke()?.let { showFlickPreview(view, direction, it) }
                 }
                 fun update(event: MotionEvent) {
                     when (val result = interpreter.move(event.getPointerId(0), event.x / density, event.y / density)) {
@@ -224,17 +238,14 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 }
             })
         }
-        layerKey = addKey("あん", KeyAction.SwitchLayer(KeyboardMode.KANA)).apply {
-            setOnClickListener { onEditAction?.invoke(KeyAction.SwitchLayer(
-                if (layerMode == KeyboardMode.QWERTY || layerMode == KeyboardMode.SYMBOLS) KeyboardMode.KANA
-                else KeyboardMode.QWERTY,
-            )) }
+        layerKey = addKey("Az", KeyAction.SwitchLayer(KeyboardMode.QWERTY)).apply {
+            setOnClickListener { onEditAction?.invoke(KeyAction.SwitchLayer(layerMode)) }
             withFlickActions(mapOf(
                 Direction.UP to KeyAction.SwitchLayer(KeyboardMode.KANA),
                 Direction.RIGHT to KeyAction.SwitchLayer(KeyboardMode.QWERTY),
                 Direction.DOWN to KeyAction.SwitchLayer(KeyboardMode.NUMBERS),
                 Direction.LEFT to KeyAction.VoiceHold,
-            ))
+            ), previewSpec = ::layerPreviewSpec)
         }
         moreKey = addKey("more..", KeyAction.Enter).apply {
             textSize = 12f
@@ -249,7 +260,7 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         punctuation.withFlickActions(mapOf(
             Direction.LEFT to KeyAction.CommitText("。"), Direction.UP to KeyAction.CommitText("？"),
             Direction.RIGHT to KeyAction.CommitText("！"), Direction.DOWN to KeyAction.CommitText("、"),
-        ), previewSpec = punctuationPreviewSpec)
+        ), previewSpec = { punctuationPreviewSpec })
         addKey("Space", KeyAction.CommitText(" "), widthUnits = 2f).apply {
             contentDescription = "Space。上下左右フリックでカーソル移動"
             withFlickActions(emptyMap(), trackpad = true)

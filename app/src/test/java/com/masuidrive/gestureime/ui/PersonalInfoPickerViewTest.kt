@@ -10,6 +10,7 @@ import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.KeyboardPopupController
 import com.masuidrive.gestureime.keyboard.KeyboardPopupRenderView
+import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.PopupKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -57,7 +58,7 @@ class PersonalInfoPickerViewTest {
             view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
             view.layout(0, 0, width, 210)
-            val layer = view.findText("あん")!!
+            val layer = view.findText("Az")!!
             val more = view.findText("more..")!!
             val space = view.findText("Space")!!
             val backspace = view.findText("⌫")!!
@@ -100,7 +101,7 @@ class PersonalInfoPickerViewTest {
             view.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_MOVE, x + dx, y + dy, 0))
             view.dispatchTouchEvent(MotionEvent.obtain(0, 100, MotionEvent.ACTION_UP, x + dx, y + dy, 0))
         }
-        gesture("あん", 0f, -30f)
+        gesture("Az", 0f, -30f)
         gesture("、。？！", -30f, 0f)
         gesture("Space", 30f, 0f)
         gesture("⌫", 30f, 0f)
@@ -119,27 +120,30 @@ class PersonalInfoPickerViewTest {
         Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
         val actions = mutableListOf<KeyAction>()
         view.setOnEditAction(actions::add)
-        view.setLayerMode(com.masuidrive.gestureime.keyboard.KeyboardMode.QWERTY)
-        val layer = view.findText("あん")!!
+        view.setLayerMode(KeyboardMode.QWERTY)
+        val layer = view.findText("Az")!!
         layer.performClick()
         val density = view.resources.displayMetrics.density
         layer.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 30f, 30f, 0))
         layer.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, 30f + 30f * density, 30f, 0))
-        assertEquals(listOf(KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.QWERTY)), actions)
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY),
+            KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
 
-        view.setLayerMode(com.masuidrive.gestureime.keyboard.KeyboardMode.SYMBOLS)
+        view.setLayerMode(KeyboardMode.SYMBOLS)
+        assertEquals("?}", layer.text.toString())
         layer.performClick()
-        view.setLayerMode(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA)
+        view.setLayerMode(KeyboardMode.KANA)
+        assertEquals("あん", layer.text.toString())
         layer.performClick()
-        view.setLayerMode(com.masuidrive.gestureime.keyboard.KeyboardMode.NUMBERS)
+        view.setLayerMode(KeyboardMode.NUMBERS)
+        assertEquals("19", layer.text.toString())
         layer.performClick()
         assertEquals(listOf(
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.QWERTY),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.QWERTY),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.QWERTY),
+            KeyAction.SwitchLayer(KeyboardMode.QWERTY),
+            KeyAction.SwitchLayer(KeyboardMode.QWERTY),
+            KeyAction.SwitchLayer(KeyboardMode.SYMBOLS),
+            KeyAction.SwitchLayer(KeyboardMode.KANA),
+            KeyAction.SwitchLayer(KeyboardMode.NUMBERS),
         ), actions)
         fun flick(dx: Float, dy: Float) {
             layer.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 30f, 30f, 0))
@@ -150,8 +154,31 @@ class PersonalInfoPickerViewTest {
         flick(0f, -30f)
         flick(0f, 30f)
         assertEquals(listOf(KeyAction.VoiceHold,
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA),
-            KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.NUMBERS)), actions.takeLast(3))
+            KeyAction.SwitchLayer(KeyboardMode.KANA),
+            KeyAction.SwitchLayer(KeyboardMode.NUMBERS)), actions.takeLast(3))
+    }
+
+    @Test fun layerKeyShowsSelectedFlickAndDismissesOnRelease() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = PersonalInfoPickerView(activity)
+        activity.setContentView(view)
+        view.setLayerMode(KeyboardMode.NUMBERS)
+        view.measure(View.MeasureSpec.makeMeasureSpec(412, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
+        view.layout(0, 0, 412, 210)
+        val key = view.findText("19")!!
+        val popup = PersonalInfoPickerView::class.java.getDeclaredField("punctuationPopupController")
+            .apply { isAccessible = true }.get(view) as KeyboardPopupController
+        val x = key.width / 2f
+        val y = key.height / 2f
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+        assertTrue(popup.isShowingForTest())
+        val renderer = popup.popupForTest()!!.contentView as KeyboardPopupRenderView
+        assertEquals(PopupKind.LETTER, renderer.kindForTest())
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 25, MotionEvent.ACTION_MOVE, x, y - 40f, 0))
+        assertEquals(Direction.UP, renderer.selectedDirectionForTest())
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, x, y - 40f, 0))
+        assertTrue(!popup.isShowingForTest())
     }
     @Test fun punctuationKeyDispatchesTapAndAllFourFlicks() {
         val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())

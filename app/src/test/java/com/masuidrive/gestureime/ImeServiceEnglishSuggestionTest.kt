@@ -9,6 +9,8 @@ import android.view.MotionEvent
 import android.widget.TextView
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedText
+import android.view.inputmethod.ExtractedTextRequest
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.emoji2.emojipicker.RecentEmojiProvider
 import com.masuidrive.gestureime.conversion.ConversionEngine
@@ -395,6 +397,47 @@ class ImeServiceEnglishSuggestionTest {
         } finally {
             clearPersonalInfo(context)
         }
+    }
+
+    @Test
+    fun personalInfoFooterSpaceMovesVerticallyWithoutLeavingThePickerAndLayerTapReturnsToItsSource() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS))
+            harness.idle()
+            harness.input.commitText("aa\nbb\ncc", 1)
+            harness.input.supportExtractedText = true
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            val space = harness.root.findView { it.contentDescription?.toString()?.startsWith("Space。") == true }!!
+            val density = space.resources.displayMetrics.density
+            fun flick(dyDp: Float) {
+                val x = space.width / 2f
+                val y = space.height / 2f
+                space.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+                space.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_MOVE, x, y + dyDp * density, 0))
+                space.dispatchTouchEvent(MotionEvent.obtain(0, 100, MotionEvent.ACTION_UP, x, y + dyDp * density, 0))
+                harness.idle()
+            }
+            flick(-35f)
+            assertEquals(5, harness.input.cursor)
+            assertEquals("?}", harness.root.findView { it.contentDescription?.toString()?.startsWith("タップで記号へ戻る") == true }?.let { (it as TextView).text.toString() })
+            flick(35f)
+            assertEquals(8, harness.input.cursor)
+            assertEquals("aa\nbb\ncc", harness.input.committed)
+
+            harness.root.findView { it.contentDescription?.toString()?.startsWith("タップで記号へ戻る") == true }!!.performClick()
+            harness.idle()
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+            assertEquals(KeyboardMode.SYMBOLS, ImeService::class.java.getDeclaredField("keyboardMode")
+                .apply { isAccessible = true }.get(harness.service))
+        } finally { clearPersonalInfo(context) }
     }
 
     @Test
@@ -1314,6 +1357,8 @@ class ImeServiceEnglishSuggestionTest {
         private var composingEnd = -1
         private var selectionStart = 0
         private var selectionEnd = 0
+        var supportExtractedText = false
+        val cursor: Int get() = selectionEnd
         val visibleText get() = text.toString()
         val committedValues = mutableListOf<String>()
         val committed: String get() = if (composingStart < 0) text.toString() else
@@ -1355,6 +1400,16 @@ class ImeServiceEnglishSuggestionTest {
             selectionStart = start.coerceIn(0, text.length)
             selectionEnd = end.coerceIn(0, text.length)
             return true
+        }
+
+        override fun getExtractedText(request: ExtractedTextRequest?, flags: Int): ExtractedText? {
+            if (!supportExtractedText) return null
+            return ExtractedText().apply {
+                text = this@RecordingConnection.text.toString()
+                selectionStart = this@RecordingConnection.selectionStart
+                selectionEnd = this@RecordingConnection.selectionEnd
+                startOffset = 0
+            }
         }
 
         override fun getTextBeforeCursor(length: Int, flags: Int): CharSequence =
