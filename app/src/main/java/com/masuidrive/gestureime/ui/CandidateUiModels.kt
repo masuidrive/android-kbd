@@ -5,6 +5,7 @@ data class CandidateUiSnapshot(
     val candidates: List<String>,
     val selectedIndex: Int = -1,
     val selectable: Boolean = true,
+    val labels: List<String> = candidates,
 )
 
 data class CandidateUiEvent(

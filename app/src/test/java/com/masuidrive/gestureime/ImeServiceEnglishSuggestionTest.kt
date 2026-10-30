@@ -5,6 +5,8 @@ import android.app.Activity
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
+import android.view.MotionEvent
+import android.widget.TextView
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import androidx.emoji2.emojipicker.EmojiPickerView
@@ -23,6 +25,7 @@ import com.masuidrive.gestureime.keyboard.KeyboardView
 import com.masuidrive.gestureime.keyboard.VoiceHoldEvent
 import com.masuidrive.gestureime.suggestion.EnglishSuggestionEngine
 import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
+import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.voice.VoiceRecognitionController
 import com.masuidrive.gestureime.voice.VoiceRecognizerFactory
 import kotlinx.coroutines.CompletableDeferred
@@ -41,6 +44,633 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ImeServiceEnglishSuggestionTest {
+    @Test
+    fun explicitPostalAddressShowsEachSavedPartForSequentialSelection() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.POSTAL_CODE, "1000001")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.PREFECTURE, "東京都")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.CITY, "千代田区")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS_LINE1, "千代田1-1")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
+            }, false)
+            harness.idle()
+            listOf("1000001", "東京都", "千代田区", "千代田1-1").forEachIndexed { index, value ->
+                assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 ${index + 1}: $value" } != null)
+            }
+            harness.root.findView { it.contentDescription?.toString() == "候補 2: 東京都" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都", harness.input.committed)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 3: 千代田区" } != null)
+            harness.root.findView { it.contentDescription?.toString() == "候補 3: 千代田区" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都千代田区", harness.input.committed)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun explicitCandidateRemainsVisibleWhileInlineProviderHasNoInflatedView() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.PREFECTURE, "東京都")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
+            }, false)
+            harness.idle()
+            val inline = ImeService::class.java.getDeclaredField("inlineSuggestionController").apply {
+                isAccessible = true
+            }.get(harness.service) as InlineSuggestionController
+            inline.beginResponse()
+            ImeService::class.java.getDeclaredMethod("showCandidateState").apply {
+                isAccessible = true
+            }.invoke(harness.service)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 1: 東京都" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun personalInfoPickerStaysOpenForSeparateAddressPartTaps() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.PREFECTURE, "東京都")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.CITY, "千代田区")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" })
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都", harness.input.committed)
+            harness.root.findView { it.contentDescription?.toString() == "個人情報 2: 市区町村: 千代田区" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都千代田区", harness.input.committed)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun pickerBottomRowEditsWithoutClosingTheValueList() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.PREFECTURE, "東京都")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "Space。上下左右フリックでカーソル移動" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都 ", harness.input.committed)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun pickerPunctuationFlickCommitsTheSelectedCharacterWithSnippetsVisible() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        ImePreferences.setTextSnippets(context, listOf("登録キーワード"))
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 2: 定型文: 登録キーワード" } != null)
+            val key = harness.root.findView {
+                it.contentDescription?.toString() == "タップで、。左フリックで。上フリックで？右フリックで！"
+            }!!
+            fun flick(dx: Float, dy: Float) {
+                key.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 50f, 50f, 0))
+                key.dispatchTouchEvent(MotionEvent.obtain(0, 25, MotionEvent.ACTION_MOVE, 50f + dx, 50f + dy, 0))
+                key.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, 50f + dx, 50f + dy, 0))
+                harness.idle()
+            }
+            flick(-50f, 0f)
+            flick(0f, -50f)
+            flick(50f, 0f)
+            flick(0f, 50f)
+            assertEquals("。？！、", harness.input.committed)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun explicitNameFieldRestoresAllSavedSpellingsAfterInputViewReappears() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田　太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME_HIRAGANA, "やまだ  たろう")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME_KATAKANA, "ヤマダ タロウ")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME_LATIN, "Taro Yamada")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            val editor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+            }
+            harness.service.onStartInput(editor, false)
+            harness.service.onStartInputView(editor, false)
+            harness.idle()
+            listOf("山田", "太郎", "やまだ", "たろう", "ヤマダ", "タロウ", "Taro", "Yamada").forEachIndexed { index, value ->
+                assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 ${index + 1}: $value" } != null)
+            }
+            harness.service.onFinishInputView(false)
+            harness.service.onStartInputView(editor, true)
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun explicitFieldRestoresCandidatesWhenRecreatedViewHasAnEmptyPersonalSnapshot() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            val editor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+            }
+            harness.service.onStartInput(editor, false)
+            harness.idle()
+            ImeService::class.java.getDeclaredField("candidates").apply { isAccessible = true }
+                .set(harness.service, emptyList<String>())
+            harness.service.onStartInputView(editor, true)
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun delayedPreviousEditorResetCannotEraseTheNewNameCandidate() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val resetGate = CompletableDeferred<Unit>()
+            val harness = Harness(conversion = FakeConversion(resetGate = resetGate)) { _, _ -> emptyList() }
+            val editor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+            }
+            harness.service.onStartInput(editor, false)
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田" } != null)
+
+            resetGate.complete(Unit)
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田" } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun explicitPersonalInfoFieldShowsItsSavedValueAndCommitsOnlyAfterTap() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }, false)
+            harness.idle()
+
+            assertEquals("", harness.input.committed)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+            harness.root.findView { it.contentDescription?.toString() == "候補 1: name@example.com" }!!.performClick()
+            harness.idle()
+            assertEquals("name@example.com", harness.input.committed)
+            assertTrue(harness.root.findView {
+                it.contentDescription?.toString() == "候補 1: name@example.com"
+            } != null)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun fourSavedEmailsAppearSeparatelyInEmailFieldAndPickerStartsWithEmails() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        val emails = listOf("one@example.com", "two@example.com", "three@example.com", "four@example.com")
+        emails.forEachIndexed { index, email -> ImePreferences.setPersonalInfoEmail(context, index, email) }
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }, false)
+            harness.idle()
+            emails.forEachIndexed { index, email ->
+                assertTrue(harness.root.findView { it.contentDescription?.toString() == "候補 ${index + 1}: $email" } != null)
+            }
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            emails.forEachIndexed { index, email ->
+                assertTrue(harness.root.findView { it.contentDescription?.toString() ==
+                    "個人情報 ${index + 1}: メールアドレス: $email" } != null)
+            }
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 氏名（漢字）（姓）: 山田" })
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString()?.contains("山田") == true } != null)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun registeredEmailRemainsSelectableAlongsideAnInlineProviderView() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            val editor = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+            harness.service.onStartInput(editor, false)
+            harness.idle()
+            val strip = harness.root.findView { it is CandidateStripView } as CandidateStripView
+            val providerView = TextView(context).apply { text = "protected provider view" }
+            strip.showInlineSuggestionViews(listOf(providerView))
+            ImeService::class.java.getDeclaredMethod("showCandidateState").apply { isAccessible = true }
+                .invoke(harness.service)
+
+            assertEquals(strip, providerView.parent?.parent?.parent)
+            harness.root.findView { it.contentDescription?.toString() == "候補 1: name@example.com" }!!
+                .performClick()
+            harness.idle()
+            assertEquals("name@example.com", harness.input.committed)
+        } finally { clearPersonalInfo(context) }
+    }
+
+    @Test
+    fun genericFieldUsesPersonalInfoActionAndDoesNotListEmptyFields() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 2: " })
+            harness.root.findView { it.contentDescription?.toString() == "個人情報 3: 住所1: 東京都千代田区" }!!.performClick()
+            harness.idle()
+            assertEquals("東京都千代田区", harness.input.committed)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun genericFieldPickerIncludesSavedSnippetWithoutAVisibleCategoryLabel() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setTextSnippets(context, listOf("いつもありがとうございます。"))
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            val chip = harness.root.findView {
+                it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。"
+            }!! as android.widget.TextView
+            assertEquals("いつもありがとうございます。", chip.text.toString())
+            chip.performClick()
+            harness.idle()
+            assertEquals("いつもありがとうございます。", harness.input.committed)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun personalInfoPickerBackReturnsWithoutCommitting() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            val back = harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" }!!
+            assertTrue(back.parent is com.masuidrive.gestureime.ui.CandidateStripView)
+            back.performClick()
+            harness.idle()
+
+            assertEquals("", harness.input.committed)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun personalInfoPickerKeepsTheInputViewHeightAtPhoneAndTabletWidths() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+        ImePreferences.setTextSnippets(context, listOf("いつもありがとうございます。"))
+        try {
+            for (width in listOf(412, 840)) {
+                val harness = Harness { _, _ -> emptyList() }
+                harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+                harness.idle()
+                fun measuredHeight(): Int {
+                    harness.root.measure(
+                        View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                        View.MeasureSpec.makeMeasureSpec(2000, View.MeasureSpec.AT_MOST),
+                    )
+                    harness.root.layout(0, 0, width, harness.root.measuredHeight)
+                    return harness.root.measuredHeight
+                }
+
+                val initialHeight = measuredHeight()
+                harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+                harness.idle()
+                assertEquals(initialHeight, measuredHeight())
+                assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 5: 定型文: いつもありがとうございます。" })
+                harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+                harness.idle()
+                assertEquals(initialHeight, measuredHeight())
+                assertEquals(View.VISIBLE, harness.root.findView {
+                    it.contentDescription?.toString() == "個人情報 5: 定型文: いつもありがとうございます。"
+                }!!.visibility)
+
+                harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" }!!.performClick()
+                harness.idle()
+                assertEquals(initialHeight, measuredHeight())
+                assertEquals("", harness.input.committed)
+            }
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun hidingAndShowingWithInlineAutofillStillRestoresTheGenericCard() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            val inline = ImeService::class.java.getDeclaredField("inlineSuggestionController").apply {
+                isAccessible = true
+            }.get(harness.service) as InlineSuggestionController
+            inline.beginResponse()
+
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "個人情報 1: 氏名（姓）: 山田"
+            }!!.visibility)
+            harness.service.onFinishInputView(false)
+            harness.service.onStartInputView(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, true)
+            harness.idle()
+
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun finishingAndSwitchingToPrivateClearsAnOpenPersonalInfoPicker() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.service.onFinishInputView(false)
+            harness.service.onFinishInput()
+            val privateInfo = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+            harness.service.onStartInput(privateInfo, false)
+            harness.service.onStartInputView(privateInfo, false)
+            harness.idle()
+
+            assertEquals(null, harness.root.findView {
+                it.contentDescription?.toString() == "個人情報 1: 氏名（姓）: 山田"
+            })
+            assertEquals(View.GONE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun hidingAndRestartingTheSameGenericInputViewRestoresCardWithoutPickerValues() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            val genericInfo = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }
+            harness.service.onStartInput(genericInfo, false)
+            harness.idle()
+
+            repeat(2) {
+                harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+                harness.idle()
+
+                harness.service.onFinishInputView(false)
+                harness.service.onStartInputView(genericInfo, true)
+                harness.idle()
+
+                assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+                assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 2: 東京都千代田区" })
+                assertEquals(View.VISIBLE, harness.root.findView {
+                    it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+                }!!.visibility)
+            }
+
+            harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+            harness.root.findView {
+                it.contentDescription?.toString() == "個人情報 3: 住所1: 東京都千代田区"
+            }!!.performClick()
+            harness.idle()
+
+            assertEquals("東京都千代田区", harness.input.committed)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun hidingAndRestartingTheSameEmailInputViewRestoresOnlyItsAutomaticCandidate() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            val emailInfo = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+            harness.service.onStartInput(emailInfo, false)
+            harness.idle()
+
+            repeat(2) {
+                harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+                harness.idle()
+
+                harness.service.onFinishInputView(false)
+                harness.service.onStartInputView(emailInfo, true)
+                harness.idle()
+
+                assertEquals(View.VISIBLE, harness.root.findView {
+                    it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+                }!!.visibility)
+                assertEquals(View.VISIBLE, harness.root.findView {
+                    it.contentDescription?.toString() == "候補 1: name@example.com"
+                }!!.visibility)
+                assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 2: 山田 太郎" })
+            }
+
+            harness.root.findView { it.contentDescription?.toString() == "候補 1: name@example.com" }!!.performClick()
+            harness.idle()
+
+            assertEquals("name@example.com", harness.input.committed)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun recreatingTheInputViewWhileThePickerIsOpenDoesNotPromotePickerValuesToCandidates() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+
+            val recreated = harness.service.onCreateInputView()
+            harness.idle()
+
+            assertEquals(null, recreated.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+            assertEquals(null, recreated.findView { it.contentDescription?.toString() == "候補 2: 東京都千代田区" })
+            assertEquals(View.VISIBLE, recreated.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun inlineRecoveryKeepsAnOpenPickerOutOfTheCandidateStrip() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+            val inline = ImeService::class.java.getDeclaredField("inlineSuggestionController").apply {
+                isAccessible = true
+            }.get(harness.service) as InlineSuggestionController
+            inline.beginResponse()
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+            harness.idle()
+
+            ImeService::class.java.getDeclaredMethod("clearInlineSuggestions", Boolean::class.javaPrimitiveType).apply {
+                isAccessible = true
+            }.invoke(harness.service, true)
+            harness.idle()
+
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 2: 東京都千代田区" })
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "個人情報 1: 氏名（姓）: 山田"
+            }!!.visibility)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun privateFieldDoesNotExposePersonalInfoOrItsAction() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }, false)
+            harness.idle()
+
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
+            assertEquals(
+                View.GONE,
+                harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.visibility,
+            )
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
     @Test
     fun candidateTapReplacesComposingTextWithoutDuplicatingRawPrefix() {
         val harness = Harness { prefix, _ -> if (prefix == "he") listOf("hello", "help") else emptyList() }
@@ -670,6 +1300,12 @@ class ImeServiceEnglishSuggestionTest {
         if (this !is ViewGroup) return null
         for (index in 0 until childCount) getChildAt(index).findView(predicate)?.let { return it }
         return null
+    }
+
+    private fun clearPersonalInfo(context: android.content.Context) {
+        PersonalInfoField.entries.forEach { ImePreferences.setPersonalInfo(context, it, "") }
+        (1 until ImePreferences.PERSONAL_INFO_EMAIL_SLOTS).forEach { ImePreferences.setPersonalInfoEmail(context, it, "") }
+        ImePreferences.setTextSnippets(context, emptyList())
     }
 
     private class RecordingConnection(view: View, private val commitAccepted: Boolean = true) : BaseInputConnection(view, true) {

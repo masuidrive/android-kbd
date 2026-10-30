@@ -10,6 +10,7 @@ import android.graphics.drawable.LayerDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.ImageButton
 import android.widget.HorizontalScrollView
 import android.os.Looper
 import org.junit.Assert.assertEquals
@@ -43,7 +44,7 @@ class CandidateStripViewTest {
 
         view.showInlineSuggestionViews(listOf(providerView))
 
-        assertEquals(providerView, view.getChildAt(0).let { it as HorizontalScrollView }.getChildAt(0).let {
+        assertEquals(providerView, view.getChildAt(1).let { it as HorizontalScrollView }.getChildAt(0).let {
             it as ViewGroup
         }.getChildAt(0))
         assertEquals("provider-owned", providerView.text.toString())
@@ -51,7 +52,31 @@ class CandidateStripViewTest {
 
         view.showCandidates(CandidateUiSnapshot(21, listOf("normal")))
 
+        assertEquals(null, runCatching { view.textView("normal") }.getOrNull())
+        val row = (view.getChildAt(1) as HorizontalScrollView).getChildAt(0) as ViewGroup
+        assertEquals(providerView, row.getChildAt(0))
+        assertEquals(1, row.childCount)
+        view.clearInlineSuggestionViews()
         assertEquals("normal", view.textView("normal").text.toString())
+    }
+
+    @Test fun savedFieldCandidateStaysBesideAnInlineProviderAcrossUpdates() {
+        val view = view()
+        val providerView = TextView(view.context).apply { text = "provider-owned-1" }
+        val secondProvider = TextView(view.context).apply { text = "provider-owned-2" }
+        val email = "long.saved.address@example.com"
+        view.showCandidates(CandidateUiSnapshot(20, listOf(email)), alongsideInline = true)
+        view.showInlineSuggestionViews(listOf(providerView, secondProvider))
+        view.showCandidates(CandidateUiSnapshot(21, listOf(email)), alongsideInline = true)
+
+        val row = (view.getChildAt(1) as HorizontalScrollView).getChildAt(0) as ViewGroup
+        val saved = view.textView(email)
+        assertEquals(saved, row.getChildAt(0))
+        assertEquals(providerView, row.getChildAt(1))
+        assertEquals(secondProvider, row.getChildAt(2))
+        assertEquals(3, row.childCount)
+        assertEquals((160 * view.resources.displayMetrics.density).toInt(), saved.maxWidth)
+        assertEquals("候補 1: $email", saved.contentDescription)
     }
 
     @Test fun inlineProviderViewRetainsItsFrameworkSuppliedSizeWhenItHasNoIntrinsicSize() {
@@ -69,6 +94,59 @@ class CandidateStripViewTest {
 
         assertEquals(315, providerView.width)
         assertEquals(33, providerView.height)
+    }
+
+    @Test fun personalInfoActionDispatchesWithoutBecomingCandidateText() {
+        val view = view()
+        var requests = 0
+        var dismissals = 0
+        view.setOnPersonalInfoRequested { requests++ }
+        view.setOnPersonalInfoDismissed { dismissals++ }
+
+        view.showPersonalInfoAction(true)
+
+        view.personalInfoAction().performClick()
+        assertEquals(1, requests)
+        view.showPersonalInfoAction(true, pickerOpen = true)
+        assertEquals("個人情報の選択を戻る", view.personalInfoAction().contentDescription)
+        assertEquals(view.personalInfoAction(), view.getChildAt(0))
+        view.personalInfoAction().performClick()
+        assertEquals(1, dismissals)
+        assertEquals(1, requests)
+        view.showPersonalInfoAction(true)
+        assertEquals("登録した個人情報を選ぶ", view.personalInfoAction().contentDescription)
+        view.showPersonalInfoAction(false)
+        assertEquals(View.GONE, view.personalInfoAction().visibility)
+    }
+
+    @Test fun personalInfoActionStaysOutsideTheScrollableInlineProviderRow() {
+        val view = view()
+        val providerView = TextView(view.context).apply { text = "provider-owned" }
+
+        view.showPersonalInfoAction(true)
+        view.showInlineSuggestionViews(listOf(providerView))
+
+        val row = view.getChildAt(1).let { it as HorizontalScrollView }.getChildAt(0) as ViewGroup
+        assertEquals(providerView, row.getChildAt(0))
+        assertEquals(1, row.childCount)
+        assertEquals("登録した個人情報を選ぶ", view.personalInfoAction().contentDescription)
+        assertEquals(view, view.personalInfoAction().parent)
+        assertEquals(view.personalInfoAction(), view.getChildAt(0))
+    }
+
+    @Test fun personalInfoActionUsesLabelsWithoutChangingItsSelectedValueIndex() {
+        val view = view()
+        val events = mutableListOf<CandidateUiEvent>()
+        view.setOnCandidateSelected(events::add)
+
+        view.showCandidates(CandidateUiSnapshot(
+            token = 34,
+            candidates = listOf("山田 太郎", "東京都千代田区"),
+            labels = listOf("氏名: 山田 太郎", "住所: 東京都千代田区"),
+        ))
+        view.textView("住所: 東京都千代田区").performClick()
+
+        assertEquals(listOf(CandidateUiEvent(34, 1)), events)
     }
 
     @Test fun partialCandidateUsesTheCandidateFaceButCannotBeSelected() {
@@ -233,7 +311,7 @@ class CandidateStripViewTest {
         view.showCandidates(CandidateUiSnapshot(40, candidates, 0))
         layout()
         shadowOf(Looper.getMainLooper()).idle()
-        val scroll = view.getChildAt(0) as HorizontalScrollView
+        val scroll = view.getChildAt(1) as HorizontalScrollView
         scroll.scrollTo(140, 0)
         assertEquals(140, scroll.scrollX)
 
@@ -249,6 +327,7 @@ class CandidateStripViewTest {
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }
+    private fun CandidateStripView.personalInfoAction(): ImageButton = findView { it is ImageButton } as ImageButton
     private fun TextView.layers() = background as LayerDrawable
     private fun TextView.shadowLayer() = layers().getDrawable(0) as GradientDrawable
     private fun TextView.faceLayer() = layers().getDrawable(1) as GradientDrawable
@@ -257,6 +336,13 @@ class CandidateStripViewTest {
         val result = mutableListOf<TextView>()
         fun visit(view: View) { if (view is TextView) result += view; if (view is ViewGroup) repeat(view.childCount) { visit(view.getChildAt(it)) } }
         visit(this); return result
+    }
+    private fun View.findView(predicate: (View) -> Boolean): View? {
+        if (predicate(this)) return this
+        if (this is ViewGroup) repeat(childCount) {
+            getChildAt(it).findView(predicate)?.let { return it }
+        }
+        return null
     }
     private fun View.leftIn(ancestor: View): Int = horizontalIn(ancestor) { left }
     private fun View.rightIn(ancestor: View): Int = horizontalIn(ancestor) { right }

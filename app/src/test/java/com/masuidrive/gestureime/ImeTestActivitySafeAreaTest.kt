@@ -105,6 +105,14 @@ class ImeTestActivitySafeAreaTest {
             activity.findViewById<android.widget.EditText>(R.id.ime_test_email_field).inputType,
         )
         assertEquals(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_name_field).inputType,
+        )
+        assertEquals(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS,
+            activity.findViewById<android.widget.EditText>(R.id.ime_test_address_field).inputType,
+        )
+        assertEquals(
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             activity.findViewById<android.widget.EditText>(R.id.ime_test_password_field).inputType,
         )

@@ -246,6 +246,8 @@ class KeyboardView @JvmOverloads constructor(
         rebuildLayout()
     }
 
+    fun footerRowPitchForWidth(measuredWidth: Int): Int = rowPitch(measuredWidth).toInt()
+
     /** Applies to the next pointer sequence; Space keeps its fixed trackpad thresholds. */
     fun setFlickSensitivities(
         kanaNumber: FlickSensitivity,

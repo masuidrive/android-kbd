@@ -4,6 +4,7 @@ import android.content.Context
 import com.masuidrive.gestureime.keyboard.FlickSensitivity
 import com.masuidrive.gestureime.keyboard.KeyboardHeightPreset
 import com.masuidrive.gestureime.keyboard.KeyboardMode
+import org.json.JSONArray
 
 object ImePreferences {
     private const val FILE_NAME = "gesture_ime_preferences"
@@ -17,7 +18,10 @@ object ImePreferences {
     private const val QWERTY_SYMBOL_FLICK_SENSITIVITY = "qwerty_symbol_flick_sensitivity"
     private const val EMOJI_RECENT_PREFIX = "emoji_recent_"
     private const val SLASH_COMMAND_PREFIX = "slash_command_"
+    private const val PERSONAL_INFO_PREFIX = "personal_info_"
+    private const val TEXT_SNIPPETS = "text_snippets"
     const val SLASH_COMMAND_SLOTS = 6
+    const val PERSONAL_INFO_EMAIL_SLOTS = 4
     const val EMOJI_RECENT_LIMIT = 100
     val DEFAULT_SLASH_COMMANDS = listOf("/compact", "/clear", "/quit", "", "", "")
 
@@ -68,6 +72,72 @@ object ImePreferences {
             }
         }.apply()
     }
+
+    fun getPersonalInfo(context: Context, field: PersonalInfoField): String = runCatching {
+        val preferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+        val saved = preferences.getString("$PERSONAL_INFO_PREFIX${field.name}", "").orEmpty()
+        if (field == PersonalInfoField.ADDRESS_LINE1 && !preferences.contains("$PERSONAL_INFO_PREFIX${field.name}")) {
+            preferences.getString("$PERSONAL_INFO_PREFIX${PersonalInfoField.ADDRESS.name}", "").orEmpty()
+        } else saved
+    }.getOrDefault("")
+
+    fun getRegisteredPersonalInfo(context: Context): List<String> =
+        getRegisteredPersonalInfoSuggestions(context).map(PersonalInfoSuggestion::value)
+
+    fun getRegisteredPersonalInfoSuggestions(context: Context): List<PersonalInfoSuggestion> =
+        PersonalInfoField.entries.filter { it != PersonalInfoField.ADDRESS }
+            .flatMap { field ->
+                if (field == PersonalInfoField.EMAIL) getPersonalInfoEmails(context).map { PersonalInfoSuggestion(field, it) }
+                else listOf(PersonalInfoSuggestion(field, getPersonalInfo(context, field)))
+            }
+            .filter { it.value.isNotBlank() }
+
+    fun getPersonalInfoEmails(context: Context): List<String> = List(PERSONAL_INFO_EMAIL_SLOTS) { index ->
+        if (index == 0) getPersonalInfo(context, PersonalInfoField.EMAIL).trim()
+        else runCatching {
+            context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+                .getString("${PERSONAL_INFO_PREFIX}EMAIL_$index", "").orEmpty().trim()
+        }.getOrDefault("")
+    }
+
+    fun setPersonalInfoEmail(context: Context, index: Int, value: String) {
+        require(index in 0 until PERSONAL_INFO_EMAIL_SLOTS)
+        val email = value.trim()
+        if (index == 0) {
+            setPersonalInfo(context, PersonalInfoField.EMAIL, email)
+            return
+        }
+        val key = "${PERSONAL_INFO_PREFIX}EMAIL_$index"
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().apply {
+            if (email.isEmpty()) remove(key) else putString(key, email)
+        }.apply()
+    }
+
+    fun setPersonalInfo(context: Context, field: PersonalInfoField, value: String) {
+        val saved = if (field == PersonalInfoField.EMAIL) value.trim() else value
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().apply {
+            if (field == PersonalInfoField.ADDRESS_LINE1) remove("$PERSONAL_INFO_PREFIX${PersonalInfoField.ADDRESS.name}")
+            if (saved.isEmpty()) remove("$PERSONAL_INFO_PREFIX${field.name}")
+            else putString("$PERSONAL_INFO_PREFIX${field.name}", saved)
+        }.apply()
+    }
+
+    fun getTextSnippets(context: Context): List<String> = runCatching {
+        val raw = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            .getString(TEXT_SNIPPETS, "[]") ?: "[]"
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { index ->
+            array.optString(index).takeIf(String::isNotBlank)
+        }
+    }.getOrDefault(emptyList())
+
+    fun setTextSnippets(context: Context, snippets: List<String>) {
+        val values = JSONArray()
+        snippets.filter(String::isNotBlank).forEach(values::put)
+        context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit()
+            .putString(TEXT_SNIPPETS, values.toString()).apply()
+    }
+
     fun isTerminalCursorEnabled(context: Context) = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).getBoolean(TERMINAL_CURSOR, false)
     fun setTerminalCursorEnabled(context: Context, enabled: Boolean) { context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE).edit().putBoolean(TERMINAL_CURSOR, enabled).apply() }
 

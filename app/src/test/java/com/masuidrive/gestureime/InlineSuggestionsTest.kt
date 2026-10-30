@@ -63,6 +63,7 @@ class InlineSuggestionsTest {
         assertEquals(INLINE_SUGGESTION_HEIGHT_DP * density, presentation.minSize.height.toFloat(), 0f)
         assertEquals(INLINE_SUGGESTION_HEIGHT_DP * density, presentation.maxSize.height.toFloat(), 0f)
         assertEquals(presentation.maxSize, inlineSuggestionInflationSize(density))
+        assertEquals((175 * density).toInt(), inlineSuggestionInflationSize(density, 175).width)
         assertTrue(UiVersions.INLINE_UI_VERSION_1 in UiVersions.getVersions(presentation.style))
     }
 

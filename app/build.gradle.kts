@@ -11,8 +11,8 @@ android {
         applicationId = "com.masuidrive.gestureime"
         minSdk = 28
         targetSdk = 36
-        versionCode = 49
-        versionName = "0.15.33"
+        versionCode = 50
+        versionName = "0.15.34"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += "arm64-v8a" }
     }

@@ -80,8 +80,11 @@ internal fun createInlineSuggestionsRequest(
         .build()
 }
 
-internal fun inlineSuggestionInflationSize(density: Float): Size = Size(
-    (INLINE_SUGGESTION_MAX_WIDTH_DP * density).toInt(),
+internal fun inlineSuggestionInflationSize(
+    density: Float,
+    widthDp: Int = INLINE_SUGGESTION_MAX_WIDTH_DP,
+): Size = Size(
+    (widthDp.coerceIn(INLINE_SUGGESTION_MIN_WIDTH_DP, INLINE_SUGGESTION_MAX_WIDTH_DP) * density).toInt(),
     (INLINE_SUGGESTION_HEIGHT_DP * density).toInt(),
 )
 

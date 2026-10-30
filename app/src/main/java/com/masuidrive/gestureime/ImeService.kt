@@ -44,6 +44,7 @@ import com.masuidrive.gestureime.ui.CandidateUiEvent
 import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import com.masuidrive.gestureime.ui.CandidateStripView
+import com.masuidrive.gestureime.ui.PersonalInfoPickerView
 import com.masuidrive.gestureime.ui.VoiceUiSnapshot
 import com.masuidrive.gestureime.ui.VoiceUiState
 import com.masuidrive.gestureime.ui.VoicePanelView
@@ -79,6 +80,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private val inlineSuggestionController = InlineSuggestionController()
     private var inlineSuggestionViews = emptyList<View?>()
     private var voicePanel: VoicePanelView? = null
+    private var personalInfoPanel: PersonalInfoPickerView? = null
     private var publicEmojiPicker: EmojiPickerView? = null
     private var privateEmojiPicker: EmojiPickerView? = null
     private var emojiPickerBottomMask: View? = null
@@ -108,6 +110,16 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var conversionCandidateSelected = false
     private var conversionPreview: String? = null
     private var candidateSource = CandidateSource.NONE
+    private var personalInfoField: PersonalInfoField? = null
+    private var personalInfoPickerVisible = false
+    private var personalInfoPickerExpanded = false
+    private var personalInfoPickerValues = emptyList<String>()
+    private var personalInfoPickerLabels = emptyList<String>()
+    /**
+     * A hidden IME view can be shown again without being recreated. Keep only this transition
+     * marker across that boundary; picker values themselves must never leave the picker.
+     */
+    private var restorePersonalInfoAfterInputViewRestart = false
     private var englishBuffer = ""
     private var englishGeneration = 0L
     private var slashBufferActive = false
@@ -161,7 +173,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             clearInlineSuggestions(restoreCandidates = true)
             return true
         }
-        val size = inlineSuggestionInflationSize(resources.displayMetrics.density)
+        val inlineWidthDp = if (candidateSource == CandidateSource.PERSONAL_INFO &&
+            personalInfoField == PersonalInfoField.EMAIL && candidates.isNotEmpty()) {
+            ((resources.configuration.screenWidthDp - 62) / 2).coerceIn(120, 240)
+        } else INLINE_SUGGESTION_MAX_WIDTH_DP
+        val size = inlineSuggestionInflationSize(resources.displayMetrics.density, inlineWidthDp)
         // The platform contract permits each InlineSuggestion to be inflated only once. A
         // malformed response can repeat the same instance, so group by identity before asking
         // the provider to create its protected view.
@@ -197,6 +213,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onCreateInputView(): View {
         clearInlineSuggestions(restoreCandidates = false)
+        val restorePersonalInfo = restorePersonalInfoAfterInputViewRestart || discardPersonalInfoPicker()
+        restorePersonalInfoAfterInputViewRestart = false
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // A fresh input view owns fresh pickers; do not retain its detached predecessors.
         pickerLayoutSignatures.clear()
@@ -239,9 +257,16 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnCandidateLongPressed(::onCandidateLongPressed)
+            it.setOnPersonalInfoRequested(::showPersonalInfoPicker)
+            it.setOnPersonalInfoDismissed(::dismissPersonalInfoPicker)
             it.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
             candidateStrip = it
         }
+        if (restorePersonalInfo || (personalInfoField != null && candidates.isEmpty() &&
+                reading.isEmpty() && englishBuffer.isEmpty() && !slashBufferActive)) {
+            restoreAutomaticPersonalInfoCandidate()
+        }
+        showCandidateState()
         val initialPickerViewportHeight = keyboard.emojiPickerOverlayHeight().toInt()
         emojiPickerHeaderHeight = candidateHeight
         emojiPickerControlTop = candidateHeight + initialPickerViewportHeight
@@ -285,6 +310,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             it.visibility = View.GONE
             voicePanel = it
         }
+        val personalPanel = PersonalInfoPickerView(this).also {
+            it.setOnCandidateSelected(::onCandidateSelected)
+            it.setOnEditAction(::onKeyAction)
+            it.setOnMoreRequested(::expandPersonalInfoPicker)
+            it.setLayerMode(keyboardMode)
+            it.visibility = View.GONE
+            personalInfoPanel = it
+        }
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         val content = LinearLayout(this).apply {
             id = R.id.ime_input_root
@@ -296,6 +329,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateEmojiPickerLayout(candidateHeight)
             updateVoicePanelLayout(candidateHeight)
+            updatePersonalInfoPanelLayout(candidateHeight)
         }
         return IntrinsicImeInputRoot(
             context = this,
@@ -321,6 +355,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             })
             addView(layerRailProxy, FrameLayout.LayoutParams(0, initialPickerViewportHeight).apply {
                 gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                topMargin = candidateHeight
+            })
+            addView(personalPanel, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                initialPickerViewportHeight,
+            ).apply {
+                gravity = android.view.Gravity.TOP
                 topMargin = candidateHeight
             })
             updateEmojiPickerVisibility()
@@ -387,6 +428,11 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         updateEmojiLayerRailProxyLayout(candidateHeight, measuredWidth, viewportHeight)
         val voicePanelHeight = candidateHeight + keyboard.voicePanelOverlayHeightForWidth(measuredWidth).toInt()
         if (voicePanel?.layoutParams?.height != voicePanelHeight) updateVoicePanelLayout(candidateHeight, measuredWidth)
+        val personalPanelHeight = keyboard.emojiPickerOverlayHeightForWidth(measuredWidth).toInt()
+        personalInfoPanel?.setFooterRowPitch(keyboard.footerRowPitchForWidth(measuredWidth))
+        if (personalInfoPanel?.layoutParams?.height != personalPanelHeight) {
+            updatePersonalInfoPanelLayout(candidateHeight, measuredWidth)
+        }
     }
 
     private fun updateEmojiLayerRailProxyLayout(candidateHeight: Int, measuredWidth: Int, viewportHeight: Int) {
@@ -408,6 +454,20 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val params = panel.layoutParams as? FrameLayout.LayoutParams ?: return
         if (params.height == desiredHeight) return
         params.height = desiredHeight
+        panel.layoutParams = params
+        panel.requestLayout()
+    }
+
+    private fun updatePersonalInfoPanelLayout(candidateHeight: Int, measuredWidth: Int? = null) {
+        val panel = personalInfoPanel ?: return
+        val keyboard = keyboardView ?: return
+        val desiredHeight = (measuredWidth?.let(keyboard::emojiPickerOverlayHeightForWidth)
+            ?: keyboard.emojiPickerOverlayHeight()).toInt()
+        panel.setFooterRowPitch(keyboard.footerRowPitchForWidth(measuredWidth ?: keyboard.width))
+        val params = panel.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.height == desiredHeight && params.topMargin == candidateHeight) return
+        params.height = desiredHeight
+        params.topMargin = candidateHeight
         panel.layoutParams = params
         panel.requestLayout()
     }
@@ -454,6 +514,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         emojiPickerBottomMask?.visibility = if (isEmoji) View.VISIBLE else View.GONE
         emojiLayerRailProxy?.visibility = if (isEmoji) View.VISIBLE else View.GONE
         voicePanel?.visibility = if (isVoice && !isPrivate) View.VISIBLE else View.GONE
+        updatePersonalInfoPanelVisibility()
         val enteredEmojiLayer = shouldResetEmojiPickerOnVisibilityTransition(emojiPickerVisible, isEmoji)
         emojiPickerVisible = isEmoji
         if (enteredEmojiLayer) listOfNotNull(publicEmojiPicker, privateEmojiPicker).forEach(pickersAwaitingRecentReset::add)
@@ -463,6 +524,17 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             } }
         }
         updateEmojiPickerMask()
+    }
+
+    private fun updatePersonalInfoPanelVisibility() {
+        val isPrivate = ::textController.isInitialized && textController.isPrivateField
+        personalInfoPanel?.visibility = if (personalInfoPickerVisible && !isPrivate &&
+            keyboardMode != KeyboardMode.EMOJI && keyboardMode != KeyboardMode.VOICE
+        ) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     private fun createEmojiPicker(provider: RecentEmojiProvider): EmojiPickerView = EmojiPickerView(this).apply {
@@ -897,6 +969,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onFinishInputView(finishingInput: Boolean) {
         clearInlineSuggestions(restoreCandidates = false)
+        restorePersonalInfoAfterInputViewRestart =
+            restorePersonalInfoAfterInputViewRestart || discardPersonalInfoPicker()
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // Input views can be hidden and reused without onCreateInputView. The next visible
         // emoji session is a layer entry, so it must queue a fresh Recent reset.
@@ -910,6 +984,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        val restorePersonalInfo = restorePersonalInfoAfterInputViewRestart || discardPersonalInfoPicker()
+        restorePersonalInfoAfterInputViewRestart = false
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         if (editorKeyboardMode == null) selectKeyboardModeForEditor(info)
         keyboardMode = editorKeyboardMode ?: ImePreferences.getLastKeyboardMode(this)
@@ -923,12 +999,19 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         keyboardView?.refreshIntrinsicLayout()
         setVoiceUi(if (textController.isPrivateField) VoiceUiState.Hidden else voiceController.initialState().toUiState())
         updateEmojiPickerVisibility()
+        if (restorePersonalInfo || (personalInfoField != null && candidates.isEmpty() &&
+                reading.isEmpty() && englishBuffer.isEmpty() && !slashBufferActive)) {
+            restoreAutomaticPersonalInfoCandidate()
+            showCandidateState()
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         editorSession.advance()
         clearInlineSuggestions(restoreCandidates = false)
+        discardPersonalInfoPicker()
+        restorePersonalInfoAfterInputViewRestart = false
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         invalidateConversion(clearComposing = false)
         invalidateEnglish(clearComposing = false)
@@ -951,10 +1034,13 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         )
         keyboardView?.setEmojiRecents(ImePreferences.getEmojiRecents(this))
         updateEmojiPickerVisibility()
+        configurePersonalInfoSuggestions(attribute.inputType)
     }
 
     override fun onFinishInput() {
         clearInlineSuggestions(restoreCandidates = false)
+        discardPersonalInfoPicker()
+        restorePersonalInfoAfterInputViewRestart = false
         if (keyboardMode == KeyboardMode.VOICE) cancelVoiceSession() else cancelVoiceHold()
         // Editor changes can reuse this view too; do not carry an old visible transition into
         // the next editor session.
@@ -1155,8 +1241,15 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private suspend fun processInputAction(action: KeyAction, editorToken: Long, voiceEditingSession: Long? = null) {
         if (voiceEditingSession != null) {
             if (!isCurrentContinuousVoiceSession(voiceEditingSession, editorToken)) return
-            processContinuousVoiceEditingAction(action, editorToken)
+            processDirectEditingAction(action, editorToken)
             return
+        }
+        if (personalInfoPickerVisible && isDirectEditingAction(action)) {
+            processDirectEditingAction(action, editorToken)
+            return
+        }
+        if (personalInfoPickerVisible && (action is KeyAction.SwitchLayer || action == KeyAction.VoiceHold)) {
+            dismissPersonalInfoPicker()
         }
         if (slashBufferActive && action !is KeyAction.SelectCandidate && action !is KeyAction.Backspace) {
             finishSlashRaw()
@@ -1290,6 +1383,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 if (candidateSource == CandidateSource.VOICE) commitVoiceCandidate(action.index, editorToken)
                 else if (candidateSource == CandidateSource.ENGLISH) commitEnglishCandidate(action.index)
                 else if (candidateSource == CandidateSource.SLASH) commitSlashCandidate(action.index)
+                else if (candidateSource == CandidateSource.PERSONAL_INFO) commitPersonalInfoCandidate(action.index, editorToken)
                 else if (candidateSource == CandidateSource.PREDICTION) commitPredictionCandidate(action.index, editorToken)
                 else commitJapaneseCandidate(action.index, editorToken)
             }
@@ -1301,12 +1395,14 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         }
     }
 
-    /**
-     * The bottom row of VOICE intentionally edits the target without altering its recognizer,
-     * voice panel, candidates, or Mozc composition state.  Its session token also drops a tap
-     * that was queued before cancel/layer change invalidated the continuous session.
-     */
-    private fun processContinuousVoiceEditingAction(action: KeyAction, editorToken: Long) {
+    private fun isDirectEditingAction(action: KeyAction): Boolean = when (action) {
+        is KeyAction.CommitText, is KeyAction.Backspace, KeyAction.Enter, KeyAction.Paste,
+        is KeyAction.MoveCursor, is KeyAction.ModifiedKey -> true
+        else -> false
+    }
+
+    /** Edits text without resetting an open voice or personal-info panel. */
+    private fun processDirectEditingAction(action: KeyAction, editorToken: Long) {
         editorSession.runIfCurrent(editorToken) {
             when (action) {
                 is KeyAction.CommitText -> textController.commitText(action.text)
@@ -1518,8 +1614,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     private fun showCandidateState() {
-        showCandidateStrip(candidates, selectedCandidate)
-        keyboardView?.setCandidates(candidates, selectedCandidate)
+        val displayedCandidates = if (personalInfoPickerVisible) emptyList() else candidates
+        showCandidateStrip(displayedCandidates, selectedCandidate)
+        keyboardView?.setCandidates(displayedCandidates, selectedCandidate)
     }
 
     private fun showCandidateStrip(
@@ -1527,15 +1624,179 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         selectedIndex: Int,
         selectable: Boolean = true,
     ) {
-        if (inlineSuggestionController.isActive) return
-        candidateStrip?.showCandidates(CandidateUiSnapshot(++candidateUiToken, values, selectedIndex, selectable))
+        val token = ++candidateUiToken
+        candidateStrip?.showPersonalInfoAction(personalInfoPickerVisible || personalInfoActionAvailable(), personalInfoPickerVisible)
+        // Provider-owned inline Views and our saved field value can coexist.
+        candidateStrip?.showCandidates(CandidateUiSnapshot(token, values, selectedIndex, selectable),
+            alongsideInline = candidateSource == CandidateSource.PERSONAL_INFO && !personalInfoPickerVisible)
+        personalInfoPanel?.showCandidates(if (personalInfoPickerVisible) {
+            CandidateUiSnapshot(token, personalInfoPickerValues, labels = personalInfoPickerLabels)
+        } else {
+            CandidateUiSnapshot(token, emptyList())
+        })
+        personalInfoPanel?.setMoreVisible(personalInfoPickerVisible && !personalInfoPickerExpanded &&
+            (ImePreferences.getRegisteredPersonalInfoSuggestions(this).any { it.field != PersonalInfoField.EMAIL } ||
+                ImePreferences.getTextSnippets(this).isNotEmpty()))
+        updatePersonalInfoPanelVisibility()
+        personalInfoPanel?.setLayerMode(keyboardMode)
+    }
+
+    private fun configurePersonalInfoSuggestions(inputType: Int) {
+        discardPersonalInfoPicker()
+        personalInfoField = if (textController.isPrivateField) null else personalInfoFieldForInputType(inputType)
+        restoreAutomaticPersonalInfoCandidate()
+        showCandidateState()
+    }
+
+    /** Restores only values matching the explicit editor type, never the complete picker. */
+    private fun restoreAutomaticPersonalInfoCandidate() {
+        candidates = if (textController.isPrivateField) emptyList() else when (personalInfoField) {
+            PersonalInfoField.NAME -> listOf(
+                PersonalInfoField.NAME, PersonalInfoField.NAME_HIRAGANA,
+                PersonalInfoField.NAME_KATAKANA, PersonalInfoField.NAME_LATIN,
+            ).flatMap { field -> personalInfoSelectionValues(PersonalInfoSuggestion(field,
+                ImePreferences.getPersonalInfo(this, field))).map { it.second } }
+            PersonalInfoField.EMAIL -> ImePreferences.getPersonalInfoEmails(this).filter(String::isNotEmpty)
+            PersonalInfoField.ADDRESS -> listOf(
+                PersonalInfoField.POSTAL_CODE, PersonalInfoField.PREFECTURE,
+                PersonalInfoField.CITY, PersonalInfoField.ADDRESS_LINE1,
+                PersonalInfoField.ADDRESS_LINE2,
+            ).map { ImePreferences.getPersonalInfo(this, it) }.filter(String::isNotEmpty)
+            else -> emptyList()
+        }
+        selectedCandidate = -1
+        candidateSource = if (candidates.isEmpty()) CandidateSource.NONE else CandidateSource.PERSONAL_INFO
+    }
+
+    private fun personalInfoActionAvailable(): Boolean =
+        !textController.isPrivateField &&
+            !personalInfoPickerVisible &&
+            reading.isEmpty() &&
+            englishBuffer.isEmpty() &&
+            !slashBufferActive &&
+            (ImePreferences.getRegisteredPersonalInfo(this).isNotEmpty() ||
+                ImePreferences.getTextSnippets(this).isNotEmpty())
+
+    private fun showPersonalInfoPicker() {
+        val editorToken = editorSession.capture()
+        serviceScope.launch {
+            actionMutex.withLock {
+                if (!editorSession.isCurrent(editorToken) || !personalInfoActionAvailable()) return@withLock
+                finishEnglishRaw()
+                finishSlashRaw()
+                resetConversion(clearComposing = false)
+                val suggestions = ImePreferences.getRegisteredPersonalInfoSuggestions(this@ImeService)
+                val snippets = ImePreferences.getTextSnippets(this@ImeService)
+                if ((suggestions.isEmpty() && snippets.isEmpty()) || textController.isPrivateField) return@withLock
+                personalInfoPickerVisible = true
+                personalInfoPickerExpanded = false
+                candidateSource = CandidateSource.PERSONAL_INFO
+                candidates = emptyList()
+                setPersonalInfoPickerValues(suggestions.filter { it.field == PersonalInfoField.EMAIL }, emptyList())
+                selectedCandidate = -1
+                showCandidateState()
+            }
+        }
+    }
+
+    private fun expandPersonalInfoPicker() {
+        val editorToken = editorSession.capture()
+        serviceScope.launch {
+            actionMutex.withLock {
+                if (!editorSession.isCurrent(editorToken) || !personalInfoPickerVisible ||
+                    personalInfoPickerExpanded || textController.isPrivateField) return@withLock
+                personalInfoPickerExpanded = true
+                setPersonalInfoPickerValues(ImePreferences.getRegisteredPersonalInfoSuggestions(this@ImeService),
+                    ImePreferences.getTextSnippets(this@ImeService))
+                showCandidateState()
+            }
+        }
+    }
+
+    private fun setPersonalInfoPickerValues(suggestions: List<PersonalInfoSuggestion>, snippets: List<String>) {
+        val selections = suggestions.flatMap(::personalInfoSelectionValues)
+        personalInfoPickerValues = selections.map { it.second } + snippets
+        personalInfoPickerLabels = selections.map { (label, value) -> "$label: $value" } +
+            snippets.map { "定型文: $it" }
+    }
+
+    private fun commitPersonalInfoCandidate(index: Int, editorToken: Long) {
+        val selectingFromPicker = personalInfoPickerVisible
+        val values = if (selectingFromPicker) personalInfoPickerValues else candidates
+        if (candidateSource != CandidateSource.PERSONAL_INFO || index !in values.indices) return
+        val value = values[index]
+        if (!editorSession.runIfCurrent(editorToken) { textController.commitText(value) }) return
+        // Keep the picker open so address parts and other saved values can be inserted in order.
+        if (selectingFromPicker) return
+        personalInfoPickerVisible = false
+        personalInfoPickerExpanded = false
+        personalInfoPickerLabels = emptyList()
+        personalInfoPickerValues = emptyList()
+        restoreAutomaticPersonalInfoCandidate()
+        showCandidateState()
+    }
+
+    private fun dismissPersonalInfoPicker() {
+        if (!personalInfoPickerVisible) return
+        personalInfoPickerVisible = false
+        personalInfoPickerExpanded = false
+        personalInfoPickerValues = emptyList()
+        personalInfoPickerLabels = emptyList()
+        restoreAutomaticPersonalInfoCandidate()
+        showCandidateState()
+    }
+
+    /**
+     * Drops the picker-only state without choosing a replacement candidate model. Callers that
+     * reveal an existing input view must explicitly restore and draw the current editor model.
+     */
+    private fun discardPersonalInfoPicker(): Boolean {
+        val wasPickerVisible = personalInfoPickerVisible
+        personalInfoPickerVisible = false
+        personalInfoPickerExpanded = false
+        personalInfoPickerValues = emptyList()
+        personalInfoPickerLabels = emptyList()
+        if (wasPickerVisible) {
+            candidates = emptyList()
+            selectedCandidate = -1
+            candidateSource = CandidateSource.NONE
+        }
+        personalInfoPanel?.showCandidates(CandidateUiSnapshot(candidateUiToken, emptyList()))
+        updatePersonalInfoPanelVisibility()
+        return wasPickerVisible
+    }
+
+    private fun personalInfoSelectionValues(suggestion: PersonalInfoSuggestion): List<Pair<String, String>> {
+        if (suggestion.value.isBlank()) return emptyList()
+        val label = personalInfoFieldLabel(suggestion.field)
+        if (suggestion.field !in listOf(PersonalInfoField.NAME, PersonalInfoField.NAME_HIRAGANA,
+                PersonalInfoField.NAME_KATAKANA, PersonalInfoField.NAME_LATIN)) {
+            return listOf(label to suggestion.value)
+        }
+        val parts = suggestion.value.trim().split(Regex("[\\s\\p{Z}]+"), limit = 2)
+        return if (parts.size == 2) listOf("$label（姓）" to parts[0], "$label（名）" to parts[1])
+        else listOf(label to parts[0])
+    }
+
+    private fun personalInfoFieldLabel(field: PersonalInfoField): String = when (field) {
+        PersonalInfoField.NAME -> getString(R.string.personal_info_name)
+        PersonalInfoField.NAME_HIRAGANA -> getString(R.string.personal_info_name_hiragana)
+        PersonalInfoField.NAME_KATAKANA -> getString(R.string.personal_info_name_katakana)
+        PersonalInfoField.NAME_LATIN -> getString(R.string.personal_info_name_latin)
+        PersonalInfoField.EMAIL -> getString(R.string.personal_info_email)
+        PersonalInfoField.ADDRESS -> getString(R.string.personal_info_address)
+        PersonalInfoField.POSTAL_CODE -> getString(R.string.personal_info_postal_code)
+        PersonalInfoField.PREFECTURE -> getString(R.string.personal_info_prefecture)
+        PersonalInfoField.CITY -> getString(R.string.personal_info_city)
+        PersonalInfoField.ADDRESS_LINE1 -> getString(R.string.personal_info_address_line1)
+        PersonalInfoField.ADDRESS_LINE2 -> getString(R.string.personal_info_address_line2)
     }
 
     private fun clearInlineSuggestions(restoreCandidates: Boolean) {
         inlineSuggestionController.clear()
         inlineSuggestionViews = emptyList()
         candidateStrip?.clearInlineSuggestionViews()
-        if (restoreCandidates) showCandidateStrip(candidates, selectedCandidate)
+        if (restoreCandidates) showCandidateState()
         if (::textController.isInitialized) updateEmojiPickerVisibility()
     }
 
@@ -1549,6 +1810,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun candidateSnapshot() = CandidateSnapshot(
         source = candidateSource,
         candidates = candidates,
+        personalInfoPickerValues = personalInfoPickerValues,
         conversionGeneration = conversionGeneration,
         englishGeneration = englishGeneration,
         englishBuffer = englishBuffer,
@@ -1734,9 +1996,16 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         conversionGeneration++
         clearCandidateState()
         val invalidatedEditor = editorSession.capture()
+        val invalidatedGeneration = conversionGeneration
         serviceScope.launch {
             actionMutex.withLock {
-                if (editorSession.isCurrent(invalidatedEditor)) resetConversion(clearComposing)
+                if (!editorSession.isCurrent(invalidatedEditor) || conversionGeneration != invalidatedGeneration) {
+                    return@withLock
+                }
+                // The visible candidate state was cleared synchronously above. A reset that
+                // finishes after editor setup must not erase the new field's saved suggestions.
+                if (clearComposing) textController.cancelComposition()
+                conversionEngine.reset()
             }
         }
     }
@@ -1760,6 +2029,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         selectedCandidate = -1
         conversionCandidateSelected = false
         conversionPreview = null
+        discardPersonalInfoPicker()
         candidateSource = CandidateSource.NONE
         showCandidateStrip(emptyList(), -1)
         keyboardView?.setCandidates(emptyList(), -1)
@@ -1906,7 +2176,7 @@ private fun inputSafeBottomInset(insets: WindowInsets): Int = max(
     insets.getInsets(WindowInsets.Type.systemGestures()).bottom,
 )
 
-private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, VOICE }
+private enum class CandidateSource { NONE, JAPANESE, PREDICTION, ENGLISH, SLASH, PERSONAL_INFO, VOICE }
 
 private val HISTORY_CANDIDATE_SOURCES = setOf(CandidateSource.JAPANESE, CandidateSource.PREDICTION)
 
@@ -1922,6 +2192,7 @@ private class PendingVoiceCandidateAnimation(
 private data class CandidateSnapshot(
     val source: CandidateSource,
     val candidates: List<String>,
+    val personalInfoPickerValues: List<String>,
     val conversionGeneration: Long,
     val englishGeneration: Long,
     val englishBuffer: String,

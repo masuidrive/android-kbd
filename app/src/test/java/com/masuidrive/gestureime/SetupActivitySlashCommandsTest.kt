@@ -12,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -57,6 +58,7 @@ class SetupActivitySlashCommandsTest {
         val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
         val root = activity.findViewById<View>(android.R.id.content)
         val inputs = root.descendants().filterIsInstance<EditText>()
+            .filter { it.tag !is PersonalInfoField && it.tag !is Int && it.tag != "text_snippet" }
 
         assertEquals(6, inputs.size)
         assertEquals(listOf("/compact", "/clear", "/quit", "", "", ""), inputs.map { it.text.toString() })
@@ -70,6 +72,81 @@ class SetupActivitySlashCommandsTest {
         assertEquals(listOf("/review", "/ship", "/quit", "", "", ""), ImePreferences.getSlashCommands(activity))
         assertEquals("/review", inputs[0].text.toString())
         assertNotNull(root)
+    }
+
+    @Test
+    fun setupAddsEditsAndDeletesTextSnippets() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        var activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        fun currentRoot() = activity.findViewById<View>(android.R.id.content)
+        fun buttons() = currentRoot().descendants().filterIsInstance<Button>()
+        fun snippets() = currentRoot().descendants().filterIsInstance<EditText>().filter { it.tag == "text_snippet" }
+
+        buttons().single { it.text.toString() == "定型文を追加" }.performClick()
+        snippets().single().setText("いつもありがとうございます。")
+        buttons().single { it.text.toString() == "定型文を保存" }.performClick()
+        assertEquals(listOf("いつもありがとうございます。"), ImePreferences.getTextSnippets(activity))
+
+        val previousRoot = currentRoot()
+        activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        assertNotSame(previousRoot, currentRoot())
+        assertEquals("いつもありがとうございます。", snippets().single().text.toString())
+        buttons().single { it.text.toString() == "削除" }.performClick()
+        buttons().single { it.text.toString() == "定型文を保存" }.performClick()
+        assertEquals(emptyList<String>(), ImePreferences.getTextSnippets(activity))
+    }
+
+    @Test
+    fun setupSavesAndRestoresSplitPersonalInfoFields() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        val activity = Robolectric.buildActivity(SetupActivity::class.java).setup().get()
+        val root = activity.findViewById<View>(android.R.id.content)
+        val inputs = root.descendants().filterIsInstance<EditText>()
+            .filter { it.tag is PersonalInfoField }
+        assertTrue(inputs.all { it.importantForAutofill == View.IMPORTANT_FOR_AUTOFILL_NO })
+        val extraEmails = root.descendants().filterIsInstance<EditText>().filter { it.tag is Int && (it.tag as Int) in 1..3 }
+        assertEquals(3, extraEmails.size)
+        assertTrue(extraEmails.all { it.importantForAutofill == View.IMPORTANT_FOR_AUTOFILL_NO })
+
+        val values = mapOf(
+            PersonalInfoField.NAME to "山田 太郎",
+            PersonalInfoField.NAME_HIRAGANA to "やまだ たろう",
+            PersonalInfoField.NAME_KATAKANA to "ヤマダ タロウ",
+            PersonalInfoField.NAME_LATIN to "Taro Yamada",
+            PersonalInfoField.EMAIL to "name@example.com",
+            PersonalInfoField.POSTAL_CODE to "1000001",
+            PersonalInfoField.PREFECTURE to "東京都",
+            PersonalInfoField.CITY to "千代田区",
+            PersonalInfoField.ADDRESS_LINE1 to "千代田1-1",
+            PersonalInfoField.ADDRESS_LINE2 to "建物名",
+        )
+        assertEquals(values.size, inputs.size)
+        values.forEach { (field, value) -> inputs.single { it.tag == field }.setText(value) }
+        extraEmails.forEachIndexed { index, input -> input.setText("email${index + 2}@example.com") }
+        root.descendants().filterIsInstance<Button>()
+            .single { it.text.toString() == "個人情報候補を保存" }
+            .performClick()
+
+        values.forEach { (field, value) -> assertEquals(value, ImePreferences.getPersonalInfo(activity, field)) }
+        assertEquals(listOf("name@example.com", "email2@example.com", "email3@example.com", "email4@example.com"),
+            ImePreferences.getPersonalInfoEmails(activity))
+        activity.recreate()
+        val recreatedInputs = activity.findViewById<View>(android.R.id.content).descendants()
+            .filterIsInstance<EditText>().filter { it.tag is PersonalInfoField }
+        values.forEach { (field, value) ->
+            assertEquals(value, recreatedInputs.single { it.tag == field }.text.toString())
+        }
+        assertEquals(listOf("email2@example.com", "email3@example.com", "email4@example.com"),
+            activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<EditText>()
+                .filter { it.tag is Int && (it.tag as Int) in 1..3 }.map { it.text.toString() })
+
+        recreatedInputs.single { it.tag == PersonalInfoField.EMAIL }.setText("")
+        activity.findViewById<View>(android.R.id.content).descendants().filterIsInstance<Button>()
+            .single { it.text.toString() == "個人情報候補を保存" }
+            .performClick()
+        assertEquals("", ImePreferences.getPersonalInfo(activity, PersonalInfoField.EMAIL))
     }
 
     @Test

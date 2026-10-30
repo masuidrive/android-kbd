@@ -134,6 +134,138 @@ class SetupActivity : AppCompatActivity() {
                 onSelected = { ImePreferences.setQwertySymbolFlickSensitivity(context, it) },
                 controlHeight = controlHeight,
             )
+            inputCard.addView(TextView(context).apply {
+                text = getString(R.string.personal_info_suggestions)
+                textSize = 16f
+                setTextColor(getColor(R.color.setup_heading))
+                minimumHeight = controlHeight
+                gravity = Gravity.CENTER_VERTICAL
+            }, matchWidth())
+            val personalInfoInputs = mutableListOf<EditText>()
+            PersonalInfoField.entries.filter { it != PersonalInfoField.ADDRESS }.forEach { field ->
+                val input = EditText(context).apply {
+                    // These are locally stored personal values, not credentials for an Autofill provider.
+                    importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                    val label = when (field) {
+                        PersonalInfoField.NAME -> getString(R.string.personal_info_name_kanji)
+                        PersonalInfoField.NAME_HIRAGANA -> getString(R.string.personal_info_name_hiragana)
+                        PersonalInfoField.NAME_KATAKANA -> getString(R.string.personal_info_name_katakana)
+                        PersonalInfoField.NAME_LATIN -> getString(R.string.personal_info_name_latin)
+                        PersonalInfoField.EMAIL -> getString(R.string.personal_info_email)
+                        PersonalInfoField.ADDRESS -> getString(R.string.personal_info_address)
+                        PersonalInfoField.POSTAL_CODE -> getString(R.string.personal_info_postal_code)
+                        PersonalInfoField.PREFECTURE -> getString(R.string.personal_info_prefecture)
+                        PersonalInfoField.CITY -> getString(R.string.personal_info_city)
+                        PersonalInfoField.ADDRESS_LINE1 -> getString(R.string.personal_info_address_line1)
+                        PersonalInfoField.ADDRESS_LINE2 -> getString(R.string.personal_info_address_line2)
+                    }
+                    tag = field
+                    setText(ImePreferences.getPersonalInfo(context, field))
+                    hint = when (field) {
+                        PersonalInfoField.NAME -> getString(R.string.personal_info_name_hint)
+                        PersonalInfoField.NAME_HIRAGANA -> getString(R.string.personal_info_name_hiragana_hint)
+                        PersonalInfoField.NAME_KATAKANA -> getString(R.string.personal_info_name_katakana_hint)
+                        PersonalInfoField.NAME_LATIN -> getString(R.string.personal_info_name_latin_hint)
+                        PersonalInfoField.EMAIL -> getString(R.string.personal_info_email_hint)
+                        PersonalInfoField.ADDRESS -> getString(R.string.personal_info_address_hint)
+                        PersonalInfoField.POSTAL_CODE -> getString(R.string.personal_info_postal_code_hint)
+                        PersonalInfoField.PREFECTURE -> getString(R.string.personal_info_prefecture_hint)
+                        PersonalInfoField.CITY -> getString(R.string.personal_info_city_hint)
+                        PersonalInfoField.ADDRESS_LINE1 -> getString(R.string.personal_info_address_line1_hint)
+                        PersonalInfoField.ADDRESS_LINE2 -> getString(R.string.personal_info_address_line2_hint)
+                    }
+                    contentDescription = getString(R.string.personal_info_description, label)
+                    minimumHeight = controlHeight
+                    isSingleLine = true
+                    inputCard.addView(TextView(context).apply {
+                        text = label
+                        textSize = 14f
+                        setTextColor(getColor(R.color.setup_heading))
+                        minimumHeight = controlHeight / 2
+                        gravity = Gravity.BOTTOM
+                    }, matchWidth())
+                    inputCard.addView(this, matchWidth())
+                }
+                personalInfoInputs.add(input)
+                if (field == PersonalInfoField.EMAIL) for (index in 1 until ImePreferences.PERSONAL_INFO_EMAIL_SLOTS) {
+                    val label = getString(R.string.personal_info_email_numbered, index + 1)
+                    val extraEmailInput = EditText(context).apply {
+                        importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                        tag = index
+                        setText(ImePreferences.getPersonalInfoEmails(context)[index])
+                        hint = getString(R.string.personal_info_email_hint)
+                        contentDescription = getString(R.string.personal_info_description, label)
+                        minimumHeight = controlHeight
+                        isSingleLine = true
+                    }
+                    inputCard.addView(TextView(context).apply {
+                        text = label
+                        textSize = 14f
+                        setTextColor(getColor(R.color.setup_heading))
+                        minimumHeight = controlHeight / 2
+                        gravity = Gravity.BOTTOM
+                    }, matchWidth())
+                    inputCard.addView(extraEmailInput, matchWidth())
+                    personalInfoInputs.add(extraEmailInput)
+                }
+            }
+            inputCard.addView(Button(context).apply {
+                text = getString(R.string.save_personal_info)
+                minimumHeight = controlHeight
+                setOnClickListener {
+                    personalInfoInputs.forEach { input ->
+                        when (val field = input.tag) {
+                            is PersonalInfoField -> ImePreferences.setPersonalInfo(context, field, input.text.toString())
+                            is Int -> ImePreferences.setPersonalInfoEmail(context, field, input.text.toString())
+                        }
+                    }
+                }
+            }, matchWidth())
+            inputCard.addView(TextView(context).apply {
+                text = getString(R.string.text_snippets)
+                textSize = 16f
+                setTextColor(getColor(R.color.setup_heading))
+                minimumHeight = controlHeight
+                gravity = Gravity.CENTER_VERTICAL
+            }, matchWidth())
+            val snippetContainer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            inputCard.addView(snippetContainer, matchWidth())
+            fun addSnippetInput(value: String) {
+                val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+                val input = EditText(context).apply {
+                    importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                    tag = "text_snippet"
+                    hint = getString(R.string.text_snippet_hint)
+                    setText(value)
+                    minLines = 1
+                    maxLines = 3
+                    minimumHeight = controlHeight
+                }
+                row.addView(input, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                row.addView(Button(context).apply {
+                    text = getString(R.string.text_snippet_delete)
+                    minimumHeight = controlHeight
+                    setOnClickListener { snippetContainer.removeView(row) }
+                })
+                snippetContainer.addView(row, matchWidth())
+            }
+            ImePreferences.getTextSnippets(context).forEach(::addSnippetInput)
+            inputCard.addView(Button(context).apply {
+                text = getString(R.string.text_snippet_add)
+                minimumHeight = controlHeight
+                setOnClickListener { addSnippetInput("") }
+            }, matchWidth())
+            inputCard.addView(Button(context).apply {
+                text = getString(R.string.text_snippet_save)
+                minimumHeight = controlHeight
+                setOnClickListener {
+                    val values = (0 until snippetContainer.childCount).map { index ->
+                        val row = snippetContainer.getChildAt(index) as LinearLayout
+                        (row.getChildAt(0) as EditText).text.toString()
+                    }
+                    ImePreferences.setTextSnippets(context, values)
+                }
+            }, matchWidth())
             setSectionTitle(getString(R.string.slash_commands), padding)
             val slashCard = addCard(cardPadding)
             val slashInputs = ImePreferences.getSlashCommands(context).mapIndexed { index, command ->

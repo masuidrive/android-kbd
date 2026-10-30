@@ -16,6 +16,27 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class ImePreferencesTest {
     @Test
+    fun fourEmailSlotsPreserveLegacyEmailAndListOnlyRegisteredValues() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear()
+            .putString("personal_info_EMAIL", "legacy@example.com").commit()
+        assertEquals(listOf("legacy@example.com", "", "", ""), ImePreferences.getPersonalInfoEmails(context))
+        ImePreferences.setPersonalInfoEmail(context, 1, "work@example.com")
+        ImePreferences.setPersonalInfoEmail(context, 3, "other@example.com")
+        assertEquals(listOf("legacy@example.com", "work@example.com", "", "other@example.com"),
+            ImePreferences.getPersonalInfoEmails(context))
+        assertEquals(listOf("legacy@example.com", "work@example.com", "other@example.com"),
+            ImePreferences.getRegisteredPersonalInfoSuggestions(context)
+                .filter { it.field == PersonalInfoField.EMAIL }.map { it.value })
+        ImePreferences.setPersonalInfoEmail(context, 1, "")
+        assertEquals("", ImePreferences.getPersonalInfoEmails(context)[1])
+        ImePreferences.setPersonalInfoEmail(context, 2, "   ")
+        assertEquals("", ImePreferences.getPersonalInfoEmails(context)[2])
+        assertFalse(ImePreferences.getRegisteredPersonalInfoSuggestions(context)
+            .any { it.field == PersonalInfoField.EMAIL && it.value.isBlank() })
+    }
+
+    @Test
     fun lastKeyboardModeDefaultsToQwertyAndPersistsEveryMode() {
         val context = RuntimeEnvironment.getApplication()
         assertEquals(KeyboardMode.QWERTY, ImePreferences.getLastKeyboardMode(context))
@@ -162,6 +183,55 @@ class ImePreferencesTest {
             listOf("/compact", "/clear", "/quit"),
             ImePreferences.getSlashCommandCandidates(context),
         )
+    }
+
+    @Test
+    fun personalInfoPersistsEachFieldAndEmptyValueDeletesIt() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+
+        PersonalInfoField.entries.forEach { field ->
+            assertEquals("", ImePreferences.getPersonalInfo(context, field))
+        }
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "name@example.com")
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "東京都千代田区")
+
+        assertEquals("山田 太郎", ImePreferences.getPersonalInfo(context, PersonalInfoField.NAME))
+        assertEquals("name@example.com", ImePreferences.getPersonalInfo(context, PersonalInfoField.EMAIL))
+        assertEquals("東京都千代田区", ImePreferences.getPersonalInfo(context, PersonalInfoField.ADDRESS))
+        assertEquals(
+            listOf("山田 太郎", "name@example.com", "東京都千代田区"),
+            ImePreferences.getRegisteredPersonalInfo(context),
+        )
+
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.EMAIL, "")
+        assertEquals("", ImePreferences.getPersonalInfo(context, PersonalInfoField.EMAIL))
+        assertEquals(
+            listOf("山田 太郎", "東京都千代田区"),
+            ImePreferences.getRegisteredPersonalInfo(context),
+        )
+    }
+
+    @Test fun oldAddressIsReadAsAddressLine1UntilItIsSavedOrRemoved() {
+        val context = RuntimeEnvironment.getApplication()
+        PersonalInfoField.entries.forEach { ImePreferences.setPersonalInfo(context, it, "") }
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS, "旧住所")
+        assertEquals("旧住所", ImePreferences.getPersonalInfo(context, PersonalInfoField.ADDRESS_LINE1))
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS_LINE1, "新住所1")
+        assertEquals("新住所1", ImePreferences.getPersonalInfo(context, PersonalInfoField.ADDRESS_LINE1))
+        assertEquals("", ImePreferences.getPersonalInfo(context, PersonalInfoField.ADDRESS))
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.ADDRESS_LINE1, "")
+    }
+
+    @Test
+    fun textSnippetsPersistMultipleValuesAndDropBlankEntries() {
+        val context = RuntimeEnvironment.getApplication()
+        context.getSharedPreferences("gesture_ime_preferences", 0).edit().clear().commit()
+        ImePreferences.setTextSnippets(context, listOf("いつもありがとうございます。", "", "ご確認ください。"))
+        assertEquals(listOf("いつもありがとうございます。", "ご確認ください。"), ImePreferences.getTextSnippets(context))
+        ImePreferences.setTextSnippets(context, emptyList())
+        assertEquals(emptyList<String>(), ImePreferences.getTextSnippets(context))
     }
 
 }

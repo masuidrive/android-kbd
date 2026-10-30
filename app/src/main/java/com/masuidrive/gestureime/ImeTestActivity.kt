@@ -64,6 +64,28 @@ class ImeTestActivity : AppCompatActivity() {
                 setAutofillHints(View.AUTOFILL_HINT_USERNAME)
             }, matchWidth())
             addView(TextView(context).apply {
+                text = getString(R.string.ime_test_name_input)
+                setTextColor(getColor(R.color.setup_heading))
+                val top = (16 * density).toInt()
+                setPadding(0, top, 0, 0)
+            }, matchWidth())
+            addView(EditText(context).apply {
+                id = R.id.ime_test_name_field
+                hint = getString(R.string.ime_test_name_hint)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+            }, matchWidth())
+            addView(TextView(context).apply {
+                text = getString(R.string.ime_test_address_input)
+                setTextColor(getColor(R.color.setup_heading))
+                val top = (16 * density).toInt()
+                setPadding(0, top, 0, 0)
+            }, matchWidth())
+            addView(EditText(context).apply {
+                id = R.id.ime_test_address_field
+                hint = getString(R.string.ime_test_address_hint)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
+            }, matchWidth())
+            addView(TextView(context).apply {
                 text = getString(R.string.ime_test_private_input)
                 setTextColor(getColor(R.color.setup_heading))
                 val top = (16 * density).toInt()

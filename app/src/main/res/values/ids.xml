@@ -15,6 +15,8 @@
     <item name="ime_test_normal_field" type="id" />
     <item name="ime_test_number_field" type="id" />
     <item name="ime_test_email_field" type="id" />
+    <item name="ime_test_name_field" type="id" />
+    <item name="ime_test_address_field" type="id" />
     <item name="ime_test_password_field" type="id" />
     <item name="ime_input_root" type="id" />
     <item name="voice_panel" type="id" />
