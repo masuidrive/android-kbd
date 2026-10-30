@@ -102,7 +102,7 @@ class KeyboardView @JvmOverloads constructor(
     var voiceHoldSink: VoiceHoldSink? = null
     private var state = KeyboardUiState()
     private val density = resources.displayMetrics.density
-    private val interpreter = GestureInterpreter()
+    private val gestureRouter = KeyGestureRouter()
     private var kanaNumberFlickSensitivity = FlickSensitivity.STANDARD
     private var qwertySymbolFlickSensitivity = FlickSensitivity.STANDARD
     private val hitTargets = mutableListOf<HitTarget>()
@@ -354,7 +354,7 @@ class KeyboardView @JvmOverloads constructor(
         accentSelected.clear()
         dismissPopup()
         repeated.clear()
-        interpreter.cancelAll()
+        gestureRouter.cancelAll()
         if (state.pendingModifier != null) {
             updateModifier(null)
         }
@@ -371,7 +371,7 @@ class KeyboardView @JvmOverloads constructor(
         accentActive.remove(id)
         accentSelected.remove(id)
         repeated.remove(id)
-        interpreter.cancel(id)
+        gestureRouter.cancel(id)
         dismissPopup()
         active.keys.firstOrNull()?.let(::syncPopup)
     }
@@ -991,18 +991,8 @@ class KeyboardView @JvmOverloads constructor(
         if (hit.scrollable) emojiScrollGestures[id] = EmojiScrollGesture(event.getY(index), emojiScrollOffset)
         directions[id] = Direction.CENTER
         labelFrames[id] = LabelFrame()
-        val verticalOnly = hit.spec.kind == KeyKind.MODIFIER ||
-            (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center == null) ||
-            (hit.spec.kind == KeyKind.CHARACTER && hit.spec.up != null && hit.spec.down != null &&
-                hit.spec.left == null && hit.spec.right == null)
-        interpreter.start(
-            id,
-            event.getX(index) / density,
-            event.getY(index) / density,
-            trackpad = hit.spec.kind == KeyKind.SPACE,
-            verticalOnly = verticalOnly,
-            pointerThresholds = flickThresholdsFor(state.mode),
-        )
+        gestureRouter.begin(id, hit.spec, event.getX(index) / density,
+            event.getY(index) / density, flickThresholdsFor(state.mode))
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         if (hit.spec.kind == KeyKind.CHARACTER ||
             (hit.spec.kind == KeyKind.BACKSPACE && hit.spec.center != null && hit.spec.id != "voice-backspace")) {
@@ -1040,14 +1030,13 @@ class KeyboardView @JvmOverloads constructor(
                 accentSelected[id] = popupController.accentIndexFor(this, hit.bounds, choices.size, event.getX(index))
             }
         }
-        when (val update = interpreter.move(id, event.getX(index) / density, event.getY(index) / density)) {
-            is GestureUpdate.Selection -> {
+        when (val update = gestureRouter.move(id, event.getX(index) / density, event.getY(index) / density)) {
+            is KeyGestureRouter.Step.Selection -> {
                 val activeHit = active[id]
-                val assigned = activeHit?.spec?.value(update.direction) != null
-                val direction = update.direction.takeIf { assigned } ?: Direction.CENTER
-                if (!assigned && update.direction != Direction.CENTER) cancelTimer(id)
-                if (directions[id] != direction) {
-                    if (direction == update.direction) {
+                val direction = update.direction
+                if (!update.assigned) cancelTimer(id)
+                if (update.changed) {
+                    if (update.assigned && direction != Direction.CENTER) {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     }
                     directions[id] = direction
@@ -1063,7 +1052,7 @@ class KeyboardView @JvmOverloads constructor(
                     }
                 }
             }
-            is GestureUpdate.CursorDelta -> {
+            is KeyGestureRouter.Step.Cursor -> {
                 cursorMoved += id
                 if (directions[id] != update.direction) animateLabels(id, update.direction)
                 directions[id] = update.direction
@@ -1088,7 +1077,7 @@ class KeyboardView @JvmOverloads constructor(
             voiceHoldOwner = null
             voiceReadyRequestId = null
             directions.remove(id)
-            interpreter.cancel(id)
+            gestureRouter.cancel(id)
             voiceHoldSink?.onVoiceHold(VoiceHoldEvent.End(voiceOwner.second))
             if (active.isEmpty()) voiceHoldMultiPointer = false
             dismissPopup()
@@ -1096,12 +1085,7 @@ class KeyboardView @JvmOverloads constructor(
             return
         }
         val direction = directions.remove(id) ?: Direction.CENTER
-        val shortVerticalMove = interpreter.finishTrackpad(id, xDp, yDp)
-        if (shortVerticalMove != null && id !in cursorMoved) {
-            cursorMoved += id
-            actionSink?.onKeyAction(KeyAction.MoveCursor(shortVerticalMove.direction, shortVerticalMove.units))
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-        }
+        gestureRouter.end(id, xDp, yDp)
         if (voiceGestureCancelledPointers.remove(id)) {
             cursorMoved.remove(id)
             repeated.remove(id)
@@ -1132,7 +1116,7 @@ class KeyboardView @JvmOverloads constructor(
         if (voiceHoldMultiPointer || active.size != 1 || active[id] != hit || voiceHoldOwner != null) return
         voiceGestureCancelledPointers += id
         voiceEntryPointer = id
-        interpreter.cancel(id)
+        gestureRouter.cancel(id)
         actionSink?.onKeyAction(KeyAction.VoiceHold)
     }
 

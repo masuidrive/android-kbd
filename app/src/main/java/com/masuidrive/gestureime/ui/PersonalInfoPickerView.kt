@@ -18,13 +18,11 @@ import com.masuidrive.gestureime.R
 import com.masuidrive.gestureime.ImePreferences
 import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.Direction
-import com.masuidrive.gestureime.keyboard.GestureInterpreter
-import com.masuidrive.gestureime.keyboard.GestureUpdate
+import com.masuidrive.gestureime.keyboard.KeyGestureRouter
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardLayouts
 import com.masuidrive.gestureime.keyboard.KeyboardPopupController
 import com.masuidrive.gestureime.keyboard.KeySpec
-import com.masuidrive.gestureime.keyboard.KeyKind
 import com.masuidrive.gestureime.keyboard.keyboardContentHorizontalGeometry
 import androidx.core.view.ViewCompat
 import kotlin.math.max
@@ -158,27 +156,22 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 }
             }
             setOnTouchListener(object : OnTouchListener {
-                val interpreter = GestureInterpreter()
+                val gestureRouter = KeyGestureRouter()
                 var direction = Direction.CENTER
-                var cursorMoved = false
                 val density = resources.displayMetrics.density
                 fun updatePreview(view: View) {
                     previewSpec?.invoke()?.let { showFlickPreview(view, direction, it) }
                 }
                 fun update(event: MotionEvent) {
-                    when (val result = interpreter.move(event.getPointerId(0), event.x / density, event.y / density)) {
-                        is GestureUpdate.Selection -> {
-                            val spec = this@withFlickActions.tag as KeySpec
-                            val next = result.direction.takeIf { it == Direction.CENTER || spec.value(it) != null }
-                                ?: Direction.CENTER
-                            if (next != direction) {
-                                direction = next
+                    when (val result = gestureRouter.move(event.getPointerId(0), event.x / density, event.y / density)) {
+                        is KeyGestureRouter.Step.Selection -> {
+                            if (result.changed) {
+                                direction = result.direction
                                 updatePreview(this@withFlickActions)
-                                if (next != Direction.CENTER) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (result.direction != Direction.CENTER) performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             }
                         }
-                        is GestureUpdate.CursorDelta -> {
-                            cursorMoved = true
+                        is KeyGestureRouter.Step.Cursor -> {
                             onEditAction?.invoke(KeyAction.MoveCursor(result.direction, result.units))
                             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         }
@@ -191,11 +184,10 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                             val sensitivity = if (layerMode == KeyboardMode.KANA || layerMode == KeyboardMode.NUMBERS) {
                                 ImePreferences.getKanaNumberFlickSensitivity(context)
                             } else ImePreferences.getQwertySymbolFlickSensitivity(context)
-                            interpreter.start(event.getPointerId(0), event.x / density, event.y / density,
-                                trackpad = (view.tag as KeySpec).kind == KeyKind.SPACE,
-                                pointerThresholds = sensitivity.thresholds())
+                            gestureRouter.begin(event.getPointerId(0), view.tag as KeySpec,
+                                event.x / density, event.y / density, sensitivity.thresholds(),
+                                shortVerticalCursor = true)
                             direction = Direction.CENTER
-                            cursorMoved = false
                             view.isPressed = true
                             updatePreview(view)
                         }
@@ -203,23 +195,21 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                         MotionEvent.ACTION_UP -> {
                             view.isPressed = false
                             update(event)
-                            val fallback = interpreter.finishTrackpad(event.getPointerId(0),
-                                event.x / density, event.y / density)
-                            if (fallback != null && !cursorMoved) {
-                                cursorMoved = true
-                                onEditAction?.invoke(KeyAction.MoveCursor(fallback.direction, fallback.units))
+                            val end = gestureRouter.end(event.getPointerId(0), event.x / density, event.y / density)
+                            if (end?.releaseCursor != null) {
+                                onEditAction?.invoke(KeyAction.MoveCursor(end.releaseCursor.direction, end.releaseCursor.units))
                                 performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             }
                             if (previewSpec != null) punctuationPopupController.dismiss()
-                            if (!cursorMoved) {
-                                if (direction == Direction.CENTER) view.performClick()
-                                else (view.tag as KeySpec).value(direction)?.action?.let { onEditAction?.invoke(it) }
+                            if (end != null && !end.cursorMoved) {
+                                if (end.direction == Direction.CENTER) view.performClick()
+                                else (view.tag as KeySpec).value(end.direction)?.action?.let { onEditAction?.invoke(it) }
                             }
                         }
                         MotionEvent.ACTION_CANCEL -> {
                             view.isPressed = false
                             if (previewSpec != null) punctuationPopupController.dismiss()
-                            interpreter.cancelAll()
+                            gestureRouter.cancelAll()
                         }
                     }
                     return true

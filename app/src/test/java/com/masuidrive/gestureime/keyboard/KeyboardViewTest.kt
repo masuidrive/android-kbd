@@ -55,13 +55,13 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.CommitText(" ")), actions)
     }
 
-    @Test fun `short vertical space gestures use the same cursor threshold as the personal footer`() {
+    @Test fun `short vertical space gestures retain the ordinary space behavior`() {
         val step = 15f * view.resources.displayMetrics.density
         touch(MotionEvent.ACTION_DOWN, 200f, 190f)
         touch(MotionEvent.ACTION_UP, 200f, 190f - step, 10)
         touch(MotionEvent.ACTION_DOWN, 200f, 190f, 20)
         touch(MotionEvent.ACTION_UP, 200f, 190f + step, 30)
-        assertEquals(listOf(KeyAction.MoveCursor(Direction.UP), KeyAction.MoveCursor(Direction.DOWN)), actions)
+        assertEquals(listOf(KeyAction.CommitText(" "), KeyAction.CommitText(" ")), actions)
     }
 
     @Test fun `space cursor gesture does not also commit space on release`() {
