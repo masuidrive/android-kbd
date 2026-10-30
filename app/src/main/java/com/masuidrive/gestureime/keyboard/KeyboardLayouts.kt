@@ -205,6 +205,19 @@ object KeyboardLayouts {
     private fun voicePunct() = KeySpec("voice-punct", KeyKind.CHARACTER,
         value("、"), left = value("。"), up = value("？"), right = value("！"), down = value("、"))
 
+    /** The personal picker uses the same key definitions as the keyboard, with its own footer geometry. */
+    fun personalFooter(returnMode: KeyboardMode): List<KeySpec> = listOf(
+        layerKey(voiceReturnLabel(returnMode), returnMode),
+        KeySpec("personal-more", KeyKind.CHARACTER,
+            FlickValue("more..", KeyAction.ExpandPersonalInfo)),
+        voicePunct().copy(center = FlickValue("、。？！", KeyAction.CommitText("、"))),
+        space(width = 2f),
+        backspace(width = 1f, tapDelete = true),
+        enter(),
+    )
+
+    fun personalPunctuationPreview(): KeySpec = voicePunct()
+
 }
 
 /** Shared recent normalization used by the AndroidX picker provider and IME state. */

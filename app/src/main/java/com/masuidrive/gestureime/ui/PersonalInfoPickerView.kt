@@ -20,12 +20,11 @@ import com.masuidrive.gestureime.keyboard.KeyAction
 import com.masuidrive.gestureime.keyboard.Direction
 import com.masuidrive.gestureime.keyboard.GestureInterpreter
 import com.masuidrive.gestureime.keyboard.GestureUpdate
-import com.masuidrive.gestureime.keyboard.Modifier
 import com.masuidrive.gestureime.keyboard.KeyboardMode
 import com.masuidrive.gestureime.keyboard.KeyboardLayouts
 import com.masuidrive.gestureime.keyboard.KeyboardPopupController
 import com.masuidrive.gestureime.keyboard.KeySpec
-import com.masuidrive.gestureime.keyboard.FlickValue
+import com.masuidrive.gestureime.keyboard.KeyKind
 import com.masuidrive.gestureime.keyboard.keyboardContentHorizontalGeometry
 import androidx.core.view.ViewCompat
 import kotlin.math.max
@@ -39,11 +38,10 @@ class PersonalInfoPickerView @JvmOverloads constructor(
     private var snapshot = CandidateUiSnapshot(0L, emptyList())
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
     private var onEditAction: ((KeyAction) -> Unit)? = null
-    private var onMoreRequested: (() -> Unit)? = null
     private var layerMode = KeyboardMode.QWERTY
     private val punctuationPopupController = KeyboardPopupController(context)
-    private val punctuationPreviewSpec = KeyboardLayouts.layout(KeyboardMode.VOICE).rows.last()
-        .keys.first { it.id == "voice-punct" }
+    private val punctuationPreviewSpec = KeyboardLayouts.personalPunctuationPreview()
+    private var layerSpec = KeyboardLayouts.personalFooter(layerMode).first()
     private lateinit var layerKey: TextView
     private lateinit var moreKey: TextView
     private val flow = ValueFlowLayout(context)
@@ -68,8 +66,6 @@ class PersonalInfoPickerView @JvmOverloads constructor(
 
     fun setOnEditAction(listener: (KeyAction) -> Unit) { onEditAction = listener }
 
-    fun setOnMoreRequested(listener: () -> Unit) { onMoreRequested = listener }
-
     fun setMoreVisible(visible: Boolean) {
         // Keep the slot so the editing keys do not shift when More is opened.
         moreKey.visibility = if (visible) View.VISIBLE else View.INVISIBLE
@@ -77,7 +73,9 @@ class PersonalInfoPickerView @JvmOverloads constructor(
 
     fun setLayerMode(mode: KeyboardMode) {
         layerMode = mode
-        layerKey.text = layerLabel(mode)
+        layerSpec = KeyboardLayouts.personalFooter(mode).first()
+        layerKey.tag = layerSpec
+        layerKey.text = layerSpec.center?.label
         layerKey.contentDescription = "タップで${mode.displayName}へ戻る。左フリックで音声、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー"
     }
 
@@ -107,19 +105,6 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
-    private fun layerLabel(mode: KeyboardMode): String = when (mode) {
-        KeyboardMode.KANA -> "あん"
-        KeyboardMode.NUMBERS -> "19"
-        KeyboardMode.EMOJI -> "☺"
-        KeyboardMode.QWERTY -> "Az"
-        KeyboardMode.SYMBOLS -> "?}"
-        KeyboardMode.VOICE -> "Az"
-    }
-
-    private fun layerPreviewSpec(): KeySpec = KeyboardLayouts.layout(KeyboardMode.KANA).rows.last().keys.first().copy(
-        center = FlickValue(layerLabel(layerMode), KeyAction.SwitchLayer(layerMode)),
-    )
-
     private fun showFlickPreview(key: View, direction: Direction, spec: KeySpec) {
         val anchorLocation = IntArray(2).also(::getLocationOnScreen)
         val keyLocation = IntArray(2).also(key::getLocationOnScreen)
@@ -132,10 +117,11 @@ class PersonalInfoPickerView @JvmOverloads constructor(
     private fun editRow() = LinearLayout(context).apply {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        fun addKey(label: String, action: KeyAction, widthUnits: Float = 1f): TextView {
+        fun addKey(spec: KeySpec): TextView {
             val key = TextView(context).apply {
-                text = label
-                contentDescription = label
+                tag = spec
+                text = spec.center?.label
+                contentDescription = spec.center?.label
                 gravity = Gravity.CENTER
                 textSize = 16f
                 setTextColor(context.getColor(R.color.keyboard_text))
@@ -145,26 +131,20 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 }
                 isClickable = true
                 isFocusable = true
-                setOnClickListener { onEditAction?.invoke(action) }
+                setOnClickListener { (tag as KeySpec).center?.action?.let { onEditAction?.invoke(it) } }
             }
-            addView(key, LayoutParams(0, dp(ImePreferences.getKeyboardHeightPreset(context).rowPitchDp.toInt() - 10), widthUnits).apply {
+            addView(key, LayoutParams(0, dp(ImePreferences.getKeyboardHeightPreset(context).rowPitchDp.toInt() - 10), spec.widthUnits).apply {
                 marginStart = dp(3)
                 marginEnd = dp(3)
             })
             return key
         }
         fun TextView.withFlickActions(
-            actions: Map<Direction, KeyAction>,
-            trackpad: Boolean = false,
             previewSpec: (() -> KeySpec?)? = null,
         ) {
-            val accessibleActions = if (trackpad) mapOf(
-                Direction.LEFT to KeyAction.MoveCursor(Direction.LEFT),
-                Direction.UP to KeyAction.MoveCursor(Direction.UP),
-                Direction.RIGHT to KeyAction.MoveCursor(Direction.RIGHT),
-                Direction.DOWN to KeyAction.MoveCursor(Direction.DOWN),
-            ) else actions
-            accessibleActions.forEach { (direction, action) ->
+            val spec = tag as KeySpec
+            Direction.entries.filter { it != Direction.CENTER }.forEach { direction ->
+                val action = spec.value(direction)?.action ?: return@forEach
                 ViewCompat.addAccessibilityAction(this,
                     "${when (direction) {
                         Direction.LEFT -> "左"
@@ -181,8 +161,6 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 val interpreter = GestureInterpreter()
                 var direction = Direction.CENTER
                 var cursorMoved = false
-                var startX = 0f
-                var startY = 0f
                 val density = resources.displayMetrics.density
                 fun updatePreview(view: View) {
                     previewSpec?.invoke()?.let { showFlickPreview(view, direction, it) }
@@ -190,7 +168,8 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 fun update(event: MotionEvent) {
                     when (val result = interpreter.move(event.getPointerId(0), event.x / density, event.y / density)) {
                         is GestureUpdate.Selection -> {
-                            val next = result.direction.takeIf { it == Direction.CENTER || actions.containsKey(it) }
+                            val spec = this@withFlickActions.tag as KeySpec
+                            val next = result.direction.takeIf { it == Direction.CENTER || spec.value(it) != null }
                                 ?: Direction.CENTER
                             if (next != direction) {
                                 direction = next
@@ -213,11 +192,10 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                                 ImePreferences.getKanaNumberFlickSensitivity(context)
                             } else ImePreferences.getQwertySymbolFlickSensitivity(context)
                             interpreter.start(event.getPointerId(0), event.x / density, event.y / density,
-                                trackpad = trackpad, pointerThresholds = sensitivity.thresholds())
+                                trackpad = (view.tag as KeySpec).kind == KeyKind.SPACE,
+                                pointerThresholds = sensitivity.thresholds())
                             direction = Direction.CENTER
                             cursorMoved = false
-                            startX = event.x / density
-                            startY = event.y / density
                             view.isPressed = true
                             updatePreview(view)
                         }
@@ -225,22 +203,17 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                         MotionEvent.ACTION_UP -> {
                             view.isPressed = false
                             update(event)
-                            // The trackpad starts at 10dp, but its first vertical full unit is
-                            // 24dp. A shorter intentional flick must move once, not type Space.
-                            if (trackpad && !cursorMoved) {
-                                val dx = event.x / density - startX
-                                val dy = event.y / density - startY
-                                if (kotlin.math.abs(dy) >= 10f && kotlin.math.abs(dy) > kotlin.math.abs(dx)) {
-                                    cursorMoved = true
-                                    onEditAction?.invoke(KeyAction.MoveCursor(
-                                        if (dy < 0) Direction.UP else Direction.DOWN))
-                                }
+                            val fallback = interpreter.finishTrackpad(event.getPointerId(0),
+                                event.x / density, event.y / density)
+                            if (fallback != null && !cursorMoved) {
+                                cursorMoved = true
+                                onEditAction?.invoke(KeyAction.MoveCursor(fallback.direction, fallback.units))
+                                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             }
                             if (previewSpec != null) punctuationPopupController.dismiss()
-                            interpreter.finish(event.getPointerId(0))
                             if (!cursorMoved) {
                                 if (direction == Direction.CENTER) view.performClick()
-                                else actions[direction]?.let { onEditAction?.invoke(it) }
+                                else (view.tag as KeySpec).value(direction)?.action?.let { onEditAction?.invoke(it) }
                             }
                         }
                         MotionEvent.ACTION_CANCEL -> {
@@ -253,41 +226,31 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 }
             })
         }
-        layerKey = addKey("Az", KeyAction.SwitchLayer(KeyboardMode.QWERTY)).apply {
-            setOnClickListener { onEditAction?.invoke(KeyAction.SwitchLayer(layerMode)) }
-            withFlickActions(mapOf(
-                Direction.UP to KeyAction.SwitchLayer(KeyboardMode.KANA),
-                Direction.RIGHT to KeyAction.SwitchLayer(KeyboardMode.QWERTY),
-                Direction.DOWN to KeyAction.SwitchLayer(KeyboardMode.NUMBERS),
-                Direction.LEFT to KeyAction.VoiceHold,
-            ), previewSpec = ::layerPreviewSpec)
+        val footerSpecs = KeyboardLayouts.personalFooter(layerMode)
+        layerKey = addKey(footerSpecs[0]).apply {
+            withFlickActions(previewSpec = { layerSpec })
         }
-        moreKey = addKey("more..", KeyAction.Enter).apply {
+        moreKey = addKey(footerSpecs[1]).apply {
             textSize = 12f
             contentDescription = "その他の個人情報を表示"
-            setOnClickListener { onMoreRequested?.invoke() }
-            withFlickActions(emptyMap())
+            withFlickActions()
             visibility = View.INVISIBLE
         }
         addView(View(context), LayoutParams(0, 1, 1f))
-        val punctuation = addKey("、。？！", KeyAction.CommitText("、"))
+        val punctuation = addKey(footerSpecs[2])
         punctuation.contentDescription = "タップで、。左フリックで。上フリックで？右フリックで！"
-        punctuation.withFlickActions(mapOf(
-            Direction.LEFT to KeyAction.CommitText("。"), Direction.UP to KeyAction.CommitText("？"),
-            Direction.RIGHT to KeyAction.CommitText("！"), Direction.DOWN to KeyAction.CommitText("、"),
-        ), previewSpec = { punctuationPreviewSpec })
-        addKey("Space", KeyAction.CommitText(" "), widthUnits = 2f).apply {
+        punctuation.withFlickActions(previewSpec = { punctuationPreviewSpec })
+        addKey(footerSpecs[3]).apply {
             contentDescription = "Space。上下左右フリックでカーソル移動"
-            withFlickActions(emptyMap(), trackpad = true)
+            withFlickActions()
         }
-        addKey("⌫", KeyAction.Backspace()).apply {
+        addKey(footerSpecs[4]).apply {
             contentDescription = "削除"
-            withFlickActions(emptyMap())
+            withFlickActions()
         }
-        addKey("Enter", KeyAction.Enter).apply {
+        addKey(footerSpecs[5]).apply {
             contentDescription = "Enter。上フリックでpaste、下フリックでC-j"
-            withFlickActions(mapOf(Direction.UP to KeyAction.Paste,
-                Direction.DOWN to KeyAction.ModifiedKey("j", Modifier.CTRL)))
+            withFlickActions()
         }
     }
 

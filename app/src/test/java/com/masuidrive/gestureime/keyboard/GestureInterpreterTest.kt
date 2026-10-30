@@ -77,12 +77,21 @@ class GestureInterpreterTest {
         assertEquals(GestureUpdate.CursorDelta(Direction.LEFT, 1), subject.move(4, -8f, 80f))
     }
 
-    @Test fun `vertical space movement uses 24dp units`() {
+    @Test fun `vertical space uses 24dp units and completes short flick on release`() {
         val subject = GestureInterpreter()
         subject.start(3, 0f, 0f, trackpad = true)
         assertNull(subject.move(3, 1f, 10f))
         assertEquals(GestureUpdate.CursorDelta(Direction.DOWN, 1), subject.move(3, 2f, 24f))
         assertEquals(GestureUpdate.CursorDelta(Direction.DOWN, 1), subject.move(3, 99f, 48f))
+        assertNull(subject.finishTrackpad(3, 99f, 48f))
+
+        subject.start(4, 0f, 0f, trackpad = true)
+        assertNull(subject.move(4, 0f, -15f))
+        assertEquals(GestureUpdate.CursorDelta(Direction.UP, 1), subject.finishTrackpad(4, 0f, -15f))
+        subject.start(5, 0f, 0f, trackpad = true)
+        subject.move(5, 0f, -15f)
+        subject.cancel(5)
+        assertNull(subject.finishTrackpad(5, 0f, -15f))
     }
 
     @Test fun `vertical-only horizontal gesture reports an unassigned selection without changing its direction`() {

@@ -7,6 +7,24 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KeyboardLayoutsTest {
+    @Test fun `personal footer reuses standard key actions by kind`() {
+        val footer = KeyboardLayouts.personalFooter(KeyboardMode.SYMBOLS)
+        assertEquals(listOf(KeyKind.LAYER_SWITCH, KeyKind.CHARACTER, KeyKind.CHARACTER,
+            KeyKind.SPACE, KeyKind.BACKSPACE, KeyKind.ENTER), footer.map { it.kind })
+        assertEquals("?}", footer[0].center?.label)
+        assertEquals(KeyAction.SwitchLayer(KeyboardMode.SYMBOLS), footer[0].center?.action)
+        assertEquals(KeyAction.ExpandPersonalInfo, footer[1].center?.action)
+        val standard = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.last().keys
+        for ((personal, ordinary) in listOf(footer[0] to standard.first(),
+            footer[3] to standard.first { it.kind == KeyKind.SPACE },
+            footer[5] to standard.last())) {
+            for (direction in Direction.entries.filter { it != Direction.CENTER }) {
+                assertEquals("${personal.id} $direction", ordinary.value(direction)?.action,
+                    personal.value(direction)?.action)
+            }
+        }
+    }
+
     @Test fun `all six named modes have four rows`() {
         assertEquals(KeyboardMode.entries.toSet(), KeyboardLayouts.all.keys)
         KeyboardLayouts.all.values.forEach { assertEquals(4, it.rows.size) }

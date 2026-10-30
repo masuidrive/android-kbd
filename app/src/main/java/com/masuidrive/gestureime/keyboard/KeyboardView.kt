@@ -862,7 +862,8 @@ class KeyboardView @JvmOverloads constructor(
                 // The final coordinate may arrive only with UP (without a preceding MOVE).
                 // Reconcile the selected direction before committing the key.
                 pointerMove(event, event.actionIndex, updateAccentSelection = false)
-                pointerUp(event.getPointerId(event.actionIndex))
+                pointerUp(event.getPointerId(event.actionIndex),
+                    event.getX(event.actionIndex) / density, event.getY(event.actionIndex) / density)
             }
             MotionEvent.ACTION_CANCEL -> cancelActiveGestures()
         }
@@ -1075,7 +1076,7 @@ class KeyboardView @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun pointerUp(id: Int) {
+    private fun pointerUp(id: Int, xDp: Float, yDp: Float) {
         val emojiGesture = emojiScrollGestures.remove(id)
         if (emojiGesture?.scrolling == true) return
         cancelTimer(id)
@@ -1095,7 +1096,12 @@ class KeyboardView @JvmOverloads constructor(
             return
         }
         val direction = directions.remove(id) ?: Direction.CENTER
-        interpreter.finish(id)
+        val shortVerticalMove = interpreter.finishTrackpad(id, xDp, yDp)
+        if (shortVerticalMove != null && id !in cursorMoved) {
+            cursorMoved += id
+            actionSink?.onKeyAction(KeyAction.MoveCursor(shortVerticalMove.direction, shortVerticalMove.units))
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        }
         if (voiceGestureCancelledPointers.remove(id)) {
             cursorMoved.remove(id)
             repeated.remove(id)

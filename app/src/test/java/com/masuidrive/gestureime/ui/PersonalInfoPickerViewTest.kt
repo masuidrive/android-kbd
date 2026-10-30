@@ -27,8 +27,8 @@ class PersonalInfoPickerViewTest {
     @Test fun moreButtonAppearsInFooterAndDoesNotChangePickerHeight() {
         val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
         Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
-        var requests = 0
-        view.setOnMoreRequested { requests++ }
+        val actions = mutableListOf<KeyAction>()
+        view.setOnEditAction(actions::add)
         val width = 412
         val height = 210
         fun measure(): Int {
@@ -43,7 +43,7 @@ class PersonalInfoPickerViewTest {
         view.setMoreVisible(true)
         assertEquals(initialHeight, measure())
         more.performClick()
-        assertEquals(1, requests)
+        assertEquals(listOf(KeyAction.ExpandPersonalInfo), actions)
         view.setMoreVisible(false)
         assertEquals(initialHeight, measure())
         assertEquals(View.INVISIBLE, more.visibility)
@@ -89,9 +89,7 @@ class PersonalInfoPickerViewTest {
             View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, 412, 210)
         val actions = mutableListOf<KeyAction>()
-        var moreRequests = 0
         view.setOnEditAction(actions::add)
-        view.setOnMoreRequested { moreRequests++ }
         fun gesture(label: String, dx: Float, dy: Float) {
             val key = view.findText(label)!!
             val footer = key.parent as ViewGroup
@@ -112,7 +110,7 @@ class PersonalInfoPickerViewTest {
         assertEquals(Direction.RIGHT, (actions[2] as KeyAction.MoveCursor).direction)
         assertEquals(KeyAction.Backspace(), actions[3])
         assertEquals(KeyAction.Paste, actions[4])
-        assertEquals(1, moreRequests)
+        assertEquals(KeyAction.ExpandPersonalInfo, actions[5])
     }
 
     @Test fun layerKeySwitchesOnTapAndFlickFromThePicker() {

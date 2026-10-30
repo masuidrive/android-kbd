@@ -313,7 +313,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val personalPanel = PersonalInfoPickerView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnEditAction(::onKeyAction)
-            it.setOnMoreRequested(::expandPersonalInfoPicker)
             it.setLayerMode(keyboardMode)
             it.visibility = View.GONE
             personalInfoPanel = it
@@ -1100,6 +1099,10 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     override fun onKeyAction(action: KeyAction) {
+        if (action == KeyAction.ExpandPersonalInfo) {
+            expandPersonalInfoPicker()
+            return
+        }
         if (action == KeyAction.DiscardVoiceCandidates && keyboardMode == KeyboardMode.VOICE) {
             discardVoiceRecognition()
             return
@@ -1392,6 +1395,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             is KeyAction.SetModifier -> finishEnglishRaw()
             KeyAction.VoiceHold -> startVoiceLayer(editorToken)
             KeyAction.CancelVoice -> cancelVoiceSession()
+            KeyAction.ExpandPersonalInfo -> Unit // Dispatched synchronously before the action queue.
         }
     }
 

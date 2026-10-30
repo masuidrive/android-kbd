@@ -125,6 +125,16 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
     }
 
     fun finish(pointerId: Int): Direction? = pointers.remove(pointerId)?.direction
+
+    /** Gives a short vertical Space flick one line only on release, so cancellation stays inert. */
+    fun finishTrackpad(pointerId: Int, xDp: Float, yDp: Float): GestureUpdate.CursorDelta? {
+        val state = pointers.remove(pointerId) ?: return null
+        if (!state.trackpad || state.axis != GestureAxis.VERTICAL || state.emittedUnits != 0) return null
+        val dx = xDp - state.startX
+        val dy = yDp - state.startY
+        if (abs(dy) < state.thresholds.trackpadStartDp || abs(dy) <= abs(dx)) return null
+        return GestureUpdate.CursorDelta(if (dy < 0) Direction.UP else Direction.DOWN, 1)
+    }
     fun cancel(pointerId: Int) { pointers.remove(pointerId) }
     fun cancelAll() { pointers.clear() }
     fun activePointerCount(): Int = pointers.size
