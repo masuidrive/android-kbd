@@ -53,6 +53,7 @@
 [2026/10/30 23:25] 追加依頼の依存仮定: pickerの下段キーは既存KeyboardLayoutsのlayer/Space/Enter/voice punctuation factoryを再利用でき、差分は表示ラベル・more..・幅だけ。元のキー割当は専用MapとaddKey引数で重複、短いSpace縦10〜23dpはpickerのACTION_UPだけに別実装。通常キーボードも同じ10〜23dp縦操作をSpace tapにしていた。通常Spaceとpicker Spaceを共通にするため、両方で短距離縦を1行移動へ統一する。単一行では移動先がない既存制約を維持。
 [2026/10/30 23:37] `144299f`でpicker下段の全キーをKeyboardLayouts.personalFooterのKeySpecへ集約。more..もExpandPersonalInfoアクションにし、他キーと同じonEditAction経路へ通した。短い縦Spaceの判定はGestureInterpreter.finishTrackpadへ移し、通常KeyboardViewとpickerが共用。最初にMOVE時確定へ寄せる案はcancelでカーソルが動く回帰をfocused testで検出したため採用せず、UP時だけの確定にした。反例は通常tap、句読点、Backspace、Enter、more..、center returnとcancelで、focused 160件がPASS。重複検出はsimilarity-genericがKotlin非対応、similarity-tsがHTML内scriptを対象外と報告したためskip（ツール側の入力形式制限）。
 [2026/10/30 23:39] 独立レビューでMajor 2件を検出した。KeySpecと距離判定だけではタッチ状態・方向選択がView間で二重実装、さらに通常6レイヤーの短距離Space挙動を変更してticketの対象外契約に違反していた。`0b1edd1`でKeyGestureRouterを抽出し、2つのViewが共通のbegin/move/end/cancel、方向割当とcursor判定を利用するよう修正。通常Spaceは従来のtapへ戻し、単語一覧下段だけUP時の短距離カーソル移動を有効にするpolicyを明示した。router・実Viewの焦点テストPASS。全体試験と再レビュー待ち。
+[2026/10/30 23:41] 再レビューでMajor 0、戻り方向の触覚だけMinorとして検出し、従来どおり中心復帰で触覚を出すよう修正。全体並列試験では絵文字系の単体1件・接続1件が失敗したが、同じテストを単独で各1回再実行すると両方PASSした。並列実行に伴う不安定さの可能性があり、最終SHAで全体を再実行する。ブラウザmockは通常Spaceの短距離縦を従来の空白入力へ揃え、実操作で確認した。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->

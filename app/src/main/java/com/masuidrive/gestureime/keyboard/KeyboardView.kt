@@ -1036,7 +1036,7 @@ class KeyboardView @JvmOverloads constructor(
                 val direction = update.direction
                 if (!update.assigned) cancelTimer(id)
                 if (update.changed) {
-                    if (update.assigned && direction != Direction.CENTER) {
+                    if (update.assigned) {
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     }
                     directions[id] = direction
