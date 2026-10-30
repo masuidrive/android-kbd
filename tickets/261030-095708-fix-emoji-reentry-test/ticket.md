@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/261027-065123-make-ca-tap-tab
 description: "絵文字レイヤーの再表示を安定して検証する"
 created_at: "2026-10-30T09:57:08Z"
-started_at: null
+started_at: 2026-10-30T09:57:54Z
 closed_at: null
 canceled_at: null
 ---
