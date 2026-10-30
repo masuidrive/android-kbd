@@ -546,3 +546,5 @@
 [2026/10/30 18:13] 利用者が試用版を承認したため、v0.15.34のAPKと製品ページ公開へ進んだ。主checkoutは別feature branchの未commit変更があるため触れず、別checkoutでチケットをクローズする。
 [2026/10/30 18:18] v0.15.34の並列全体テストは1/3 PASS。unitの既存Emoji再表示テスト1件は旧SHAでも同じ失敗を再現し、接続試験はエミュレータ起動完了後の単独再実行で32/32 PASS。lintとAPKはPASS。既存失敗を区別して公開判断を継続する。
 [2026/10/30 18:26] 承認済みticketを親feature branchへcloseし、GitHub Release v0.15.34へ直接APKを公開した。公開APKを再取得し、手元の38,811,506 bytes・SHA-256 31fe137ae3e3f4d358832d71191efbaf69827ca944fb28e31f0c1522bd575b91とbyte一致を確認。masuidrive.jpの製品ページ・manual・mockを公開し、Pages buildのcommit cb401f6と主要4ファイルのbyte一致を確認。公開mockは412pxと840pxでタップ・フリック・個人情報カード・more..・句読点を操作し、欠落アセットと横はみ出しは見つからなかった。
+[2026/10/30 19:02] 残存した絵文字単体テスト失敗の修正ticketを開始。冷ビルドではroot未attachによりheaderがnull、Activity attach後はAndroidXがカテゴリ選択で交換した旧headerをテストが参照して失敗すると確認。現在のViewを再取得するテスト修正で冷状態のfocused testがPASS。production code変更なし、全体試験を続ける。
+[2026/10/30 19:14] 独立review/AC裏取りの指摘で、別カテゴリ選択→KANA→Emojiの公開経路と再生成pickerの実表示までtestを強化。最終コードSHA b7b288eの通常全体試験は2/2 PASS。Android 16 emulatorで411dpの実IMEがRecentへ戻り、約838dpへ構成変更後もRecent表示を確認。並列接続込み全体試験は別のunit2件・音声モデル1件の失敗で1/3、逐次再試験は32/32 connectedを含む3/3 PASS。並列失敗3件はretry-passとして人間レビューに明示する。エミュレータ停止済み。
