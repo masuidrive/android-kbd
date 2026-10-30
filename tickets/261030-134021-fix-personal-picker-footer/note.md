@@ -66,11 +66,29 @@
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | touch threshold / native-mock parity | Major | Space縦10〜23dpでnativeが空白入力、mockは無操作 | 採用 | trackpad開始と24dp単位の間を最小1行移動へ修正し、両surfaceを一致させた |
+| 2 | test coverage | Minor | レイヤーキーの中心復帰とcancelが未検証 | 採用 | attached picker MotionEvent testを追加 |
+
+## Test evidence
+
+最初の確定SHA `65bd0841dfe035f2b0695160409b698dc91b4c67` で `ANDROID_HOME="$HOME/Library/Android/sdk" scripts/test-all.sh --parallel --connected` を1回実行した出力:
+
+```text
+PASS: fast-checks
+PASS: android connected (real Mozc)
+FAIL: android unit, lint, apk
+ImeHideBarTest > emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway FAILED
+374 tests completed, 1 failed
+Passed: 2 / 3
+```
+
+失敗はこのticket差分が触れていない既存 `ImeHideBarTest.kt:572` の `requireNotNull` で、別の未close ticket `261030-095708-fix-emoji-reentry-test` に修正がある。変更対象 `PersonalInfoPickerViewTest` と `ImeServiceEnglishSuggestionTest` は修正前後ともPASS。別実行の `./gradlew lintDebug assembleDebug` はBUILD SUCCESSFUL。
+
+短い縦フリックの修正前: 15dpでCursorDeltaなし→Space入力。修正後: attached pickerの15dp上/下MotionEventはMoveCursor(UP/DOWN)を各1回、入力Spaceなし。IME serviceの入力欄カーソルは8→5→8、登録候補一覧と元レイヤー維持。モック実サーバーでも15px上/下をマウス操作し、8→5→8、入力値不変、一覧維持。10dp未満のtap、35dp縦、中心復帰、cancel、layerキーcenter return/cancelを関連testで確認。
 
 ## Technical reference 更新
 
-technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4方向フリック・popupへ更新。docs/reference/sites-native-spec.txtとsite/manual.htmlも同内容へ更新。mockは実操作に合わせて左フリックと元レイヤー復帰を修正。
+technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4方向フリック・popupと短いSpace縦フリックの最小1行移動へ更新。docs/reference/sites-native-spec.txtとsite/manual.htmlも同内容へ更新。mockは実操作に合わせて左フリックと元レイヤー復帰を修正。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 

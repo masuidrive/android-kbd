@@ -181,6 +181,8 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                 val interpreter = GestureInterpreter()
                 var direction = Direction.CENTER
                 var cursorMoved = false
+                var startX = 0f
+                var startY = 0f
                 val density = resources.displayMetrics.density
                 fun updatePreview(view: View) {
                     previewSpec?.invoke()?.let { showFlickPreview(view, direction, it) }
@@ -214,6 +216,8 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                                 trackpad = trackpad, pointerThresholds = sensitivity.thresholds())
                             direction = Direction.CENTER
                             cursorMoved = false
+                            startX = event.x / density
+                            startY = event.y / density
                             view.isPressed = true
                             updatePreview(view)
                         }
@@ -221,6 +225,17 @@ class PersonalInfoPickerView @JvmOverloads constructor(
                         MotionEvent.ACTION_UP -> {
                             view.isPressed = false
                             update(event)
+                            // The trackpad starts at 10dp, but its first vertical full unit is
+                            // 24dp. A shorter intentional flick must move once, not type Space.
+                            if (trackpad && !cursorMoved) {
+                                val dx = event.x / density - startX
+                                val dy = event.y / density - startY
+                                if (kotlin.math.abs(dy) >= 10f && kotlin.math.abs(dy) > kotlin.math.abs(dx)) {
+                                    cursorMoved = true
+                                    onEditAction?.invoke(KeyAction.MoveCursor(
+                                        if (dy < 0) Direction.UP else Direction.DOWN))
+                                }
+                            }
                             if (previewSpec != null) punctuationPopupController.dismiss()
                             interpreter.finish(event.getPointerId(0))
                             if (!cursorMoved) {

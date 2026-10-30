@@ -180,6 +180,58 @@ class PersonalInfoPickerViewTest {
         key.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_UP, x, y - 40f, 0))
         assertTrue(!popup.isShowingForTest())
     }
+
+    @Test fun layerKeyCenterReturnAndCancelDoNotChooseAStaleFlick() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = PersonalInfoPickerView(activity)
+        activity.setContentView(view)
+        view.setLayerMode(KeyboardMode.QWERTY)
+        val actions = mutableListOf<KeyAction>()
+        view.setOnEditAction(actions::add)
+        val key = view.findText("Az")!!
+        val popup = PersonalInfoPickerView::class.java.getDeclaredField("punctuationPopupController")
+            .apply { isAccessible = true }.get(view) as KeyboardPopupController
+        val x = key.width / 2f
+        val y = key.height / 2f
+        val distance = 35f * view.resources.displayMetrics.density
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 20, MotionEvent.ACTION_MOVE, x, y - distance, 0))
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 40, MotionEvent.ACTION_MOVE, x, y, 0))
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 60, MotionEvent.ACTION_UP, x, y, 0))
+        assertEquals(listOf(KeyAction.SwitchLayer(KeyboardMode.QWERTY)), actions)
+        assertTrue(!popup.isShowingForTest())
+
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 20, MotionEvent.ACTION_MOVE, x, y - distance, 0))
+        key.dispatchTouchEvent(MotionEvent.obtain(0, 40, MotionEvent.ACTION_CANCEL, x, y - distance, 0))
+        assertEquals(1, actions.size)
+        assertTrue(!popup.isShowingForTest())
+    }
+
+    @Test fun shortVerticalSpaceFlickMovesOnceInsteadOfTypingSpace() {
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+        val view = PersonalInfoPickerView(activity)
+        activity.setContentView(view)
+        val actions = mutableListOf<KeyAction>()
+        view.setOnEditAction(actions::add)
+        val key = view.findText("Space")!!
+        val x = key.width / 2f
+        val y = key.height / 2f
+        val density = view.resources.displayMetrics.density
+        fun gesture(dyDp: Float, cancel: Boolean = false) {
+            key.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+            key.dispatchTouchEvent(MotionEvent.obtain(0, 20, MotionEvent.ACTION_MOVE, x, y + dyDp * density, 0))
+            key.dispatchTouchEvent(MotionEvent.obtain(0, 40,
+                if (cancel) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP,
+                x, y + dyDp * density, 0))
+        }
+        gesture(-15f)
+        gesture(15f)
+        gesture(0f)
+        gesture(-15f, cancel = true)
+        assertEquals(listOf(KeyAction.MoveCursor(Direction.UP), KeyAction.MoveCursor(Direction.DOWN),
+            KeyAction.CommitText(" ")), actions)
+    }
     @Test fun punctuationKeyDispatchesTapAndAllFourFlicks() {
         val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
         Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)

@@ -423,10 +423,10 @@ class ImeServiceEnglishSuggestionTest {
                 space.dispatchTouchEvent(MotionEvent.obtain(0, 100, MotionEvent.ACTION_UP, x, y + dyDp * density, 0))
                 harness.idle()
             }
-            flick(-35f)
+            flick(-15f)
             assertEquals(5, harness.input.cursor)
             assertEquals("?}", harness.root.findView { it.contentDescription?.toString()?.startsWith("タップで記号へ戻る") == true }?.let { (it as TextView).text.toString() })
-            flick(35f)
+            flick(15f)
             assertEquals(8, harness.input.cursor)
             assertEquals("aa\nbb\ncc", harness.input.committed)
 

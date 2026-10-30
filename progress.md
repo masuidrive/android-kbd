@@ -548,3 +548,4 @@
 [2026/10/30 18:26] 承認済みticketを親feature branchへcloseし、GitHub Release v0.15.34へ直接APKを公開した。公開APKを再取得し、手元の38,811,506 bytes・SHA-256 31fe137ae3e3f4d358832d71191efbaf69827ca944fb28e31f0c1522bd575b91とbyte一致を確認。masuidrive.jpの製品ページ・manual・mockを公開し、Pages buildのcommit cb401f6と主要4ファイルのbyte一致を確認。公開mockは412pxと840pxでタップ・フリック・個人情報カード・more..・句読点を操作し、欠落アセットと横はみ出しは見つからなかった。
 [2026/10/30 22:40] 単語一覧のSpace上下フリックと左下レイヤーキーの報告を受け、新ticket 261030-134021-fix-personal-picker-footerを起票。Android UI・IME service・mock・test・docsが影響する。既存の絵文字確認ticketは実機確認待ちのまま維持する。
 [2026/10/30 22:50] 個人情報・定型文一覧の元レイヤー復帰とフリック表示を実装。Space上下はattached ViewからIME serviceまでの複数行テストでレイヤー維持とカーソル移動を確認し、ブラウザモックも実操作で確認した。実機での報告条件は引き続き検証する。
+[2026/10/30 23:02] 独立レビューで見つかったSpace短距離10〜23dpの空白誤入力を修正し、native・mockで最小1行のカーソル移動へ揃えた。関連テストとモック実操作はPASS。全体3系統のうち接続試験とfast-checkはPASS、unit系統は別ticket対象の既存絵文字テスト1件で失敗。

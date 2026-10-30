@@ -764,7 +764,7 @@
     preferredCursorX=target.x;setCursor(target.pos,stops,cursorDirectionLabel(0,amount));
   }
   function beginTrackpad(p,dx=0,dy=0) {
-    clearTimeout(p.timer);p.trackpad=true;p.trackpadAxis=lockSwipeAxis(null,dx,dy);p.cursorX=p.x;p.cursorY=p.y;lastSpace=-Infinity;
+    clearTimeout(p.timer);p.trackpad=true;p.trackpadMoved=false;p.trackpadAxis=lockSwipeAxis(null,dx,dy);p.cursorX=p.x;p.cursorY=p.y;lastSpace=-Infinity;
     keyboard.classList.add('trackpad');keyboard.classList.remove('popup-active');popup.hidden=true;
     trackpadStatus.hidden=false;trackpadStatus.textContent='←↓↑→';announce('カーソル移動');
   }
@@ -1298,6 +1298,7 @@
       if(steps){moveCursor(steps);p.cursorX+=steps*8;}
       if(lines){for(let i=0;i<Math.abs(lines);i++)moveVertical(Math.sign(lines));p.cursorY+=lines*24;}
       if(steps||lines) {
+        p.trackpadMoved=true;
         const label=cursorDirectionLabel(steps,lines);
         trackpadStatus.textContent=label;announce(label);
       }
@@ -1330,6 +1331,11 @@
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
     if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
+    if(!canceled&&personalInfoPickerVisible&&p.origin==='space'&&p.trackpad&&
+       !p.trackpadMoved&&p.trackpadAxis==='vertical') {
+      const dy=e.clientY-p.y,dx=e.clientX-p.x;
+      if(Math.abs(dy)>=10&&Math.abs(dy)>Math.abs(dx))moveVertical(Math.sign(dy));
+    }
     if(!canceled&&!p.trackpad) {
       if(p.navigationChoice&&p.key.navigation[p.navigationChoice]) {
         const navigationAction=p.key.navigation[p.navigationChoice].action;
