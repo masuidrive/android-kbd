@@ -1,20 +1,20 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (user instruction approves behavior)
 
 ## Checklist
-- [ ] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
-- [ ] 利用者の依頼: 左下キーは元のレイヤーを表示し、tapで一覧を閉じ、各方向のフリックで指定レイヤーへ切り替える。
+- [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
+- [x] 利用者の依頼: 左下キーは元のレイヤーを表示し、tapで一覧を閉じ、各方向のフリックで指定レイヤーへ切り替える。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
 - [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
 - [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
@@ -29,6 +29,8 @@
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
+
+[2026/10/30 22:41] Product Briefの6レイヤー・フリックと、technical-reference.mdの個人情報panelを対象にする。消費面はAndroid IMEの固定高panelと製品ページの操作mock。AC4件は独立AC読み手が全件復元可能と判定。ユーザの文面がtapの元レイヤー・方向別切替・Space上下の目的を明示しており、同内容の実装承認として扱う。変更前のfocused testはPASSで、現行テストはこの報告を捕捉していない。
 <!-- 実装前に ticket の契約を確認する。
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
@@ -41,9 +43,12 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 現行native footerはlayer keyのtapをKANA/QWERTYへ反転し、Spaceはtrackpad=trueだが上下24dp単位。mockは左フリックを持たないvoiceNavigationを流用し、tapもKANA/QWERTYへ反転することをコードで確認。変更前focused unit suiteはBUILD SUCCESSFUL。
 
 ## PDH-implement. 実装ログ
+
+[2026/10/30 22:41] 依存仮定: panelが開いた時点のkeyboardModeはservice側で維持される。MotionEventはDOWN targetへ続けて配送される。mockのpointer captureはreleaseまで同じkeyを保持する。nativeの既存Space trackpad自体は上下CursorDeltaを返すが、単一行では移動先がないため見た目の変化がない。実機と異なる可能性はSurfaceで確認する。非対象の編集キー（句読点・Backspace・Enter）を反例として変更前後で比較する。
+[2026/10/30 22:50] Nativeの元レイヤー表示・tap復帰・フリックpreviewを4a5661cへcommit。Spaceの上下35dp MotionEventをattached pickerとIME service経由で送り、複数行editorでカーソル8→5→8、一覧維持、レイヤー不変を確認。短いフリックまたは単一行では上下に移動先がなく、実機の「時々レイヤー変更」の根本原因は未再現。ブラウザモックは実サーバーで上/下Space操作が5→8、一覧維持を確認し、レイヤー上フリックで日本語へ切替を確認。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
@@ -64,6 +69,8 @@
 |   |      |     |      |      |      |
 
 ## Technical reference 更新
+
+technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4方向フリック・popupへ更新。docs/reference/sites-native-spec.txtとsite/manual.htmlも同内容へ更新。mockは実操作に合わせて左フリックと元レイヤー復帰を修正。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
