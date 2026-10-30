@@ -545,3 +545,4 @@
 [2026/10/30 18:05] コードSHA 52e631bの全体テストは3/3 PASS、独立レビューはCritical/Majorなし。修正APKを既存のFlyer 1日限定試用ページへアップロードし、分割ファイルと全体APKのSHA-256を照合、旧ファイルを削除した。PDH-human-reviewに戻した。
 [2026/10/30 18:13] 利用者が試用版を承認したため、v0.15.34のAPKと製品ページ公開へ進んだ。主checkoutは別feature branchの未commit変更があるため触れず、別checkoutでチケットをクローズする。
 [2026/10/30 18:18] v0.15.34の並列全体テストは1/3 PASS。unitの既存Emoji再表示テスト1件は旧SHAでも同じ失敗を再現し、接続試験はエミュレータ起動完了後の単独再実行で32/32 PASS。lintとAPKはPASS。既存失敗を区別して公開判断を継続する。
+[2026/10/30 18:26] 承認済みticketを親feature branchへcloseし、GitHub Release v0.15.34へ直接APKを公開した。公開APKを再取得し、手元の38,811,506 bytes・SHA-256 31fe137ae3e3f4d358832d71191efbaf69827ca944fb28e31f0c1522bd575b91とbyte一致を確認。masuidrive.jpの製品ページ・manual・mockを公開し、Pages buildのcommit cb401f6と主要4ファイルのbyte一致を確認。公開mockは412pxと840pxでタップ・フリック・個人情報カード・more..・句読点を操作し、欠落アセットと横はみ出しは見つからなかった。
