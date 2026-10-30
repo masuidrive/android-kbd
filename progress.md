@@ -549,3 +549,4 @@
 [2026/10/30 22:40] 単語一覧のSpace上下フリックと左下レイヤーキーの報告を受け、新ticket 261030-134021-fix-personal-picker-footerを起票。Android UI・IME service・mock・test・docsが影響する。既存の絵文字確認ticketは実機確認待ちのまま維持する。
 [2026/10/30 22:50] 個人情報・定型文一覧の元レイヤー復帰とフリック表示を実装。Space上下はattached ViewからIME serviceまでの複数行テストでレイヤー維持とカーソル移動を確認し、ブラウザモックも実操作で確認した。実機での報告条件は引き続き検証する。
 [2026/10/30 23:02] 独立レビューで見つかったSpace短距離10〜23dpの空白誤入力を修正し、native・mockで最小1行のカーソル移動へ揃えた。関連テストとモック実操作はPASS。全体3系統のうち接続試験とfast-checkはPASS、unit系統は別ticket対象の既存絵文字テスト1件で失敗。
+[2026/10/30 23:09] 単語一覧のSpace短距離上下フリックと左下レイヤーキーの元レイヤー復帰・4方向切替を修正した。最終コードSHA c539a4aの全体試験はfast-checks・Android単体/lint/APK・接続試験の3/3 PASS、独立レビューでCritical/Majorなし、AC4件VERIFIED。試用APKはFlyer既存ページの2分割ファイルへ保存後hashを照合し、ダウンロードページを更新した。物理端末の利用者確認前なのでticketはopenのまま。

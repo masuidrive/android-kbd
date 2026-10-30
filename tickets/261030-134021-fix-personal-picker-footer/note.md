@@ -1,6 +1,6 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-implement (user instruction approves behavior)
+## Status: PDH-human-review (human device review pending)
 
 ## Checklist
 - [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
@@ -15,17 +15,17 @@
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
-- [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: この変更はローカルIMEとブラウザモックだけで、外部provider呼び出しがない
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [x] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
 ## PDH-ticket-review. Ticket contract check
@@ -86,13 +86,24 @@ Passed: 2 / 3
 
 短い縦フリックの修正前: 15dpでCursorDeltaなし→Space入力。修正後: attached pickerの15dp上/下MotionEventはMoveCursor(UP/DOWN)を各1回、入力Spaceなし。IME serviceの入力欄カーソルは8→5→8、登録候補一覧と元レイヤー維持。モック実サーバーでも15px上/下をマウス操作し、8→5→8、入力値不変、一覧維持。10dp未満のtap、35dp縦、中心復帰、cancel、layerキーcenter return/cancelを関連testで確認。
 
+最終コードSHA `c539a4a011be8c541274a5c31be7fe1990e80182` で `scripts/test-all.sh --parallel --connected` を実行し、fast-checks・Android unit/lint/APK・Android connected (real Mozc) がすべてPASS（3/3）。初回の既存絵文字単体試験1件の失敗はこの最終実行では再現しなかった。独立レビュアー2名の再レビューはCritical/Major残件なし。前Majorの10〜23dp短距離フリックと前Minorのレイヤーキー中心復帰/cancelは解消。非対象の句読点・Backspace・Enter・moreの既存attached testは変更前後ともPASS。AC裏取りAgentは4件すべてVERIFIEDと判定した。物理端末での操作は未確認。
+
 ## Technical reference 更新
 
 technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4方向フリック・popupと短いSpace縦フリックの最小1行移動へ更新。docs/reference/sites-native-spec.txtとsite/manual.htmlも同内容へ更新。mockは実操作に合わせて左フリックと元レイヤー復帰を修正。
+
+## PDH-verify. Surface evidence
+
+最終SHAのAPKをAndroid 16エミュレータ（412dp）へ入れ、設定で候補登録→入力テスト→単語一覧までSurface Observerが実操作した。元がQWERTYのとき左下はAzを表示し、固定高とキー配置に重なり・欠落はない。画像 `/private/tmp/footer-surface-final-picker3.png`。Space上下の実カーソル移動とレイヤーキー全方向は最終SHAのattached MotionEvent/connected testで確認したが、Surface Observer自身は最終APK上で全方向を操作していない。物理端末は利用者確認待ち。エミュレータは停止した。
+
+## 試用APK
+
+最終APK `app/build/outputs/apk/debug/app-debug.apk` は38,910,970 bytes、SHA-256 `34f46e293bbfd6d9348c633c56574aa6a35afaee96c6d24ddfcb5c5b6ce5aa5e`、package `com.masuidrive.gestureime`、version `0.15.34` / code 50。Flyerの `https://vhduzh3k.aboutme.style/` に2026/10/31 23:08 JSTまでの24時間試用版として掲載。20MiB制限に合わせた2分割保存hashと、ページ内の結合APKの期待hash/sizeを手元と照合した。旧2分割ファイルは削除。正式GitHub Releaseとticket closeは実機レビュー待ち。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
+試用APKの案内と検証結果をユーザへ提示する。Android実機で単語一覧を開き、複数行の入力欄でSpace上下フリックのカーソル移動と一覧・レイヤー維持、左下キーのtapで元レイヤー復帰、左・上・右・下フリックの音声・日本語・QWERTY・テンキー切替を確認してもらう。1行欄では上下に移動先がないため、複数行欄を使う。確認報告とcloseの明示承認までticketは開いたまま。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
