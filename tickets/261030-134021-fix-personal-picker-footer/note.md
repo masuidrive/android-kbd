@@ -1,10 +1,11 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-human-review (human device review pending)
+## Status: PDH-implement (キー処理の共通化を追加実施、human device review pending)
 
 ## Checklist
 - [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
 - [x] 利用者の依頼: 左下キーは元のレイヤーを表示し、tapで一覧を閉じ、各方向のフリックで指定レイヤーへ切り替える。
+- [ ] 利用者の追加依頼: 単語一覧と通常レイヤーでキー種類ごとの定義・タッチ処理を構造化し、同じ挙動を別々に手書きしない。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -49,6 +50,8 @@
 
 [2026/10/30 22:41] 依存仮定: panelが開いた時点のkeyboardModeはservice側で維持される。MotionEventはDOWN targetへ続けて配送される。mockのpointer captureはreleaseまで同じkeyを保持する。nativeの既存Space trackpad自体は上下CursorDeltaを返すが、単一行では移動先がないため見た目の変化がない。実機と異なる可能性はSurfaceで確認する。非対象の編集キー（句読点・Backspace・Enter）を反例として変更前後で比較する。
 [2026/10/30 22:50] Nativeの元レイヤー表示・tap復帰・フリックpreviewを4a5661cへcommit。Spaceの上下35dp MotionEventをattached pickerとIME service経由で送り、複数行editorでカーソル8→5→8、一覧維持、レイヤー不変を確認。短いフリックまたは単一行では上下に移動先がなく、実機の「時々レイヤー変更」の根本原因は未再現。ブラウザモックは実サーバーで上/下Space操作が5→8、一覧維持を確認し、レイヤー上フリックで日本語へ切替を確認。
+[2026/10/30 23:25] 追加依頼の依存仮定: pickerの下段キーは既存KeyboardLayoutsのlayer/Space/Enter/voice punctuation factoryを再利用でき、差分は表示ラベル・more..・幅だけ。元のキー割当は専用MapとaddKey引数で重複、短いSpace縦10〜23dpはpickerのACTION_UPだけに別実装。通常キーボードも同じ10〜23dp縦操作をSpace tapにしていた。通常Spaceとpicker Spaceを共通にするため、両方で短距離縦を1行移動へ統一する。単一行では移動先がない既存制約を維持。
+[2026/10/30 23:37] `144299f`でpicker下段の全キーをKeyboardLayouts.personalFooterのKeySpecへ集約。more..もExpandPersonalInfoアクションにし、他キーと同じonEditAction経路へ通した。短い縦Spaceの判定はGestureInterpreter.finishTrackpadへ移し、通常KeyboardViewとpickerが共用。最初にMOVE時確定へ寄せる案はcancelでカーソルが動く回帰をfocused testで検出したため採用せず、UP時だけの確定にした。反例は通常tap、句読点、Backspace、Enter、more..、center returnとcancelで、focused 160件がPASS。重複検出はsimilarity-genericがKotlin非対応、similarity-tsがHTML内scriptを対象外と報告したためskip（ツール側の入力形式制限）。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
