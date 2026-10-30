@@ -1,9 +1,11 @@
 # Work Notes: 261030-095708-fix-emoji-reentry-test
 
-## Status: PDH-human-review (AC verified; awaiting close approval)
+## Status: PDH-human-review (AC verified; awaiting physical-device confirmation)
 
 ## Checklist
 - [x] 利用者の依頼: v0.15.34で残った絵文字再表示の単体テスト失敗を直し、全体テストを再確認する。
+- [x] 利用者の依頼: インストールできる公開 APK と製品サイトの案内を確認する。
+- [ ] 利用者の依頼: インストール後に実機で挙動確認するまではチケットをクローズしない。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -85,6 +87,10 @@
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
 
 [2026/10/30 19:14] `b7b288e`の差分、2 ACの証拠、並列failureと逐次retry-passを会話で提示し、close判断を依頼する。ticket close・push・公開更新は未実施。production code差分はないため新APKは不要。
+
+[2026/10/30 21:41] 利用者はインストール後の実機確認前にcloseしないと明示。公開済みv0.15.34 APKのSHA-256 `31fe137ae3e3f4d358832d71191efbaf69827ca944fb28e31f0c1522bd575b91`、38811506 bytes、versionCode 50、ARM64を再ダウンロードして確認。公開サイトの4 core filesは現site/とbyte-identical。テストのみの今回差分はアプリ本体と公開サイトを変えないため、実機確認用に既存v0.15.34を案内する。実機確認待ちを維持する。
+
+[2026/10/30 21:43] 公開サイトのindex/mock/manual/stylesを実HTTPで取得し、GitHub Pages commit `cb401f69ef8c3fcc26420a471bfbe90dd721f5ef`の4ファイルとbyte一致。Pages API statusは同commitで`built`。実ブラウザで412px幅のタップ「あ」と上フリック「う」、840px幅のタップ「あ」を操作し、入力欄更新と横はみ出しなしを確認。公開APKは元のローカル成果物ともbyte一致し、package `com.masuidrive.gestureime`、versionCode 50 / versionName 0.15.34、arm64-v8a、minSdk 28、権限はRECORD_AUDIOとアプリ自身のdynamic receiver permission。ユーザの物理端末確認は未実施。既存v0.15.34が現在のproductionとsiteをすでに公開しているため、同内容の再アップロードは行わない。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
