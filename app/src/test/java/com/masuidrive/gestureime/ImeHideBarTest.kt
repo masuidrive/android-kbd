@@ -562,7 +562,9 @@ class ImeHideBarTest {
     @Test
     fun emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        ImePreferences.recordEmojiRecent(service, "👍")
         val root = service.onCreateInputView() as FrameLayout
+        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(root)
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         repeat(3) {
             measureAndLayout(root, 412)
@@ -605,10 +607,18 @@ class ImeHideBarTest {
         measureAndLayout(root, 412)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
-        val attachedPositions = (0 until header.childCount)
-            .map { header.getChildAdapterPosition(header.getChildAt(it)) }
+        // AndroidX replaces the header and body when a category is selected. Assert the
+        // visible picker rather than the RecyclerViews captured before the reset.
+        val currentHeader = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_header,
+        ))
+        val currentBody = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_body,
+        ))
+        val attachedPositions = (0 until currentHeader.childCount)
+            .map { currentHeader.getChildAdapterPosition(currentHeader.getChildAt(it)) }
         assertTrue("Recent holder is adapter position zero; attached=$attachedPositions", 0 in attachedPositions)
-        assertEquals(0, (body.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
+        assertEquals(0, (currentBody.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
             .findFirstVisibleItemPosition())
     }
 
