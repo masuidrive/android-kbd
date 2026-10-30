@@ -552,3 +552,4 @@
 [2026/10/30 23:09] 単語一覧のSpace短距離上下フリックと左下レイヤーキーの元レイヤー復帰・4方向切替を修正した。最終コードSHA c539a4aの全体試験はfast-checks・Android単体/lint/APK・接続試験の3/3 PASS、独立レビューでCritical/Majorなし、AC4件VERIFIED。試用APKはFlyer既存ページの2分割ファイルへ保存後hashを照合し、ダウンロードページを更新した。物理端末の利用者確認前なのでticketはopenのまま。
 [2026/10/30 23:11] 最終APKをAndroid 16エミュレータ412dpへ入れ、設定で候補登録から単語一覧表示までSurface Observerが確認した。左下Azと固定高・キー配置は正常で、実フリック全方向と物理端末の確認は利用者レビューへ残した。Flyerは現行APK2ファイルとindexの3ファイルだけになり、試用期限は10月31日23:08 JST。feature branchをGitHubへpushし、ticketはhuman-reviewでopenのまま。
 [2026/10/30 23:25] 利用者から単語一覧と通常キーボードのキー処理を構造化する追加依頼を受け、human-review待ちticketをimplementへ戻した。通常キーはKeySpecとKeyboardView、単語一覧下段は同じGestureInterpreterを使うが割当・up処理をView内で別定義しており、重複が原因と確認した。
+[2026/10/30 23:39] 独立レビューで構造化不足と通常Spaceへの対象外変更を検出し、共通KeyGestureRouterへタッチ開始・移動・終了・cancelと方向判定を集約した。通常Spaceは従来挙動を保持し、単語一覧のみ短い上下フリックを1行移動にする。焦点テストPASS、全体試験と再レビューを実施する。

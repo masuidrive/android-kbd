@@ -1331,7 +1331,7 @@
     if(remaining&&!remaining.trackpad)showPopup(remaining);else {popup.hidden=true;keyboard.classList.remove('popup-active');}
     if(!remaining?.trackpad)keyboard.classList.remove('trackpad');
     trackpadStatus.hidden=true;trackpadStatus.textContent='←↓↑→';
-    if(!canceled&&p.origin==='space'&&p.trackpad&&
+    if(!canceled&&personalInfoPickerVisible&&p.origin==='space'&&p.trackpad&&
        !p.trackpadMoved&&p.trackpadAxis==='vertical') {
       const dy=e.clientY-p.y,dx=e.clientX-p.x;
       if(Math.abs(dy)>=10&&Math.abs(dy)>Math.abs(dx))moveVertical(Math.sign(dy));
