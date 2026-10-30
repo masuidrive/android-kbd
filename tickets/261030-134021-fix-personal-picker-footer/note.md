@@ -55,6 +55,7 @@
 [2026/10/30 23:39] 独立レビューでMajor 2件を検出した。KeySpecと距離判定だけではタッチ状態・方向選択がView間で二重実装、さらに通常6レイヤーの短距離Space挙動を変更してticketの対象外契約に違反していた。`0b1edd1`でKeyGestureRouterを抽出し、2つのViewが共通のbegin/move/end/cancel、方向割当とcursor判定を利用するよう修正。通常Spaceは従来のtapへ戻し、単語一覧下段だけUP時の短距離カーソル移動を有効にするpolicyを明示した。router・実Viewの焦点テストPASS。全体試験と再レビュー待ち。
 [2026/10/30 23:41] 再レビューでMajor 0、戻り方向の触覚だけMinorとして検出し、従来どおり中心復帰で触覚を出すよう修正。全体並列試験では絵文字系の単体1件・接続1件が失敗したが、同じテストを単独で各1回再実行すると両方PASSした。並列実行に伴う不安定さの可能性があり、最終SHAで全体を再実行する。ブラウザmockは通常Spaceの短距離縦を従来の空白入力へ揃え、実操作で確認した。
 [2026/10/30 23:49] 最終実装SHA `c978b59` の `scripts/test-all.sh --parallel --connected` は3/3 PASS。前回の並列実行では別々の絵文字テストが失敗し、各単独再実行でPASS、3回目の並列実行では全件PASSした。Reviewer再確認でCritical/Major/Minorなし、AC裏取りは追加要件VERIFIED。APKは39,029,958 bytes、SHA-256 `4da137f2a8693fbf645e560f01621919ba436b47f201d28eb61689a80b23fbdd`、arm64-v8a、package `com.masuidrive.gestureime`、version `0.15.34`のdebug版。Flyer試用ページの2分割ファイルを各SHA照合後に差し替え、ブラウザ再結合予定SHAとローカル再結合SHAを一致確認し、旧2ファイルを削除した。物理端末での利用者確認前のためticketはhuman-reviewでopenのまま。
+[2026/10/30 23:51] Surface ObserverはAndroid 16エミュレータへ最終APKを導入し、IME有効化と通常QWERTY表示を確認。設定の氏名（漢字）欄へダミー値を入力して画面反映を見たが、通常テキスト欄へ戻った際に個人情報card iconが出ず、単語一覧の実操作には到達できなかった。値の永続保存成否は未確認であり、この観察だけで新たな回帰とは判定しない。既存のattached production view MotionEvent試験は全件PASS。実機の利用者確認と、card iconが出る条件を含む画面確認はhuman reviewに残す。エミュレータ停止・ADB空を確認した。
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
