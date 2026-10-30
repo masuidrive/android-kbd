@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/261027-065123-make-ca-tap-tab
 description: "単語一覧のSpaceとレイヤー復帰を直す"
 created_at: "2026-10-30T13:40:21Z"
-started_at: null  # Do not modify manually
+started_at: 2026-10-30T13:40:51Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
