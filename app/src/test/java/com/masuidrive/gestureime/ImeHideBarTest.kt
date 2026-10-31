@@ -531,15 +531,19 @@ class ImeHideBarTest {
     }
 
     @Test
-    fun recreatedInputViewInEmojiModeQueuesRecentResetForItsNewPickerOnly() {
+    fun recreatedInputViewInEmojiModeShowsRecentInItsNewPickerOnly() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        ImePreferences.recordEmojiRecent(service, "👍")
+        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
         val firstRoot = service.onCreateInputView() as FrameLayout
+        activity.setContentView(firstRoot)
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         measureAndLayout(firstRoot, 412)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         val firstPicker = firstRoot.getChildAt(1) as EmojiPickerView
 
         val recreatedRoot = service.onCreateInputView() as FrameLayout
+        activity.setContentView(recreatedRoot)
         val recreatedPicker = recreatedRoot.getChildAt(1) as EmojiPickerView
         @Suppress("UNCHECKED_CAST")
         val pending = ImeService::class.java.getDeclaredField("pickersAwaitingRecentReset").apply { isAccessible = true }
@@ -549,20 +553,30 @@ class ImeHideBarTest {
 
         // AndroidX can create its header after the first layout; the fresh picker keeps this
         // request until its Recent holder is attached, instead of inheriting the old view's
-        // already-visible flag and silently skipping AC1.
-        measureAndLayout(recreatedRoot, 412)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        val headerAttached = (recreatedPicker.findViewById<RecyclerView>(
+        // already-visible flag and silently skipping the reset.
+        repeat(3) {
+            measureAndLayout(recreatedRoot, 412)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        }
+        val header = requireNotNull(recreatedPicker.findViewById<RecyclerView>(
             androidx.emoji2.emojipicker.R.id.emoji_picker_header,
-        )?.childCount ?: 0) > 0
-        assertTrue(recreatedPicker in pending || headerAttached)
+        ))
+        val body = requireNotNull(recreatedPicker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_body,
+        ))
+        assertTrue((0 until header.childCount)
+            .any { header.getChildAdapterPosition(header.getChildAt(it)) == 0 })
+        assertEquals(0, (body.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
+            .findFirstVisibleItemPosition())
         assertEquals(KeyboardMode.EMOJI, ((recreatedRoot.getChildAt(0) as LinearLayout).getChildAt(1) as KeyboardView).mode())
     }
 
     @Test
     fun emojiReentrySelectsRecentAdapterPositionZeroAfterTheHeaderWasScrolledAway() {
         val service = Robolectric.buildService(HidingImeService::class.java).create().get()
+        ImePreferences.recordEmojiRecent(service, "👍")
         val root = service.onCreateInputView() as FrameLayout
+        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(root)
         service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
         repeat(3) {
             measureAndLayout(root, 412)
@@ -572,43 +586,39 @@ class ImeHideBarTest {
         val header = requireNotNull(picker.findViewById<RecyclerView>(
             androidx.emoji2.emojipicker.R.id.emoji_picker_header,
         ))
-        val body = requireNotNull(picker.findViewById<RecyclerView>(
-            androidx.emoji2.emojipicker.R.id.emoji_picker_body,
-        ))
         val lastCategory = requireNotNull(header.adapter).itemCount - 1
         assertTrue(lastCategory > 0)
         header.scrollToPosition(lastCategory)
         measureAndLayout(root, 412)
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertTrue("header should have a non-Recent attached holder before re-entry", (0 until header.childCount)
-            .any { header.getChildAdapterPosition(header.getChildAt(it)) > 0 })
+        val otherCategory = (0 until header.childCount)
+            .map(header::getChildAt)
+            .firstOrNull { header.getChildAdapterPosition(it) > 0 }
+        assertTrue("header should have a non-Recent attached holder before re-entry", otherCategory != null)
+        assertTrue(requireNotNull(otherCategory).performClick())
+        repeat(3) {
+            measureAndLayout(root, 412)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        }
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.KANA))
+        service.onKeyAction(KeyAction.SwitchLayer(KeyboardMode.EMOJI))
+        repeat(3) {
+            measureAndLayout(root, 412)
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        }
 
-        @Suppress("UNCHECKED_CAST")
-        val pending = ImeService::class.java.getDeclaredField("pickersAwaitingRecentReset").apply { isAccessible = true }
-            .get(service) as MutableSet<EmojiPickerView>
-        pending += picker
-        val reset = ImeService::class.java.getDeclaredMethod(
-            "resetEmojiPickerToRecentIfNeeded",
-            EmojiPickerView::class.java,
-            RecyclerView::class.java,
-            RecyclerView::class.java,
-            Boolean::class.javaPrimitiveType,
-        ).apply { isAccessible = true }
-        reset.invoke(service, picker, header, body, true)
-        measureAndLayout(root, 412)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        measureAndLayout(root, 412)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        // The first call can run before RecyclerView has attached position zero; retrying
-        // after layout mirrors the production child-attachment callback.
-        reset.invoke(service, picker, header, body, true)
-        measureAndLayout(root, 412)
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-
-        val attachedPositions = (0 until header.childCount)
-            .map { header.getChildAdapterPosition(header.getChildAt(it)) }
+        // AndroidX replaces the header and body when a category is selected. Assert the
+        // visible picker rather than the RecyclerViews captured before the reset.
+        val currentHeader = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_header,
+        ))
+        val currentBody = requireNotNull(picker.findViewById<RecyclerView>(
+            androidx.emoji2.emojipicker.R.id.emoji_picker_body,
+        ))
+        val attachedPositions = (0 until currentHeader.childCount)
+            .map { currentHeader.getChildAdapterPosition(currentHeader.getChildAt(it)) }
         assertTrue("Recent holder is adapter position zero; attached=$attachedPositions", 0 in attachedPositions)
-        assertEquals(0, (body.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
+        assertEquals(0, (currentBody.layoutManager as androidx.recyclerview.widget.LinearLayoutManager)
             .findFirstVisibleItemPosition())
     }
 
