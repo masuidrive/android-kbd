@@ -1,6 +1,6 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-implement (user-requested order change; human device review pending)
+## Status: PDH-verify (order change implemented; full-suite failures and human device review pending)
 
 ## Checklist
 - [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
@@ -63,6 +63,8 @@
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
+
+[2026/10/31 13:20] 表示順の実装SHA `eec7205` で `ImeServiceEnglishSuggestionTest` 50件PASS。初期状態の定型文1件→メール1件の順と、more後の定型文維持を既存testへ追加。`site/mock.html`と`docs/reference/mock-source.html`はbyte一致。`scripts/test-all.sh --parallel --connected` は1/3 PASS（fast-checksのみ）。Android unitは既存絵文字再入場テストの `ImeHideBarTest.kt:572` で失敗し、Android connectedは `VoiceRecognitionAvailabilityTest.reportsInstalledJapaneseModelSupport` で失敗。変更対象の個人情報テストは失敗していない。エミュレータは停止。全体gate未通過のため新ACの完了宣言と正式公開は行わない。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
