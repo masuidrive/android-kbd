@@ -7,6 +7,8 @@
 - [x] 利用者の依頼: 左下キーは元のレイヤーを表示し、tapで一覧を閉じ、各方向のフリックで指定レイヤーへ切り替える。
 - [x] 利用者の追加依頼: 単語一覧と通常レイヤーでキー種類ごとの定義・タッチ処理を構造化し、同じ挙動を別々に手書きしない。
 - [x] 利用者の追加依頼: 単語一覧の初期表示は定型文をメールアドレスより前に置く。
+- [x] 利用者の公開承認: この変更を直接ダウンロード可能なAPKとしてGitHub Releaseへ公開し、製品ページとマニュアルと操作モックを同期公開する。
+- [x] 公開前の全体試験で見つかった並列Gradleビルド競合を除き、Mozc JNIの接続試験を通す。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -113,6 +115,12 @@ technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4�
 最終SHAのAPKをAndroid 16エミュレータ（412dp）へ入れ、設定で候補登録→入力テスト→単語一覧までSurface Observerが実操作した。元がQWERTYのとき左下はAzを表示し、固定高とキー配置に重なり・欠落はない。画像 `/private/tmp/footer-surface-final-picker3.png`。Space上下の実カーソル移動とレイヤーキー全方向は最終SHAのattached MotionEvent/connected testで確認したが、Surface Observer自身は最終APK上で全方向を操作していない。物理端末は利用者確認待ち。エミュレータは停止した。
 
 ## 試用APK
+
+[2026/10/31 19:14] 利用者の明示的な公開承認でv0.15.35を公開。AndroidコードSHA `ce159cc8222cf58e8e210c3028b9f4dda877c3a8`。版番号更新後の最初の `scripts/test-all.sh --parallel --connected` は2/3で接続10件が `MozcJNI` のClassNotFoundException。unit/lint/APKとconnectedが2つのGradleプロセスで同一`app/build`へ並列書き込みし、最終APKには当該クラスが含まれる一方、接続試験で導入されたAPKからは見つからなかった。`ce159cc`でAndroidタスクを1つのGradle invocationへまとめ、最終実行は `PASS: fast-checks` / `PASS: android unit, lint, apk, connected (real Mozc)` / `Passed: 2 / 2`。接続32件失敗0、エミュレータ停止後ADB空。これはテスト実行経路の修正で製品挙動は変えない。
+
+GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.35` の直接APK `https://github.com/masuidrive/android-kbd/releases/download/v0.15.35/gesture-ime-v0.15.35.apk` を再取得し、ローカル `/private/tmp/gesture-ime-v0.15.35.apk` とbyte一致を確認。39,107,306 bytes、SHA-256 `cdca187475284878f9cfc934322934f3a343b9a807cdd3b4ccbc029445c2aa82`、package `com.masuidrive.gestureime`、versionName `0.15.35`、versionCode `51`、ABI `arm64-v8a`、権限は `android.permission.RECORD_AUDIO` とアプリ内部の `com.masuidrive.gestureime.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`。
+
+製品ページ、manual、mockは`masuidrive/masuidrive.jp`のcommit `79539f7c256241a2439286e3867563e8767421c6`へpush。公開前に`site/index.html`、`site/mock.html`、`site/manual.html`、`site/styles.css`がpublishing repoの4ファイルとbyte一致。GitHub Pages APIは同commitを`built`と報告し、公開URLの主要4ファイルもcommitとbyte一致。公開モックを実ブラウザで412pxと840pxで表示し、かなタップ「あ」、左フリック「い」で「あい」入力を確認。両幅で横はみ出し・画像欠落・console errorなし。物理端末での利用者確認とticket close承認は未了。
 
 [2026/10/31 13:21] 表示順更新版のdebug APKを `app/build/outputs/apk/debug/app-debug.apk` に生成（39,029,958 bytes、SHA-256 `2fa603925bb084bf3bdb469219435fe86cb32ed1239cc88f9ce1c9d0a5a69c04`）。既存Flyer試用ページ `https://vhduzh3k.aboutme.style/` をこのAPKへ差し替え、2分割の保存hashとローカル結合hashが元APKと一致。旧c978b59分割ファイルは削除。期限は2026/11/01 13:21 JST。正式GitHub Releaseではない。
 
