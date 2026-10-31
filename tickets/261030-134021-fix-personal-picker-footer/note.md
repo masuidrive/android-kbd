@@ -1,11 +1,12 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-human-review (human device review pending)
+## Status: PDH-implement (user-requested order change; human device review pending)
 
 ## Checklist
 - [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
 - [x] 利用者の依頼: 左下キーは元のレイヤーを表示し、tapで一覧を閉じ、各方向のフリックで指定レイヤーへ切り替える。
 - [x] 利用者の追加依頼: 単語一覧と通常レイヤーでキー種類ごとの定義・タッチ処理を構造化し、同じ挙動を別々に手書きしない。
+- [x] 利用者の追加依頼: 単語一覧の初期表示は定型文をメールアドレスより前に置く。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -47,6 +48,9 @@
 - [x] 現行native footerはlayer keyのtapをKANA/QWERTYへ反転し、Spaceはtrackpad=trueだが上下24dp単位。mockは左フリックを持たないvoiceNavigationを流用し、tapもKANA/QWERTYへ反転することをコードで確認。変更前focused unit suiteはBUILD SUCCESSFUL。
 
 ## PDH-implement. 実装ログ
+
+[2026/10/31 13:12] 人間レビュー中の追加依頼でAC5を再合意。影響層はIME service、単語一覧Viewへの候補データ、unit test、ブラウザmock、仕様・マニュアル。保存形式、明示欄の自動候補、通常6レイヤーは変更しない。変更前は初期一覧がメールだけ、more後に末尾で定型文だった。定型文→メールの順へ変え、moreは氏名・住所を増やす操作に限定する。重複検出はsimilarity-genericがKotlin非対応のためskip。focused test初回は非表示Viewをfindで検出するテスト誤りで失敗し、visibility判定へ修正後50件PASS。
+
 
 [2026/10/30 22:41] 依存仮定: panelが開いた時点のkeyboardModeはservice側で維持される。MotionEventはDOWN targetへ続けて配送される。mockのpointer captureはreleaseまで同じkeyを保持する。nativeの既存Space trackpad自体は上下CursorDeltaを返すが、単一行では移動先がないため見た目の変化がない。実機と異なる可能性はSurfaceで確認する。非対象の編集キー（句読点・Backspace・Enter）を反例として変更前後で比較する。
 [2026/10/30 22:50] Nativeの元レイヤー表示・tap復帰・フリックpreviewを4a5661cへcommit。Spaceの上下35dp MotionEventをattached pickerとIME service経由で送り、複数行editorでカーソル8→5→8、一覧維持、レイヤー不変を確認。短いフリックまたは単一行では上下に移動先がなく、実機の「時々レイヤー変更」の根本原因は未再現。ブラウザモックは実サーバーで上/下Space操作が5→8、一覧維持を確認し、レイヤー上フリックで日本語へ切替を確認。

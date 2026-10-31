@@ -1639,8 +1639,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             CandidateUiSnapshot(token, emptyList())
         })
         personalInfoPanel?.setMoreVisible(personalInfoPickerVisible && !personalInfoPickerExpanded &&
-            (ImePreferences.getRegisteredPersonalInfoSuggestions(this).any { it.field != PersonalInfoField.EMAIL } ||
-                ImePreferences.getTextSnippets(this).isNotEmpty()))
+            ImePreferences.getRegisteredPersonalInfoSuggestions(this).any { it.field != PersonalInfoField.EMAIL })
         updatePersonalInfoPanelVisibility()
         personalInfoPanel?.setLayerMode(keyboardMode)
     }
@@ -1696,7 +1695,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
                 personalInfoPickerExpanded = false
                 candidateSource = CandidateSource.PERSONAL_INFO
                 candidates = emptyList()
-                setPersonalInfoPickerValues(suggestions.filter { it.field == PersonalInfoField.EMAIL }, emptyList())
+                setPersonalInfoPickerValues(suggestions.filter { it.field == PersonalInfoField.EMAIL }, snippets)
                 selectedCandidate = -1
                 showCandidateState()
             }
@@ -1719,9 +1718,9 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
 
     private fun setPersonalInfoPickerValues(suggestions: List<PersonalInfoSuggestion>, snippets: List<String>) {
         val selections = suggestions.flatMap(::personalInfoSelectionValues)
-        personalInfoPickerValues = selections.map { it.second } + snippets
-        personalInfoPickerLabels = selections.map { (label, value) -> "$label: $value" } +
-            snippets.map { "定型文: $it" }
+        personalInfoPickerValues = snippets + selections.map { it.second }
+        personalInfoPickerLabels = snippets.map { "定型文: $it" } +
+            selections.map { (label, value) -> "$label: $value" }
     }
 
     private fun commitPersonalInfoCandidate(index: Int, editorToken: Long) {

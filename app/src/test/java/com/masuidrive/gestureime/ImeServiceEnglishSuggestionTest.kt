@@ -156,7 +156,7 @@ class ImeServiceEnglishSuggestionTest {
             harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
             harness.idle()
-            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 2: 定型文: 登録キーワード" } != null)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 定型文: 登録キーワード" } != null)
             val key = harness.root.findView {
                 it.contentDescription?.toString() == "タップで、。左フリックで。上フリックで？右フリックで！"
             }!!
@@ -359,11 +359,12 @@ class ImeServiceEnglishSuggestionTest {
             harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
             val chip = harness.root.findView {
                 it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。"
             }!! as android.widget.TextView
+            assertEquals(View.INVISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "その他の個人情報を表示"
+            }!!.visibility)
             assertEquals("いつもありがとうございます。", chip.text.toString())
             chip.performClick()
             harness.idle()
@@ -466,12 +467,13 @@ class ImeServiceEnglishSuggestionTest {
                 harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
                 harness.idle()
                 assertEquals(initialHeight, measuredHeight())
-                assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 5: 定型文: いつもありがとうございます。" })
+                assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。" } != null)
+                assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 2: メールアドレス: name@example.com" } != null)
                 harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
                 harness.idle()
                 assertEquals(initialHeight, measuredHeight())
                 assertEquals(View.VISIBLE, harness.root.findView {
-                    it.contentDescription?.toString() == "個人情報 5: 定型文: いつもありがとうございます。"
+                    it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。"
                 }!!.visibility)
 
                 harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" }!!.performClick()

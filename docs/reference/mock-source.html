@@ -365,9 +365,9 @@
   ];
   let emojiRecents=[], emojiScrollTop=0, emojiCategory='recent';
   const voiceDemo={active:false,phase:'idle',partial:'',candidates:[],index:0,timers:[],returnState:null,committed:false,generation:0,selectionGeneration:0,turn:0,level:0};
-  const personalInfoValues=[['氏名','山田 太郎'],['氏名（ひらがな）','やまだ たろう'],['氏名（カタカナ）','ヤマダ タロウ'],['氏名（英字）','Taro Yamada']]
+  const personalInfoValues=[['定型文','いつもありがとうございます。'],['氏名','山田 太郎'],['氏名（ひらがな）','やまだ たろう'],['氏名（カタカナ）','ヤマダ タロウ'],['氏名（英字）','Taro Yamada']]
     .flatMap(([label,value])=>{const parts=value.trim().split(/\s+/,2);return parts.length===2?[[label+'（姓）',parts[0]],[label+'（名）',parts[1]]]:[[label,value]];})
-    .concat([['メールアドレス','name@example.com'],['メールアドレス','work@example.com'],['メールアドレス','other@example.com'],['メールアドレス','contact@example.com'],['郵便番号','1000001'],['都道府県','東京都'],['市区町村','千代田区'],['住所1','千代田1-1'],['住所2','建物名'],['定型文','いつもありがとうございます。']]);
+    .concat([['メールアドレス','name@example.com'],['メールアドレス','work@example.com'],['メールアドレス','other@example.com'],['メールアドレス','contact@example.com'],['郵便番号','1000001'],['都道府県','東京都'],['市区町村','千代田区'],['住所1','千代田1-1'],['住所2','建物名']]);
   let personalInfoPickerVisible=false;
   let personalInfoPickerExpanded=false;
   let personalInfoReturnState=null;
@@ -1112,7 +1112,7 @@
     if(personalInfoPickerVisible) {
       keyMap=new Map();keys.replaceChildren();keys.className='keys kana voice personal-info-picker';
       const values=document.createElement('div');values.className='personal-info-values';
-      personalInfoValues.filter(([label])=>personalInfoPickerExpanded||label==='メールアドレス').forEach(([label,value])=>{
+      personalInfoValues.filter(([label])=>personalInfoPickerExpanded||label==='定型文'||label==='メールアドレス').forEach(([label,value])=>{
         const button=document.createElement('button');button.type='button';button.dataset.personalInfo=value;
         button.setAttribute('aria-label',label+': '+value);button.textContent=value;values.append(button);
       });
@@ -1122,7 +1122,7 @@
         {special:true,side:true,navigation:layerNavigation,preview:'selection'}));
       layerButton.setAttribute('aria-label','タップで'+(voiceReturnLabels[original.language+'/'+original.layer]||'Az')+'へ戻る。左フリックで音声、上フリックで日本語、右フリックでQWERTY、下フリックでテンキー');
       bottom.append(layerButton);
-      if(!personalInfoPickerExpanded&&personalInfoValues.some(([label])=>label!=='メールアドレス')) {
+      if(!personalInfoPickerExpanded&&personalInfoValues.some(([label])=>label!=='定型文'&&label!=='メールアドレス')) {
         const more=createKeyElement(makeKey('personal-info-more','more..',{special:true,side:true}));
         more.dataset.personalInfoMore='';more.setAttribute('aria-label','その他の個人情報を表示');bottom.append(more);
       } else bottom.append(document.createElement('span'));
