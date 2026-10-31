@@ -1,6 +1,6 @@
 # Work Notes: 261030-134021-fix-personal-picker-footer
 
-## Status: PDH-verify (order change implemented; full-suite failures and human device review pending)
+## Status: PDH-human-review (order change and full suite verified; physical device review pending)
 
 ## Checklist
 - [x] 利用者の依頼: 単語一覧のSpace上下フリックはカーソル操作にし、レイヤー切替を起こさない。
@@ -65,6 +65,7 @@
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
 [2026/10/31 13:20] 表示順の実装SHA `eec7205` で `ImeServiceEnglishSuggestionTest` 50件PASS。初期状態の定型文1件→メール1件の順と、more後の定型文維持を既存testへ追加。`site/mock.html`と`docs/reference/mock-source.html`はbyte一致。`scripts/test-all.sh --parallel --connected` は1/3 PASS（fast-checksのみ）。Android unitは既存絵文字再入場テストの `ImeHideBarTest.kt:572` で失敗し、Android connectedは `VoiceRecognitionAvailabilityTest.reportsInstalledJapaneseModelSupport` で失敗。変更対象の個人情報テストは失敗していない。エミュレータは停止。全体gate未通過のため新ACの完了宣言と正式公開は行わない。
+[2026/10/31 15:57] 利用者の指摘で失敗の扱いを再調査。前回は別件として保留したが、絵文字失敗を修正済みのopen branch `features/261030-095708-fix-emoji-reentry-test` を統合できる状態だった。`817a45c`で統合し、現在Viewを再取得する再入場テストを含むImeHideBarTest 33件PASS。音声は冷起動したAndroid 16エミュレータで認識サービスprobeが旧10秒待機を超えた。`86ed193`で上限を30秒にし、timeout時もrecognizerをdestroyするよう修正。冷起動後の該当接続テスト1件は18.67秒でPASS。変更はテストのみで製品APKの実装バイトは変えていない。
 
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
@@ -83,6 +84,8 @@
 | 2 | test coverage | Minor | レイヤーキーの中心復帰とcancelが未検証 | 採用 | attached picker MotionEvent testを追加 |
 
 ## Test evidence
+
+コードSHA `86ed193fb2560b4e02c6048220b431afa2173603` で `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk scripts/test-all.sh --parallel --connected` を実行し、fast-checks、Android unit/lint/APK、Android connected (real Mozc) は3/3 PASS。接続試験32件・失敗0件、ImeHideBarTest 33件・失敗0件。音声の30秒上限は無応答を合格扱いにせず、timeout後も失敗する。検証用エミュレータ停止後のADB一覧は空。物理端末は未確認であり、human reviewを維持する。
 
 最初の確定SHA `65bd0841dfe035f2b0695160409b698dc91b4c67` で `ANDROID_HOME="$HOME/Library/Android/sdk" scripts/test-all.sh --parallel --connected` を1回実行した出力:
 
