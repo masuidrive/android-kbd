@@ -111,6 +111,9 @@ technical-reference.mdの個人情報panel記述を元レイヤーtap復帰・4�
 
 ## 試用APK
 
+[2026/10/31 13:21] 表示順更新版のdebug APKを `app/build/outputs/apk/debug/app-debug.apk` に生成（39,029,958 bytes、SHA-256 `2fa603925bb084bf3bdb469219435fe86cb32ed1239cc88f9ce1c9d0a5a69c04`）。既存Flyer試用ページ `https://vhduzh3k.aboutme.style/` をこのAPKへ差し替え、2分割の保存hashとローカル結合hashが元APKと一致。旧c978b59分割ファイルは削除。期限は2026/11/01 13:21 JST。正式GitHub Releaseではない。
+
+
 最終APK `app/build/outputs/apk/debug/app-debug.apk` は38,910,970 bytes、SHA-256 `34f46e293bbfd6d9348c633c56574aa6a35afaee96c6d24ddfcb5c5b6ce5aa5e`、package `com.masuidrive.gestureime`、version `0.15.34` / code 50。Flyerの `https://vhduzh3k.aboutme.style/` に2026/10/31 23:08 JSTまでの24時間試用版として掲載。20MiB制限に合わせた2分割保存hashと、ページ内の結合APKの期待hash/sizeを手元と照合した。旧2分割ファイルは削除。正式GitHub Releaseとticket closeは実機レビュー待ち。
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
