@@ -55,8 +55,14 @@ class VoiceRecognitionAvailabilityTest {
                 }
             })
         }
-        assertTrue(completed.await(10, TimeUnit.SECONDS))
-        Log.i("VoiceAvailability", "installed=$installed pending=$pending supported=$supported supportError=$supportError")
-        InstrumentationRegistry.getInstrumentation().runOnMainSync { recognizer.destroy() }
+        try {
+            // A cold emulator can spend over ten seconds starting the system recognizer.
+            // Keep a bounded wait so a missing callback still fails the probe.
+            assertTrue("Recognition support callback did not arrive within 30 seconds",
+                completed.await(30, TimeUnit.SECONDS))
+            Log.i("VoiceAvailability", "installed=$installed pending=$pending supported=$supported supportError=$supportError")
+        } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { recognizer.destroy() }
+        }
     }
 }
