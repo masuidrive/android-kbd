@@ -103,10 +103,13 @@ fi
 # Deterministic fast-check registry. Cheap and language-agnostic, so it is enabled
 # by default as the first stage; everything below is a commented-out example.
 run "fast-checks" bash scripts/fast-checks.sh
-run "android unit, lint, apk" ./gradlew testDebugUnitTest lintDebug assembleDebug
-
 if $CONNECTED; then
-  run "android connected (real Mozc)" ./gradlew connectedDebugAndroidTest
+  # Both Gradle invocations would mutate the same app/build intermediates in
+  # parallel mode. Run the Android tasks in one invocation so the installed APK
+  # and the APK inspected by unit/lint checks come from the same build.
+  run "android unit, lint, apk, connected (real Mozc)" ./gradlew testDebugUnitTest lintDebug assembleDebug connectedDebugAndroidTest
+else
+  run "android unit, lint, apk" ./gradlew testDebugUnitTest lintDebug assembleDebug
 fi
 
 # Example: Backend (Python pytest)
