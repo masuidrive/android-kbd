@@ -426,6 +426,7 @@ class KeyboardViewVoicePunctuationTest {
                             assertEquals("$widthDp dp $mode $name", case.second, actions)
                         }
 
+                        view.setModifier(null)
                         actions.clear()
                         val nearLeftX = key.left + 2f * density
                         val nearLeftTime = SystemClock.uptimeMillis()
