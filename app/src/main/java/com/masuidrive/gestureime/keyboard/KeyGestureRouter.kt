@@ -22,7 +22,7 @@ class KeyGestureRouter {
     fun begin(pointerId: Int, spec: KeySpec, xDp: Float, yDp: Float,
               thresholds: GestureThresholds, shortVerticalCursor: Boolean = false) {
         presses[pointerId] = Press(spec, shortVerticalCursor)
-        val verticalOnly = spec.kind == KeyKind.MODIFIER ||
+        val verticalOnly = (spec.kind == KeyKind.MODIFIER && spec.left == null && spec.right == null) ||
             (spec.kind == KeyKind.BACKSPACE && spec.center == null) ||
             (spec.kind == KeyKind.CHARACTER && spec.up != null && spec.down != null &&
                 spec.left == null && spec.right == null)

@@ -88,13 +88,20 @@ class KeyboardViewTest {
         assertEquals(listOf(KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null)), actions)
     }
 
-    @Test fun `modifier center tap sends Tab in both English layers`() {
+    @Test fun `modifier tap is idle and horizontal flicks send Tab in both English layers`() {
         for (mode in listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS)) {
             view.setMode(mode)
             actions.clear()
             val modifier = keyBounds(10)
             performGesture(modifier, time = 0)
-            assertEquals(mode.toString(), listOf(KeyAction.Tab), actions)
+            assertTrue("$mode center", actions.isEmpty())
+            performGesture(modifier, listOf(-30f to 0f), time = 10)
+            performGesture(modifier, listOf(30f to 0f), time = 20)
+            assertEquals("$mode horizontal", listOf(KeyAction.Tab, KeyAction.Tab), actions)
+            actions.clear()
+            performGesture(modifier, listOf(30f to 0f, 0f to 0f), time = 30)
+            performGesture(modifier, listOf(-30f to 0f), MotionEvent.ACTION_CANCEL, time = 40)
+            assertTrue("$mode return and cancel", actions.isEmpty())
         }
     }
 
@@ -104,28 +111,30 @@ class KeyboardViewTest {
             view.setModifier(null)
             val provider = view.accessibilityNodeProvider
             val idle = requireNotNull(provider.createAccessibilityNodeInfo(10))
-            assertEquals("$mode idle description", "タップ Tab、上 Alt、下 Ctrl", idle.contentDescription.toString())
+            assertEquals("$mode idle description", "タップは無反応、左 Tab、右 Tab、上 Alt、下 Ctrl", idle.contentDescription.toString())
             assertFalse("$mode idle selection", idle.isSelected)
-            assertEquals("Tab", idle.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
+            assertFalse(idle.actionList.any { it.id == AccessibilityNodeInfo.ACTION_CLICK })
+            assertTrue(idle.actionList.any { it.label?.toString() == "左 Tab" })
+            assertTrue(idle.actionList.any { it.label?.toString() == "右 Tab" })
             assertTrue(idle.actionList.any { it.label?.toString() == "上 Alt" })
             assertTrue(idle.actionList.any { it.label?.toString() == "下 Ctrl" })
 
             actions.clear()
-            assertTrue(provider.performAction(10, AccessibilityNodeInfo.ACTION_CLICK, null))
-            assertEquals(listOf(KeyAction.Tab), actions)
+            assertFalse(provider.performAction(10, AccessibilityNodeInfo.ACTION_CLICK, null))
+            assertTrue(actions.isEmpty())
 
             view.setModifier(Modifier.ALT)
             val selected = requireNotNull(provider.createAccessibilityNodeInfo(10))
-            assertEquals("$mode selected description", "タップで解除、上 Alt、下 Ctrl", selected.contentDescription.toString())
+            assertEquals("$mode selected description", "タップで解除、左 Tab、右 Tab、上 Alt、下 Ctrl", selected.contentDescription.toString())
             assertTrue("$mode selected state", selected.isSelected)
             assertEquals("修飾キーを解除", selected.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
             actions.clear()
             view.cancelActiveGestures()
             assertEquals(listOf(KeyAction.SetModifier(null)), actions)
             val canceled = requireNotNull(provider.createAccessibilityNodeInfo(10))
-            assertEquals("$mode canceled description", "タップ Tab、上 Alt、下 Ctrl", canceled.contentDescription.toString())
+            assertEquals("$mode canceled description", "タップは無反応、左 Tab、右 Tab、上 Alt、下 Ctrl", canceled.contentDescription.toString())
             assertFalse("$mode canceled state", canceled.isSelected)
-            assertEquals("Tab", canceled.actionList.first { it.id == AccessibilityNodeInfo.ACTION_CLICK }.label.toString())
+            assertFalse(canceled.actionList.any { it.id == AccessibilityNodeInfo.ACTION_CLICK })
 
             view.setModifier(Modifier.ALT)
             actions.clear()
