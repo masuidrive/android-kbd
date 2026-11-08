@@ -152,6 +152,19 @@ class KeyboardViewTest {
         }
     }
 
+    @Test fun `horizontal Tab consumes a pending modifier before the next letter`() {
+        view.setMode(KeyboardMode.QWERTY)
+        val modifier = keyBounds(10)
+        performGesture(modifier, listOf(0f to 30f), time = 0)
+        performGesture(modifier, listOf(30f to 0f), time = 10)
+        performGesture(keyBounds(12), time = 20)
+        assertEquals(listOf(
+            KeyAction.SetModifier(Modifier.CTRL),
+            KeyAction.ModifiedKey("TAB", Modifier.CTRL),
+            KeyAction.SetModifier(null),
+            KeyAction.CommitText("s")), actions)
+    }
+
     @Test fun `ctrl applies to only the next qwerty letter`() {
         view.setMode(KeyboardMode.QWERTY)
         val modifier = keyBounds(10)

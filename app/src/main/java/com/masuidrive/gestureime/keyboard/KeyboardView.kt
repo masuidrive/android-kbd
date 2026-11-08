@@ -1150,6 +1150,13 @@ class KeyboardView @JvmOverloads constructor(
         when (action) {
             is KeyAction.SwitchLayer -> { setMode(action.target); actionSink?.onKeyAction(action) }
             is KeyAction.SetModifier -> updateModifier(action.modifier)
+            KeyAction.Tab -> {
+                val modifier = state.pendingModifier
+                if (modifier != null) {
+                    actionSink?.onKeyAction(KeyAction.ModifiedKey("TAB", modifier))
+                    updateModifier(null)
+                } else actionSink?.onKeyAction(KeyAction.Tab)
+            }
             is KeyAction.CommitText -> {
                 val modifier = state.pendingModifier
                 if (spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.KANA) {

@@ -1344,7 +1344,7 @@
         const navigationAction=p.key.navigation[p.navigationChoice].action;
         if(navigationAction==='voice') {personalInfoPickerVisible=false;beginVoiceDemo(p);}else action(navigationAction,p.keyModifier);
       }
-      else if(p.modifierTab&&!p.used) {insert('\t');announce('Tab');}
+      else if(p.modifierTab&&!p.used) {if(!applyModified('Tab',pendingModifier)){insert('\t');announce('Tab');}}
       else if(p.modifierChoice&&!p.used) {pendingModifier=pendingModifier===p.modifierChoice?null:p.modifierChoice;announce(pendingModifier?modifierLabel(pendingModifier)+'：次のキーに適用':'修飾キーを解除');}
       else if(p.modifierFlick&&p.used) { /* modifier was held for another key */ }
       else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}

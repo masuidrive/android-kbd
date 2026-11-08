@@ -368,9 +368,9 @@ class TextInputControllerTest {
     }
 
     @Test
-    fun ctrlAndAltLettersSendModifiedDownAndUpWithoutEditorContextActions() {
+    fun ctrlAndAltKeysSendModifiedDownAndUpWithoutEditorContextActions() {
         for (modifier in Modifier.entries) {
-            for (label in listOf("a", "c", "x", "v", "s")) {
+            for (label in listOf("a", "c", "x", "v", "s", "TAB")) {
                 input.sentKeyEvents.clear()
                 controller.sendModifiedKey(label, modifier)
 
