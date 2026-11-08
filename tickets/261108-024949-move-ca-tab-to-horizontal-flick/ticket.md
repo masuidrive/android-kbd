@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/261030-134021-fix-personal-picker-footer
 description: "英数字・記号レイヤーの修飾キーは左右フリックでTabを送る"
 created_at: "2026-11-08T02:49:49Z"
-started_at: null  # Do not modify manually
+started_at: 2026-11-08T02:51:51Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
