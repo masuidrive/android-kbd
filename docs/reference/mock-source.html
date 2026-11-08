@@ -1414,7 +1414,10 @@
   root.addEventListener('keydown',e=>{
     if(!e.target.closest('.key.modifier-gesture')||!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;
     e.preventDefault();
-    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){insert('\t');announce('Tab');return;}
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      if(!applyModified('Tab',pendingModifier)){insert('\t');announce('Tab');}
+      render();$('.key.modifier-gesture').focus();return;
+    }
     pendingModifier=e.key==='ArrowDown'?'Control':'Alt';
     announce(modifierLabel(pendingModifier)+'：次のキーに適用');render();$('.key.modifier-gesture').focus();
   });
