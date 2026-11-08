@@ -12,6 +12,8 @@ data class GestureThresholds(
     val trackpadStartDp: Float = 10f,
     val horizontalUnitDp: Float = 8f,
     val verticalUnitDp: Float = 24f,
+    val leftSelectionDp: Float? = null,
+    val leftReturnHysteresisDp: Float? = null,
 )
 
 enum class FlickSensitivity(
@@ -94,9 +96,16 @@ class GestureInterpreter(private val thresholds: GestureThresholds = GestureThre
             state.direction = next
             return GestureUpdate.Selection(next)
         }
+        val leftward = dx < 0 && abs(dx) >= abs(dy)
+        val leftThreshold = leftward || state.direction == Direction.LEFT
+        val selectionDp = if (leftThreshold) state.thresholds.leftSelectionDp ?: state.thresholds.selectionDp
+            else state.thresholds.selectionDp
+        val returnDp = if (state.direction == Direction.LEFT) {
+            state.thresholds.leftReturnHysteresisDp ?: state.thresholds.returnHysteresisDp
+        } else state.thresholds.returnHysteresisDp
         val next = when {
-            state.direction != Direction.CENTER && distance <= state.thresholds.returnHysteresisDp -> Direction.CENTER
-            distance < state.thresholds.selectionDp -> state.direction
+            state.direction != Direction.CENTER && distance <= returnDp -> Direction.CENTER
+            distance < selectionDp -> state.direction
             abs(dx) >= abs(dy) -> if (dx < 0) Direction.LEFT else Direction.RIGHT
             else -> if (dy < 0) Direction.UP else Direction.DOWN
         }

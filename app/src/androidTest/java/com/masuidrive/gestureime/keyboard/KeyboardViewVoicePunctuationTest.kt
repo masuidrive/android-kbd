@@ -414,10 +414,10 @@ class KeyboardViewVoicePunctuationTest {
 
                         listOf(
                             "tap" to (emptyList<Pair<Float, Float>>() to emptyList()),
-                            "left" to (listOf(-distance to 0f) to listOf(KeyAction.Tab)),
+                            "left to screen edge" to (listOf(-key.exactCenterX() to 0f) to listOf(KeyAction.Tab)),
                             "right" to (listOf(distance to 0f) to listOf(KeyAction.Tab)),
-                            "below threshold" to (listOf(-12f * density to 0f) to emptyList()),
-                            "return to center" to (listOf(-distance to 0f, 0f to 0f) to emptyList()),
+                            "below threshold" to (listOf(-key.exactCenterX() * .25f to 0f) to emptyList()),
+                            "return to center" to (listOf(-key.exactCenterX() to 0f, 0f to 0f) to emptyList()),
                             "up" to (listOf(0f to -distance) to listOf(KeyAction.SetModifier(Modifier.ALT))),
                             "down" to (listOf(0f to distance) to listOf(KeyAction.SetModifier(Modifier.CTRL))),
                         ).forEach { (name, case) ->
