@@ -375,7 +375,7 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
-    @Test fun modifierCenterTabAndVerticalFlicksUseProductionMotionEventsAtPhoneAndTabletWidths() {
+    @Test fun modifierHorizontalTabAndVerticalFlicksUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val actions = mutableListOf<KeyAction>()
@@ -396,7 +396,7 @@ class KeyboardViewVoicePunctuationTest {
                         check(id >= 0) { "$mode has no modifier key" }
                         val key = bounds(view, id)
                         assertTrue("$widthDp dp $mode accessible Tab", view.accessibilityNodeProvider
-                            .createAccessibilityNodeInfo(id)?.contentDescription?.toString()?.contains("タップ Tab") == true)
+                            .createAccessibilityNodeInfo(id)?.contentDescription?.toString()?.contains("左 Tab、右 Tab") == true)
 
                         fun gesture(name: String, points: List<Pair<Float, Float>>, canceled: Boolean = false) {
                             actions.clear()
@@ -413,11 +413,11 @@ class KeyboardViewVoicePunctuationTest {
                         }
 
                         listOf(
-                            "tap" to (emptyList<Pair<Float, Float>>() to listOf(KeyAction.Tab)),
+                            "tap" to (emptyList<Pair<Float, Float>>() to emptyList()),
                             "left" to (listOf(-distance to 0f) to listOf(KeyAction.Tab)),
                             "right" to (listOf(distance to 0f) to listOf(KeyAction.Tab)),
-                            "below threshold" to (listOf(0f to -12f * density) to listOf(KeyAction.Tab)),
-                            "return to center" to (listOf(0f to -distance, 0f to 0f) to listOf(KeyAction.Tab)),
+                            "below threshold" to (listOf(-12f * density to 0f) to emptyList()),
+                            "return to center" to (listOf(-distance to 0f, 0f to 0f) to emptyList()),
                             "up" to (listOf(0f to -distance) to listOf(KeyAction.SetModifier(Modifier.ALT))),
                             "down" to (listOf(0f to distance) to listOf(KeyAction.SetModifier(Modifier.CTRL))),
                         ).forEach { (name, case) ->

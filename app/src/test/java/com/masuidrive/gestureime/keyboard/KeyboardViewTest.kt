@@ -79,7 +79,7 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
-    @Test fun `modifier uses only vertical selection and tap clears it`() {
+    @Test fun `modifier vertical selection remains one shot and tap clears it`() {
         touch(MotionEvent.ACTION_DOWN, 10f, 67f)
         touch(MotionEvent.ACTION_MOVE, 10f, 40f, 10)
         touch(MotionEvent.ACTION_UP, 10f, 40f, 20)
@@ -99,9 +99,18 @@ class KeyboardViewTest {
             performGesture(modifier, listOf(30f to 0f), time = 20)
             assertEquals("$mode horizontal", listOf(KeyAction.Tab, KeyAction.Tab), actions)
             actions.clear()
+            performGesture(modifier, listOf(10f to 0f), time = 5)
+            assertTrue("$mode below threshold", actions.isEmpty())
             performGesture(modifier, listOf(30f to 0f, 0f to 0f), time = 30)
             performGesture(modifier, listOf(-30f to 0f), MotionEvent.ACTION_CANCEL, time = 40)
             assertTrue("$mode return and cancel", actions.isEmpty())
+            performGesture(modifier, listOf(0f to -30f), time = 50)
+            performGesture(modifier, time = 60)
+            performGesture(modifier, listOf(0f to 30f), time = 70)
+            performGesture(modifier, time = 80)
+            assertEquals("$mode vertical modifiers", listOf(
+                KeyAction.SetModifier(Modifier.ALT), KeyAction.SetModifier(null),
+                KeyAction.SetModifier(Modifier.CTRL), KeyAction.SetModifier(null)), actions)
         }
     }
 
