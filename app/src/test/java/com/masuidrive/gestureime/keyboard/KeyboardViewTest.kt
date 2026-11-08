@@ -101,6 +101,12 @@ class KeyboardViewTest {
             actions.clear()
             performGesture(modifier, listOf(-modifier.exactCenterX() * .25f to 0f), time = 5)
             assertTrue("$mode below threshold", actions.isEmpty())
+            val nearLeftX = modifier.left + 2f
+            touch(MotionEvent.ACTION_DOWN, nearLeftX, modifier.exactCenterY(), 6)
+            val jitterX = maxOf(0f, nearLeftX - 5f)
+            touch(MotionEvent.ACTION_MOVE, jitterX, modifier.exactCenterY(), 7)
+            touch(MotionEvent.ACTION_UP, jitterX, modifier.exactCenterY(), 8)
+            assertTrue("$mode near-left tap jitter", actions.isEmpty())
             performGesture(modifier, listOf(-modifier.exactCenterX() to 0f, 0f to 0f), time = 30)
             performGesture(modifier, listOf(-30f to 0f), MotionEvent.ACTION_CANCEL, time = 40)
             assertTrue("$mode return and cancel", actions.isEmpty())

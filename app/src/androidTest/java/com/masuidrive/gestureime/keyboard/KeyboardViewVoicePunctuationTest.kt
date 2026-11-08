@@ -426,6 +426,18 @@ class KeyboardViewVoicePunctuationTest {
                             assertEquals("$widthDp dp $mode $name", case.second, actions)
                         }
 
+                        actions.clear()
+                        val nearLeftX = key.left + 2f * density
+                        val nearLeftTime = SystemClock.uptimeMillis()
+                        dispatch(view, MotionEvent.ACTION_DOWN, nearLeftTime, nearLeftTime,
+                            nearLeftX, key.exactCenterY())
+                        val jitterX = maxOf(0f, nearLeftX - 5f * density)
+                        dispatch(view, MotionEvent.ACTION_MOVE, nearLeftTime, nearLeftTime + 1,
+                            jitterX, key.exactCenterY())
+                        dispatch(view, MotionEvent.ACTION_UP, nearLeftTime, nearLeftTime + 2,
+                            jitterX, key.exactCenterY())
+                        assertTrue("$widthDp dp $mode near-left tap jitter", actions.isEmpty())
+
                         view.setModifier(null)
                         gesture("cancel", listOf(0f to -distance), canceled = true)
                         assertTrue("$widthDp dp $mode cancellation", actions.isEmpty())

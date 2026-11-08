@@ -1259,7 +1259,7 @@
     if(key.id==='modifier-gesture') {
       p.modifierFlick=true;p.modifierChoice=null;p.modifierTab=false;
       p.modifierLeftThreshold=Math.min(p.flickThresholds.selection,
-        Math.max(1,(p.x-keyboard.getBoundingClientRect().left)*.7));
+        Math.max(8,(p.x-keyboard.getBoundingClientRect().left)*.7));
       element.querySelector('.key-main').textContent=modifierGlyph(pendingModifier)||key.label;
     }
     if(key.text)for(const held of active.values())if(held!==p&&held.key.id==='modifier-gesture')held.used=true;

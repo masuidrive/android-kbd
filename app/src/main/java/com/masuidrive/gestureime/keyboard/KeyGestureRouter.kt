@@ -27,7 +27,7 @@ class KeyGestureRouter {
             (spec.kind == KeyKind.CHARACTER && spec.up != null && spec.down != null &&
                 spec.left == null && spec.right == null)
         val effectiveThresholds = if (spec.kind == KeyKind.MODIFIER && spec.left?.action == KeyAction.Tab) {
-            val leftSelection = minOf(thresholds.selectionDp, maxOf(1f, xDp * 0.7f))
+            val leftSelection = minOf(thresholds.selectionDp, maxOf(8f, xDp * 0.7f))
             thresholds.copy(leftSelectionDp = leftSelection,
                 leftReturnHysteresisDp = minOf(thresholds.returnHysteresisDp, leftSelection / 2f))
         } else thresholds
