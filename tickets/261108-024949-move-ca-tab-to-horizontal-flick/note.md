@@ -1,13 +1,13 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-implement (v0.15.37 公開表示の補正)
+## Status: PDH-human-review (v0.15.37 公開済み、物理端末確認待ち)
 
 ## Checklist
 - [x] 利用者依頼: 英数字左端のキーは通常タップを無反応とし、左右フリックでTabを入力する。
-- [ ] 利用者依頼: この変更を直接APKとして公開し、製品ページ・マニュアル・操作モックを同期する。
-- [ ] 公開APKを再取得し、ローカル成果物とバイト単位で一致することを確認する。
-- [ ] 公開サイトの主要4ファイルと操作モックをスマホ・タブレット幅で確認する。
-- [ ] 公開確認で見つけた修飾キーの上下ラベルとAlt・Ctrl動作の不一致を直し、修正版APKとサイトを公開する。
+- [x] 利用者依頼: この変更を直接APKとして公開し、製品ページ・マニュアル・操作モックを同期する。
+- [x] 公開APKを再取得し、ローカル成果物とバイト単位で一致することを確認する。
+- [x] 公開サイトの主要4ファイルと操作モックをスマホ・タブレット幅で確認する。
+- [x] 公開確認で見つけた修飾キーの上下ラベルとAlt・Ctrl動作の不一致を直し、修正版APKとサイトを公開する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -136,6 +136,23 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
 最終製品コード `b1e8720` のv0.15.37 APKを物理端末に入れ、英数字レイヤーの左端キー（上A・中央↔・下C）を入力欄で確認する。中央タップは何も送らず、左・右フリックは各1回だけTabを送る。端に近い短い指ぶれではTabを送らず、上・下フリックは従来どおりAlt・Ctrl、指定中の中央タップは解除される。記号レイヤーでも同じ操作を確認する。エミュレーターの実IMEでは中央・短い指ぶれ・左右Tabを確認済み。物理端末では未確認であり、利用者の結果と明示承認を待つ。
+
+2026-11-09: 利用者の「公開していいよ」はAPKとサイトの公開承認として受領。以前の「インストールして挙動確認しないでcloseすることはありません」に従い、ticket close承認には扱わない。v0.15.37の直接APKと製品サイトを公開済み。物理端末での確認結果を待つ。
+
+公開対象commit `d8948f99f11963da464c3f7e5e24e4abbe888370` の最終全体テスト:
+```text
+ANDROID_HOME=/Users/masuidrive/Library/Android/sdk PATH=/Users/masuidrive/Library/Android/sdk/platform-tools:$PATH scripts/test-all.sh --parallel --connected
+Parallel mode: logs in /var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.2SMcXJm1Tf
+  Summary
+  PASS: fast-checks
+  PASS: android unit, lint, apk, connected (real Mozc)
+Passed: 2 / 2
+```
+Android 36.1エミュレーターで接続32件すべて成功。最終APKは `app/build/outputs/apk/debug/app-debug.apk`、38,822,496 bytes、SHA-256 `76fb6829d891f6a21e4251df3010de11a7fa5c9ed74076fd094164697a8b6976`。package `com.masuidrive.gestureime`、versionCode 53、versionName 0.15.37、minSdk 28、arm64-v8a。権限は `RECORD_AUDIO` とAndroid生成の `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`。エミュレーター停止後の `adb devices` は空。
+
+独立reviewは `b1e8720` で旧上下ラベルが参照資料2件と確認手順に残るMajorを発見し、`d8948f9` の差分再reviewで解消、残存Critical/Majorなし。AC再裏取りは `b1e8720` でAC1〜4すべてVERIFIED。`d8948f9` は参照資料とnoteのみの追加変更で、実装とmockは不変。Surface ObserverはAndroid 36.1エミュレーター上の実 `ImeService` で上A・中央↔・下C、中央tap無反応、上Alt・下Ctrl、左右Tab各1回を確認。証拠画像: `surface-qwerty-labels-v0.15.37.png`。物理端末は未確認。
+
+GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.37` はdraft/prereleaseではなく、直接APK `gesture-ime-v0.15.37.apk` 1件。公開assetを `/private/tmp/md-kbd-v0.15.37-verify/gesture-ime-v0.15.37.apk` へ再取得してローカルと `cmp` byte一致、size・SHA-256も一致。公開サイトcommit `64ea9116b10973945cf1d442d39577de358d37e9` はGitHub Pagesでbuilt。公開 `index.html`・`mock.html`・`manual.html`・`styles.css` はrepoの `site/` とbyte一致。公開製品ページのブラウザ操作では412pxと840pxの両方で中央tap無反応・左右フリックTab各1回、QWERTYと記号で上A・中央↔・下Cを確認。画像欠落・横はみ出しなし。公開URL `https://masuidrive.jp/products/md-kbd/`。
 
 ## Discoveries
 <!-- 実装中に発見した想定外の事実を記録する。
