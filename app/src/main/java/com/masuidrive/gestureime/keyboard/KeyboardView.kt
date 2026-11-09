@@ -629,13 +629,13 @@ class KeyboardView @JvmOverloads constructor(
         }
         if (idleModifier) {
             textPaint.textSize = sp(10f)
-            val cX = safeCenterX(target.bounds, target.bounds.centerX(), "C")
             val aX = safeCenterX(target.bounds, target.bounds.centerX(), "A")
-            canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.top + dp(13f)), textPaint)
+            val cX = safeCenterX(target.bounds, target.bounds.centerX(), "C")
+            canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.top + dp(13f)), textPaint)
             textPaint.textSize = sp(18f)
             drawMainLabel(canvas, "↔", target.bounds, safeBaseline(target.bounds, centerY), true)
             textPaint.textSize = sp(10f)
-            canvas.drawText("A", aX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f)), textPaint)
+            canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f)), textPaint)
         } else if (!animatedEnglish && !animatedEnterPaste && !selectedEnterControlJ && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
                 0f, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
