@@ -44,7 +44,7 @@ The user also overrides the original layer navigation at mock lines 292 and 599:
 | QWERTY secondary | absolute top `3px`; centered; `11px/12px`; muted; transition `.09s ease` | line 220 |
 | Space/Return hint | placed before the main label with `0 0 2px` margin | lines 221–224 |
 | Corner label | right `5px`, bottom `4px`, `10px`, opacity `.76` | lines 194–195 |
-| C/A modifier | main `18px`; C top `6px`, A bottom `6px`; directional labels `10px` | lines 188–193 |
+| C/A modifier | main `18px`; A top `6px`, C bottom `6px`; directional labels `10px` | lines 188–193 |
 | Layer composite (`あ/ん` etc.) | main translated left `3px`, z-index 1; ghost at `50%/50%`, translated `(2px,-35%)`, size `75%`, opacity `.72`, z-index 0; ghost is prepended before main | lines 215–219, 673–678 |
 
 The native rebuild must retain the later QWERTY BS `⌫` label. Fidelity defaults are measured from these CSS values. The five user-configurable label adjustment groups were removed on 2026-09-12, so the measured defaults are now the fixed runtime geometry.
