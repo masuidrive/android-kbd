@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/261108-024949-move-ca-tab-to-horizontal-flick
 description: "候補欄から定型文と個人情報を別々に開き、more..をなくす"
 created_at: "2026-11-15T12:42:42Z"
-started_at: null  # Do not modify manually
+started_at: 2026-11-15T12:44:32Z # Do not modify manually
 closed_at: null   # Do not modify manually
 ---
 
