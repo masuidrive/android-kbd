@@ -1279,7 +1279,7 @@
     }
     const p=active.get(e.pointerId);if(!p)return;e.preventDefault();
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
-    if(!p.trackpad&&p.origin==='space'&&!p.keyModifier&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
+    if(!p.trackpad&&p.origin==='space'&&Math.hypot(dx,dy)>=10)beginTrackpad(p,dx,dy);
     if(updateModifierFlick(p,dx,dy)) {
       p.element.classList.toggle('choice-active',Boolean(p.modifierChoice||p.modifierTab));
       p.element.querySelector('.key-main').textContent=p.modifierTab?'T':modifierGlyph(p.modifierChoice||pendingModifier)||p.key.label;
@@ -1301,8 +1301,20 @@
       if(!p.trackpadAxis)return;
       const steps=p.trackpadAxis==='horizontal'?Math.trunc((e.clientX-p.cursorX)/8):0;
       const lines=p.trackpadAxis==='vertical'?Math.trunc((e.clientY-p.cursorY)/24):0;
-      if(steps){moveCursor(steps);p.cursorX+=steps*8;}
-      if(lines){for(let i=0;i<Math.abs(lines);i++)moveVertical(Math.sign(lines));p.cursorY+=lines*24;}
+      if(steps){
+        if(p.keyModifier){
+          applyModified(steps>0?'ArrowRight':'ArrowLeft',p.keyModifier);p.keyModifier=null;
+          if(Math.abs(steps)>1)moveCursor(steps-Math.sign(steps));
+        }
+        else moveCursor(steps);
+        p.cursorX+=steps*8;
+      }
+      if(lines){
+        let plainLines=Math.abs(lines);
+        if(p.keyModifier){applyModified(lines>0?'ArrowDown':'ArrowUp',p.keyModifier);p.keyModifier=null;plainLines--;}
+        for(let i=0;i<plainLines;i++)moveVertical(Math.sign(lines));
+        p.cursorY+=lines*24;
+      }
       if(steps||lines) {
         p.trackpadMoved=true;
         const label=cursorDirectionLabel(steps,lines);

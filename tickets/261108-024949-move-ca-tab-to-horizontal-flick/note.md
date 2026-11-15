@@ -1,8 +1,10 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-human-review (Ctrl/Alt+Enter 修正版の実機確認待ち)
+## Status: PDH-implement (Ctrl/Altの全キー経路を点検・修正中)
 
 ## Checklist
+- [ ] 利用者指摘: Ctrl/Alt保留がEnter以外の英数字・記号レイヤーのSpace・記号・Backspace・Esc・矢印操作でも、無送信や保留漏れを起こさず次の物理キー操作に適用される。
+- [ ] 利用者指摘: キー処理の分散を整理し、修飾状態の消費を共通経路で扱って無送信を検出できる構造にする。
 - [x] 利用者依頼: 英数字左端のキーは通常タップを無反応とし、左右フリックでTabを入力する。
 - [x] 利用者依頼: この変更を直接APKとして公開し、製品ページ・マニュアル・操作モックを同期する。
 - [x] 公開APKを再取得し、ローカル成果物とバイト単位で一致することを確認する。
@@ -149,6 +151,10 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
 2026-11-15: 修正版SHA `fec3bc79463930a29a4165e3de197de2222a4a48` の全体スイートは `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`。接続33件中1件、`EmojiPickerBodyLayoutInstrumentedTest.attachedImePickerCentersRealEmojiViewsAndTapCommitsThroughImeCallback` が `expected:<2> but was:<1>` で失敗。修正前SHA `a9ac9871a90aa6844fe53d905c64cb1497c6f14e` を一時worktreeで同じ `scripts/test-all.sh --parallel --connected` にかけても `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`、同じ絵文字テスト・同じ期待値で接続32件中1件が失敗。今回の修飾Enter diffによる退行ではないと判断。失敗をPASSとは扱わない。独立reviewerは `fec3bc7` のdiffを読んでCritical/Majorなしと判定。ブラウザmockの既存`applyModified('Enter')`経路は変更不要。修正版の物理端末確認とclose承認は未取得。
 
 2026-11-15: 独立AC verifierは`fec3bc7`でAC1〜4を全件VERIFIEDと判定。AC3はCtrl/Alt+Enterのone-shotを412dp/840dp・QWERTY/記号の実`MotionEvent`と`KEYCODE_ENTER`のdown/up metaで確認。修正版APKの物理端末動作は未確認。エミュレーターは検証後に停止し、比較用一時worktreeを削除。
+
+2026-11-15: 利用者の「他のキーは？」で同じAC3の適用範囲を点検。英字と数字、Tab、Enterは送信経路がある。Spaceと記号は`ModifiedKey(label)`に進むが、`KEYCODE_ `や`KEYCODE_?`等の解決がUNKNOWNで、修飾状態だけ解除されて無送信となる。Backspace、Escape、Spaceの矢印フリックは修飾を適用せず通常actionへ流れ、保留を残す。ブラウザmockは`applyModified()`でこれらの物理キーを扱う。Android標準KeyEventへ揃える方針で同じticketのAC3を補完する。
+
+2026-11-15: 利用者は「キー処理のリファクタリング不足？」と根本原因を確認。修飾適用が文字・Tab・Enterに分かれ、カーソルとBackspace長押しが直接actionを送る分散構造、および`KEYCODE_UNKNOWN`で黙ってreturnする変換経路が原因と記録。最初に送る物理キー1回だけで保留を消費する共通経路へ整理する。SpaceカーソルとBackspace長押しの後続repeatは通常キーとする。
 
 公開対象commit `d8948f99f11963da464c3f7e5e24e4abbe888370` の最終全体テスト:
 ```text
