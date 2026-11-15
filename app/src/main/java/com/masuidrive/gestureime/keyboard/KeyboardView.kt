@@ -1065,7 +1065,7 @@ class KeyboardView @JvmOverloads constructor(
                 cursorMoved += id
                 if (directions[id] != update.direction) animateLabels(id, update.direction)
                 directions[id] = update.direction
-                actionSink?.onKeyAction(KeyAction.MoveCursor(update.direction, update.units))
+                dispatchCursor(update.direction, update.units)
                 performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
             null -> Unit
@@ -1151,31 +1151,60 @@ class KeyboardView @JvmOverloads constructor(
             is KeyAction.SwitchLayer -> { setMode(action.target); actionSink?.onKeyAction(action) }
             is KeyAction.SetModifier -> updateModifier(action.modifier)
             KeyAction.Tab -> {
-                val modifier = state.pendingModifier
-                if (modifier != null) {
-                    actionSink?.onKeyAction(KeyAction.ModifiedKey("TAB", modifier))
-                    updateModifier(null)
-                } else actionSink?.onKeyAction(KeyAction.Tab)
+                dispatchPhysicalKey("TAB", KeyAction.Tab)
             }
             KeyAction.Enter -> {
-                val modifier = state.pendingModifier
-                if (modifier != null) {
-                    actionSink?.onKeyAction(KeyAction.ModifiedKey("ENTER", modifier))
-                    updateModifier(null)
-                } else actionSink?.onKeyAction(KeyAction.Enter)
+                dispatchPhysicalKey("ENTER", KeyAction.Enter)
             }
             is KeyAction.CommitText -> {
-                val modifier = state.pendingModifier
                 if (spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.KANA) {
                     actionSink?.onKeyAction(KeyAction.CycleCandidate)
-                } else if (modifier != null && action.text.length == 1) {
-                    actionSink?.onKeyAction(KeyAction.ModifiedKey(action.text, modifier)); updateModifier(null)
+                } else if (state.pendingModifier != null && action.text.length == 1) {
+                    dispatchPhysicalKey(action.text, action)
                 } else actionSink?.onKeyAction(action)
             }
+            is KeyAction.Backspace -> dispatchPhysicalKey("BACKSPACE", action)
+            KeyAction.Escape -> dispatchPhysicalKey("ESCAPE", KeyAction.Escape)
+            is KeyAction.MoveCursor -> dispatchCursor(action.direction, action.units)
             KeyAction.VoiceHold -> Unit
             else -> actionSink?.onKeyAction(action)
         }
         announceForAccessibility(spec.value(direction)?.label ?: "")
+    }
+
+    /** Sends the next ordinary QWERTY/Symbol key with the pending modifier, then clears it. */
+    private fun dispatchPhysicalKey(label: String, unmodifiedAction: KeyAction) {
+        val modifier = state.pendingModifier
+        if (modifier == null) {
+            actionSink?.onKeyAction(unmodifiedAction)
+            return
+        }
+        actionSink?.onKeyAction(KeyAction.ModifiedKey(label, modifier))
+        updateModifier(null)
+    }
+
+    /**
+     * Space is a trackpad: one gesture update can represent several arrows.  A modifier is
+     * deliberately one-shot, so only its first emitted arrow is modified; the remainder stays
+     * ordinary cursor movement.
+     */
+    private fun dispatchCursor(direction: Direction, units: Int) {
+        val unmodified = KeyAction.MoveCursor(direction, units)
+        val modifier = state.pendingModifier
+        if (modifier == null || direction == Direction.CENTER) {
+            actionSink?.onKeyAction(unmodified)
+            return
+        }
+        val label = when (direction) {
+            Direction.LEFT -> "DPAD_LEFT"
+            Direction.UP -> "DPAD_UP"
+            Direction.RIGHT -> "DPAD_RIGHT"
+            Direction.DOWN -> "DPAD_DOWN"
+            Direction.CENTER -> return
+        }
+        actionSink?.onKeyAction(KeyAction.ModifiedKey(label, modifier))
+        updateModifier(null)
+        if (units > 1) actionSink?.onKeyAction(KeyAction.MoveCursor(direction, units - 1))
     }
 
     private fun updateModifier(modifier: Modifier?) {
@@ -1193,7 +1222,7 @@ class KeyboardView @JvmOverloads constructor(
                 if (active[id] != hit || directions[id] != expectedDirection) return
                 if (hit.spec.kind == KeyKind.BACKSPACE) {
                     repeated += id
-                    actionSink?.onKeyAction(KeyAction.Backspace(repeat = true))
+                    dispatchPhysicalKey("BACKSPACE", KeyAction.Backspace(repeat = true))
                     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     postDelayed(this, DELETE_REPEAT_INTERVAL_MS)
                 } else if (accentChoices(hit.spec.center?.label.orEmpty()) != null) {

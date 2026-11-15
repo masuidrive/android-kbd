@@ -708,6 +708,131 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun pendingModifierUsesPhysicalActionsForQwertyAndSymbolsAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply { actionSink = KeyboardActionSink { actions += it } }
+                activity.setContentView(view)
+
+                fun keyBounds(mode: KeyboardMode, id: String): Rect {
+                    val keys = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                    return bounds(view, keys.indexOfFirst { it.id == id })
+                }
+
+                fun gesture(key: Rect, dxDp: Float = 0f, dyDp: Float = 0f) {
+                    val time = SystemClock.uptimeMillis()
+                    val x = key.exactCenterX()
+                    val y = key.exactCenterY()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                    if (dxDp != 0f || dyDp != 0f) {
+                        dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1,
+                            x + dxDp * density, y + dyDp * density)
+                    }
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2,
+                        x + dxDp * density, y + dyDp * density)
+                }
+
+                fun expectModified(
+                    label: String,
+                    modifier: Modifier,
+                    key: Rect,
+                    dxDp: Float = 0f,
+                    dyDp: Float = 0f,
+                    remaining: List<KeyAction> = emptyList(),
+                ) {
+                    actions.clear()
+                    view.setModifier(modifier)
+                    gesture(key, dxDp, dyDp)
+                    assertEquals(
+                        "$modifier+$label is physical and one shot",
+                        listOf(KeyAction.ModifiedKey(label, modifier), KeyAction.SetModifier(null)) + remaining,
+                        actions,
+                    )
+                }
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+
+                    view.setMode(KeyboardMode.QWERTY)
+                    view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                    val q = keyBounds(KeyboardMode.QWERTY, "key-q")
+                    val period = keyBounds(KeyboardMode.QWERTY, "key-.")
+                    val space = keyBounds(KeyboardMode.QWERTY, "space")
+                    val backspace = keyBounds(KeyboardMode.QWERTY, "backspace")
+
+                    actions.clear()
+                    gesture(q)
+                    assertEquals("$widthDp dp unmodified QWERTY stays text", listOf(KeyAction.CommitText("q")), actions)
+
+                    expectModified("Q", Modifier.CTRL, q, dyDp = -36f)
+                    expectModified("?", Modifier.ALT, period, dyDp = 36f)
+                    expectModified(" ", Modifier.CTRL, space)
+                    expectModified("DPAD_LEFT", Modifier.CTRL, space, dxDp = -20f,
+                        remaining = listOf(KeyAction.MoveCursor(Direction.LEFT)))
+                    expectModified("DPAD_RIGHT", Modifier.ALT, space, dxDp = 20f,
+                        remaining = listOf(KeyAction.MoveCursor(Direction.RIGHT)))
+                    expectModified("DPAD_UP", Modifier.CTRL, space, dyDp = -30f)
+                    expectModified("DPAD_DOWN", Modifier.ALT, space, dyDp = 30f)
+                    expectModified("BACKSPACE", Modifier.CTRL, backspace)
+                    expectModified("ESCAPE", Modifier.ALT, backspace, dyDp = 36f)
+
+                    view.setMode(KeyboardMode.SYMBOLS)
+                    view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                    expectModified("^", Modifier.CTRL, keyBounds(KeyboardMode.SYMBOLS, "key-^"))
+                    expectModified("TAB", Modifier.ALT, keyBounds(KeyboardMode.SYMBOLS, "tab"))
+                    expectModified("ESCAPE", Modifier.CTRL, keyBounds(KeyboardMode.SYMBOLS, "escape"))
+                }
+            }
+        }
+    }
+
+    @Test fun pendingModifierOnlyChangesTheFirstBackspaceLongPressRepeat() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            val actions = mutableListOf<KeyAction>()
+            val firstModifiedDelete = CountDownLatch(1)
+            lateinit var view: KeyboardView
+            lateinit var backspace: Rect
+            var density = 0f
+            scenario.onActivity { activity ->
+                density = activity.resources.displayMetrics.density
+                view = KeyboardView(activity).apply {
+                    actionSink = KeyboardActionSink { action ->
+                        actions += action
+                        if (action == KeyAction.ModifiedKey("BACKSPACE", Modifier.CTRL)) firstModifiedDelete.countDown()
+                    }
+                    setMode(KeyboardMode.QWERTY)
+                }
+                activity.setContentView(view)
+            }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity {
+                val width = (412f * density).toInt()
+                val height = (228f * density).toInt()
+                view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                val keys = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
+                backspace = bounds(view, keys.indexOfFirst { it.id == "backspace" })
+                view.setModifier(Modifier.CTRL)
+                val time = SystemClock.uptimeMillis()
+                dispatch(view, MotionEvent.ACTION_DOWN, time, time, backspace.exactCenterX(), backspace.exactCenterY())
+            }
+
+            assertTrue("first repeated deletion consumes Ctrl", firstModifiedDelete.await(2, TimeUnit.SECONDS))
+            Thread.sleep(KeyboardView.DELETE_REPEAT_INTERVAL_MS * 2)
+            scenario.onActivity {
+                val time = SystemClock.uptimeMillis()
+                dispatch(view, MotionEvent.ACTION_UP, time - 1, time, backspace.exactCenterX(), backspace.exactCenterY())
+                assertEquals(KeyAction.ModifiedKey("BACKSPACE", Modifier.CTRL), actions.first())
+                assertEquals(KeyAction.SetModifier(null), actions[1])
+                assertTrue("long press continues after the modified first delete", actions.drop(2).isNotEmpty())
+                assertTrue("later repeat events are ordinary deletes",
+                    actions.drop(2).all { it == KeyAction.Backspace(repeat = true) })
+            }
+        }
+    }
+
     @Test fun voiceReturnAndCandidateCancelUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

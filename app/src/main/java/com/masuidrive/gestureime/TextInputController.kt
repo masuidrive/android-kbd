@@ -282,16 +282,81 @@ class TextInputController(
 
     fun sendModifiedKey(label: String, modifier: Modifier) {
         finishComposition()
-        val keyCode = KeyEvent.keyCodeFromString("KEYCODE_${label.uppercase()}")
-        if (keyCode == KeyEvent.KEYCODE_UNKNOWN) return
-        val meta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
-        sendKey(keyCode, meta)
+        val physicalKey = requireNotNull(physicalKeyFor(label)) {
+            "No physical key mapping for modified key: $label"
+        }
+        val modifierMeta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
+        val meta = modifierMeta or if (physicalKey.shifted) KeyEvent.META_SHIFT_ON else 0
+        sendKey(physicalKey.keyCode, meta)
     }
 
     private fun sendKey(keyCode: Int, meta: Int = 0) {
         val input = connection() ?: return
         input.sendKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
         input.sendKeyEvent(KeyEvent(0L, 0L, KeyEvent.ACTION_UP, keyCode, 0, meta))
+    }
+}
+
+/**
+ * Android key codes describe physical keys, rather than printable characters.  Keep this finite
+ * mapping here so Ctrl/Alt punctuation uses the same keys as a hardware keyboard (and does not
+ * disappear through [KeyEvent.keyCodeFromString], which only accepts key-code names).
+ */
+private data class PhysicalKey(val keyCode: Int, val shifted: Boolean = false)
+
+private fun physicalKeyFor(label: String): PhysicalKey? = when (label) {
+    " " -> PhysicalKey(KeyEvent.KEYCODE_SPACE)
+    "TAB" -> PhysicalKey(KeyEvent.KEYCODE_TAB)
+    "ENTER" -> PhysicalKey(KeyEvent.KEYCODE_ENTER)
+    "BACKSPACE" -> PhysicalKey(KeyEvent.KEYCODE_DEL)
+    "ESCAPE" -> PhysicalKey(KeyEvent.KEYCODE_ESCAPE)
+    "DPAD_LEFT" -> PhysicalKey(KeyEvent.KEYCODE_DPAD_LEFT)
+    "DPAD_UP" -> PhysicalKey(KeyEvent.KEYCODE_DPAD_UP)
+    "DPAD_RIGHT" -> PhysicalKey(KeyEvent.KEYCODE_DPAD_RIGHT)
+    "DPAD_DOWN" -> PhysicalKey(KeyEvent.KEYCODE_DPAD_DOWN)
+    else -> printableAsciiKey(label)
+}
+
+private fun printableAsciiKey(label: String): PhysicalKey? {
+    if (label.length != 1) return null
+    val character = label.single()
+    return when (character) {
+        in 'a'..'z' -> PhysicalKey(KeyEvent.KEYCODE_A + (character - 'a'))
+        in 'A'..'Z' -> PhysicalKey(KeyEvent.KEYCODE_A + (character - 'A'), shifted = true)
+        in '0'..'9' -> PhysicalKey(KeyEvent.KEYCODE_0 + (character - '0'))
+        '`' -> PhysicalKey(KeyEvent.KEYCODE_GRAVE)
+        '~' -> PhysicalKey(KeyEvent.KEYCODE_GRAVE, shifted = true)
+        '-' -> PhysicalKey(KeyEvent.KEYCODE_MINUS)
+        '_' -> PhysicalKey(KeyEvent.KEYCODE_MINUS, shifted = true)
+        '=' -> PhysicalKey(KeyEvent.KEYCODE_EQUALS)
+        '+' -> PhysicalKey(KeyEvent.KEYCODE_EQUALS, shifted = true)
+        '[' -> PhysicalKey(KeyEvent.KEYCODE_LEFT_BRACKET)
+        '{' -> PhysicalKey(KeyEvent.KEYCODE_LEFT_BRACKET, shifted = true)
+        ']' -> PhysicalKey(KeyEvent.KEYCODE_RIGHT_BRACKET)
+        '}' -> PhysicalKey(KeyEvent.KEYCODE_RIGHT_BRACKET, shifted = true)
+        '\\' -> PhysicalKey(KeyEvent.KEYCODE_BACKSLASH)
+        '|' -> PhysicalKey(KeyEvent.KEYCODE_BACKSLASH, shifted = true)
+        ';' -> PhysicalKey(KeyEvent.KEYCODE_SEMICOLON)
+        ':' -> PhysicalKey(KeyEvent.KEYCODE_SEMICOLON, shifted = true)
+        '\'' -> PhysicalKey(KeyEvent.KEYCODE_APOSTROPHE)
+        '"' -> PhysicalKey(KeyEvent.KEYCODE_APOSTROPHE, shifted = true)
+        ',' -> PhysicalKey(KeyEvent.KEYCODE_COMMA)
+        '<' -> PhysicalKey(KeyEvent.KEYCODE_COMMA, shifted = true)
+        '.' -> PhysicalKey(KeyEvent.KEYCODE_PERIOD)
+        '>' -> PhysicalKey(KeyEvent.KEYCODE_PERIOD, shifted = true)
+        '/' -> PhysicalKey(KeyEvent.KEYCODE_SLASH)
+        '?' -> PhysicalKey(KeyEvent.KEYCODE_SLASH, shifted = true)
+        '!' -> PhysicalKey(KeyEvent.KEYCODE_1, shifted = true)
+        '@' -> PhysicalKey(KeyEvent.KEYCODE_2, shifted = true)
+        '#' -> PhysicalKey(KeyEvent.KEYCODE_3, shifted = true)
+        '$' -> PhysicalKey(KeyEvent.KEYCODE_4, shifted = true)
+        '%' -> PhysicalKey(KeyEvent.KEYCODE_5, shifted = true)
+        '^' -> PhysicalKey(KeyEvent.KEYCODE_6, shifted = true)
+        '&' -> PhysicalKey(KeyEvent.KEYCODE_7, shifted = true)
+        '*' -> PhysicalKey(KeyEvent.KEYCODE_8, shifted = true)
+        '(' -> PhysicalKey(KeyEvent.KEYCODE_9, shifted = true)
+        ')' -> PhysicalKey(KeyEvent.KEYCODE_0, shifted = true)
+        else -> null
     }
 }
 

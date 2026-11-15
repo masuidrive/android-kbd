@@ -368,18 +368,45 @@ class TextInputControllerTest {
     }
 
     @Test
-    fun ctrlAndAltKeysSendModifiedDownAndUpWithoutEditorContextActions() {
+    fun ctrlAndAltKeysSendEveryPrintableAsciiKeyAsModifiedPhysicalKeyEvents() {
         for (modifier in Modifier.entries) {
-            for (label in listOf("a", "c", "x", "v", "s", "TAB", "ENTER")) {
+            for (label in (32..126).map(Int::toChar).map(Char::toString)) {
                 input.sentKeyEvents.clear()
                 controller.sendModifiedKey(label, modifier)
 
-                val keyCode = KeyEvent.keyCodeFromString("KEYCODE_${label.uppercase()}")
-                val meta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
+                val (keyCode, shifted) = expectedPrintableAsciiKey(label.single())
+                val modifierMeta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
                 assertEquals("$modifier+$label", listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP), input.sentKeyEvents.map { it.action })
                 assertEquals("$modifier+$label", listOf(keyCode, keyCode), input.sentKeyEvents.map { it.keyCode })
-                assertTrue("$modifier+$label", input.sentKeyEvents.all { it.metaState and meta != 0 })
+                assertTrue("$modifier+$label", input.sentKeyEvents.all { it.metaState and modifierMeta != 0 })
+                assertEquals("$modifier+$label shifted state", shifted,
+                    input.sentKeyEvents.all { it.metaState and KeyEvent.META_SHIFT_ON != 0 })
                 assertEquals("$modifier+$label", null, input.contextAction)
+            }
+        }
+    }
+
+    @Test
+    fun ctrlAndAltNonPrintableKeyboardActionsSendPhysicalKeyEvents() {
+        val labels = mapOf(
+            "TAB" to KeyEvent.KEYCODE_TAB,
+            "ENTER" to KeyEvent.KEYCODE_ENTER,
+            "BACKSPACE" to KeyEvent.KEYCODE_DEL,
+            "ESCAPE" to KeyEvent.KEYCODE_ESCAPE,
+            "DPAD_LEFT" to KeyEvent.KEYCODE_DPAD_LEFT,
+            "DPAD_UP" to KeyEvent.KEYCODE_DPAD_UP,
+            "DPAD_RIGHT" to KeyEvent.KEYCODE_DPAD_RIGHT,
+            "DPAD_DOWN" to KeyEvent.KEYCODE_DPAD_DOWN,
+        )
+        for (modifier in Modifier.entries) {
+            val modifierMeta = if (modifier == Modifier.CTRL) KeyEvent.META_CTRL_ON else KeyEvent.META_ALT_ON
+            labels.forEach { (label, keyCode) ->
+                input.sentKeyEvents.clear()
+                controller.sendModifiedKey(label, modifier)
+
+                assertEquals("$modifier+$label", listOf(keyCode, keyCode), input.sentKeyEvents.map { it.keyCode })
+                assertEquals("$modifier+$label", listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP), input.sentKeyEvents.map { it.action })
+                assertTrue("$modifier+$label", input.sentKeyEvents.all { it.metaState and modifierMeta != 0 })
             }
         }
     }
@@ -485,6 +512,30 @@ class TextInputControllerTest {
         controller.beginInput(EditorInfo())
         controller.appendComposing("は")
         assertEquals("ぱ", controller.transformKana(KanaTransform.HANDAKUTEN))
+    }
+
+    private fun expectedPrintableAsciiKey(character: Char): Pair<Int, Boolean> = when (character) {
+        in 'a'..'z' -> KeyEvent.KEYCODE_A + (character - 'a') to false
+        in 'A'..'Z' -> KeyEvent.KEYCODE_A + (character - 'A') to true
+        in '0'..'9' -> KeyEvent.KEYCODE_0 + (character - '0') to false
+        ' ' -> KeyEvent.KEYCODE_SPACE to false
+        '`' -> KeyEvent.KEYCODE_GRAVE to false; '~' -> KeyEvent.KEYCODE_GRAVE to true
+        '-' -> KeyEvent.KEYCODE_MINUS to false; '_' -> KeyEvent.KEYCODE_MINUS to true
+        '=' -> KeyEvent.KEYCODE_EQUALS to false; '+' -> KeyEvent.KEYCODE_EQUALS to true
+        '[' -> KeyEvent.KEYCODE_LEFT_BRACKET to false; '{' -> KeyEvent.KEYCODE_LEFT_BRACKET to true
+        ']' -> KeyEvent.KEYCODE_RIGHT_BRACKET to false; '}' -> KeyEvent.KEYCODE_RIGHT_BRACKET to true
+        '\\' -> KeyEvent.KEYCODE_BACKSLASH to false; '|' -> KeyEvent.KEYCODE_BACKSLASH to true
+        ';' -> KeyEvent.KEYCODE_SEMICOLON to false; ':' -> KeyEvent.KEYCODE_SEMICOLON to true
+        '\'' -> KeyEvent.KEYCODE_APOSTROPHE to false; '"' -> KeyEvent.KEYCODE_APOSTROPHE to true
+        ',' -> KeyEvent.KEYCODE_COMMA to false; '<' -> KeyEvent.KEYCODE_COMMA to true
+        '.' -> KeyEvent.KEYCODE_PERIOD to false; '>' -> KeyEvent.KEYCODE_PERIOD to true
+        '/' -> KeyEvent.KEYCODE_SLASH to false; '?' -> KeyEvent.KEYCODE_SLASH to true
+        '!' -> KeyEvent.KEYCODE_1 to true; '@' -> KeyEvent.KEYCODE_2 to true
+        '#' -> KeyEvent.KEYCODE_3 to true; '$' -> KeyEvent.KEYCODE_4 to true
+        '%' -> KeyEvent.KEYCODE_5 to true; '^' -> KeyEvent.KEYCODE_6 to true
+        '&' -> KeyEvent.KEYCODE_7 to true; '*' -> KeyEvent.KEYCODE_8 to true
+        '(' -> KeyEvent.KEYCODE_9 to true; ')' -> KeyEvent.KEYCODE_0 to true
+        else -> error("Missing printable ASCII key mapping for $character")
     }
 
     private class RecordingInputConnection(view: View) : BaseInputConnection(view, true) {
