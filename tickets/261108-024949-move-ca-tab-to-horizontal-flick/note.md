@@ -1,6 +1,6 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-implement (実機確認後、Ctrl/Alt+Enter の修正中)
+## Status: PDH-human-review (Ctrl/Alt+Enter 修正版の実機確認待ち)
 
 ## Checklist
 - [x] 利用者依頼: 英数字左端のキーは通常タップを無反応とし、左右フリックでTabを入力する。
@@ -145,6 +145,8 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
 重複検出 skip: `similarity-generic --language kotlin -t 0.7` は Kotlin 非対応と返した。変更は既存分岐を踏襲する。
 
 2026-11-15: `TextInputControllerTest` でCtrl/Alt+Enterの`KEYCODE_ENTER` down/upとmetaを確認しPASS。Android 36.1 emulatorのattached `KeyboardView`へ実`MotionEvent`を送る接続テストでは412dp・840dpのQWERTY・記号で、未修飾Enter、Ctrl/Alt選択、修飾付きEnter1回、直後の通常Enterを確認し1/1 PASS。最初の接続試行はエミュレーターの`/sdcard/Android`初期化前に始めて停止した。初期化完了後の同一テスト再実行は`BUILD SUCCESSFUL in 17s`。修正前の通常Enterと修正後の通常Enterはともに`KeyAction.Enter`。
+
+2026-11-15: 修正版SHA `fec3bc79463930a29a4165e3de197de2222a4a48` の全体スイートは `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`。接続33件中1件、`EmojiPickerBodyLayoutInstrumentedTest.attachedImePickerCentersRealEmojiViewsAndTapCommitsThroughImeCallback` が `expected:<2> but was:<1>` で失敗。修正前SHA `a9ac9871a90aa6844fe53d905c64cb1497c6f14e` を一時worktreeで同じ `scripts/test-all.sh --parallel --connected` にかけても `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`、同じ絵文字テスト・同じ期待値で接続32件中1件が失敗。今回の修飾Enter diffによる退行ではないと判断。失敗をPASSとは扱わない。独立reviewerは `fec3bc7` のdiffを読んでCritical/Majorなしと判定。ブラウザmockの既存`applyModified('Enter')`経路は変更不要。修正版の物理端末確認とclose承認は未取得。
 
 公開対象commit `d8948f99f11963da464c3f7e5e24e4abbe888370` の最終全体テスト:
 ```text
