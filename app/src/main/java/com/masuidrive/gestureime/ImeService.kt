@@ -45,6 +45,7 @@ import com.masuidrive.gestureime.ui.CandidateUiLongPressEvent
 import com.masuidrive.gestureime.ui.CandidateUiSnapshot
 import com.masuidrive.gestureime.ui.CandidateStripView
 import com.masuidrive.gestureime.ui.PersonalInfoPickerView
+import com.masuidrive.gestureime.ui.SavedValuePicker
 import com.masuidrive.gestureime.ui.VoiceUiSnapshot
 import com.masuidrive.gestureime.ui.VoiceUiState
 import com.masuidrive.gestureime.ui.VoicePanelView
@@ -112,7 +113,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private var candidateSource = CandidateSource.NONE
     private var personalInfoField: PersonalInfoField? = null
     private var personalInfoPickerVisible = false
-    private var personalInfoPickerExpanded = false
+    private var personalInfoPickerCategory: SavedValuePicker? = null
     private var personalInfoPickerValues = emptyList<String>()
     private var personalInfoPickerLabels = emptyList<String>()
     /**
@@ -257,8 +258,8 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         val strip = CandidateStripView(this).also {
             it.setOnCandidateSelected(::onCandidateSelected)
             it.setOnCandidateLongPressed(::onCandidateLongPressed)
-            it.setOnPersonalInfoRequested(::showPersonalInfoPicker)
-            it.setOnPersonalInfoDismissed(::dismissPersonalInfoPicker)
+            it.setOnPickerRequested(::showSavedValuePicker)
+            it.setOnPickerDismissed(::dismissPersonalInfoPicker)
             it.visibility = if (textController.isPrivateField) View.INVISIBLE else View.VISIBLE
             candidateStrip = it
         }
@@ -1099,10 +1100,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     }
 
     override fun onKeyAction(action: KeyAction) {
-        if (action == KeyAction.ExpandPersonalInfo) {
-            expandPersonalInfoPicker()
-            return
-        }
         if (action == KeyAction.DiscardVoiceCandidates && keyboardMode == KeyboardMode.VOICE) {
             discardVoiceRecognition()
             return
@@ -1395,7 +1392,6 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
             is KeyAction.SetModifier -> finishEnglishRaw()
             KeyAction.VoiceHold -> startVoiceLayer(editorToken)
             KeyAction.CancelVoice -> cancelVoiceSession()
-            KeyAction.ExpandPersonalInfo -> Unit // Dispatched synchronously before the action queue.
         }
     }
 
@@ -1629,17 +1625,19 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         selectable: Boolean = true,
     ) {
         val token = ++candidateUiToken
-        candidateStrip?.showPersonalInfoAction(personalInfoPickerVisible || personalInfoActionAvailable(), personalInfoPickerVisible)
+        candidateStrip?.showSavedValuePickerActions(
+            visible = personalInfoPickerVisible || savedValuePickerActionsAvailable(),
+            activePicker = personalInfoPickerCategory,
+        )
         // Provider-owned inline Views and our saved field value can coexist.
         candidateStrip?.showCandidates(CandidateUiSnapshot(token, values, selectedIndex, selectable),
             alongsideInline = candidateSource == CandidateSource.PERSONAL_INFO && !personalInfoPickerVisible)
+        personalInfoPickerCategory?.let { personalInfoPanel?.setContentCategory(it) }
         personalInfoPanel?.showCandidates(if (personalInfoPickerVisible) {
             CandidateUiSnapshot(token, personalInfoPickerValues, labels = personalInfoPickerLabels)
         } else {
             CandidateUiSnapshot(token, emptyList())
         })
-        personalInfoPanel?.setMoreVisible(personalInfoPickerVisible && !personalInfoPickerExpanded &&
-            ImePreferences.getRegisteredPersonalInfoSuggestions(this).any { it.field != PersonalInfoField.EMAIL })
         updatePersonalInfoPanelVisibility()
         personalInfoPanel?.setLayerMode(keyboardMode)
     }
@@ -1671,46 +1669,32 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         candidateSource = if (candidates.isEmpty()) CandidateSource.NONE else CandidateSource.PERSONAL_INFO
     }
 
-    private fun personalInfoActionAvailable(): Boolean =
+    private fun savedValuePickerActionsAvailable(): Boolean =
         !textController.isPrivateField &&
-            !personalInfoPickerVisible &&
             reading.isEmpty() &&
             englishBuffer.isEmpty() &&
-            !slashBufferActive &&
-            (ImePreferences.getRegisteredPersonalInfo(this).isNotEmpty() ||
-                ImePreferences.getTextSnippets(this).isNotEmpty())
+            !slashBufferActive
 
-    private fun showPersonalInfoPicker() {
+    private fun showSavedValuePicker(category: SavedValuePicker) {
         val editorToken = editorSession.capture()
         serviceScope.launch {
             actionMutex.withLock {
-                if (!editorSession.isCurrent(editorToken) || !personalInfoActionAvailable()) return@withLock
+                if (!editorSession.isCurrent(editorToken) || !savedValuePickerActionsAvailable()) return@withLock
                 finishEnglishRaw()
                 finishSlashRaw()
                 resetConversion(clearComposing = false)
                 val suggestions = ImePreferences.getRegisteredPersonalInfoSuggestions(this@ImeService)
                 val snippets = ImePreferences.getTextSnippets(this@ImeService)
-                if ((suggestions.isEmpty() && snippets.isEmpty()) || textController.isPrivateField) return@withLock
+                if (textController.isPrivateField) return@withLock
                 personalInfoPickerVisible = true
-                personalInfoPickerExpanded = false
+                personalInfoPickerCategory = category
                 candidateSource = CandidateSource.PERSONAL_INFO
                 candidates = emptyList()
-                setPersonalInfoPickerValues(suggestions.filter { it.field == PersonalInfoField.EMAIL }, snippets)
+                setPersonalInfoPickerValues(
+                    suggestions = if (category == SavedValuePicker.PERSONAL_INFO) suggestions else emptyList(),
+                    snippets = if (category == SavedValuePicker.SNIPPETS) snippets else emptyList(),
+                )
                 selectedCandidate = -1
-                showCandidateState()
-            }
-        }
-    }
-
-    private fun expandPersonalInfoPicker() {
-        val editorToken = editorSession.capture()
-        serviceScope.launch {
-            actionMutex.withLock {
-                if (!editorSession.isCurrent(editorToken) || !personalInfoPickerVisible ||
-                    personalInfoPickerExpanded || textController.isPrivateField) return@withLock
-                personalInfoPickerExpanded = true
-                setPersonalInfoPickerValues(ImePreferences.getRegisteredPersonalInfoSuggestions(this@ImeService),
-                    ImePreferences.getTextSnippets(this@ImeService))
                 showCandidateState()
             }
         }
@@ -1732,7 +1716,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
         // Keep the picker open so address parts and other saved values can be inserted in order.
         if (selectingFromPicker) return
         personalInfoPickerVisible = false
-        personalInfoPickerExpanded = false
+        personalInfoPickerCategory = null
         personalInfoPickerLabels = emptyList()
         personalInfoPickerValues = emptyList()
         restoreAutomaticPersonalInfoCandidate()
@@ -1742,7 +1726,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun dismissPersonalInfoPicker() {
         if (!personalInfoPickerVisible) return
         personalInfoPickerVisible = false
-        personalInfoPickerExpanded = false
+        personalInfoPickerCategory = null
         personalInfoPickerValues = emptyList()
         personalInfoPickerLabels = emptyList()
         restoreAutomaticPersonalInfoCandidate()
@@ -1756,7 +1740,7 @@ open class ImeService : InputMethodService(), KeyboardActionSink, VoiceHoldSink 
     private fun discardPersonalInfoPicker(): Boolean {
         val wasPickerVisible = personalInfoPickerVisible
         personalInfoPickerVisible = false
-        personalInfoPickerExpanded = false
+        personalInfoPickerCategory = null
         personalInfoPickerValues = emptyList()
         personalInfoPickerLabels = emptyList()
         if (wasPickerVisible) {

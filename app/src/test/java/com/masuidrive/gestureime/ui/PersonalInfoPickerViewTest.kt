@@ -24,11 +24,9 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PersonalInfoPickerViewTest {
-    @Test fun moreButtonAppearsInFooterAndDoesNotChangePickerHeight() {
+    @Test fun footerHasNoMoreButtonAndDoesNotChangePickerHeight() {
         val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
         Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
-        val actions = mutableListOf<KeyAction>()
-        view.setOnEditAction(actions::add)
         val width = 412
         val height = 210
         fun measure(): Int {
@@ -38,15 +36,8 @@ class PersonalInfoPickerViewTest {
             return view.measuredHeight
         }
         val initialHeight = measure()
-        val more = view.findText("more..")!!
-        assertEquals(View.INVISIBLE, more.visibility)
-        view.setMoreVisible(true)
+        assertEquals(null, view.findText("more.."))
         assertEquals(initialHeight, measure())
-        more.performClick()
-        assertEquals(listOf(KeyAction.ExpandPersonalInfo), actions)
-        view.setMoreVisible(false)
-        assertEquals(initialHeight, measure())
-        assertEquals(View.INVISIBLE, more.visibility)
     }
 
     @Test fun footerUsesKeyboardInsetsDoubleSpaceAndStableSlotsAtPhoneAndTabletWidths() {
@@ -54,63 +45,53 @@ class PersonalInfoPickerViewTest {
             val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
             Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
             view.showCandidates(CandidateUiSnapshot(1, listOf("a@example.com")))
-            view.setMoreVisible(true)
             view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
             view.layout(0, 0, width, 210)
             val layer = view.findText("Az")!!
-            val more = view.findText("more..")!!
+            val punctuation = view.findText("、。？！")!!
             val space = view.findText("Space")!!
             val backspace = view.findText("⌫")!!
             val enter = view.findText("Enter")!!
             val inset = if (width >= 600) 10 else 3
             assertEquals(inset + 3, layer.left)
             assertEquals(width - inset - 3, enter.right)
-            assertEquals(6, more.left - layer.right)
+            assertTrue(punctuation.left > layer.right)
             assertEquals(6, backspace.left - space.right)
             assertTrue(space.width >= backspace.width * 2 - 6)
-            val normalLeft = layer.left
-            val normalRight = enter.right
-            view.setMoreVisible(false)
-            view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
-            view.layout(0, 0, width, 210)
-            assertEquals(normalLeft, layer.left)
-            assertEquals(normalRight, enter.right)
             assertEquals(210, view.height)
         }
     }
 
     @Test fun attachedPickerRoutesFlicksAndUnassignedDirectionsThroughRealTouchPath() {
-        val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
-        Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
-        view.setMoreVisible(true)
-        view.measure(View.MeasureSpec.makeMeasureSpec(412, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
-        view.layout(0, 0, 412, 210)
-        val actions = mutableListOf<KeyAction>()
-        view.setOnEditAction(actions::add)
-        fun gesture(label: String, dx: Float, dy: Float) {
-            val key = view.findText(label)!!
-            val footer = key.parent as ViewGroup
-            val x = (footer.left + key.left + key.width / 2).toFloat()
-            val y = (footer.top + key.top + key.height / 2).toFloat()
-            view.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
-            view.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_MOVE, x + dx, y + dy, 0))
-            view.dispatchTouchEvent(MotionEvent.obtain(0, 100, MotionEvent.ACTION_UP, x + dx, y + dy, 0))
+        for (width in listOf(412, 840)) {
+            val view = PersonalInfoPickerView(RuntimeEnvironment.getApplication())
+            Robolectric.buildActivity(Activity::class.java).setup().get().setContentView(view)
+            view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(210, View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, width, 210)
+            val actions = mutableListOf<KeyAction>()
+            view.setOnEditAction(actions::add)
+            fun gesture(label: String, dx: Float, dy: Float) {
+                val key = view.findText(label)!!
+                val footer = key.parent as ViewGroup
+                val x = (footer.left + key.left + key.width / 2).toFloat()
+                val y = (footer.top + key.top + key.height / 2).toFloat()
+                view.dispatchTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0))
+                view.dispatchTouchEvent(MotionEvent.obtain(0, 50, MotionEvent.ACTION_MOVE, x + dx, y + dy, 0))
+                view.dispatchTouchEvent(MotionEvent.obtain(0, 100, MotionEvent.ACTION_UP, x + dx, y + dy, 0))
+            }
+            gesture("Az", 0f, -30f)
+            gesture("、。？！", -30f, 0f)
+            gesture("Space", 30f, 0f)
+            gesture("⌫", 30f, 0f)
+            gesture("Enter", 0f, -30f)
+            assertEquals(KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA), actions[0])
+            assertEquals(KeyAction.CommitText("。"), actions[1])
+            assertEquals(Direction.RIGHT, (actions[2] as KeyAction.MoveCursor).direction)
+            assertEquals(KeyAction.Backspace(), actions[3])
+            assertEquals(KeyAction.Paste, actions[4])
         }
-        gesture("Az", 0f, -30f)
-        gesture("、。？！", -30f, 0f)
-        gesture("Space", 30f, 0f)
-        gesture("⌫", 30f, 0f)
-        gesture("Enter", 0f, -30f)
-        gesture("more..", 30f, 0f)
-        assertEquals(KeyAction.SwitchLayer(com.masuidrive.gestureime.keyboard.KeyboardMode.KANA), actions[0])
-        assertEquals(KeyAction.CommitText("。"), actions[1])
-        assertEquals(Direction.RIGHT, (actions[2] as KeyAction.MoveCursor).direction)
-        assertEquals(KeyAction.Backspace(), actions[3])
-        assertEquals(KeyAction.Paste, actions[4])
-        assertEquals(KeyAction.ExpandPersonalInfo, actions[5])
     }
 
     @Test fun layerKeySwitchesOnTapAndFlickFromThePicker() {

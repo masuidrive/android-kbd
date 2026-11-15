@@ -17,6 +17,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.masuidrive.gestureime.R
 
+enum class SavedValuePicker {
+    SNIPPETS,
+    PERSONAL_INFO,
+}
+
 class CandidateStripView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     LinearLayout(context, attrs) {
     companion object {
@@ -32,32 +37,25 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         isHorizontalScrollBarEnabled = false
         addView(candidateRow, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
-    private val personalInfoAction = ImageButton(context).apply {
-        contentDescription = context.getString(R.string.personal_info_action_description)
-        setImageResource(R.drawable.ic_personal_info)
-        setPadding(dp(7), dp(7), dp(7), dp(7))
-        visibility = GONE
-        setOnClickListener {
-            if (personalInfoPickerOpen) onPersonalInfoDismissed?.invoke()
-            else onPersonalInfoRequested?.invoke()
-        }
-    }
+    private val snippetAction = pickerAction(SavedValuePicker.SNIPPETS)
+    private val personalInfoAction = pickerAction(SavedValuePicker.PERSONAL_INFO)
     private var candidateSnapshot = CandidateUiSnapshot(0L, emptyList())
     private var inlineSuggestionViews = emptyList<View>()
     private var candidatesAlongsideInline = false
-    private var personalInfoActionVisible = false
-    private var personalInfoPickerOpen = false
+    private var pickerActionsVisible = false
+    private var openPicker: SavedValuePicker? = null
     private var onCandidateSelected: ((CandidateUiEvent) -> Unit)? = null
     private var onCandidateLongPressed: ((CandidateUiLongPressEvent) -> Boolean)? = null
-    private var onPersonalInfoRequested: (() -> Unit)? = null
-    private var onPersonalInfoDismissed: (() -> Unit)? = null
+    private var onPickerRequested: ((SavedValuePicker) -> Unit)? = null
+    private var onPickerDismissed: (() -> Unit)? = null
 
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         applyFaceInsets(width)
         applyThemeColors()
-        addView(personalInfoAction, personalInfoActionLayout())
+        addView(snippetAction, pickerActionLayout())
+        addView(personalInfoAction, pickerActionLayout())
         addView(candidateScroll, LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         render()
     }
@@ -69,8 +67,8 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
 
     fun setOnCandidateSelected(listener: (CandidateUiEvent) -> Unit) { onCandidateSelected = listener }
     fun setOnCandidateLongPressed(listener: (CandidateUiLongPressEvent) -> Boolean) { onCandidateLongPressed = listener }
-    fun setOnPersonalInfoRequested(listener: () -> Unit) { onPersonalInfoRequested = listener }
-    fun setOnPersonalInfoDismissed(listener: () -> Unit) { onPersonalInfoDismissed = listener }
+    fun setOnPickerRequested(listener: (SavedValuePicker) -> Unit) { onPickerRequested = listener }
+    fun setOnPickerDismissed(listener: () -> Unit) { onPickerDismissed = listener }
 
     fun showCandidates(snapshot: CandidateUiSnapshot, alongsideInline: Boolean = false) {
         val contentChanged = candidateSnapshot.labels != snapshot.labels
@@ -97,15 +95,12 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         candidateScroll.scrollTo(0, 0)
     }
 
-    fun showPersonalInfoAction(visible: Boolean, pickerOpen: Boolean = false) {
-        if (personalInfoActionVisible == visible && personalInfoPickerOpen == pickerOpen) return
-        personalInfoActionVisible = visible
-        personalInfoPickerOpen = pickerOpen
-        personalInfoAction.setImageResource(if (pickerOpen) R.drawable.ic_arrow_back else R.drawable.ic_personal_info)
-        personalInfoAction.contentDescription = context.getString(
-            if (pickerOpen) R.string.personal_info_back_description else R.string.personal_info_action_description,
-        )
-        personalInfoAction.visibility = if (visible) VISIBLE else GONE
+    fun showSavedValuePickerActions(visible: Boolean, activePicker: SavedValuePicker? = null) {
+        if (pickerActionsVisible == visible && openPicker == activePicker) return
+        pickerActionsVisible = visible
+        openPicker = activePicker
+        updatePickerAction(snippetAction, SavedValuePicker.SNIPPETS)
+        updatePickerAction(personalInfoAction, SavedValuePicker.PERSONAL_INFO)
     }
 
     fun showStatus(message: String) {
@@ -124,7 +119,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         setBackgroundColor(background)
         candidateRow.setBackgroundColor(background)
         candidateScroll.setBackgroundColor(background)
-        applyPersonalInfoActionTheme()
+        applyPickerActionTheme()
     }
 
     private fun render() {
@@ -199,7 +194,7 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         if (hasLeadingGap) marginStart = dp(5)
     }
 
-    private fun personalInfoActionLayout() = LayoutParams(
+    private fun pickerActionLayout() = LayoutParams(
         dp(38),
         ViewGroup.LayoutParams.MATCH_PARENT,
     ).apply {
@@ -226,9 +221,34 @@ class CandidateStripView @JvmOverloads constructor(context: Context, attrs: Attr
         )).apply { setLayerInset(1, 0, 0, 0, dp(1)) }
     }
 
-    private fun applyPersonalInfoActionTheme() {
-        personalInfoAction.imageTintList = ColorStateList.valueOf(context.getColor(R.color.keyboard_muted_text))
-        personalInfoAction.background = null
+    private fun pickerAction(category: SavedValuePicker) = ImageButton(context).apply {
+        setPadding(dp(7), dp(7), dp(7), dp(7))
+        visibility = GONE
+        setOnClickListener {
+            if (openPicker == category) onPickerDismissed?.invoke()
+            else onPickerRequested?.invoke(category)
+        }
+    }
+
+    private fun updatePickerAction(action: ImageButton, category: SavedValuePicker) {
+        val active = openPicker == category
+        action.setImageResource(if (active) R.drawable.ic_arrow_back else when (category) {
+            SavedValuePicker.SNIPPETS -> R.drawable.ic_text_snippet
+            SavedValuePicker.PERSONAL_INFO -> R.drawable.ic_personal_info
+        })
+        action.contentDescription = context.getString(when (category) {
+            SavedValuePicker.SNIPPETS -> if (active) R.string.text_snippet_back_description else R.string.text_snippet_action_description
+            SavedValuePicker.PERSONAL_INFO -> if (active) R.string.personal_info_back_description else R.string.personal_info_action_description
+        })
+        action.visibility = if (pickerActionsVisible) VISIBLE else GONE
+    }
+
+    private fun applyPickerActionTheme() {
+        val tint = ColorStateList.valueOf(context.getColor(R.color.keyboard_muted_text))
+        listOf(snippetAction, personalInfoAction).forEach { action ->
+            action.imageTintList = tint
+            action.background = null
+        }
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

@@ -107,9 +107,6 @@ class ImeServiceEnglishSuggestionTest {
             harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" })
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" }!!.performClick()
             harness.idle()
             assertEquals("東京都", harness.input.committed)
@@ -131,8 +128,6 @@ class ImeServiceEnglishSuggestionTest {
             harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 都道府県: 東京都" }!!.performClick()
             harness.idle()
             harness.root.findView { it.contentDescription?.toString() == "Space。上下左右フリックでカーソル移動" }!!.performClick()
@@ -152,11 +147,9 @@ class ImeServiceEnglishSuggestionTest {
             val harness = Harness { _, _ -> emptyList() }
             harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.performClick()
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
-            assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 定型文: 登録キーワード" } != null)
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "定型文 1: 定型文: 登録キーワード" } != null)
             val key = harness.root.findView {
                 it.contentDescription?.toString() == "タップで、。左フリックで。上フリックで？右フリックで！"
             }!!
@@ -269,7 +262,7 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
-    fun fourSavedEmailsAppearSeparatelyInEmailFieldAndPickerStartsWithEmails() {
+    fun fourSavedEmailsAppearSeparatelyInEmailFieldAndPersonalPickerShowsAllSavedValues() {
         val context = RuntimeEnvironment.getApplication()
         clearPersonalInfo(context)
         val emails = listOf("one@example.com", "two@example.com", "three@example.com", "four@example.com")
@@ -286,13 +279,12 @@ class ImeServiceEnglishSuggestionTest {
             }
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            emails.forEachIndexed { index, email ->
-                assertTrue(harness.root.findView { it.contentDescription?.toString() ==
-                    "個人情報 ${index + 1}: メールアドレス: $email" } != null)
+            emails.forEach { email ->
+                assertTrue(harness.root.findView {
+                    it.contentDescription?.toString()?.startsWith("個人情報 ") == true &&
+                        it.contentDescription?.toString()?.endsWith(": $email") == true
+                } != null)
             }
-            assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 氏名（漢字）（姓）: 山田" })
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
             assertTrue(harness.root.findView { it.contentDescription?.toString()?.contains("山田") == true } != null)
         } finally { clearPersonalInfo(context) }
     }
@@ -316,6 +308,12 @@ class ImeServiceEnglishSuggestionTest {
                 .invoke(harness.service)
 
             assertEquals(strip, providerView.parent?.parent?.parent)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した定型文を選ぶ"
+            }!!.visibility)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
             harness.root.findView { it.contentDescription?.toString() == "候補 1: name@example.com" }!!
                 .performClick()
             harness.idle()
@@ -337,8 +335,6 @@ class ImeServiceEnglishSuggestionTest {
             assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 1: 山田 太郎" })
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
             assertEquals(null, harness.root.findView { it.contentDescription?.toString() == "候補 2: " })
             harness.root.findView { it.contentDescription?.toString() == "個人情報 3: 住所1: 東京都千代田区" }!!.performClick()
             harness.idle()
@@ -349,7 +345,7 @@ class ImeServiceEnglishSuggestionTest {
     }
 
     @Test
-    fun genericFieldPickerIncludesSavedSnippetWithoutAVisibleCategoryLabel() {
+    fun snippetsPickerContainsOnlySavedSnippets() {
         val context = RuntimeEnvironment.getApplication()
         clearPersonalInfo(context)
         ImePreferences.setTextSnippets(context, listOf("いつもありがとうございます。"))
@@ -357,18 +353,72 @@ class ImeServiceEnglishSuggestionTest {
             val harness = Harness { _, _ -> emptyList() }
             harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.performClick()
             harness.idle()
             val chip = harness.root.findView {
-                it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。"
+                it.contentDescription?.toString() == "定型文 1: 定型文: いつもありがとうございます。"
             }!! as android.widget.TextView
-            assertEquals(View.INVISIBLE, harness.root.findView {
-                it.contentDescription?.toString() == "その他の個人情報を表示"
-            }!!.visibility)
             assertEquals("いつもありがとうございます。", chip.text.toString())
             chip.performClick()
             harness.idle()
             assertEquals("いつもありがとうございます。", harness.input.committed)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun pickerActionsSwitchBetweenSeparatedListsAndTheActiveActionReturnsToNormalInput() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        ImePreferences.setTextSnippets(context, listOf("登録キーワード"))
+        ImePreferences.setPersonalInfo(context, PersonalInfoField.NAME, "山田 太郎")
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+
+            harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.performClick()
+            harness.idle()
+            assertTrue(harness.root.findView {
+                it.contentDescription?.toString() == "定型文 1: 定型文: 登録キーワード"
+            } != null)
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString()?.contains("山田") == true })
+
+            harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString()?.contains("山田") == true } != null)
+            assertEquals(null, harness.root.findView {
+                it.contentDescription?.toString() == "定型文 1: 定型文: 登録キーワード"
+            })
+
+            harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" }!!.performClick()
+            harness.idle()
+            assertEquals("", harness.input.committed)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した定型文を選ぶ"
+            }!!.visibility)
+            assertEquals(View.VISIBLE, harness.root.findView {
+                it.contentDescription?.toString() == "登録した個人情報を選ぶ"
+            }!!.visibility)
+        } finally {
+            clearPersonalInfo(context)
+        }
+    }
+
+    @Test
+    fun emptySavedValuePickersRemainAvailableInANormalField() {
+        val context = RuntimeEnvironment.getApplication()
+        clearPersonalInfo(context)
+        try {
+            val harness = Harness { _, _ -> emptyList() }
+            harness.service.onStartInput(EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, false)
+            harness.idle()
+
+            harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.performClick()
+            harness.idle()
+            assertTrue(harness.root.findView { it.contentDescription?.toString() == "定型文の選択を戻る" } != null)
+            assertEquals(null, harness.root.findView { it.contentDescription?.toString()?.startsWith("定型文 1:") == true })
         } finally {
             clearPersonalInfo(context)
         }
@@ -467,16 +517,15 @@ class ImeServiceEnglishSuggestionTest {
                 harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
                 harness.idle()
                 assertEquals(initialHeight, measuredHeight())
-                assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。" } != null)
-                assertTrue(harness.root.findView { it.contentDescription?.toString() == "個人情報 2: メールアドレス: name@example.com" } != null)
-                harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
+                assertTrue(harness.root.findView { it.contentDescription?.toString()?.contains("メールアドレス: name@example.com") == true } != null)
+                harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.performClick()
                 harness.idle()
                 assertEquals(initialHeight, measuredHeight())
                 assertEquals(View.VISIBLE, harness.root.findView {
-                    it.contentDescription?.toString() == "個人情報 1: 定型文: いつもありがとうございます。"
+                    it.contentDescription?.toString() == "定型文 1: 定型文: いつもありがとうございます。"
                 }!!.visibility)
 
-                harness.root.findView { it.contentDescription?.toString() == "個人情報の選択を戻る" }!!.performClick()
+                harness.root.findView { it.contentDescription?.toString() == "定型文の選択を戻る" }!!.performClick()
                 harness.idle()
                 assertEquals(initialHeight, measuredHeight())
                 assertEquals("", harness.input.committed)
@@ -501,8 +550,6 @@ class ImeServiceEnglishSuggestionTest {
             inline.beginResponse()
 
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
-            harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
             harness.idle()
 
             assertEquals(View.VISIBLE, harness.root.findView {
@@ -580,8 +627,6 @@ class ImeServiceEnglishSuggestionTest {
             harness.root.findView {
                 it.contentDescription?.toString() == "登録した個人情報を選ぶ"
             }!!.performClick()
-            harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
             harness.idle()
             harness.root.findView {
                 it.contentDescription?.toString() == "個人情報 3: 住所1: 東京都千代田区"
@@ -676,8 +721,6 @@ class ImeServiceEnglishSuggestionTest {
             inline.beginResponse()
             harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.performClick()
             harness.idle()
-            harness.root.findView { it.contentDescription?.toString() == "その他の個人情報を表示" }!!.performClick()
-            harness.idle()
 
             ImeService::class.java.getDeclaredMethod("clearInlineSuggestions", Boolean::class.javaPrimitiveType).apply {
                 isAccessible = true
@@ -710,6 +753,10 @@ class ImeServiceEnglishSuggestionTest {
             assertEquals(
                 View.GONE,
                 harness.root.findView { it.contentDescription?.toString() == "登録した個人情報を選ぶ" }!!.visibility,
+            )
+            assertEquals(
+                View.GONE,
+                harness.root.findView { it.contentDescription?.toString() == "登録した定型文を選ぶ" }!!.visibility,
             )
         } finally {
             clearPersonalInfo(context)

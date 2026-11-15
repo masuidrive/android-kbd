@@ -63,7 +63,6 @@ sealed interface KeyAction {
     data object Paste : KeyAction
     data object VoiceHold : KeyAction
     data object CancelVoice : KeyAction
-    data object ExpandPersonalInfo : KeyAction
 }
 
 fun interface KeyboardActionSink {

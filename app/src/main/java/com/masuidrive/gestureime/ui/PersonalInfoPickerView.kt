@@ -40,8 +40,8 @@ class PersonalInfoPickerView @JvmOverloads constructor(
     private val punctuationPopupController = KeyboardPopupController(context)
     private val punctuationPreviewSpec = KeyboardLayouts.personalPunctuationPreview()
     private var layerSpec = KeyboardLayouts.personalFooter(layerMode).first()
+    private var contentCategory = SavedValuePicker.PERSONAL_INFO
     private lateinit var layerKey: TextView
-    private lateinit var moreKey: TextView
     private val flow = ValueFlowLayout(context)
     private val footer = editRow()
     private val scroll = ScrollView(context).apply {
@@ -64,9 +64,10 @@ class PersonalInfoPickerView @JvmOverloads constructor(
 
     fun setOnEditAction(listener: (KeyAction) -> Unit) { onEditAction = listener }
 
-    fun setMoreVisible(visible: Boolean) {
-        // Keep the slot so the editing keys do not shift when More is opened.
-        moreKey.visibility = if (visible) View.VISIBLE else View.INVISIBLE
+    fun setContentCategory(category: SavedValuePicker) {
+        if (contentCategory == category) return
+        contentCategory = category
+        render()
     }
 
     fun setLayerMode(mode: KeyboardMode) {
@@ -220,25 +221,19 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         layerKey = addKey(footerSpecs[0]).apply {
             withFlickActions(previewSpec = { layerSpec })
         }
-        moreKey = addKey(footerSpecs[1]).apply {
-            textSize = 12f
-            contentDescription = "その他の個人情報を表示"
-            withFlickActions()
-            visibility = View.INVISIBLE
-        }
-        addView(View(context), LayoutParams(0, 1, 1f))
-        val punctuation = addKey(footerSpecs[2])
+        addView(View(context), LayoutParams(0, 1, 2f))
+        val punctuation = addKey(footerSpecs[1])
         punctuation.contentDescription = "タップで、。左フリックで。上フリックで？右フリックで！"
         punctuation.withFlickActions(previewSpec = { punctuationPreviewSpec })
-        addKey(footerSpecs[3]).apply {
+        addKey(footerSpecs[2]).apply {
             contentDescription = "Space。上下左右フリックでカーソル移動"
             withFlickActions()
         }
-        addKey(footerSpecs[4]).apply {
+        addKey(footerSpecs[3]).apply {
             contentDescription = "削除"
             withFlickActions()
         }
-        addKey(footerSpecs[5]).apply {
+        addKey(footerSpecs[4]).apply {
             contentDescription = "Enter。上フリックでpaste、下フリックでC-j"
             withFlickActions()
         }
@@ -265,7 +260,7 @@ class PersonalInfoPickerView @JvmOverloads constructor(
         flow.removeAllViews()
         snapshot.candidates.forEachIndexed { index, value ->
             val label = snapshot.labels.getOrNull(index) ?: value
-            flow.addView(card(value, "個人情報 ${index + 1}: $label").apply {
+            flow.addView(card(value, "${contentCategory.description} ${index + 1}: $label").apply {
                 setOnClickListener { onCandidateSelected?.invoke(CandidateUiEvent(snapshot.token, index)) }
             })
         }
@@ -295,6 +290,12 @@ class PersonalInfoPickerView @JvmOverloads constructor(
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private val SavedValuePicker.description: String
+        get() = when (this) {
+            SavedValuePicker.SNIPPETS -> "定型文"
+            SavedValuePicker.PERSONAL_INFO -> "個人情報"
+        }
 
     private class ValueFlowLayout(context: Context) : ViewGroup(context) {
         private val gap = (6 * resources.displayMetrics.density).toInt()

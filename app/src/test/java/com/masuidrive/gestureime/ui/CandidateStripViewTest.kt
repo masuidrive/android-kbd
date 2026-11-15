@@ -44,7 +44,7 @@ class CandidateStripViewTest {
 
         view.showInlineSuggestionViews(listOf(providerView))
 
-        assertEquals(providerView, view.getChildAt(1).let { it as HorizontalScrollView }.getChildAt(0).let {
+        assertEquals(providerView, view.candidateScroll().getChildAt(0).let {
             it as ViewGroup
         }.getChildAt(0))
         assertEquals("provider-owned", providerView.text.toString())
@@ -53,7 +53,7 @@ class CandidateStripViewTest {
         view.showCandidates(CandidateUiSnapshot(21, listOf("normal")))
 
         assertEquals(null, runCatching { view.textView("normal") }.getOrNull())
-        val row = (view.getChildAt(1) as HorizontalScrollView).getChildAt(0) as ViewGroup
+        val row = view.candidateScroll().getChildAt(0) as ViewGroup
         assertEquals(providerView, row.getChildAt(0))
         assertEquals(1, row.childCount)
         view.clearInlineSuggestionViews()
@@ -69,7 +69,7 @@ class CandidateStripViewTest {
         view.showInlineSuggestionViews(listOf(providerView, secondProvider))
         view.showCandidates(CandidateUiSnapshot(21, listOf(email)), alongsideInline = true)
 
-        val row = (view.getChildAt(1) as HorizontalScrollView).getChildAt(0) as ViewGroup
+        val row = view.candidateScroll().getChildAt(0) as ViewGroup
         val saved = view.textView(email)
         assertEquals(saved, row.getChildAt(0))
         assertEquals(providerView, row.getChildAt(1))
@@ -96,42 +96,54 @@ class CandidateStripViewTest {
         assertEquals(33, providerView.height)
     }
 
-    @Test fun personalInfoActionDispatchesWithoutBecomingCandidateText() {
+    @Test fun savedValuePickerActionsDispatchAndTurnTheActiveActionIntoBack() {
         val view = view()
-        var requests = 0
+        val requests = mutableListOf<SavedValuePicker>()
         var dismissals = 0
-        view.setOnPersonalInfoRequested { requests++ }
-        view.setOnPersonalInfoDismissed { dismissals++ }
+        view.setOnPickerRequested(requests::add)
+        view.setOnPickerDismissed { dismissals++ }
 
-        view.showPersonalInfoAction(true)
+        view.showSavedValuePickerActions(true)
 
+        view.snippetAction().performClick()
         view.personalInfoAction().performClick()
-        assertEquals(1, requests)
-        view.showPersonalInfoAction(true, pickerOpen = true)
+        assertEquals(listOf(SavedValuePicker.SNIPPETS, SavedValuePicker.PERSONAL_INFO), requests)
+        view.showSavedValuePickerActions(true, SavedValuePicker.PERSONAL_INFO)
         assertEquals("個人情報の選択を戻る", view.personalInfoAction().contentDescription)
-        assertEquals(view.personalInfoAction(), view.getChildAt(0))
+        assertEquals("登録した定型文を選ぶ", view.snippetAction().contentDescription)
         view.personalInfoAction().performClick()
         assertEquals(1, dismissals)
-        assertEquals(1, requests)
-        view.showPersonalInfoAction(true)
+        view.showSavedValuePickerActions(true, SavedValuePicker.SNIPPETS)
+        assertEquals("定型文の選択を戻る", view.snippetAction().contentDescription)
+        view.personalInfoAction().performClick()
+        assertEquals(listOf(
+            SavedValuePicker.SNIPPETS,
+            SavedValuePicker.PERSONAL_INFO,
+            SavedValuePicker.PERSONAL_INFO,
+        ), requests)
+        view.showSavedValuePickerActions(true)
         assertEquals("登録した個人情報を選ぶ", view.personalInfoAction().contentDescription)
-        view.showPersonalInfoAction(false)
+        view.showSavedValuePickerActions(false)
+        assertEquals(View.GONE, view.snippetAction().visibility)
         assertEquals(View.GONE, view.personalInfoAction().visibility)
     }
 
-    @Test fun personalInfoActionStaysOutsideTheScrollableInlineProviderRow() {
+    @Test fun savedValuePickerActionsStayOutsideTheScrollableInlineProviderRow() {
         val view = view()
         val providerView = TextView(view.context).apply { text = "provider-owned" }
 
-        view.showPersonalInfoAction(true)
+        view.showSavedValuePickerActions(true)
         view.showInlineSuggestionViews(listOf(providerView))
 
-        val row = view.getChildAt(1).let { it as HorizontalScrollView }.getChildAt(0) as ViewGroup
+        val row = view.candidateScroll().getChildAt(0) as ViewGroup
         assertEquals(providerView, row.getChildAt(0))
         assertEquals(1, row.childCount)
         assertEquals("登録した個人情報を選ぶ", view.personalInfoAction().contentDescription)
+        assertEquals("登録した定型文を選ぶ", view.snippetAction().contentDescription)
         assertEquals(view, view.personalInfoAction().parent)
-        assertEquals(view.personalInfoAction(), view.getChildAt(0))
+        assertEquals(view, view.snippetAction().parent)
+        assertEquals(view.snippetAction(), view.getChildAt(0))
+        assertEquals(view.personalInfoAction(), view.getChildAt(1))
     }
 
     @Test fun personalInfoActionUsesLabelsWithoutChangingItsSelectedValueIndex() {
@@ -311,7 +323,7 @@ class CandidateStripViewTest {
         view.showCandidates(CandidateUiSnapshot(40, candidates, 0))
         layout()
         shadowOf(Looper.getMainLooper()).idle()
-        val scroll = view.getChildAt(1) as HorizontalScrollView
+        val scroll = view.candidateScroll()
         scroll.scrollTo(140, 0)
         assertEquals(140, scroll.scrollX)
 
@@ -327,7 +339,9 @@ class CandidateStripViewTest {
     }
 
     private fun CandidateStripView.textView(text: String): TextView = allTextViews().single { it.text.toString() == text }
-    private fun CandidateStripView.personalInfoAction(): ImageButton = findView { it is ImageButton } as ImageButton
+    private fun CandidateStripView.candidateScroll(): HorizontalScrollView = getChildAt(2) as HorizontalScrollView
+    private fun CandidateStripView.snippetAction(): ImageButton = getChildAt(0) as ImageButton
+    private fun CandidateStripView.personalInfoAction(): ImageButton = getChildAt(1) as ImageButton
     private fun TextView.layers() = background as LayerDrawable
     private fun TextView.shadowLayer() = layers().getDrawable(0) as GradientDrawable
     private fun TextView.faceLayer() = layers().getDrawable(1) as GradientDrawable
