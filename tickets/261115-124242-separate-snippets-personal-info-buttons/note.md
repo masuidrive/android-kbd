@@ -58,6 +58,10 @@ PDH-ticket-human-review -> PDH-implement — ユーザの本ターンの明示�
      実コードを読みながら直接実装し、設計判断 / scope 拡張・縮小の判断 / 実コードで発見した事実をここに append する。
      論理単位ごとの commit hash 一覧も記録する (mega-commit 禁止。commit 数は gate ではない)。 -->
 
+Root-owned mock/docs commits: `694386b` (二つの入口、分離した一覧、more削除、仕様・マニュアル同期)、`5515a97` (一覧表示で10px低くなるモック高を通常キーボードと同じ278pxに調整)。`site/mock.html`と`docs/reference/mock-source.html`はbyte-identical。ブラウザで412px/840pxの両方で二つの38px入口、切替、個別値入力後も一覧維持、横はみ出しなしを確認。値入力の対照: 「山田」を選ぶと入力欄は「山田」だけで、17個の個人情報項目は表示継続。private欄はHTMLモックにないためAndroid側の検証を要する。
+
+実装前の未確認仮定: 二つの入口を既存の候補欄に同時配置できるか、inline Autofillと横並びの際に保護Viewが消えないか、pickerの高さが固定できるか。これらはAndroid実機UIと接続テストで測定する。モックでは二つの入口と個人情報一覧の高さを測定済み。
+
 ## PDH-review. 品質検証結果
 <!-- PDH-review-1 / PDH-review-2 のように attempt ごとに記録する。
      独立 reviewer（1 人以上。構成と model は CLAUDE.md「チーム構成・モデル設定」）の
@@ -76,6 +80,8 @@ PDH-ticket-human-review -> PDH-implement — ユーザの本ターンの明示�
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
+
+`technical-reference.md`の#37、`docs/reference/sites-native-spec.txt`の個人情報・定型文仕様、`site/manual.html`を二つの入口と分離一覧に更新。既存の保存形式・inline Autofill・private保護の記述は維持。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
