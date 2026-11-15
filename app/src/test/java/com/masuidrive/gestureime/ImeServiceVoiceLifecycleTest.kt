@@ -245,7 +245,8 @@ class ImeServiceVoiceLifecycleTest {
 
             val candidate = strip.allTextViews().single { it.text.toString() == "候補" }
             val firstKey = Rect().also { keyboard.accessibilityNodeProvider.createAccessibilityNodeInfo(0)!!.getBoundsInParent(it) }
-            assertEquals("$widthPixels candidate left", expectedLeft, candidate.leftIn(strip))
+            // Two fixed 38dp picker buttons and their 10dp gaps precede the scrollable candidates.
+            assertEquals("$widthPixels candidate left", expectedLeft + 96, candidate.leftIn(strip))
             assertEquals("$widthPixels key left", expectedLeft, firstKey.left)
             assertEquals("$widthPixels candidate to key gap", 10, keyboard.top + firstKey.top - (strip.top + candidate.bottomIn(strip)))
         }

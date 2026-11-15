@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KeyGestureRouterTest {
-    private val space = KeyboardLayouts.personalFooter(KeyboardMode.QWERTY)[3]
+    private val space = KeyboardLayouts.personalFooter(KeyboardMode.QWERTY)[2]
     private val layer = KeyboardLayouts.personalFooter(KeyboardMode.QWERTY)[0]
 
     @Test fun `short vertical release is enabled only for the personal footer`() {
@@ -32,8 +32,8 @@ class KeyGestureRouterTest {
         assertEquals(KeyGestureRouter.Step.Selection(Direction.CENTER, true, true), router.move(1, 0f, 0f))
         assertEquals(Direction.CENTER, router.end(1, 0f, 0f)?.direction)
 
-        val more = KeyboardLayouts.personalFooter(KeyboardMode.QWERTY)[1]
-        router.begin(2, more, 0f, 0f, GestureThresholds())
+        val backspace = KeyboardLayouts.personalFooter(KeyboardMode.QWERTY)[3]
+        router.begin(2, backspace, 0f, 0f, GestureThresholds())
         assertEquals(KeyGestureRouter.Step.Selection(Direction.CENTER, false, false), router.move(2, 30f, 0f))
         assertEquals(Direction.CENTER, router.end(2, 30f, 0f)?.direction)
     }

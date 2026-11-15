@@ -60,6 +60,10 @@ PDH-ticket-human-review -> PDH-implement — ユーザの本ターンの明示�
 
 Root-owned mock/docs commits: `694386b` (二つの入口、分離した一覧、more削除、仕様・マニュアル同期)、`5515a97` (一覧表示で10px低くなるモック高を通常キーボードと同じ278pxに調整)。`site/mock.html`と`docs/reference/mock-source.html`はbyte-identical。ブラウザで412px/840pxの両方で二つの38px入口、切替、個別値入力後も一覧維持、横はみ出しなしを確認。値入力の対照: 「山田」を選ぶと入力欄は「山田」だけで、17個の個人情報項目は表示継続。private欄はHTMLモックにないためAndroid側の検証を要する。
 
+Android commit `afd006c`: `CandidateStripView`に二つの固定ボタンとactive/back状態を追加し、`ImeService`で選択カテゴリごとに値を分けた。`PersonalInfoPickerView`と`KeyboardLayouts.personalFooter`からmoreを削除。関連unit/attached view `MotionEvent` focused testsはBUILD SUCCESSFUL。`fe136d0`で製品ページ文言と進捗を記録。
+
+最初の全体gate（`fe136d0`, `scripts/test-all.sh --parallel --connected`）はunit 385件中4件失敗。うち`KeyGestureRouterTest`の2件はmore削除後の旧footer index、`ImeServiceVoiceLifecycleTest`の1件は二つの38dpボタンと10dp gapを加味しない左座標で、今回の変更に連動する古い期待値。修正して該当focused testはPASS。`ImeHideBarTest.recreatedInputViewInEmojiModeShowsRecentInItsNewPickerOnly`の1件は今回の変更対象外で、同じテストを再実行するとPASS。全体gateを修正後SHAで再実行する。
+
 実装前の未確認仮定: 二つの入口を既存の候補欄に同時配置できるか、inline Autofillと横並びの際に保護Viewが消えないか、pickerの高さが固定できるか。これらはAndroid実機UIと接続テストで測定する。モックでは二つの入口と個人情報一覧の高さを測定済み。
 
 ## PDH-review. 品質検証結果
