@@ -1,6 +1,6 @@
 # Work Notes: 261115-124242-separate-snippets-personal-info-buttons
 
-## Status: PDH-open (Opening)
+## Status: PDH-implement (二つの候補入口と分離した一覧を実装中)
 
 ## Checklist
 - [ ] 利用者依頼: 候補エリアに定型文ボタンと個人情報ボタンを並べ、それぞれの登録値を別々に表示する。
@@ -11,8 +11,8 @@
      （着手より先に書く。規則は PDH-AGENTS.md「Execution Model」）。
      当てはまらない項目は `- [-] ... - skip: <理由>` と書いて理由を残す（理由なしの `- [-]` は未了扱い）。
      未了の一覧は `./ticket.sh check`。 -->
-- [ ] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
-- [ ] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
+- [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
+- [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
 - [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
 - [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
 - [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
@@ -33,6 +33,16 @@
      Why が product-brief.md に接続しているか、AC が観察可能か、
      Design Decisions / Out-of-scope / Dependencies が実装 agent に十分か、
      Architectural Invariants と矛盾しないか、ユーザ承認が必要な未確定判断が残っていないかを記録する。 -->
+PDH-open -> PDH-ticket-review — ticketを作成・開始し、ユーザの二つの依頼をChecklistへ記録した。
+
+WhyはProduct Briefの「同じジェスチャー体系で素早く操作したい」に接続する。ACは候補欄の入口、分離した一覧、戻りと下段、private欄、モックの観察可能な動作。保存値・保存形式・inline Autofillへの変更は要求していない。影響レイヤー: Android app、IME service、custom view UI、unit tests、instrumentation/device tests、docs。Mozc JNIは無関係。外部surface: 実IMEの候補欄と一覧、ブラウザ操作モック、製品ページ・マニュアル。private欄は既存の保護条件を保つ。
+
+現状の`ImeService`は`personalInfoPickerVisible`と`personalInfoPickerExpanded`で一つの入口とmore段階を管理する。`CandidateStripView`は個人情報ボタン一つ、`PersonalInfoPickerView`と`KeyboardLayouts`は下段のmore..を持つ。モックも同じ。分離に必要な登録値は既存の`ImePreferences`から取得できる。ユーザは「同時に固定文入力ボタン」「それぞれを表示」「下のmore..はもう要らない」と明示し、同じ範囲の実装を依頼しているため、これを実装前gateの承認として記録する。追加の未確定product判断なし。
+
+独立AC読み手はWhat冒頭文とAC全件だけで、二つの入口、分離した一覧、戻り、private非表示、モックを復元できた。具体操作・0件・順番・private判定の疑問は既存動作の維持とDesign Decisionsで解消した。ACの追加・変更は不要。
+
+PDH-ticket-review -> PDH-ticket-human-review — Required Probes 1/1、実装依存の未確認事項は検証計画へ移した。
+PDH-ticket-human-review -> PDH-implement — ユーザの本ターンの明示依頼がAC1〜3の変更内容をそのまま指定している。AC4〜5はprivate保護と既存モック同期の非退行条件であり、追加のproduct判断はない。
 
 ## Required Probes
 <!-- AC ごとに「達成できると確かめたか」を判定し、確かめていなければ確かめる手段をここへ書く。
@@ -41,7 +51,7 @@
      「測って記録する＋この値を下回ったら止めて報告する」の形にする。
      この節は close の必須グループ（`require_checklist_groups`）なので、消すと close が止まる。
      途中で要求するときは `./ticket.sh check --require "Required Probes"`。 -->
-- [ ] 測る対象を洗い出し、書き手が測れるものは測って結果をここへ書いた（測る対象が無いなら `- [-] ... - skip: <理由>`）
+- [x] 既存の候補欄と下段をcodeで確認: `CandidateStripView`は単一ボタン、`ImeService`は初期一覧を定型文+メール、展開時に氏名+住所、`PersonalInfoPickerView`と`KeyboardLayouts`はmore..を描く。新UIはAndroid 412dp/840dpの実表示とブラウザphone/tabletで測る。固定高とinline Autofill併存を実装後に検証し、崩れたら止めて修正する。
 
 ## PDH-implement. 実装ログ
 <!-- 1 agent が investigate + implement + tests を 1 session で完遂する。
