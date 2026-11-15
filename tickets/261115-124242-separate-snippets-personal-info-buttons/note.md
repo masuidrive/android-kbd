@@ -108,6 +108,8 @@ Surface ObserverはAndroid 36.1の412dp相当エミュレーターで実IMEを�
 `technical-reference.md`の#37、`docs/reference/sites-native-spec.txt`の個人情報・定型文仕様、`site/manual.html`を二つの入口と分離一覧に更新。既存の保存形式・inline Autofill・private保護の記述は維持。
 
 ## PDH-human-review. 人間レビュー
+
+2026/11/16 公開承認「公開していいよ」を受けて v0.15.38 を公開。GitHub Release の APK は再ダウンロードしてローカルと byte 一致（38,824,030 bytes、SHA-256 `2f1906de302b759c8121fd498ee5c7200f82224c6b045f8866f5a686a268b558`）。GitHub Pages は `5b7500ab262ad51309bb70b5807ac9f89dec1b46` を built、公開4ファイルはローカルと一致。公開モックを 412px / 840px で操作し、候補欄の二つのボタン・キー入力・横はみ出しなしを確認。Android はユニット 385 件、lint、APK、エミュレーター接続 36 件が個別実行で成功。`scripts/test-all.sh --parallel --connected` は2回とも `ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker` が失敗し、同テスト単独・同クラス全体・ユニット全体では成功。並列時の不安定性として継続調査対象。実機でのインストール・挙動確認は未実施で、ticket close は行わない。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
