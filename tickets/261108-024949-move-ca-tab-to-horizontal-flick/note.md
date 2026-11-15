@@ -148,6 +148,8 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
 
 2026-11-15: 修正版SHA `fec3bc79463930a29a4165e3de197de2222a4a48` の全体スイートは `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`。接続33件中1件、`EmojiPickerBodyLayoutInstrumentedTest.attachedImePickerCentersRealEmojiViewsAndTapCommitsThroughImeCallback` が `expected:<2> but was:<1>` で失敗。修正前SHA `a9ac9871a90aa6844fe53d905c64cb1497c6f14e` を一時worktreeで同じ `scripts/test-all.sh --parallel --connected` にかけても `PASS: fast-checks / FAIL: android unit, lint, apk, connected (real Mozc) / Passed: 1 / 2`、同じ絵文字テスト・同じ期待値で接続32件中1件が失敗。今回の修飾Enter diffによる退行ではないと判断。失敗をPASSとは扱わない。独立reviewerは `fec3bc7` のdiffを読んでCritical/Majorなしと判定。ブラウザmockの既存`applyModified('Enter')`経路は変更不要。修正版の物理端末確認とclose承認は未取得。
 
+2026-11-15: 独立AC verifierは`fec3bc7`でAC1〜4を全件VERIFIEDと判定。AC3はCtrl/Alt+Enterのone-shotを412dp/840dp・QWERTY/記号の実`MotionEvent`と`KEYCODE_ENTER`のdown/up metaで確認。修正版APKの物理端末動作は未確認。エミュレーターは検証後に停止し、比較用一時worktreeを削除。
+
 公開対象commit `d8948f99f11963da464c3f7e5e24e4abbe888370` の最終全体テスト:
 ```text
 ANDROID_HOME=/Users/masuidrive/Library/Android/sdk PATH=/Users/masuidrive/Library/Android/sdk/platform-tools:$PATH scripts/test-all.sh --parallel --connected
