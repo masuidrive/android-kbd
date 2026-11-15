@@ -833,6 +833,91 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun modifierDoesNotLeakThroughAccentPasteOrExplicitControlJ() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            val actions = mutableListOf<KeyAction>()
+            lateinit var view: KeyboardView
+            var density = 0f
+            scenario.onActivity { activity ->
+                density = activity.resources.displayMetrics.density
+                view = KeyboardView(activity).apply { actionSink = KeyboardActionSink { actions += it } }
+                activity.setContentView(view)
+            }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+            fun keyBounds(mode: KeyboardMode, id: String): Rect {
+                val keys = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                return bounds(view, keys.indexOfFirst { it.id == id })
+            }
+
+            fun gesture(key: Rect, dxDp: Float = 0f, dyDp: Float = 0f) {
+                val time = SystemClock.uptimeMillis()
+                val x = key.exactCenterX()
+                val y = key.exactCenterY()
+                dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                if (dxDp != 0f || dyDp != 0f) {
+                    dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1,
+                        x + dxDp * density, y + dyDp * density)
+                }
+                dispatch(view, MotionEvent.ACTION_UP, time, time + 2,
+                    x + dxDp * density, y + dyDp * density)
+            }
+
+            listOf(412f, 840f).forEach { widthDp ->
+                val width = (widthDp * density).toInt()
+                val height = (228f * density).toInt()
+                lateinit var a: Rect
+                lateinit var q: Rect
+                scenario.onActivity {
+                    view.setMode(KeyboardMode.QWERTY)
+                    view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                }
+                androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                scenario.onActivity {
+                    a = keyBounds(KeyboardMode.QWERTY, "key-a")
+                    q = keyBounds(KeyboardMode.QWERTY, "key-q")
+                    actions.clear()
+                    view.setModifier(Modifier.ALT)
+                    val time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, a.exactCenterX(), a.exactCenterY())
+                }
+                Thread.sleep(KeyboardView.ACCENT_DELAY_MS + 100)
+                scenario.onActivity {
+                    val time = SystemClock.uptimeMillis()
+                    dispatch(view, MotionEvent.ACTION_UP, time - 1, time, a.exactCenterX(), a.exactCenterY())
+                    gesture(q)
+                    assertEquals("$widthDp dp modifier bypasses accent choice and clears",
+                        listOf(KeyAction.ModifiedKey("a", Modifier.ALT), KeyAction.SetModifier(null), KeyAction.CommitText("q")), actions)
+                }
+
+                listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS).forEach { mode ->
+                    scenario.onActivity {
+                        view.setMode(mode)
+                        view.measure(exact(width), exact(height)); view.layout(0, 0, width, height)
+                        val enter = keyBounds(mode, "enter")
+                        val nextId = if (mode == KeyboardMode.QWERTY) "key-q" else "key-1"
+                        val nextLabel = if (mode == KeyboardMode.QWERTY) "q" else "1"
+                        val next = keyBounds(mode, nextId)
+
+                        actions.clear()
+                        view.setModifier(Modifier.CTRL)
+                        gesture(enter, dyDp = -36f)
+                        gesture(next)
+                        assertEquals("$widthDp dp $mode Paste consumes the selected modifier",
+                            listOf(KeyAction.Paste, KeyAction.SetModifier(null), KeyAction.CommitText(nextLabel)), actions)
+
+                        actions.clear()
+                        view.setModifier(Modifier.ALT)
+                        gesture(enter, dyDp = 36f)
+                        gesture(next)
+                        assertEquals("$widthDp dp $mode explicit Ctrl-J consumes the selected modifier",
+                            listOf(KeyAction.ModifiedKey("j", Modifier.CTRL), KeyAction.SetModifier(null), KeyAction.CommitText(nextLabel)), actions)
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun voiceReturnAndCandidateCancelUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

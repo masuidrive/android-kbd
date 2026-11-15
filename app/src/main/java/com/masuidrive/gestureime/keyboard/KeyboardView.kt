@@ -1111,8 +1111,12 @@ class KeyboardView @JvmOverloads constructor(
             return
         }
         val accents = if (accentActive.remove(id)) accentChoices(hit.spec.center?.label.orEmpty()) else null
-        if (accents != null) actionSink?.onKeyAction(KeyAction.CommitText(accents[accentSelected.remove(id) ?: 0]))
-        else if (!cursorMoved.remove(id) && !repeated.remove(id)) dispatch(hit.spec, direction)
+        if (accents != null && state.pendingModifier == null) {
+            actionSink?.onKeyAction(KeyAction.CommitText(accents[accentSelected.remove(id) ?: 0]))
+        } else if (!cursorMoved.remove(id) && !repeated.remove(id)) {
+            accentSelected.remove(id)
+            dispatch(hit.spec, direction)
+        }
         cursorMoved.remove(id)
         if (active.isEmpty()) voiceHoldMultiPointer = false
         dismissPopup()
@@ -1166,6 +1170,8 @@ class KeyboardView @JvmOverloads constructor(
             is KeyAction.Backspace -> dispatchPhysicalKey("BACKSPACE", action)
             KeyAction.Escape -> dispatchPhysicalKey("ESCAPE", KeyAction.Escape)
             is KeyAction.MoveCursor -> dispatchCursor(action.direction, action.units)
+            KeyAction.Paste -> dispatchAssignedAction(action)
+            is KeyAction.ModifiedKey -> dispatchAssignedAction(action)
             KeyAction.VoiceHold -> Unit
             else -> actionSink?.onKeyAction(action)
         }
@@ -1181,6 +1187,15 @@ class KeyboardView @JvmOverloads constructor(
         }
         actionSink?.onKeyAction(KeyAction.ModifiedKey(label, modifier))
         updateModifier(null)
+    }
+
+    /**
+     * Paste and Enter-down Ctrl-J already have unambiguous assigned actions.  A selected one-shot
+     * modifier must not alter them, but it is still consumed by this next key activation.
+     */
+    private fun dispatchAssignedAction(action: KeyAction) {
+        actionSink?.onKeyAction(action)
+        if (state.pendingModifier != null) updateModifier(null)
     }
 
     /**
@@ -1225,7 +1240,7 @@ class KeyboardView @JvmOverloads constructor(
                     dispatchPhysicalKey("BACKSPACE", KeyAction.Backspace(repeat = true))
                     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     postDelayed(this, DELETE_REPEAT_INTERVAL_MS)
-                } else if (accentChoices(hit.spec.center?.label.orEmpty()) != null) {
+                } else if (state.pendingModifier == null && accentChoices(hit.spec.center?.label.orEmpty()) != null) {
                     accentActive += id
                     accentSelected[id] = 0
                     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
