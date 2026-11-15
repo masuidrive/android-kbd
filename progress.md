@@ -581,3 +581,4 @@
 [2026/11/15 21:11] ブラウザモックで修飾付きSpaceのカーソル操作を共通の1キー消費へ揃え、実ポインタ操作でCtrl+ArrowRightを1回送って選択解除することを確認。
 [2026/11/15 21:19] Ctrl/Altの共通送信経路をAndroidへ実装。印字可能ASCII 95文字の単体テスト、412dp・840dpのQWERTY・記号実MotionEvent、Backspace長押しの集中接続テストが成功。仕様・操作モック・マニュアルを同期し、全体検証へ進む。
 [2026/11/15 21:30] 独立レビューでアクセント長押し・Enter特殊フリックからの修飾漏れ、モックのTab/Esc/Backspace不一致を発見し修正。モックの実ポインタ操作でCtrl+Backspace、Alt+Tab、Ctrl+Esc、修飾付き削除の長押しを確認。修正前SHAの全体試験は初回絵文字表示テスト1件失敗、単独・全体再実行で2/2 PASS。修正後の再検証へ進む。
+[2026/11/15 21:40] 最終製品SHA c1beaa5の独立再レビューは採用Critical/Major解消、AC1〜4裏取り済み。全体試験は初回絵文字表示テスト1件失敗、再実行でfast-checksとAndroid unit・lint・APK・接続36件が2/2 PASS。実IMEを412dp相当エミュレーターで操作しCtrl+BackspaceとAlt+Enter後の次キーが通常入力になることを確認。エミュレーター停止済み。今回のAPKは未公開で、物理端末確認とticket close承認待ち。

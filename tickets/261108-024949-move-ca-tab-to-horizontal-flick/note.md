@@ -1,10 +1,10 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-review (Ctrl/Altの全キー経路の修正レビュー中)
+## Status: PDH-human-review (Ctrl/Alt全キー修正版の物理端末確認待ち)
 
 ## Checklist
-- [ ] 利用者指摘: Ctrl/Alt保留がEnter以外の英数字・記号レイヤーのSpace・記号・Backspace・Esc・矢印操作でも、無送信や保留漏れを起こさず次の物理キー操作に適用される。
-- [ ] 利用者指摘: キー処理の分散を整理し、修飾状態の消費を共通経路で扱って無送信を検出できる構造にする。
+- [x] 利用者指摘: Ctrl/Alt保留がEnter以外の英数字・記号レイヤーのSpace・記号・Backspace・Esc・矢印操作でも、無送信や保留漏れを起こさず次の物理キー操作に適用される。
+- [x] 利用者指摘: キー処理の分散を整理し、修飾状態の消費を共通経路で扱って無送信を検出できる構造にする。
 - [x] 利用者依頼: 英数字左端のキーは通常タップを無反応とし、左右フリックでTabを入力する。
 - [x] 利用者依頼: この変更を直接APKとして公開し、製品ページ・マニュアル・操作モックを同期する。
 - [x] 公開APKを再取得し、ローカル成果物とバイト単位で一致することを確認する。
@@ -133,15 +133,21 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-| 1 | one-shot state / bypass経路 | Critical | Accent長押し、Enter上Paste・下Ctrl+Jの後にCtrl/Alt保留が次のキーへ漏れる | 採用・修正確認待ち | `a995651`でaccentを物理キーへ戻し、Paste/Ctrl+Jは割当どおり実行して保留を消費。412dp/840dpの実MotionEvent集中テストは成功。独立reviewerの再確認待ち。 |
-| 2 | native/mock parity | Major | モックで記号レイヤーのTab/Esc、QWERTY/記号のBackspaceが修飾を消費しない | 採用・修正確認待ち | `site/mock.html`と保存元を修正。実ブラウザのポインタ操作でCtrl+Backspace、Alt+Tab、Ctrl+Escと長押し削除を確認。独立reviewerの再確認待ち。 |
+| 1 | one-shot state / bypass経路 | Critical | Accent長押し、Enter上Paste・下Ctrl+Jの後にCtrl/Alt保留が次のキーへ漏れる | 採用・修正済み | `a995651`でaccentを物理キーへ戻し、Paste/Ctrl+Jは割当どおり実行して保留を消費。412dp/840dpの実MotionEvent集中テストが成功し、独立reviewerが`c1beaa5`で元の3経路の解消を確認。 |
+| 2 | native/mock parity | Major | モックで記号レイヤーのTab/Esc、QWERTY/記号のBackspaceが修飾を消費しない | 採用・修正済み | `c1beaa5`でmockと保存元を同期。実ブラウザのポインタ操作でCtrl+Backspace、Alt+Tab、Ctrl+Escと長押し削除を確認し、独立reviewerが元の再現の解消を確認。 |
 
-`f4c4257`での全体試験は初回`ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker`（絵文字表示、203行）1件失敗。単独再実行と同じSHAの全体再実行で2/2 PASS。レビュー修正後SHAでは全体試験を再実行する。レンズ1もfinding 2と同じモック不一致を独立に指摘。AC裏取りの`f4c4257`全件VERIFIEDはレビューの残存Critical/Majorを反映していないため、最終判定として扱わず修正後に再裏取りする。
+`f4c4257`での全体試験は初回`ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker`（絵文字表示、203行）1件失敗。単独再実行と同じSHAの全体再実行で2/2 PASS。レンズ1もfinding 2と同じモック不一致を独立に指摘。AC裏取りの`f4c4257`全件VERIFIEDはレビューの残存Critical/Majorを反映していないため、最終判定として扱わず修正後に再裏取りする。
+
+最終製品SHA `c1beaa52050af487148d2940efd4053c3f19cb03` の `scripts/test-all.sh --parallel --connected` は初回に同じ絵文字表示テスト203行が1件失敗して1/2。失敗による再実行は `PASS fast-checks`、`PASS android unit, lint, apk, connected (real Mozc)` の2/2で、Android 36.1エミュレーターの接続36件が成功。ログは `/var/folders/k8/m6dxst112gzgyk4l75g0zzsw0000gn/T/tmp.v4Gvoi6fTz/`。初回失敗後のretry-passとして記録し、初回を成功扱いしない。独立reviewerは採用finding 1・2を同SHAで解消と判定し残存Critical/Majorなし。独立AC verifierも同SHAでAC1〜4すべてVERIFIED。端末依存の実機動作はこの判定に含まない。
+
+Surface Observerは同SHAのAPKをAndroid 36.1エミュレーターへ入れ、412dp相当の実IMEでCtrl→Backspace→通常q、Alt→Enter→通常qを操作し、次キーへの修飾残留がないことを確認。QWERTYの上A/下C、記号レイヤーのEsc/Tab/Backspace配置も確認。840dpの実画面操作、記号レイヤーの修飾組合せ、物理端末は未確認。エミュレーターは停止済み。証拠画像 `/private/tmp/mod-surface.png`、`/private/tmp/after-alt-enter.png`、`/private/tmp/symbols.png`。
+
+ローカルの実機確認用APKは `app/build/outputs/apk/debug/app-debug.apk`。39,110,630 bytes、SHA-256 `51a4484f82aa8c868c8de828307d2842b1a88f1a2c407e9bdb843dc07cfd830c`、package `com.masuidrive.gestureime`、versionCode 53、versionName 0.15.37、arm64-v8a。権限は `RECORD_AUDIO` とAndroid生成の `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`。現時点ではこの修正をGitHub Releaseや製品サイトへ公開していない。物理端末での動作確認と明示的なclose承認待ち。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
-`technical-reference.md` の C/A キーの中央Tabを左右Tabに置き換え、左端キーだけ開始位置と画面端の距離で左判定を調整することを追記した。ほかの ticket 由来の記述は維持した。
+`technical-reference.md` の C/A キーの中央Tabを左右Tabに置き換え、左端キーだけ開始位置と画面端の距離で左判定を調整することを追記した。2026-11-15の全キー修正で、ASCIIと編集キーの修飾付き物理KeyEvent対応、one-shot消費、未対応mappingの検出も追記した。ほかの ticket 由来の記述は維持した。
 
 ## PDH-human-review. 人間レビュー
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
