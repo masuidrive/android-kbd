@@ -1,10 +1,10 @@
 # Work Notes: 261115-124242-separate-snippets-personal-info-buttons
 
-## Status: PDH-implement (二つの候補入口と分離した一覧を実装中)
+## Status: PDH-human-review (実装・独立レビュー・AC裏取り・実IME観察済み。利用者の確認待ち)
 
 ## Checklist
-- [ ] 利用者依頼: 候補エリアに定型文ボタンと個人情報ボタンを並べ、それぞれの登録値を別々に表示する。
-- [ ] 利用者依頼: キーボード下段の「more..」をなくし、個人情報は初回から全項目を表示する。
+- [x] 利用者依頼: 候補エリアに定型文ボタンと個人情報ボタンを並べ、それぞれの登録値を別々に表示する。
+- [x] 利用者依頼: キーボード下段の「more..」をなくし、個人情報は初回から全項目を表示する。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -13,18 +13,18 @@
      未了の一覧は `./ticket.sh check`。 -->
 - [x] PDH-ticket-review: Why が product-brief.md に接続し、AC が観察可能で、ユーザ承認済み
 - [x] PDH-ticket-review: Design Decisions / Out-of-scope / Dependencies / Architectural Invariants check が確認済み
-- [ ] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
-- [ ] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
-- [ ] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
-- [ ] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録)
-- [ ] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
-- [ ] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
-- [ ] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した
-- [ ] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
-- [ ] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
-- [ ] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
-- [ ] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
-- [ ] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
+- [x] PDH-implement: 実装が依存する «確かめていない仮定» を書く前に列挙し、測れるものは測った
+- [x] PDH-implement: implementor が論理単位ごとに commit し、mega-commit にしていない
+- [x] PDH-implement: `scripts/test-all.sh` 全スイートパス確認済み
+- [-] PDH-implement: 外部 provider 経由 path は実 API 200 確認済み (deferred の場合は明示記録) - skip: 外部APIを変更しないAndroid IMEの表示ticket。Bitwarden本体との連携は既存の保護Viewを維持し、合成provider Viewで併存を検証。実providerの新規経路はない。
+- [x] PDH-implement: ticket の AC / Architectural Invariants / out-of-scope が implementor によって書き換えられていない
+- [x] PDH-review: 確定判断が 1 件ずつ実装に落ちている（対応する実体を名指しできない判断は未実装）
+- [-] PDH-review: 指摘を直すとき、壊していない側の入力を 1 つ選んで前後の出力を記録した - skip: 唯一の採用findingは文書の旧用語3件で、修正差分は文書のみ。入力処理は変わらず、同じ製品SHAの全体試験がPASS。
+- [x] PDH-review: Directorが採用したCritical/Majorが解消し、非採用findingの分類根拠を記録
+- [x] PDH-verify: AC 裏取り Agent が各 AC の実質達成を verify 済み
+- [x] PDH-verify: Surface Observer 観察済み (純 backend ticket では skip 可、判断を 1 行記録)
+- [x] PDH-verify: ドキュメント更新の要否を確認済み（必要なら `.agents/skills/pdh-update/SKILL.md` or `.claude/skills/pdh-update/SKILL.md`）
+- [x] PDH-verify: technical-reference.md 突合済み（下の「Technical reference 更新」欄に記録）
 - [ ] PDH-human-review: ユーザに差分・検証結果・確認手順を提示し、人間レビューを依頼済み
 - [ ] PDH-human-review: ユーザが確認手順を実施し、クローズを明示承認した
 
@@ -64,6 +64,20 @@ Android commit `afd006c`: `CandidateStripView`に二つの固定ボタンとacti
 
 最初の全体gate（`fe136d0`, `scripts/test-all.sh --parallel --connected`）はunit 385件中4件失敗。うち`KeyGestureRouterTest`の2件はmore削除後の旧footer index、`ImeServiceVoiceLifecycleTest`の1件は二つの38dpボタンと10dp gapを加味しない左座標で、今回の変更に連動する古い期待値。修正して該当focused testはPASS。`ImeHideBarTest.recreatedInputViewInEmojiModeShowsRecentInItsNewPickerOnly`の1件は今回の変更対象外で、同じテストを再実行するとPASS。全体gateを修正後SHAで再実行する。
 
+最終製品SHA `dd79f01` で `ANDROID_HOME=/Users/masuidrive/Library/Android/sdk PATH=/Users/masuidrive/Library/Android/sdk/platform-tools:$PATH scripts/test-all.sh --parallel --connected` を実行。実出力末尾:
+
+```text
+========================================
+  Summary
+========================================
+  PASS: fast-checks
+  PASS: android unit, lint, apk, connected (real Mozc)
+
+Passed: 2 / 2
+```
+
+`dd79f01..af2ecaa`は文書用語だけの修正で、製品コードとテスト対象は同じ。`af2ecaa`の文書差分を独立reviewし、旧単一card表記の解消を確認。再テストが必要な変更はない。
+
 実装前の未確認仮定: 二つの入口を既存の候補欄に同時配置できるか、inline Autofillと横並びの際に保護Viewが消えないか、pickerの高さが固定できるか。これらはAndroid実機UIと接続テストで測定する。モックでは二つの入口と個人情報一覧の高さを測定済み。
 
 ## PDH-review. 品質検証結果
@@ -79,7 +93,13 @@ Android commit `afd006c`: `CandidateStripView`に二つの固定ボタンとacti
 
 | # | 観点 | Sev | 要旨 | 判定 | 理由 |
 |---|---|---|---|---|---|
-|   |      |     |      |      |      |
+| 1 | 文書 | Minor | 仕様・technical reference・manualに旧単一card表記が3件残る | fix now | `af2ecaa`で二つのボタンに表記を統一。対象差分の独立再reviewで残存なし。 |
+
+対象`dd79f01`の独立reviewはCritical/Majorなし。AC1〜5と確定判断は実装に対応: 2ボタン=`CandidateStripView`、分離とprivate=`ImeService.showSavedValuePicker`、直接切替とback=`CandidateStripView.updatePickerAction`、固定footerとmore削除=`KeyboardLayouts.personalFooter`/`PersonalInfoPickerView`、モック=`site/mock.html`。ticketのAC本文・AI check・out-of-scope本文は変更していない。新規公開endpoint、権限変更、破壊操作なし。
+
+AC verifierは`af2ecaa`でAC1〜5をすべてVERIFIED。製品コードの最終gateは`dd79f01`でPASS。ブラウザの製品ページ`#demo`が`mock.html`を読み込み、2ボタン表示を確認。412px/840pxで一覧中と通常時のキーボード高278px、横溢れなし。`site/mock.html`と保存用sourceはbyte一致。
+
+Surface ObserverはAndroid 36.1の412dp相当エミュレーターで実IMEを操作。通常欄の二つの入口、定型文だけの一覧、氏名・メール・住所だけの一覧、直接切替、active側の戻る矢印、下段moreなし、値選択後も一覧維持を観察。通常/両一覧/privateでIME上端y=1545、全高855pxで一定。private欄では登録値と二つの入口が消え、合成Autofill provider Viewは維持。スクリーンショットは`evidence/separate-picker-*.png`。840dpの実画面と物理端末は未観察。840dpはattached production viewのMotionEvent接続テストとブラウザで補完したが、物理端末での最終使用感はhuman reviewへ残す。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。
