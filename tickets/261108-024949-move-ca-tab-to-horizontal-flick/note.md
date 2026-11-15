@@ -1,6 +1,6 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-implement (Ctrl/Altの全キー経路を点検・修正中)
+## Status: PDH-review (Ctrl/Altの全キー経路の修正レビュー中)
 
 ## Checklist
 - [ ] 利用者指摘: Ctrl/Alt保留がEnter以外の英数字・記号レイヤーのSpace・記号・Backspace・Esc・矢印操作でも、無送信や保留漏れを起こさず次の物理キー操作に適用される。
@@ -128,6 +128,15 @@ AC裏取り Agent は `741f1f0` で AC 1〜4 を全件 VERIFIED。Android 36.1 e
 その後、Surface Observer が実IMEを Android 36.1 emulator（412dp）で入力欄へ表示し、中央tap無反応・右Tab成功・左Tab失敗を発見。左端0.5wキーの中心は画面端から約35pxで、標準24dpの判定距離は約63pxのため画面内では左フリックを確定できなかった。attached-view testが画面外の負座標まで動かしたため見逃した。`741f1f0` の AC2 VERIFIED 判定はこの実surface証拠で取り消した。修正後ブラウザphone幅412pxではキー中央x≈20px→画面端x=0でTab、左寄り7pxの揺れで無入力を確認。実IME再観察で中央tap無反応、左寄り約5.7dpの小揺れは無反応、キー中央から画面端までの左フリックと右フリックはいずれもTab1回でemail欄からname欄へ移動した。実 `ImeService` の表示はdumpsysでも確認した。証拠: `surface-qwerty-final.png`。物理端末は未確認。
 
 AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERIFIED。実IMEでの左・右Tab、中央無反応、小揺れ無反応、ブラウザ操作、connected 32/32、native/mock一致を確認した。未検証ACなし。
+
+### Findings (PDH-review-2)
+
+| # | 観点 | Sev | 要旨 | 判定 | 理由 |
+|---|---|---|---|---|---|
+| 1 | one-shot state / bypass経路 | Critical | Accent長押し、Enter上Paste・下Ctrl+Jの後にCtrl/Alt保留が次のキーへ漏れる | 採用・修正確認待ち | `a995651`でaccentを物理キーへ戻し、Paste/Ctrl+Jは割当どおり実行して保留を消費。412dp/840dpの実MotionEvent集中テストは成功。独立reviewerの再確認待ち。 |
+| 2 | native/mock parity | Major | モックで記号レイヤーのTab/Esc、QWERTY/記号のBackspaceが修飾を消費しない | 採用・修正確認待ち | `site/mock.html`と保存元を修正。実ブラウザのポインタ操作でCtrl+Backspace、Alt+Tab、Ctrl+Escと長押し削除を確認。独立reviewerの再確認待ち。 |
+
+`f4c4257`での全体試験は初回`ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker`（絵文字表示、203行）1件失敗。単独再実行と同じSHAの全体再実行で2/2 PASS。レビュー修正後SHAでは全体試験を再実行する。レンズ1もfinding 2と同じモック不一致を独立に指摘。AC裏取りの`f4c4257`全件VERIFIEDはレビューの残存Critical/Majorを反映していないため、最終判定として扱わず修正後に再裏取りする。
 
 ## Technical reference 更新
 <!-- この ticket の差分に因果がある追記・上書きの内容、または「該当なし」＋理由を 1 行以上必ず書く。

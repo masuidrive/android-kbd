@@ -828,7 +828,7 @@
       }
       render();return true;
     }
-    const specialKeys={backspace:'Backspace',space:' ',return:'Enter',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
+    const specialKeys={backspace:'Backspace','flick-backspace':'Backspace',space:' ',return:'Enter',tab:'Tab',escape:'Escape',left:'ArrowLeft',right:'ArrowRight',up:'ArrowUp',down:'ArrowDown',home:'Home',end:'End'};
     if(specialKeys[id]&&applyModified(specialKeys[id],modifier)) {render();return true;}
     if(id!=='space')lastSpace=-Infinity;
     if(id==='backspace'||id==='flick-backspace')erase();
@@ -858,6 +858,7 @@
         editor.setSelectionRange(pos-1,pos);insert('. ');lastSpace=-Infinity;
       }else {insert(' ');lastSpace=now;}
     }else if(id==='paste') {
+      if(modifier)clearModifierState();
       clearComposition();
       pasteText();
     }else if(id==='modifier-gesture') {
@@ -1265,10 +1266,16 @@
     if(key.text)for(const held of active.values())if(held!==p&&held.key.id==='modifier-gesture')held.used=true;
     if(key.preview==='press')showPopup(p);
     if(repeatKeys.includes(key.id)) {
-      const modified=action(key.id,p.keyModifier);if(!modified)p.timer=setTimeout(()=>{p.repeat=setInterval(()=>action(key.id),65);action(key.id);},420);
+      action(key.id,p.keyModifier);p.timer=setTimeout(()=>{p.repeat=setInterval(()=>action(key.id),65);action(key.id);},420);
+    } else if(key.id==='flick-backspace') {
+      p.timer=setTimeout(()=>{
+        p.longRepeated=true;
+        action(key.id,p.keyModifier);p.keyModifier=null;
+        p.repeat=setInterval(()=>action(key.id),65);
+      },420);
     } else if(key.id==='space') {
       if(!p.keyModifier)p.timer=setTimeout(()=>beginTrackpad(p),450);
-    } else if(key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
+    } else if(!p.keyModifier&&key.text&&accents[key.text]&&language==='english'&&layer==='letters')p.timer=setTimeout(()=>showAccents(p),450);
   });
   function updatePointer(e,updateAccentSelection=true) {
     const emojiStart=emojiViewportStarts.get(e.pointerId);
@@ -1367,13 +1374,13 @@
       else if(p.modifierFlick&&p.used) { /* modifier was held for another key */ }
       else if(p.key.transformActions) {transformKana(p.key.transformActions[p.dir]);lastSpace=-Infinity;}
       else if(p.key.flick) {insert(p.key.flick[p.dir]||'',{bypassComposition:personalInfoPickerVisible,preservePersonalPicker:personalInfoPickerVisible});lastSpace=-Infinity;}
-      else if(p.altSelected&&p.key.altAction) {action(p.key.altAction);lastSpace=-Infinity;}
+      else if(p.altSelected&&p.key.altAction) {action(p.key.altAction,p.keyModifier);lastSpace=-Infinity;}
       else if(p.key.text&&!p.outside) {
         if(!applyModified(keyOutput(p),p.keyModifier,Boolean(p.upperSelected))) {
           if(p.key.emoji)insertEmoji(keyOutput(p));else insert(keyOutput(p));
         }
         lastSpace=-Infinity;
-      }else if(!repeatKeys.includes(p.key.id))action(p.key.id,p.keyModifier);
+      }else if(!repeatKeys.includes(p.key.id)&&!p.longRepeated)action(p.key.id,p.keyModifier);
     }
     if(keyboard.hasPointerCapture(e.pointerId))keyboard.releasePointerCapture(e.pointerId);
     render();
