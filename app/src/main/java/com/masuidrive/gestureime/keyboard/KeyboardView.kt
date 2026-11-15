@@ -1157,6 +1157,13 @@ class KeyboardView @JvmOverloads constructor(
                     updateModifier(null)
                 } else actionSink?.onKeyAction(KeyAction.Tab)
             }
+            KeyAction.Enter -> {
+                val modifier = state.pendingModifier
+                if (modifier != null) {
+                    actionSink?.onKeyAction(KeyAction.ModifiedKey("ENTER", modifier))
+                    updateModifier(null)
+                } else actionSink?.onKeyAction(KeyAction.Enter)
+            }
             is KeyAction.CommitText -> {
                 val modifier = state.pendingModifier
                 if (spec.kind == KeyKind.SPACE && state.mode == KeyboardMode.KANA) {

@@ -1,6 +1,6 @@
 # Work Notes: 261108-024949-move-ca-tab-to-horizontal-flick
 
-## Status: PDH-human-review (v0.15.37 公開済み、物理端末確認待ち)
+## Status: PDH-implement (実機確認後、Ctrl/Alt+Enter の修正中)
 
 ## Checklist
 - [x] 利用者依頼: 英数字左端のキーは通常タップを無反応とし、左右フリックでTabを入力する。
@@ -8,6 +8,7 @@
 - [x] 公開APKを再取得し、ローカル成果物とバイト単位で一致することを確認する。
 - [x] 公開サイトの主要4ファイルと操作モックをスマホ・タブレット幅で確認する。
 - [x] 公開確認で見つけた修飾キーの上下ラベルとAlt・Ctrl動作の不一致を直し、修正版APKとサイトを公開する。
+- [x] 利用者指摘: Ctrl/Alt選択後のEnterが修飾キーイベントとして1回送られ、保留状態が解除される。
 <!-- stage を移るたびにこの節を見る。節を stage ごとに割らない —
      割ると「その stage の分だけ」を見て、他が残っていることに気づかない。
      ユーザに頼まれたことと、作業中に見つけた «あとでやる» もここへ足す
@@ -138,6 +139,12 @@ AC裏取り Agent は最終SHA `d02a515` で AC 1〜4 を全件再検証し VERI
 最終製品コード `b1e8720` のv0.15.37 APKを物理端末に入れ、英数字レイヤーの左端キー（上A・中央↔・下C）を入力欄で確認する。中央タップは何も送らず、左・右フリックは各1回だけTabを送る。端に近い短い指ぶれではTabを送らず、上・下フリックは従来どおりAlt・Ctrl、指定中の中央タップは解除される。記号レイヤーでも同じ操作を確認する。エミュレーターの実IMEでは中央・短い指ぶれ・左右Tabを確認済み。物理端末では未確認であり、利用者の結果と明示承認を待つ。
 
 2026-11-09: 利用者の「公開していいよ」はAPKとサイトの公開承認として受領。以前の「インストールして挙動確認しないでcloseすることはありません」に従い、ticket close承認には扱わない。v0.15.37の直接APKと製品サイトを公開済み。物理端末での確認結果を待つ。
+
+2026-11-15: 利用者はインストール後に動作を確認し、Ctrl/Alt+Enterが送られないと指摘。`KeyboardView.dispatch()` は`Tab`と単一文字にだけ保留修飾を適用し、`Enter`は通常actionへ流すため、修飾付きEnterを送らず保留も残る。AC 3 の「次の1キー」に反するので同じticketで修正する。デモの`action()`は既に`Enter`を`applyModified()`へ渡す。修正前の非退行対照は通常Enterが`KeyAction.Enter`となる既存の実`MotionEvent`接続テストで、v0.15.37で32/32 PASS。修正後も同じ経路を確認する。
+
+重複検出 skip: `similarity-generic --language kotlin -t 0.7` は Kotlin 非対応と返した。変更は既存分岐を踏襲する。
+
+2026-11-15: `TextInputControllerTest` でCtrl/Alt+Enterの`KEYCODE_ENTER` down/upとmetaを確認しPASS。Android 36.1 emulatorのattached `KeyboardView`へ実`MotionEvent`を送る接続テストでは412dp・840dpのQWERTY・記号で、未修飾Enter、Ctrl/Alt選択、修飾付きEnter1回、直後の通常Enterを確認し1/1 PASS。最初の接続試行はエミュレーターの`/sdcard/Android`初期化前に始めて停止した。初期化完了後の同一テスト再実行は`BUILD SUCCESSFUL in 17s`。修正前の通常Enterと修正後の通常Enterはともに`KeyAction.Enter`。
 
 公開対象commit `d8948f99f11963da464c3f7e5e24e4abbe888370` の最終全体テスト:
 ```text

@@ -659,6 +659,55 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
+    @Test fun pendingCtrlOrAltTurnsEnterIntoOneModifiedKeyAndThenClearsAtPhoneAndTabletWidths() {
+        ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val actions = mutableListOf<KeyAction>()
+                val density = activity.resources.displayMetrics.density
+                val view = KeyboardView(activity).apply { actionSink = KeyboardActionSink { actions += it } }
+                activity.setContentView(view)
+
+                fun gesture(key: Rect, dy: Float = 0f) {
+                    val time = SystemClock.uptimeMillis()
+                    val x = key.exactCenterX()
+                    val y = key.exactCenterY()
+                    dispatch(view, MotionEvent.ACTION_DOWN, time, time, x, y)
+                    if (dy != 0f) dispatch(view, MotionEvent.ACTION_MOVE, time, time + 1, x, y + dy)
+                    dispatch(view, MotionEvent.ACTION_UP, time, time + 2, x, y + dy)
+                }
+
+                listOf(412f, 840f).forEach { widthDp ->
+                    val width = (widthDp * density).toInt()
+                    val height = (228f * density).toInt()
+                    listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS).forEach { mode ->
+                        view.setMode(mode)
+                        view.measure(exact(width), exact(height))
+                        view.layout(0, 0, width, height)
+                        val keys = KeyboardLayouts.layout(mode).rows.flatMap { it.keys }
+                        val modifier = bounds(view, keys.indexOfFirst { it.kind == KeyKind.MODIFIER })
+                        val enter = bounds(view, keys.indexOfFirst { it.kind == KeyKind.ENTER })
+
+                        view.setModifier(null)
+                        actions.clear()
+                        gesture(enter)
+                        assertEquals("$widthDp dp $mode plain Enter", listOf(KeyAction.Enter), actions)
+
+                        listOf(Modifier.CTRL to 36f, Modifier.ALT to -36f).forEach { (selected, dyDp) ->
+                            view.setModifier(null)
+                            actions.clear()
+                            gesture(modifier, dyDp * density)
+                            gesture(enter)
+                            gesture(enter)
+                            assertEquals("$widthDp dp $mode $selected+Enter is one shot",
+                                listOf(KeyAction.SetModifier(selected), KeyAction.ModifiedKey("ENTER", selected),
+                                    KeyAction.SetModifier(null), KeyAction.Enter), actions)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun voiceReturnAndCandidateCancelUseProductionMotionEventsAtPhoneAndTabletWidths() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
