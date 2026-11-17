@@ -610,11 +610,6 @@ class KeyboardView @JvmOverloads constructor(
             spec.kind == KeyKind.BACKSPACE -> downLike
             else -> false
         }
-        val selectedEnterAction = if (selected) spec.value(direction)?.action else null
-        val animatedEnterPaste = selected && spec.kind == KeyKind.ENTER && secondary != null &&
-            selectedEnterAction == KeyAction.Paste
-        val selectedEnterControlJ = selected && !state.conversionActive && spec.kind == KeyKind.ENTER &&
-            selectedEnterAction == KeyAction.ModifiedKey("j", Modifier.CTRL)
         val animatedSpecial = selected && direction != Direction.CENTER &&
             spec.kind in setOf(KeyKind.SPACE, KeyKind.MODIFIER)
         val idleModifier = spec.kind == KeyKind.MODIFIER && state.pendingModifier == null && direction == Direction.CENTER
@@ -636,7 +631,7 @@ class KeyboardView @JvmOverloads constructor(
             drawMainLabel(canvas, "↔", target.bounds, safeBaseline(target.bounds, centerY), true)
             textPaint.textSize = sp(10f)
             canvas.drawText("C", cX, safeBaseline(target.bounds, target.bounds.bottom - dp(6f)), textPaint)
-        } else if (!animatedEnglish && !animatedEnterPaste && !selectedEnterControlJ && !animatedSpecial) {
+        } else if (!animatedEnglish && !animatedSpecial) {
             drawMainLabel(canvas, label, target.bounds, safeBaseline(target.bounds, idleMainBaseline), direction == Direction.CENTER,
                 0f, if (spec.kind == KeyKind.BACKSPACE) 1f else 4f)
         }
@@ -652,18 +647,6 @@ class KeyboardView @JvmOverloads constructor(
             val mainBaseline = baselineAtVisualCenter(target.bounds.centerY() + dp(5f + frame.mainDy))
             val main = if (direction == Direction.UP) spec.up?.label ?: label else spec.center?.label.orEmpty()
             drawFittedText(canvas, main, target.bounds.centerX(), mainBaseline, availableWidth(target.bounds, 0f))
-        } else if (animatedEnterPaste) {
-            drawSecondaryLabelTransition(canvas, target.bounds, spec.center?.label.orEmpty(), secondary, frame)
-        } else if (selectedEnterControlJ) {
-            textPaint.textSize = sp(17f)
-            textPaint.color = context.getColor(R.color.keyboard_selected_text)
-            drawFittedText(
-                canvas,
-                requireNotNull(spec.value(direction)).label,
-                target.bounds.centerX(),
-                safeBaseline(target.bounds, visualCenterBaseline(target.bounds)),
-                availableWidth(target.bounds, 0f),
-            )
         } else if (animatedSpecial) {
             textPaint.textSize = sp(11f)
             val centered = visualCenterBaseline(target.bounds)
@@ -741,28 +724,6 @@ class KeyboardView @JvmOverloads constructor(
         textPaint.letterSpacing = 0f
         textPaint.alpha = 255
     }
-
-    private fun drawSecondaryLabelTransition(
-        canvas: Canvas,
-        bounds: RectF,
-        main: String,
-        secondary: String,
-        frame: LabelFrame,
-    ) {
-        textPaint.textSize = sp(10f) * frame.secondaryScale
-        textPaint.color = context.getColor(R.color.keyboard_selected_text)
-        textPaint.alpha = (255 * .7f * frame.secondaryAlpha).toInt()
-        textPaint.letterSpacing = dp(.7f * frame.secondaryScale) / textPaint.textSize
-        val secondaryBaseline = baselineAtVisualCenter(bounds.bottom - dp(8f - frame.secondaryDy))
-        drawFittedText(canvas, secondary, bounds.centerX(), secondaryBaseline, availableWidth(bounds, 0f))
-        textPaint.letterSpacing = 0f
-        textPaint.textSize = sp(15f)
-        textPaint.alpha = (255 * frame.mainAlpha).toInt()
-        val mainBaseline = baselineAtVisualCenter(bounds.centerY() + dp(frame.mainDy))
-        drawFittedText(canvas, main, bounds.centerX(), mainBaseline, availableWidth(bounds, 0f))
-        textPaint.alpha = 255
-    }
-
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -1274,18 +1235,19 @@ class KeyboardView @JvmOverloads constructor(
     private fun animateLabels(id: Int, direction: Direction) {
         labelAnimators.remove(id)?.cancel()
         val target = active[id]
-        val action = target?.spec?.value(direction)?.action
-        val enterPaste = target?.spec?.kind == KeyKind.ENTER && action == KeyAction.Paste
-        val immediateSecondaryAlpha = if (direction == Direction.UP && !enterPaste) 0f else 1f
+        if (target?.spec?.usesDirectionalPopup() == true) {
+            labelFrames[id] = LabelFrame()
+            invalidate()
+            return
+        }
+        val immediateSecondaryAlpha = if (direction == Direction.UP) 0f else 1f
         val start = (labelFrames[id] ?: LabelFrame()).copy(secondaryAlpha = immediateSecondaryAlpha)
         val downSecondaryDy = active[id]?.takeIf { target ->
             usesDownLabelAnimation(target.spec)
         }?.let { target ->
             target.bounds.height() / (2f * density) - QWERTY_SECONDARY_IDLE_CENTER_DP
         } ?: 13f
-        val enterPasteDy = target?.bounds?.height()?.div(2f * density)?.let { 8f - it } ?: 0f
         val end = when {
-            enterPaste -> LabelFrame(mainAlpha = 0f, secondaryDy = enterPasteDy, secondaryScale = 1.7f)
             direction == Direction.UP -> LabelFrame(mainDy = -3f, secondaryAlpha = 0f)
             direction == Direction.DOWN -> LabelFrame(mainDy = 22f, mainAlpha = 0f, secondaryDy = downSecondaryDy, secondaryScale = 1.7f)
             else -> LabelFrame()

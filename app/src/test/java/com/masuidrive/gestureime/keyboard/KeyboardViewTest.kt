@@ -776,7 +776,7 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_CANCEL, freshQ.first, freshQ.second, 130)
     }
 
-    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter up animates paste and dispatches paste only on release`() {
+    @Test @LooperMode(LooperMode.Mode.PAUSED) fun `enter up keeps its selected label steady and dispatches paste only on release`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         val looper = shadowOf(Looper.getMainLooper()).apply { pause() }
         fun frame() = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
@@ -799,8 +799,8 @@ class KeyboardViewTest {
         val selected = frame()
         val paste = selected.draws.last { it.text == "paste" }
         assertEquals(enter.exactCenterY(), center(paste), .6f)
-        assertEquals(10f * 1.7f, paste.textSize, .2f)
-        assertEquals(0, selected.draws.last { it.text == "Enter" }.alpha)
+        assertEquals(15f, paste.textSize, .2f)
+        assertFalse(selected.draws.any { it.text == "Enter" })
         touch(MotionEvent.ACTION_UP, enter.centerX().toFloat(), enter.centerY() - 24f, 120)
         assertEquals(listOf(KeyAction.Paste), actions)
     }
@@ -1146,7 +1146,7 @@ class KeyboardViewTest {
         assertTrue(actions.isEmpty())
     }
 
-    @Test fun `paste uses the same selected label composition in every nonconverting layer`() {
+    @Test fun `enter uses the same selected label composition in every nonconverting layer`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         listOf(KeyboardMode.QWERTY, KeyboardMode.SYMBOLS, KeyboardMode.KANA, KeyboardMode.NUMBERS, KeyboardMode.VOICE).forEach { mode ->
             val modeActions = mutableListOf<KeyAction>()
@@ -1176,17 +1176,16 @@ class KeyboardViewTest {
             assertEquals("$mode selected direction", Direction.UP, selectedDirections[0])
             val canvas = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(modeView::draw)
             val paste = canvas.draws.lastOrNull { it.text == "paste" } ?: error("$mode did not draw paste")
-            val main = canvas.draws.lastOrNull { it.text == "Enter" } ?: error("$mode did not draw Enter")
-            assertEquals("$mode paste size", 17f, paste.textSize, .2f)
+            assertEquals("$mode paste size", 15f, paste.textSize, .2f)
             assertTrue("$mode paste starts below center", idlePasteCenter > enter.exactCenterY())
             assertEquals("$mode paste selected center", enter.exactCenterY(), center(paste), .6f)
-            assertEquals("$mode Enter hidden", 0, main.alpha)
+            assertFalse("$mode Enter is replaced by selected label", canvas.draws.any { it.text == "Enter" })
             modeTouch(MotionEvent.ACTION_UP, startY - 24f * modeView.resources.displayMetrics.density, 20)
             assertEquals("$mode action", listOf(KeyAction.Paste), modeActions)
         }
     }
 
-    @Test fun `enter down centers the upper control j hint and dispatches it`() {
+    @Test fun `enter down shows the selected control j label and dispatches it`() {
         Settings.Global.putFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         val provider = view.accessibilityNodeProvider
         val enterId = KeyboardLayouts.layout(KeyboardMode.QWERTY).rows.flatMap { it.keys }
@@ -1204,7 +1203,7 @@ class KeyboardViewTest {
         touch(MotionEvent.ACTION_MOVE, x, y + 24f * view.resources.displayMetrics.density, 10)
         val selected = CaptureCanvas(Bitmap.createBitmap(400, 228, Bitmap.Config.ARGB_8888)).also(view::draw)
         val controlJ = selected.draws.single { it.text == "C-j" }
-        assertEquals(17f, controlJ.textSize, .2f)
+        assertEquals(15f, controlJ.textSize, .2f)
         assertEquals(enter.centerY().toFloat(), controlJ.y + (controlJ.ascent + controlJ.descent) / 2f, .6f)
         assertTrue(actions.isEmpty())
 
