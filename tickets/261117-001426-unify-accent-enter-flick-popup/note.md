@@ -88,7 +88,12 @@ ReviewerのMajor 1: Enterに旧キー内Paste/C-j拡大アニメーションが�
      他 ticket 由来の記述を消したくなったら、消さずにここへ削除候補として記録する。 -->
 
 ## PDH-human-review. 人間レビュー
-実装・AC裏取り・全体テスト・412dp/840dp相当エミュレーター観察を提示して、利用者による表示と操作の確認を依頼する。利用者の明示close承認まではticketを閉じない。公開前のAPKは `app/build/outputs/apk/debug/` に生成済み。物理端末確認と公開releaseは未実施。
+実装・AC裏取り・全体テスト・412dp/840dp相当エミュレーター観察を提示して、利用者による表示と操作の確認を依頼した。利用者の明示close承認まではticketを閉じない。物理端末確認は未実施。
+2026/11/17: 利用者の「公開までしていい」を公開承認として扱い、v0.15.39 APKとサイトを公開した。ticket close承認は未受領のため維持する。最終製品SHA `6c0773e22e6886071f79aa7abb3c2bd4cb927460`。版数を55 / 0.15.39に更新し、`scripts/test-all.sh --parallel --connected` は初回 fast-checks PASS、Android区分 FAIL（既存 `ImeHideBarTest.privateEditorSwitchesToItsDedicatedEmptyPickerWithoutReusingPublicPicker` の `View.VISIBLE` 期待が `GONE`）。当該テスト単独はPASS、同一SHAで全体再実行はfast-checks / Android unit・lint・APK・connected の2/2 PASS。初回失敗を含むretry-passでありclean passとは記載しない。
+
+GitHub Release `https://github.com/masuidrive/android-kbd/releases/tag/v0.15.39`、直接APK `https://github.com/masuidrive/android-kbd/releases/download/v0.15.39/gesture-ime-v0.15.39.apk`。再取得してローカル `app/build/outputs/apk/debug/app-debug.apk` とbyte一致。38,824,030 bytes、SHA-256 `40faeba0b891cb003fb344576e65df724417056e58872957d8177f21bbc6cecb`、package `com.masuidrive.gestureime`、ARM64、minSdk 28、targetSdk 36。権限は `android.permission.RECORD_AUDIO` と自パッケージの `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`。
+
+製品サイト `masuidrive/masuidrive.jp` SHA `ae86550e41998e64fca07ce58e3c8d639576b296`。push前にsite/のindex・manual・mock・stylesを出版repoとbyte比較し、GitHub Pagesのlatest buildが同SHA `built`、公開 `https://masuidrive.jp/products/md-kbd/` の主要4ファイルを再取得して出版repoとbyte一致。実ブラウザ412pxの公開モックでEnterのpopup `[Enter,Tab,paste,C-j]` と左ドラッグのtextarea `\t`、840pxで小popup `[小,゛,゛,゜]` を確認。両幅で横はみ出しなし、画像欠落とJS errorなし。ブラウザセッションは終了した。
 <!-- agent は PDH-verify まで自動で進め、この stage で人間レビューを依頼する。
      ユーザの明示承認なしに PDH-close へ進まない。
      途中で疑問・判断不能・blocker・完了見込みなしが出た場合は、この stage まで待たずユーザに確認する。 -->
