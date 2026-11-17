@@ -3,7 +3,7 @@ priority: 2
 base_branch: features/261115-124242-separate-snippets-personal-info-buttons
 description: "小キーとEnterのフリック候補を見える形に揃え、Enter左フリックでTabを送る"
 created_at: "2026-11-17T00:14:26Z"
-started_at: null  # Do not modify manually
+started_at: 2026-11-17T00:15:01Z # Do not modify manually
 closed_at: null   # Do not modify manually
 canceled_at: null # Do not modify manually
 ---
