@@ -61,7 +61,7 @@ The native rebuild must retain the later QWERTY BS `⌫` label. Fidelity default
 | Transition | main transform/opacity and secondary transform/color use `.09s ease`; reduced motion disables transitions | lines 214, 220, 232 |
 | Press feedback | pointerdown adds `pressed`; pointerup/cancel removes all gesture classes | lines 763–780, 834–849 |
 
-Enter uses the navigation system rather than the QWERTY secondary-label direction: `pasteNavigation.up` is Paste and `pasteNavigation.down` is Ctrl+J at line 207. When the selected navigation action is Paste, pointer movement applies `paste-selected`. The idle Enter face places `C-j` near the top, `Enter` at center, and `paste` near the bottom. Paste moves upward from the lower hint to the center and grows to 1.7 scale while Enter fades. Down selects `C-j` and centers that label. Finish dispatches the selected navigation action at lines 1155–1166. Native must select these presentations by action as well, while preserving tap Enter and the conversion-specific Enter layout.
+Enter uses the same five-direction popup as 小. Its labels are drawn from the direction assignments: center Enter, left Tab, up paste, down C-j; right is unassigned and returns to center. During conversion, center is 無変換 or 確定 and left/up are カタカナ. The selected direction is highlighted in the popup. Idle Enter retains its small top C-j and bottom paste hints; the earlier selected-key paste enlargement is no longer the contract.
 
 ## Popup geometry
 

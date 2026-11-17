@@ -23,15 +23,11 @@ For a clean up transition, the 22/45/68ms main offsets were -0.791/-1.919/-2.871
 
 The reference secondary endpoint can exceed a narrow face horizontally (58.81px transformed line box versus a 34.59px face). The native implementation must preserve the later product requirement that actual glyphs remain within the key bounds. It should retain the same relative trajectory and cap the final scale by measured glyph width rather than copying the overflowing DOM line box.
 
-frame-fixture.html freezes logical progress at 0, .25, .5, .75, and 1 for up, down, and corrected Enter→Paste states. It leaves the reference file unchanged.
+frame-fixture.html freezes QWERTY letter progress at 0, .25, .5, .75, and 1 for up and down states. Enter uses the live directional popup in the reference mock.
 
-## Enter → Paste direction and transition
+## Enter directional popup
 
-The live source routes Enter through `navigationChoice`: up selects Paste and applies `paste-selected`, while down selects Ctrl+J and applies `control-j-selected`. Idle Enter shows `C-j` above, `Enter` in the middle, and `paste` below; selection centers the chosen action label.
-
-The current native contract keeps the same two stable visual roles. During the upward Paste selection, the direction and dispatched action remain Up/Paste. The lower paste hint moves upward to the center and scales toward 1.7 while Enter fades. During the downward Ctrl+J selection, the selected `C-j` label is centered and the dispatched action remains Ctrl+J.
-
-The live Enter hit target is 107.438 × 45px and its face is 101.438 × 45px. The face has a computed 15px normal-line-height font. The idle Enter face now anchors `C-j` 3px from the top and `paste` 3px from the bottom at 10px/10px with opacity .7; `Enter` stays at the vertical center. These anchors were updated on 2026-09-24 after the user requested greater separation.
+Enter uses the same five-direction popup as the Japanese 小 key. The popup reads its labels from the assigned directions: center Enter, left Tab, up paste, and down C-j. The unassigned right direction returns to the center action. While converting, center is 無変換 or 確定 and left/up are カタカナ. The selected popup tile is highlighted; the former Enter-only paste enlargement and C-j key-face animation are no longer part of the current contract. Idle Enter retains small C-j and paste hints around the main label.
 
 ## Live five-way popup
 
@@ -58,7 +54,7 @@ The live ordinary-letter preview is 58 × 66px, placed at key top -62px and hori
 | QWERTY idle labels | Canvas baselines derived separately; no face top padding model | face top padding 10px, main and secondary line boxes above | one label-composition function with explicit main/secondary anchor points |
 | Up selection | selected glyph starts at 13sp and scales to 22.1sp | existing 22px uppercase translated only -3px | keep main size; animate translation/color and hide secondary |
 | Down selection | secondary size grows and baseline moves toward generic visual center | top legend transforms as one object by +13px, scale 1.7 | animate from the idle secondary anchor using shared progress, with glyph-bound scale cap |
-| Enter/Paste | action-based Enter composition | up dispatches Paste and lifts the lower paste hint to center; down dispatches Ctrl+J with centered `C-j` | show idle C-j/Enter/paste at top/center/bottom and center the selected action |
+| Enter directional choices | common five-direction popup | center Enter, left Tab, up Paste, down Ctrl+J; conversion uses center 無変換/確定 and left/up カタカナ | draw and highlight candidates from KeySpec direction assignments; retain idle hints only |
 | Popup | one large backing plate plus selected cell | five separate bordered 50px tiles forming a cross | replace backing plate with five tile primitives and silhouette shadow |
 | Popup surroundings | normal opacity | source .42, overridden by user | retain normal opacity |
 
@@ -69,5 +65,5 @@ Two additional user overrides apply after the preserved HTML: layer navigation i
 ## Evidence
 
 - reference-kana-popup-up.png: live reference popup after crossing the upward threshold.
-- frame-fixture.html: deterministic logical-frame viewer for up/down and corrected Enter→Paste.
+- frame-fixture.html: deterministic logical-frame viewer for QWERTY up/down.
 - Native v0.4 final images remain under docs/screenshots/v0.4/*-final.png; they are the baseline for the implementation phase.

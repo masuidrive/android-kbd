@@ -11,9 +11,9 @@
 </style>
 <div class="toolbar">
   <strong>正本HTML frame freeze</strong>
-  <div>状態 <button data-state="idle">idle</button><button data-state="up">上: 大文字</button><button data-state="down">下: 副文字</button><button data-state="enter">Enter→Paste補正版</button></div>
+  <div>状態 <button data-state="idle">idle</button><button data-state="up">上: 大文字</button><button data-state="down">下: 副文字</button></div>
   <div>progress <button data-p="0">0</button><button data-p=".25">.25</button><button data-p=".5">.5</button><button data-p=".75">.75</button><button data-p="1">1</button></div>
-  <div class="readout">正本の90ms endpointを、線形の論理progressで停止表示する。実時間のease曲線はdynamic-reference.md参照。Enter→Pasteだけは元HTMLのclass接続漏れを補正した意図表示。<span id="status"></span></div>
+  <div class="readout">正本の90ms endpointを、線形の論理progressで停止表示する。実時間のease曲線はdynamic-reference.md参照。Enterの現行表示は正本HTMLの十字popupを直接操作して確認する。<span id="status"></span></div>
 </div>
 <iframe src="../reference/mock-source.html" title="正本HTML"></iframe>
 <script>
@@ -22,14 +22,13 @@
   function apply(){
     const d=frame.contentDocument;if(!d)return;
     const root=d.querySelector('#ios-keyboard-demo');root.dataset.device='cover';
-    const q=d.querySelector('.key[data-key="q"]'),enter=d.querySelector('.key[data-key="return"]');
-    const qm=q&&q.querySelector('.key-main'),qa=q&&q.querySelector('.key-alt'),em=enter&&enter.querySelector('.key-main'),eh=enter&&enter.querySelector('.key-hint');
-    [q,enter].filter(Boolean).forEach(k=>k.classList.remove('pressed','flick-selected','uppercase-selected','mode-on'));
-    [qm,qa,em,eh].filter(Boolean).forEach(reset); if(qm)qm.textContent=state==='up'?'Q':'q';
+    const q=d.querySelector('.key[data-key="q"]');
+    const qm=q&&q.querySelector('.key-main'),qa=q&&q.querySelector('.key-alt');
+    [q].filter(Boolean).forEach(k=>k.classList.remove('pressed','flick-selected','uppercase-selected','mode-on'));
+    [qm,qa].filter(Boolean).forEach(reset); if(qm)qm.textContent=state==='up'?'Q':'q';
     if(state==='up'){qm.style.transform='translateY('+(-3*progress)+'px)';qa.style.opacity=String(1-progress)}
     else if(state==='down'){qm.style.transform='translateY('+(22*progress)+'px)';qm.style.opacity=String(1-progress);qa.style.transform='translateY('+(13*progress)+'px) scale('+(1+.7*progress)+')'}
-    else if(state==='enter'){em.style.transform='translateY('+(22*progress)+'px)';em.style.opacity=String(1-progress);eh.style.transform='translateY('+(13*progress)+'px) scale('+(1+.7*progress)+')';eh.style.color='#102844'}
-    const selected=state!=='idle'; if(selected)(state==='enter'?enter:q).classList.add('pressed');
+    const selected=state!=='idle'; if(selected)q.classList.add('pressed');
     if(state==='up'&&progress>0)qa.style.opacity='0';
     if(state==='up'||state==='down'){qm.style.color='#102844';qa.style.color='#102844'}
     document.querySelector('#status').textContent=' state='+state+' p='+progress;
