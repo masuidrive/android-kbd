@@ -576,7 +576,7 @@ class KeyboardViewVoicePunctuationTest {
         }
     }
 
-    @Test fun nonconvertingEnterUsesPasteUpAndControlJDownOnEveryProductionSurface() {
+    @Test fun nonconvertingEnterUsesTabLeftPasteUpAndControlJDownOnEveryProductionSurface() {
         ActivityScenario.launch(ImeTestActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
                 val actions = mutableListOf<KeyAction>()
@@ -612,12 +612,13 @@ class KeyboardViewVoicePunctuationTest {
                             ?.contentDescription?.toString().orEmpty()
                         assertTrue("$widthDp dp $mode accessibility Paste up", description.contains("上 paste"))
                         assertTrue("$widthDp dp $mode accessibility C-j down", description.contains("下 C-j"))
+                        assertTrue("$widthDp dp $mode accessibility Tab left", description.contains("左 Tab"))
 
                         val gestures: List<Pair<String, Triple<Float, Float, KeyAction?>>> = listOf(
                             "tap" to Triple(0f, 0f, KeyAction.Enter),
                             "up" to Triple(0f, -distance, KeyAction.Paste),
                             "down" to Triple(0f, distance, KeyAction.ModifiedKey("j", Modifier.CTRL)),
-                            "left" to Triple(-distance, 0f, KeyAction.Enter),
+                            "left" to Triple(-distance, 0f, KeyAction.Tab),
                             "right" to Triple(distance, 0f, KeyAction.Enter),
                         )
                         gestures.forEachIndexed { index, (name, gesture) ->
