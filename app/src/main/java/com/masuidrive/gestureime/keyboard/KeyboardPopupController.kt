@@ -153,8 +153,7 @@ class KeyboardPopupController(private val context: Context) {
 
     private fun popupKind(spec: KeySpec, accents: List<String>) = when {
         accents.isNotEmpty() -> PopupKind.ACCENT
-        spec.id == "voice-punct" -> PopupKind.KANA
-        spec.kind == KeyKind.KANA -> PopupKind.KANA
+        spec.usesDirectionalPopup() -> PopupKind.KANA
         spec.kind == KeyKind.MODIFIER -> PopupKind.MODIFIER
         else -> PopupKind.LETTER
     }

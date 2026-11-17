@@ -24,6 +24,26 @@ import org.robolectric.annotation.GraphicsMode
 class KeyboardPopupControllerTest {
     private val geometry = PopupGeometry(1f)
 
+    @Test fun `accent and enter use their assigned direction labels in the same cross popup`() {
+        val layouts = listOf(
+            KeyboardLayouts.layout(KeyboardMode.KANA),
+            KeyboardLayouts.layout(KeyboardMode.KANA, conversionActive = true),
+        )
+        val controller = KeyboardPopupController(RuntimeEnvironment.getApplication())
+        layouts.forEach { layout ->
+            layout.rows.flatMap { it.keys }.filter { it.kind == KeyKind.ACCENT || it.kind == KeyKind.ENTER }.forEach { spec ->
+                assertTrue(spec.usesDirectionalPopup())
+                assertEquals(PopupKind.KANA, controller.popupKindForTest(spec))
+                val renderer = KeyboardPopupRenderView(RuntimeEnvironment.getApplication(), geometry)
+                renderer.bind(PopupKind.KANA, spec, Direction.LEFT, emptyList(), 0,
+                    geometry.windowSize(PopupKind.KANA, 0), 7f, 7f)
+                assertEquals(Direction.entries.mapNotNull { direction ->
+                    spec.value(direction)?.label?.let { direction to it }
+                }.toMap(), renderer.tileLabelsForTest())
+            }
+        }
+    }
+
     @Test fun `accent hit index uses key left minus eight then padded tiles`() {
         val target = RectF(100f, 80f, 150f, 125f)
         val activity = Robolectric.buildActivity(Activity::class.java).setup().get()

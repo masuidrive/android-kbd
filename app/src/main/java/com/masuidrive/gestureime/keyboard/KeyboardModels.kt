@@ -27,6 +27,9 @@ data class KeySpec(
     val rowSpan: Int = 1,
     val dark: Boolean = false,
 ) {
+    fun usesDirectionalPopup(): Boolean = kind == KeyKind.KANA || kind == KeyKind.ACCENT ||
+        kind == KeyKind.ENTER || id == "voice-punct"
+
     fun value(direction: Direction): FlickValue? = when (direction) {
         Direction.CENTER -> center
         Direction.LEFT -> left

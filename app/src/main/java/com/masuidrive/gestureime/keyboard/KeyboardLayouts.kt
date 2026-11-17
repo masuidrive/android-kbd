@@ -167,6 +167,7 @@ object KeyboardLayouts {
             left = FlickValue("カタカナ", KeyAction.ConvertToKatakana),
             up = FlickValue("カタカナ", KeyAction.ConvertToKatakana), widthUnits = width, rowSpan = rowSpan)
     } else KeySpec("enter", KeyKind.ENTER, FlickValue("Enter", KeyAction.Enter),
+        left = FlickValue("Tab", KeyAction.Tab),
         up = FlickValue("paste", KeyAction.Paste),
         down = FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), widthUnits = width, rowSpan = rowSpan)
 

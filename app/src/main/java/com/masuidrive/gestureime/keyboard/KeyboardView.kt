@@ -1259,7 +1259,7 @@ class KeyboardView @JvmOverloads constructor(
     private fun syncPopup(id: Int) {
         val target = active[id] ?: return
         val direction = directions[id] ?: Direction.CENTER
-        val show = id in accentActive || target.spec.kind == KeyKind.KANA ||
+        val show = id in accentActive || target.spec.usesDirectionalPopup() ||
             isTextPreview(target.spec) || (target.spec.kind == KeyKind.MODIFIER && direction != Direction.CENTER)
         if (!show) {
             if (active.size <= 1) dismissPopup()

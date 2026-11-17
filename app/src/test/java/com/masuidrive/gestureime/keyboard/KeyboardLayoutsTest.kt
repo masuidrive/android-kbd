@@ -312,7 +312,7 @@ class KeyboardLayoutsTest {
             val enter = keys(mode).single { it.kind == KeyKind.ENTER }
             assertEquals(FlickValue("paste", KeyAction.Paste), enter.up)
             assertEquals(FlickValue("C-j", KeyAction.ModifiedKey("j", Modifier.CTRL)), enter.down)
-            assertNull(enter.left)
+            assertEquals(FlickValue("Tab", KeyAction.Tab), enter.left)
             assertNull(enter.right)
         }
 

@@ -865,6 +865,50 @@ class KeyboardViewTest {
         }.color)
     }
 
+    @Test fun `attached kana accent and enter route their assigned flicks and center return`() {
+        view.setMode(KeyboardMode.KANA)
+        val specs = KeyboardLayouts.layout(KeyboardMode.KANA).rows.flatMap { it.keys }
+        val accent = keyBounds(specs.indexOfFirst { it.kind == KeyKind.ACCENT })
+        val enter = keyBounds(specs.indexOfFirst { it.kind == KeyKind.ENTER })
+        val distance = 55f * view.resources.displayMetrics.density
+
+        performGesture(accent)
+        performGesture(accent, listOf(-distance to 0f), time = 10)
+        performGesture(accent, listOf(0f to -distance), time = 20)
+        performGesture(accent, listOf(distance to 0f), time = 30)
+        performGesture(accent, listOf(0f to distance), time = 40)
+        performGesture(accent, listOf(-distance to 0f, 0f to 0f), time = 50)
+        performGesture(accent, listOf(-distance to 0f), MotionEvent.ACTION_CANCEL, 60)
+        assertEquals(listOf(
+            KeyAction.TransformKana(KanaTransform.CYCLE),
+            KeyAction.TransformKana(KanaTransform.DAKUTEN),
+            KeyAction.TransformKana(KanaTransform.DAKUTEN),
+            KeyAction.TransformKana(KanaTransform.HANDAKUTEN),
+            KeyAction.TransformKana(KanaTransform.CYCLE),
+            KeyAction.TransformKana(KanaTransform.CYCLE),
+        ), actions)
+
+        actions.clear()
+        performGesture(enter)
+        performGesture(enter, listOf(-distance to 0f), time = 10)
+        performGesture(enter, listOf(0f to -distance), time = 20)
+        performGesture(enter, listOf(0f to distance), time = 30)
+        performGesture(enter, listOf(distance to 0f), time = 40)
+        performGesture(enter, listOf(-distance to 0f, 0f to 0f), time = 50)
+        performGesture(enter, listOf(-distance to 0f), MotionEvent.ACTION_CANCEL, 60)
+        assertEquals(listOf(KeyAction.Enter, KeyAction.Tab, KeyAction.Paste,
+            KeyAction.ModifiedKey("j", Modifier.CTRL), KeyAction.Enter, KeyAction.Enter), actions)
+
+        actions.clear()
+        view.setConversionActive(true)
+        val converting = keyBounds(specs.indexOfFirst { it.kind == KeyKind.ENTER })
+        performGesture(converting, listOf(-distance to 0f))
+        performGesture(converting, listOf(0f to -distance), time = 10)
+        performGesture(converting, listOf(0f to distance), time = 20)
+        assertEquals(listOf(KeyAction.ConvertToKatakana, KeyAction.ConvertToKatakana,
+            KeyAction.CommitWithoutConversion), actions)
+    }
+
     @Test fun `number symbol keys show only assigned directional hints and select them through the production view`() {
         view.setMode(KeyboardMode.NUMBERS)
         val keys = KeyboardLayouts.layout(KeyboardMode.NUMBERS).rows.flatMap { it.keys }
