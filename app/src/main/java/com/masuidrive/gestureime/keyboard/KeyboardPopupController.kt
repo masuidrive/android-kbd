@@ -224,7 +224,16 @@ internal class PopupGeometry(private val density: Float) {
         val desiredContentScreenY = screenLocation[1] + yInAnchor
         // Clamp the visual primitive first. Clamping only the larger shadow
         // surface would leave its content at a negative local offset.
-        val contentScreenX = desiredContentScreenX.coerceIn(visibleFrame.left.toFloat(), (visibleFrame.right - contentWidth).coerceAtLeast(visibleFrame.left.toFloat()))
+        // Keep the whole shadow surface inside the visible frame. Clamping the
+        // content alone left the right tile flush with the screen edge on Enter.
+        val horizontalMargin = dp(4f)
+        val minContentScreenX = visibleFrame.left + shadowHorizontalInset + horizontalMargin
+        val maxContentScreenX = visibleFrame.right - contentWidth - shadowHorizontalInset - horizontalMargin
+        val contentScreenX = if (maxContentScreenX >= minContentScreenX) {
+            desiredContentScreenX.coerceIn(minContentScreenX, maxContentScreenX)
+        } else {
+            desiredContentScreenX.coerceIn(visibleFrame.left.toFloat(), (visibleFrame.right - contentWidth).coerceAtLeast(visibleFrame.left.toFloat()))
+        }
         val contentScreenY = desiredContentScreenY.coerceIn(visibleFrame.top.toFloat(), (visibleFrame.bottom - contentHeight).coerceAtLeast(visibleFrame.top.toFloat()))
         val unclampedX = contentScreenX - shadowHorizontalInset
         val unclampedY = contentScreenY - shadowTopInset

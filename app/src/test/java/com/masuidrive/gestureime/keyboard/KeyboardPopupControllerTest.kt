@@ -70,8 +70,10 @@ class KeyboardPopupControllerTest {
         val position = placement.position
         val up = geometry.tileRect(Direction.UP, size, placement.contentOffsetX, placement.contentOffsetY)
 
-        assertEquals(236, position.x)
+        assertEquals(232, position.x)
         assertEquals(0, position.y)
+        val right = geometry.tileRect(Direction.RIGHT, size, placement.contentOffsetX, placement.contentOffsetY)
+        assertTrue(position.x + right.right <= 396f)
         assertTrue(up.top >= 0f)
         assertTrue(up.bottom <= size.height)
     }
